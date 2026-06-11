@@ -785,7 +785,7 @@ function App() {
                       <Route path="/super_admin_applicant_list" element={<ProtectedRoute><SuperAdminApplicantList /></ProtectedRoute>} />
                       <Route path="/application_process_admin" element={<ProtectedRoute><ApplicationProcessAdmin /></ProtectedRoute>} />
                       <Route path="/archived" element={<ProtectedRoute><Archived /></ProtectedRoute>} />
-                      <Route path="/application_super_admin" element={<ProtectedRoute><ApplicationSuperAdmin /></ProtectedRoute>} />
+                      <Route path="/application_process_super_admin" element={<ProtectedRoute><ApplicationSuperAdmin /></ProtectedRoute>} />
                       <Route path="/grade_conversion_admin" element={<ProtectedRoute><GradeConversionAdmin /></ProtectedRoute>} />
                       <Route path="/honors_report" element={<ProtectedRoute><HonorsReport /></ProtectedRoute>} />
                       <Route path="/proctor_applicant_list" element={<ProtectedRoute><ProctorApplicantList /></ProtectedRoute>} />

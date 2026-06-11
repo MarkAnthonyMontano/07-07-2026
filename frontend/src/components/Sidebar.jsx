@@ -273,14 +273,15 @@ function buildStyles(s = {}, hasDept = true, collapsed = false, isMobile = false
   transition:padding .34s cubic-bezier(.22,1,.36,1);
 }
 .sb-logout {
-  display:flex; align-items:center;
+  display:flex;
+  align-items:center;
   gap:${effectiveCollapsed ? "0" : "10px"};
   padding:${effectiveCollapsed ? "3px 0" : "8px 10px"};
-  border-radius:8px; cursor:pointer;
-  font-size:13px; font-weight:500; color:#111;
-  transition:background .18s ease, padding .34s cubic-bezier(.22,1,.36,1), gap .34s cubic-bezier(.22,1,.36,1);
-  justify-content:${effectiveCollapsed ? "center" : "flex-start"};
-  min-height: 44px;
+  border-radius:8px;
+  cursor:pointer;
+  font-size:13px;
+  font-weight:500;
+  color:white; /* changed from #111 */
 }
 .sb-logout:hover { background:${accent}; color:#fff; }
 .sb-logout-icon { color:#111; display:flex; align-items:center; }
@@ -799,7 +800,7 @@ const SideBar = ({
         { title: "Add Faculty Accounts", link: "/register_prof", icon: PersonAdd, page_id: 70 },
         { title: "Add Registrar Account", link: "/register_registrar", icon: AdminPanelSettings, page_id: 71 },
         { title: "Create Student Account", link: "/student_accounts", icon: School, page_id: 143 },
-        { title: "Add/Delete Applicant Account", link: "/application_super_admin", icon: School, page_id: 148 },
+        { title: "Add/Delete Applicant Account", link: "/application_process_super_admin", icon: School, page_id: 147 },
       ],
     },
     {
@@ -1169,10 +1170,24 @@ const SideBar = ({
 
         {/* ── footer ── */}
         <div className="sb-footer">
-          <Tooltip title={effectiveCollapsed ? "Logout" : ""} placement="right" arrow>
-            <div className="sb-logout" onClick={Logout}>
-              <span className="sb-logout-icon" style={{ ...ICON_CONTAINER_STYLE, border: "1.5px solid rgba(0,0,0,.08)" }}>
-                <LogoutOutlined sx={{ fontSize: SIDEBAR_ICON_SIZE }} />
+          <Tooltip
+            title={effectiveCollapsed ? "Logout" : ""}
+            placement="right"
+            arrow
+          >
+            <div
+              className="sb-logout"
+              onClick={Logout}
+              style={{ backgroundColor: "black" }}
+            >
+              <span
+                className="sb-logout-icon"
+                style={{
+                  ...ICON_CONTAINER_STYLE,
+                  border: "1.5px solid rgba(0,0,0,.08)",
+                }}
+              >
+                <LogoutOutlined sx={{ fontSize: SIDEBAR_ICON_SIZE, color: "white" }} />
               </span>
               <span className="sb-logout-label">Logout</span>
             </div>

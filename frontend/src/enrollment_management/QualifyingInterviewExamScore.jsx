@@ -3549,7 +3549,7 @@ Thank you, best regards
                   border: `1px solid ${borderColor}`,
                 }}
               >
-                Status
+                College Status
               </TableCell>
 
               <TableCell

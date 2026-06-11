@@ -422,43 +422,43 @@ const ApplicantList = () => {
     }
   };
 
- const handleSubmittedDocumentsChange = async (upload_id, checked, person_id) => {
-  try {
-    const res = await axios.put(
-      `${API_BASE_URL}/api/submitted-documents/${upload_id}`,
-      {
-        submitted_documents: checked ? 1 : 0,
-        user_person_id: localStorage.getItem("person_id"),
-      },
-      getAuditHeaders(),
-    );
+  const handleSubmittedDocumentsChange = async (upload_id, checked, person_id) => {
+    try {
+      const res = await axios.put(
+        `${API_BASE_URL}/api/submitted-documents/${upload_id}`,
+        {
+          submitted_documents: checked ? 1 : 0,
+          user_person_id: localStorage.getItem("person_id"),
+        },
+        getAuditHeaders(),
+      );
 
-    if (checked) {
-      await handleRegistrarStatusChange(person_id, 1);
+      if (checked) {
+        await handleRegistrarStatusChange(person_id, 1);
+        setSnack({
+          open: true,
+          message: "Original documents marked as Submitted ✅",
+          severity: "success",
+        });
+      } else {
+        await handleRegistrarStatusChange(person_id, 0);
+        setSnack({
+          open: true,
+          message: "Marked as Unsubmitted ❌",
+          severity: "warning",
+        });
+      }
+
+      fetchApplicants();
+    } catch (err) {
+      console.error("❌ Failed to update submitted documents:", err);
       setSnack({
         open: true,
-        message: "Original documents marked as Submitted ✅",
-        severity: "success",
-      });
-    } else {
-      await handleRegistrarStatusChange(person_id, 0);
-      setSnack({
-        open: true,
-        message: "Marked as Unsubmitted ❌",
-        severity: "warning",
+        message: "Failed to update submitted documents.",
+        severity: "error",
       });
     }
-
-    fetchApplicants();
-  } catch (err) {
-    console.error("❌ Failed to update submitted documents:", err);
-    setSnack({
-      open: true,
-      message: "Failed to update submitted documents.",
-      severity: "error",
-    });
-  }
-};
+  };
 
   const handleRegistrarStatusChange = async (person_id, status) => {
     try {
@@ -632,6 +632,82 @@ const ApplicantList = () => {
   };
 
   const isDuplicateApplicant = detectDuplicateNames(persons);
+
+  // ── Name normalizer: strips accents, special chars, spaces ──
+  const normalizeName = (v) =>
+    (v ?? "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")  // remove accents
+      .replace(/[^a-z0-9]/g, "");       // remove dots, commas, spaces, etc.
+
+  // ── DETECTOR 1: Suspicious name (special characters / slight variation) ──
+  // Catches: "Montano." vs "Montano", "De Leon" vs "DeLeon"
+  const detectSuspiciousDuplicates = (list) => {
+    const map = {};
+    for (const p of list) {
+      const ln = normalizeName(p.last_name);
+      const fn = normalizeName(p.first_name);
+      const bd = p.birthOfDate ? String(p.birthOfDate).split("T")[0] : "";
+      if (!ln || !fn) continue;
+      const key = `${ln}|${fn}|${bd}`;
+      if (!map[key]) map[key] = 0;
+      map[key]++;
+    }
+    return (person) => {
+      const ln = normalizeName(person.last_name);
+      const fn = normalizeName(person.first_name);
+      const bd = person.birthOfDate ? String(person.birthOfDate).split("T")[0] : "";
+      if (!ln || !fn) return false;
+      const key = `${ln}|${fn}|${bd}`;
+      // Only flag if normalized key has duplicates BUT exact name doesn't
+      // (so it doesn't overlap with isDuplicateApplicant)
+      const exactLn = cleanName(person.last_name);
+      const exactFn = cleanName(person.first_name);
+      const exactMn = cleanName(person.middle_name);
+      const exactKey = `${exactLn}|${exactFn}|${exactMn}`;
+      const exactMap = {};
+      for (const p of list) {
+        const k = `${cleanName(p.last_name)}|${cleanName(p.first_name)}|${cleanName(p.middle_name)}`;
+        if (!exactMap[k]) exactMap[k] = 0;
+        exactMap[k]++;
+      }
+      return map[key] > 1 && exactMap[exactKey] <= 1;
+    };
+  };
+
+  // ── DETECTOR 2: New account but someone with same name+birthday already took exam ──
+  // Catches: person registers fresh while their old account has email_sent=1 or exam_status=1
+  const detectExamTakenDuplicates = (list) => {
+    const examTakenKeys = new Set();
+    for (const p of list) {
+      const ln = normalizeName(p.last_name);
+      const fn = normalizeName(p.first_name);
+      const bd = p.birthOfDate ? String(p.birthOfDate).split("T")[0] : "";
+      if (!ln || !fn) continue;
+      if (Number(p.email_sent) === 1 || Number(p.exam_status) === 1) {
+        examTakenKeys.add(`${ln}|${fn}|${bd}`);
+      }
+    }
+    return (person) => {
+      const ln = normalizeName(person.last_name);
+      const fn = normalizeName(person.first_name);
+      const bd = person.birthOfDate ? String(person.birthOfDate).split("T")[0] : "";
+      if (!ln || !fn) return false;
+      const key = `${ln}|${fn}|${bd}`;
+      // Flag only the NEW account (hasn't taken exam yet)
+      return (
+        examTakenKeys.has(key) &&
+        Number(person.email_sent) !== 1 &&
+        Number(person.exam_status) !== 1
+      );
+    };
+  };
+
+  const isSuspiciousDuplicate = detectSuspiciousDuplicates(persons);
+  const isExamTakenDuplicate = detectExamTakenDuplicates(persons);
+
 
   // helper to make string comparisons robust
   const normalize = (s) => (s ?? "").toString().trim().toLowerCase();
@@ -1782,6 +1858,25 @@ const ApplicantList = () => {
                 </Select>
               </FormControl>
             </Box>
+
+          </Box>
+        </Box>
+
+        <Box display="flex" flexDirection="column" alignItems="center" gap={1} mb={1}>
+          <Typography fontSize={16} fontWeight="bold">Color Indication</Typography>
+          <Box display="flex" justifyContent="center" gap={2} flexWrap="wrap">
+            <Box display="flex" alignItems="center" gap={0.5}>
+              <Box sx={{ width: 16, height: 16, backgroundColor: "#A5D6A7", border: "1px solid #ccc", borderRadius: 0.5 }} />
+              <Typography fontSize={12}>Submitted Documents</Typography>
+            </Box>
+            <Box display="flex" alignItems="center" gap={0.5}>
+              <Box sx={{ width: 16, height: 16, backgroundColor: "#EF9A9A", border: "1px solid #ccc", borderRadius: 0.5 }} />
+              <Typography fontSize={12}>Exam Schedule Sent</Typography>
+            </Box>
+            <Box display="flex" alignItems="center" gap={0.5}>
+              <Box sx={{ width: 16, height: 16, backgroundColor: "#FFCC80", border: "1px solid #ccc", borderRadius: 0.5 }} />
+              <Typography fontSize={12}>Duplicate / Suspicious / Re-registration Detected</Typography>
+            </Box>
           </Box>
         </Box>
       </TableContainer>
@@ -2021,30 +2116,39 @@ const ApplicantList = () => {
             ) : (
               currentPersons.map((person, index) => (
                 <TableRow
-                  key={person.person_id}
-                  sx={{
-                    backgroundColor:
-                      Number(person.submitted_documents) === 1
-                        ? "#C8E6C9" // keep priority (green)
-                        : isDuplicateApplicant(person)
-                          ? "#FFA50080" // keep priority (orange)
-                          : index % 2 === 0
-                            ? "#ffffff" // white
-                            : "lightgray", // light gray
+                key={person.person_id}
+                sx={{
+                  backgroundColor: (() => {
+                    const hasSubmitted = Number(person.submitted_documents) === 1;
+                    const isAnyDuplicate =
+                      isDuplicateApplicant(person) ||
+                      isSuspiciousDuplicate(person) ||
+                      isExamTakenDuplicate(person);
+                    const hasExamSent = person.schedule_id && Number(person.email_sent) === 1;
 
+                    if (hasSubmitted) return "#A5D6A7";  // green     — submitted documents
+                    if (isAnyDuplicate) return "#FFCC80";  // medium salmon orange — duplicate / suspicious
+                    if (hasExamSent) return "#EF9A9A";  // sky blue  — exam schedule sent
+
+                    return index % 2 === 0 ? "#ffffff" : "lightgray";
+                  })(),
+
+                  color: "black",
+
+                  "& td:not(.clickable-cell)": {
                     color: "black",
+                  },
 
-                    "& td:not(.clickable-cell)": {
-                      color: "black",
-                    },
-
-                    fontWeight:
-                      Number(person.submitted_documents) === 1 ||
-                        isDuplicateApplicant(person)
-                        ? "bold"
-                        : "normal",
-                  }}
-                >
+                  fontWeight:
+                    Number(person.submitted_documents) === 1 ||
+                      isDuplicateApplicant(person) ||
+                      isSuspiciousDuplicate(person) ||
+                      isExamTakenDuplicate(person) ||
+                      (person.schedule_id && Number(person.email_sent) === 1)
+                      ? "bold"
+                      : "normal",
+                }}
+              >
                   {/* # */}
                   <TableCell
                     sx={{

@@ -1705,6 +1705,7 @@ app.get("/api/all-applicants", async (req, res) => {
         ees.room_description AS exam_room,
         ees.start_time AS exam_start_time,
         ees.end_time AS exam_end_time,
+        ea.email_sent,
 
         /* latest prioritized upload id for this person */
         ruprio.upload_id AS upload_id,
@@ -2129,6 +2130,7 @@ app.get("/api/person_with_applicant/:id", async (req, res) => {
         ees.room_description AS exam_room,
         ees.start_time AS exam_start_time,
         ees.end_time AS exam_end_time,
+        
         ees.proctor AS exam_proctor
       FROM person_table pt
       JOIN applicant_numbering_table ant ON pt.person_id = ant.person_id

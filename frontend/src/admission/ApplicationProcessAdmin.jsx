@@ -314,6 +314,81 @@ const ApplicationProcessAdmin = () => {
 
   const isDuplicateApplicant = detectDuplicateNames(persons);
 
+  // ── Name normalizer: strips accents, special chars, spaces ──
+  const normalizeName = (v) =>
+    (v ?? "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")  // remove accents
+      .replace(/[^a-z0-9]/g, "");       // remove dots, commas, spaces, etc.
+
+  // ── DETECTOR 1: Suspicious name (special characters / slight variation) ──
+  // Catches: "Montano." vs "Montano", "De Leon" vs "DeLeon"
+  const detectSuspiciousDuplicates = (list) => {
+    const map = {};
+    for (const p of list) {
+      const ln = normalizeName(p.last_name);
+      const fn = normalizeName(p.first_name);
+      const bd = p.birthOfDate ? String(p.birthOfDate).split("T")[0] : "";
+      if (!ln || !fn) continue;
+      const key = `${ln}|${fn}|${bd}`;
+      if (!map[key]) map[key] = 0;
+      map[key]++;
+    }
+    return (person) => {
+      const ln = normalizeName(person.last_name);
+      const fn = normalizeName(person.first_name);
+      const bd = person.birthOfDate ? String(person.birthOfDate).split("T")[0] : "";
+      if (!ln || !fn) return false;
+      const key = `${ln}|${fn}|${bd}`;
+      // Only flag if normalized key has duplicates BUT exact name doesn't
+      // (so it doesn't overlap with isDuplicateApplicant)
+      const exactLn = cleanName(person.last_name);
+      const exactFn = cleanName(person.first_name);
+      const exactMn = cleanName(person.middle_name);
+      const exactKey = `${exactLn}|${exactFn}|${exactMn}`;
+      const exactMap = {};
+      for (const p of list) {
+        const k = `${cleanName(p.last_name)}|${cleanName(p.first_name)}|${cleanName(p.middle_name)}`;
+        if (!exactMap[k]) exactMap[k] = 0;
+        exactMap[k]++;
+      }
+      return map[key] > 1 && exactMap[exactKey] <= 1;
+    };
+  };
+
+  // ── DETECTOR 2: New account but someone with same name+birthday already took exam ──
+  // Catches: person registers fresh while their old account has email_sent=1 or exam_status=1
+  const detectExamTakenDuplicates = (list) => {
+    const examTakenKeys = new Set();
+    for (const p of list) {
+      const ln = normalizeName(p.last_name);
+      const fn = normalizeName(p.first_name);
+      const bd = p.birthOfDate ? String(p.birthOfDate).split("T")[0] : "";
+      if (!ln || !fn) continue;
+      if (Number(p.email_sent) === 1 || Number(p.exam_status) === 1) {
+        examTakenKeys.add(`${ln}|${fn}|${bd}`);
+      }
+    }
+    return (person) => {
+      const ln = normalizeName(person.last_name);
+      const fn = normalizeName(person.first_name);
+      const bd = person.birthOfDate ? String(person.birthOfDate).split("T")[0] : "";
+      if (!ln || !fn) return false;
+      const key = `${ln}|${fn}|${bd}`;
+      // Flag only the NEW account (hasn't taken exam yet)
+      return (
+        examTakenKeys.has(key) &&
+        Number(person.email_sent) !== 1 &&
+        Number(person.exam_status) !== 1
+      );
+    };
+  };
+
+  const isSuspiciousDuplicate = detectSuspiciousDuplicates(persons);
+  const isExamTakenDuplicate = detectExamTakenDuplicates(persons);
+
   // Helper to compute applicant status
   const getApplicantStatus = (personData) => {
     const status = (personData.document_status ?? "").trim().toLowerCase();
@@ -1134,7 +1209,7 @@ const ApplicationProcessAdmin = () => {
         mb={2}
       >
         <Typography variant="h4" fontWeight="bold" sx={{ color: titleColor }}>
-          ADMISSION PROCESS FOR ADMIN
+          REQUEST ACCOUNT DELETION
         </Typography>
         <Box>
           <TextField
@@ -1555,20 +1630,37 @@ const ApplicationProcessAdmin = () => {
               </FormControl>
             </Box>
 
-            {/* <Typography fontSize={13} sx={{ minWidth: "140px" }}>Registrar Status:</Typography>
-                            <FormControl size="small" sx={{ width: "275px" }}>
-                                <Select
-                                    value={selectedRegistrarStatus}
-                                    onChange={(e) => setSelectedRegistrarStatus(e.target.value)}
-                                    displayEmpty
-                                >
-                                    <MenuItem value="">Select status</MenuItem>
-                                    <MenuItem value="Submitted">Submitted</MenuItem>
-                                    <MenuItem value="Unsubmitted / Incomplete">Unsubmitted / Incomplete</MenuItem>
-                                </Select>
-                            </FormControl>
+            {/* 
+                           <Typography fontSize={13} sx={{ minWidth: "140px" }}>Registrar Status:</Typography>
+                           <FormControl size="small" sx={{ width: "275px" }}>
+                               <Select
+                                   value={selectedRegistrarStatus}
+                                   onChange={(e) => setSelectedRegistrarStatus(e.target.value)}
+                                   displayEmpty
+                               >
+                                   <MenuItem value="">Select status</MenuItem>
+                                   <MenuItem value="Submitted">Submitted</MenuItem>
+                                   <MenuItem value="Unsubmitted / Incomplete">Unsubmitted / Incomplete</MenuItem>
+                               </Select>
+                           </FormControl> */}
 
-                    */}
+            <FormControl
+              size="small"
+              sx={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+              }}
+            >
+              <Checkbox
+                checked={showSubmittedOnly}
+                onChange={(e) => setShowSubmittedOnly(e.target.checked)}
+                sx={{ color: "maroon", "&.Mui-checked": { color: "maroon" } }}
+              />
+              <Typography fontSize={13}>Show Submitted Only</Typography>
+            </FormControl>
+
+
           </Box>
 
           {/* MIDDLE COLUMN: SY & Semester */}
@@ -1581,7 +1673,7 @@ const ApplicationProcessAdmin = () => {
                 <InputLabel id="school-year-label">School Years</InputLabel>
                 <Select
                   labelId="school-year-label"
-                  value={selectedSchoolYearValue}
+                  value={selectedSchoolYear}
                   onChange={handleSchoolYearChange}
                   displayEmpty
                 >
@@ -1592,9 +1684,7 @@ const ApplicationProcessAdmin = () => {
                       </MenuItem>
                     ))
                   ) : (
-                    <MenuItem value="" disabled>
-                      School Year is not found
-                    </MenuItem>
+                    <MenuItem disabled>School Year is not found</MenuItem>
                   )}
                 </Select>
               </FormControl>
@@ -1608,7 +1698,7 @@ const ApplicationProcessAdmin = () => {
                 <InputLabel>School Semester</InputLabel>
                 <Select
                   label="School Semester"
-                  value={selectedSchoolSemesterValue}
+                  value={selectedSchoolSemester}
                   onChange={handleSchoolSemesterChange}
                   displayEmpty
                 >
@@ -1619,9 +1709,7 @@ const ApplicationProcessAdmin = () => {
                       </MenuItem>
                     ))
                   ) : (
-                    <MenuItem value="" disabled>
-                      School Semester is not found
-                    </MenuItem>
+                    <MenuItem disabled>School Semester is not found</MenuItem>
                   )}
                 </Select>
               </FormControl>
@@ -1636,16 +1724,17 @@ const ApplicationProcessAdmin = () => {
               </Typography>
               <FormControl size="small" sx={{ width: "400px" }}>
                 <Select
-                  value={selectedDepartmentFilterValue}
-                  onChange={(e) => handleDepartmentChange(e.target.value)}
+                  value={selectedDepartmentFilter}
+                  onChange={(e) => {
+                    const selectedDept = e.target.value;
+                    setSelectedDepartmentFilter(selectedDept);
+                    handleDepartmentChange(selectedDept);
+                  }}
                   displayEmpty
                 >
-                  <MenuItem value="">All Departments</MenuItem>
-                  {filteredDepartments.map((dep) => (
-                    <MenuItem
-                      key={dep.dprtmnt_id}
-                      value={String(dep.dprtmnt_id)}
-                    >
+                  <MenuItem value="">Select College</MenuItem>
+                  {department.map((dep) => (
+                    <MenuItem key={dep.dprtmnt_id} value={dep.dprtmnt_name}>
                       {dep.dprtmnt_name} ({dep.dprtmnt_code})
                     </MenuItem>
                   ))}
@@ -1659,15 +1748,15 @@ const ApplicationProcessAdmin = () => {
               </Typography>
               <FormControl size="small" sx={{ width: "350px" }}>
                 <Select
-                  value={selectedProgramFilterValue}
-                  onChange={(e) => handleProgramFilterChange(e.target.value)}
+                  value={selectedProgramFilter}
+                  onChange={(e) => setSelectedProgramFilter(e.target.value)}
                   displayEmpty
                 >
                   <MenuItem value="">All Programs</MenuItem>
-                  {filteredCurriculumOptions.map((prog) => (
+                  {curriculumOptions.map((prog) => (
                     <MenuItem
                       key={prog.curriculum_id}
-                      value={String(prog.curriculum_id)}
+                      value={prog.program_code}
                     >
                       {prog.program_code} - {prog.program_description}
                     </MenuItem>
@@ -1675,38 +1764,25 @@ const ApplicationProcessAdmin = () => {
                 </Select>
               </FormControl>
             </Box>
-          </Box>
-          <FormControl
-            fullWidth
-            size="small"
-            sx={{
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            {/* LEFT SIDE */}
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              <Checkbox
-                checked={showSubmittedOnly}
-                onChange={(e) => setShowSubmittedOnly(e.target.checked)}
-                sx={{
-                  color: "maroon",
-                  "&.Mui-checked": {
-                    color: "maroon",
-                  },
-                }}
-              />
 
-              <Typography fontSize={13}>Show Submitted Only</Typography>
+          </Box>
+        </Box>
+        <Box display="flex" flexDirection="column" alignItems="center" gap={1} mb={1}>
+          <Typography fontSize={16} fontWeight="bold">Color Indication</Typography>
+          <Box display="flex" justifyContent="center" gap={2} flexWrap="wrap">
+            <Box display="flex" alignItems="center" gap={0.5}>
+              <Box sx={{ width: 16, height: 16, backgroundColor: "#A5D6A7", border: "1px solid #ccc", borderRadius: 0.5 }} />
+              <Typography fontSize={12}>Submitted Documents</Typography>
             </Box>
-          </FormControl>
+            <Box display="flex" alignItems="center" gap={0.5}>
+              <Box sx={{ width: 16, height: 16, backgroundColor: "#EF9A9A", border: "1px solid #ccc", borderRadius: 0.5 }} />
+              <Typography fontSize={12}>Exam Schedule Sent</Typography>
+            </Box>
+            <Box display="flex" alignItems="center" gap={0.5}>
+              <Box sx={{ width: 16, height: 16, backgroundColor: "#FFCC80", border: "1px solid #ccc", borderRadius: 0.5 }} />
+              <Typography fontSize={12}>Duplicate / Suspicious / Re-registration Detected</Typography>
+            </Box>
+          </Box>
         </Box>
       </TableContainer>
 
@@ -1925,14 +2001,20 @@ const ApplicationProcessAdmin = () => {
               <TableRow
                 key={person.person_id}
                 sx={{
-                  backgroundColor:
-                    Number(person.submitted_documents) === 1
-                      ? "#C8E6C9" // keep priority (green)
-                      : isDuplicateApplicant(person)
-                        ? "#FFA50080" // keep priority (orange)
-                        : index % 2 === 0
-                          ? "#ffffff" // white
-                          : "lightgray", // light gray
+                  backgroundColor: (() => {
+                    const hasSubmitted = Number(person.submitted_documents) === 1;
+                    const isAnyDuplicate =
+                      isDuplicateApplicant(person) ||
+                      isSuspiciousDuplicate(person) ||
+                      isExamTakenDuplicate(person);
+                    const hasExamSent = person.schedule_id && Number(person.email_sent) === 1;
+
+                    if (hasSubmitted) return "#A5D6A7";  // green     — submitted documents
+                    if (isAnyDuplicate) return "#FFCC80";  // medium salmon orange — duplicate / suspicious
+                    if (hasExamSent) return "#EF9A9A";  // sky blue  — exam schedule sent
+
+                    return index % 2 === 0 ? "#ffffff" : "lightgray";
+                  })(),
 
                   color: "black",
 
@@ -1942,7 +2024,10 @@ const ApplicationProcessAdmin = () => {
 
                   fontWeight:
                     Number(person.submitted_documents) === 1 ||
-                      isDuplicateApplicant(person)
+                      isDuplicateApplicant(person) ||
+                      isSuspiciousDuplicate(person) ||
+                      isExamTakenDuplicate(person) ||
+                      (person.schedule_id && Number(person.email_sent) === 1)
                       ? "bold"
                       : "normal",
                 }}
