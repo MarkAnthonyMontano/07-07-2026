@@ -18,7 +18,8 @@ import {
   Button,
   Checkbox,
   FormControlLabel,
-  MenuItem
+  MenuItem,
+  CircularProgress,
 } from "@mui/material";
 import {
   Email as EmailIcon,
@@ -29,6 +30,8 @@ import {
   ArrowDropDown as ArrowDropDownIcon,
   Badge as BadgeIcon,
   Cake as CakeIcon,
+  PhoneAndroid as PhoneAndroidIcon,
+  CheckCircle as CheckCircleIcon,
 } from "@mui/icons-material";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
@@ -45,6 +48,7 @@ import RedirectLoading from "../components/RedirectLoading";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import Autocomplete from "@mui/material/Autocomplete";
 import { motion, AnimatePresence } from "framer-motion";
+import MuiLink from "@mui/material/Link";
 
 /* ─── Mobile breakpoint hook ─── */
 const useIsMobile = (bp = 768) => {
@@ -69,7 +73,6 @@ const FormattedContent = ({ text, style = {} }) => {
         const trimmed = line.trim();
         if (!trimmed) return <div key={i} style={{ height: "5px" }} />;
 
-        /* Sub-bullet: leading spaces then bullet char */
         const subBullet = line.match(/^[\s\t]{2,}[•*\-–]\s+(.*)/);
         if (subBullet) {
           return (
@@ -80,7 +83,6 @@ const FormattedContent = ({ text, style = {} }) => {
           );
         }
 
-        /* Main bullet */
         const bullet = trimmed.match(/^[•*\-–]\s+(.*)/);
         if (bullet) {
           return (
@@ -91,7 +93,6 @@ const FormattedContent = ({ text, style = {} }) => {
           );
         }
 
-        /* Hashtag lines */
         if (trimmed.startsWith("#")) {
           return (
             <p key={i} style={{ margin: "4px 0 0", color: "rgba(255,255,255,0.45)", fontSize: "11.5px", lineHeight: 1.5 }}>
@@ -146,7 +147,6 @@ const AnnouncementViewerModal = ({ slides, startIndex, onClose }) => {
       background: "rgba(0,0,0,0.97)",
       display: "flex", flexDirection: "column",
     }}>
-      {/* ── Top Bar ── */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "10px 14px", background: "rgba(0,0,0,0.8)", flexShrink: 0,
@@ -180,10 +180,8 @@ const AnnouncementViewerModal = ({ slides, startIndex, onClose }) => {
         </div>
       </div>
 
-      {/* ── Image Area ── */}
       {hasImage && (
         <div style={{
-          /* When content panel is open, shrink image; otherwise let it flex */
           flex: showContent ? "0 0 45%" : "1 1 auto",
           position: "relative", overflow: "hidden",
           display: "flex", alignItems: "center", justifyContent: "center",
@@ -246,7 +244,6 @@ const AnnouncementViewerModal = ({ slides, startIndex, onClose }) => {
             </motion.div>
           </AnimatePresence>
 
-          {/* Zoom hint */}
           {scale > 1 && (
             <div style={{
               position: "absolute", bottom: 10, left: "50%", transform: "translateX(-50%)",
@@ -259,7 +256,6 @@ const AnnouncementViewerModal = ({ slides, startIndex, onClose }) => {
         </div>
       )}
 
-      {/* ── Content Toggle Tab (only if there's content) ── */}
       {hasContent && (
         <button
           onClick={() => setShowContent((v) => !v)}
@@ -286,7 +282,6 @@ const AnnouncementViewerModal = ({ slides, startIndex, onClose }) => {
         </button>
       )}
 
-      {/* ── Content Panel ── */}
       {hasContent && showContent && (
         <div style={{
           flex: hasImage ? "0 0 auto" : "1 1 auto",
@@ -306,7 +301,6 @@ const AnnouncementViewerModal = ({ slides, startIndex, onClose }) => {
         </div>
       )}
 
-      {/* ── Bottom Bar: dots + counter ── */}
       <div style={{
         padding: "10px 14px", background: "rgba(0,0,0,0.8)",
         display: "flex", alignItems: "center", justifyContent: "center",
@@ -345,7 +339,6 @@ const MobileAnnouncementBanner = ({ slides }) => {
     return () => clearTimeout(t);
   }, [index, slides.length]);
 
-  /* Reset expanded state when slide changes */
   useEffect(() => { setExpandedContent(false); }, [index]);
 
   if (!slides.length) return null;
@@ -380,7 +373,6 @@ const MobileAnnouncementBanner = ({ slides }) => {
         />
       )}
 
-      {/* Toggle button when hidden */}
       {!bannerVisible && (
         <button onClick={() => setBannerVisible(true)} style={{
           width: "100%", marginBottom: "14px", padding: "10px",
@@ -404,10 +396,8 @@ const MobileAnnouncementBanner = ({ slides }) => {
           background: "#000",
           border: "1.5px solid rgba(0,0,0,0.15)",
         }}>
-          {/* ── Image section ── */}
           {hasImage && (
             <div style={{ position: "relative", aspectRatio: "16 / 9", background: "#000" }}>
-              {/* Close */}
               <button onClick={() => setBannerVisible(false)} style={{
                 position: "absolute", top: 8, right: 8, zIndex: 20,
                 background: "rgba(0,0,0,0.6)", border: "none", borderRadius: "50%",
@@ -417,7 +407,6 @@ const MobileAnnouncementBanner = ({ slides }) => {
                 <CloseIcon sx={{ fontSize: 14 }} />
               </button>
 
-              {/* View fullscreen */}
               <button onClick={handleOpenViewer} style={{
                 position: "absolute", top: 8, left: 8, zIndex: 20,
                 background: "rgba(0,0,0,0.6)", border: "none", borderRadius: "20px",
@@ -429,7 +418,6 @@ const MobileAnnouncementBanner = ({ slides }) => {
                 View
               </button>
 
-              {/* Prev */}
               <button onClick={goPrev} style={{
                 position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)",
                 zIndex: 10, background: "rgba(0,0,0,0.55)", border: "none", borderRadius: "50%",
@@ -439,7 +427,6 @@ const MobileAnnouncementBanner = ({ slides }) => {
                 <ArrowBackIosNewIcon sx={{ fontSize: 16 }} />
               </button>
 
-              {/* Next */}
               <button onClick={goNext} style={{
                 position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
                 zIndex: 10, background: "rgba(0,0,0,0.55)", border: "none", borderRadius: "50%",
@@ -475,7 +462,6 @@ const MobileAnnouncementBanner = ({ slides }) => {
                     }}
                     draggable={false}
                   />
-                  {/* Title gradient overlay */}
                   <div style={{
                     position: "absolute", bottom: 0, width: "100%",
                     padding: "1.8rem 0.9rem 0.6rem",
@@ -489,7 +475,6 @@ const MobileAnnouncementBanner = ({ slides }) => {
                 </motion.div>
               </AnimatePresence>
 
-              {/* Dots */}
               {slides.length > 1 && (
                 <div style={{
                   position: "absolute", bottom: 8, right: 10,
@@ -508,7 +493,6 @@ const MobileAnnouncementBanner = ({ slides }) => {
             </div>
           )}
 
-          {/* ── Content toggle button ── */}
           {hasContent && (
             <button
               onClick={() => setExpandedContent((v) => !v)}
@@ -546,7 +530,6 @@ const MobileAnnouncementBanner = ({ slides }) => {
             </button>
           )}
 
-          {/* ── Expanded content panel ── */}
           {hasContent && expandedContent && (
             <div style={{
               background: "linear-gradient(160deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%)",
@@ -571,6 +554,464 @@ const MobileAnnouncementBanner = ({ slides }) => {
         </div>
       )}
     </>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════
+   TOTP SETUP MODAL
+   - Step 1: show QR code for user to scan
+   - Step 2: user enters the 6-digit code to confirm setup,
+             then the full /register call is made
+════════════════════════════════════════════════════════════ */
+const TotpSetupModal = ({
+  open,
+  onClose,
+  onSuccess,
+  email,
+  mainButtonColor,
+  isMobile,
+  // All the registration payload fields passed through
+  registrationPayload,
+}) => {
+  // step: "loading" | "scan" | "verify" | "submitting"
+  const [step, setStep] = useState("loading");
+  const [qrDataUrl, setQrDataUrl] = useState("");
+  const [manualKey, setManualKey] = useState("");
+  const [showManualKey, setShowManualKey] = useState(false);
+  const [totpCode, setTotpCode] = useState(["", "", "", "", "", ""]);
+  const [error, setError] = useState("");
+  const [snack, setSnack] = useState({ open: false, message: "", severity: "info" });
+  const inputRefs = useRef([]);
+
+  // Fetch QR code as soon as modal opens
+  useEffect(() => {
+    if (!open || !email) return;
+    setStep("loading");
+    setError("");
+    setTotpCode(["", "", "", "", "", ""]);
+    setShowManualKey(false);
+
+    axios
+      .post(`${API_BASE_URL}/api/register-totp-setup`, { email })
+      .then((res) => {
+        if (res.data.success) {
+          setQrDataUrl(res.data.qrDataUrl);
+          setManualKey(res.data.manualKey);
+          setStep("scan");
+        } else {
+          setError(res.data.message || "Failed to generate QR code.");
+          setStep("scan"); // show error in modal
+        }
+      })
+      .catch((err) => {
+        setError(err.response?.data?.message || "Failed to generate authenticator setup.");
+        setStep("scan");
+      });
+  }, [open, email]);
+
+  const handleDigitChange = (value, index) => {
+    if (!/^\d?$/.test(value)) return;
+    const next = [...totpCode];
+    next[index] = value;
+    setTotpCode(next);
+    if (value && index < 5) inputRefs.current[index + 1]?.focus();
+  };
+
+  const handleDigitKeyDown = (e, index) => {
+    if (e.key === "Backspace") {
+      if (totpCode[index]) {
+        const next = [...totpCode];
+        next[index] = "";
+        setTotpCode(next);
+      } else if (index > 0) {
+        inputRefs.current[index - 1]?.focus();
+      }
+    }
+    if (e.key === "Enter") handleVerifyAndRegister();
+  };
+
+  const handleVerifyAndRegister = async () => {
+    const code = totpCode.join("");
+    if (!/^\d{6}$/.test(code)) {
+      setError("Please enter the complete 6-digit code from Google Authenticator.");
+      return;
+    }
+    setError("");
+    setStep("submitting");
+
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/register`, {
+        ...registrationPayload,
+        otp: code,
+      });
+
+      if (!response.data.success) {
+        setError(response.data.message || "Registration failed.");
+        setStep("verify");
+        return;
+      }
+
+      onSuccess(response.data);
+    } catch (err) {
+      setError(err.response?.data?.message || "Something went wrong. Please try again.");
+      setStep("verify");
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <Modal open={open} onClose={step === "submitting" ? undefined : onClose}>
+      <Box sx={{
+        position: "absolute", top: "50%", left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: isMobile ? "calc(100% - 32px)" : 480,
+        maxWidth: 480,
+        bgcolor: "#fff",
+        borderRadius: "20px",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
+        p: isMobile ? 3 : 4,
+        border: "1px solid #eee",
+        outline: "none",
+        maxHeight: "90vh",
+        overflowY: "auto",
+      }}>
+        {/* Close button */}
+        {step !== "submitting" && (
+          <button
+            onClick={onClose}
+            style={{
+              position: "absolute", top: "12px", right: "12px",
+              backgroundColor: "black", color: "white", border: "none",
+              borderRadius: "50%", width: "34px", height: "34px",
+              cursor: "pointer", fontSize: "16px", fontWeight: "bold",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            ✕
+          </button>
+        )}
+
+        {/* ── Loading state ── */}
+        {step === "loading" && (
+          <Box sx={{ textAlign: "center", py: 5 }}>
+            <CircularProgress sx={{ color: mainButtonColor }} />
+            <Typography sx={{ mt: 2, color: "#666", fontSize: "14px" }}>
+              Generating your authenticator QR code…
+            </Typography>
+          </Box>
+        )}
+
+        {/* ── Scan QR step ── */}
+        {step === "scan" && (
+          <>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
+              <Box sx={{
+                width: 42, height: 42, borderRadius: "50%",
+                bgcolor: mainButtonColor,
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                <PhoneAndroidIcon sx={{ color: "#fff", fontSize: 22 }} />
+              </Box>
+              <Box>
+                <Typography fontWeight={700} fontSize={isMobile ? 15 : 17}>
+                  Set Up Google Authenticator
+                </Typography>
+                <Typography fontSize={12} color="#888">
+                  Step 1 of 2 — Scan the QR code
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box
+              sx={{
+                bgcolor: "#f8f9ff",
+                borderRadius: "12px",
+                p: 2,
+                mb: 2.5,
+                border: "1px solid #e8eaff",
+              }}
+            >
+              {/* ── FIXED: each step on its own clear line ── */}
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
+
+                {/* Step 1 label */}
+                <Typography fontSize={13} color="#444" fontWeight={600}>
+                  1. Download and install <strong>Google Authenticator</strong>:
+                </Typography>
+
+                {/* Download buttons — each on its own row */}
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, pl: 1 }}>
+                  <Box sx={{
+                    display: "flex", alignItems: "center", gap: 1,
+                    bgcolor: "#fff", border: "1px solid #dde3ff",
+                    borderRadius: "8px", px: 1.5, py: 1,
+                  }}>
+                    <span style={{ fontSize: 18, lineHeight: 1 }}>📱</span>
+                    <MuiLink
+                      href="https://apps.apple.com/app/google-authenticator/id388497605"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      underline="always"
+                      fontWeight="bold"
+                      fontSize={13}
+                      color="inherit"
+                    >
+                      App Store <span style={{ fontWeight: 400, color: "#888" }}>(iPhone / iPad)</span>
+                    </MuiLink>
+                  </Box>
+
+                  <Box sx={{
+                    display: "flex", alignItems: "center", gap: 1,
+                    bgcolor: "#fff", border: "1px solid #dde3ff",
+                    borderRadius: "8px", px: 1.5, py: 1,
+                  }}>
+                    <span style={{ fontSize: 18, lineHeight: 1 }}>🤖</span>
+                    <MuiLink
+                      href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      underline="always"
+                      fontWeight="bold"
+                      fontSize={13}
+                      color="inherit"
+                    >
+                      Google Play <span style={{ fontWeight: 400, color: "#888" }}>(Android)</span>
+                    </MuiLink>
+                  </Box>
+                </Box>
+
+                {/* Step 2 */}
+                <Typography fontSize={13} color="#444" lineHeight={1.6}>
+                  <strong>2.</strong> Open the app → tap <strong>"+"</strong> → <strong>"Scan a QR code"</strong>.
+                </Typography>
+
+                {/* Step 3 */}
+                <Typography fontSize={13} color="#444" lineHeight={1.6}>
+                  <strong>3.</strong> Scan the QR code below.
+                </Typography>
+
+              </Box>
+            </Box>
+
+            {/* QR code display */}
+            {error ? (
+              <Box sx={{
+                border: "1px solid #f44336", borderRadius: "12px",
+                p: 2, mb: 2.5, textAlign: "center",
+              }}>
+                <Typography color="error" fontSize={13}>{error}</Typography>
+              </Box>
+            ) : (
+              <Box sx={{ textAlign: "center", mb: 2.5 }}>
+                {qrDataUrl ? (
+                  <img
+                    src={qrDataUrl}
+                    alt="Google Authenticator QR Code"
+                    style={{
+                      width: isMobile ? 180 : 210,
+                      height: isMobile ? 180 : 210,
+                      border: "3px solid #000",
+                      borderRadius: "12px",
+                      display: "inline-block",
+                    }}
+                  />
+                ) : (
+                  <Box sx={{
+                    width: 210, height: 210,
+                    bgcolor: "#f5f5f5", borderRadius: "12px",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    mx: "auto",
+                  }}>
+                    <CircularProgress size={32} sx={{ color: mainButtonColor }} />
+                  </Box>
+                )}
+              </Box>
+            )}
+
+            {/* Manual key fallback */}
+            {manualKey && (
+              <Box sx={{ mb: 2.5 }}>
+                <button
+                  onClick={() => setShowManualKey((v) => !v)}
+                  style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    color: mainButtonColor, fontSize: "13px", fontWeight: 600,
+                    padding: 0, textDecoration: "underline",
+                  }}
+                >
+                  {showManualKey ? "Hide manual key" : "Can't scan? Enter key manually"}
+                </button>
+                {showManualKey && (
+                  <Box sx={{
+                    mt: 1, p: "10px 14px",
+                    bgcolor: "#f5f5f5", borderRadius: "8px",
+                    border: "1px solid #ddd",
+                    fontFamily: "monospace",
+                    fontSize: isMobile ? "12px" : "13.5px",
+                    letterSpacing: "0.08em",
+                    color: "#222",
+                    wordBreak: "break-all",
+                    userSelect: "all",
+                  }}>
+                    {manualKey}
+                  </Box>
+                )}
+                {showManualKey && (
+                  <Typography fontSize={11.5} color="#888" sx={{ mt: 0.5 }}>
+                    In Google Authenticator: tap + → Enter a setup key → paste this key, select "Time based".
+                  </Typography>
+                )}
+              </Box>
+            )}
+
+            {/* Warning about 10-min expiry */}
+            <Box sx={{
+              display: "flex", gap: 1, alignItems: "flex-start",
+              bgcolor: "#fffbf2", border: "1px solid #f5a623",
+              borderRadius: "8px", p: 1.5, mb: 2.5,
+            }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>⏱️</span>
+              <Typography fontSize={12} color="#5d4037" lineHeight={1.5}>
+                This QR code expires in <strong>10 minutes</strong>. If it expires, close this dialog and click "Submit Application" again.
+              </Typography>
+            </Box>
+
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={() => {
+                setStep("verify");
+                setError("");
+                setTotpCode(["", "", "", "", "", ""]);
+                setTimeout(() => inputRefs.current[0]?.focus(), 150);
+              }}
+              disabled={!!error || !qrDataUrl}
+              sx={{
+                backgroundColor: mainButtonColor,
+                color: "#fff", fontWeight: 700,
+                fontSize: "15px", borderRadius: "12px",
+                py: 1.5, textTransform: "none",
+                "&:hover": { backgroundColor: mainButtonColor, opacity: 0.92 },
+              }}
+            >
+              I've scanned it — Enter the code →
+            </Button>
+          </>
+        )}
+
+        {/* ── Verify code step ── */}
+        {(step === "verify" || step === "submitting") && (
+          <>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
+              <Box sx={{
+                width: 42, height: 42, borderRadius: "50%",
+                bgcolor: mainButtonColor,
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                <CheckCircleIcon sx={{ color: "#fff", fontSize: 22 }} />
+              </Box>
+              <Box>
+                <Typography fontWeight={700} fontSize={isMobile ? 15 : 17}>
+                  Enter Authenticator Code
+                </Typography>
+                <Typography fontSize={12} color="#888">
+                  Step 2 of 2 — Confirm & complete registration
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box sx={{
+              bgcolor: "#f8f9ff", borderRadius: "12px",
+              p: 2, mb: 2.5, border: "1px solid #e8eaff",
+            }}>
+              <Typography fontSize={13} color="#444" lineHeight={1.7}>
+                Open <strong>Google Authenticator</strong> on your phone and enter the <strong>6-digit code</strong> shown for this account.
+              </Typography>
+              <Typography fontSize={12} color="#888" sx={{ mt: 0.5 }}>
+                The code refreshes every 30 seconds — use the current one.
+              </Typography>
+            </Box>
+
+            {/* 6-digit input boxes */}
+            <Box sx={{ display: "flex", justifyContent: "center", gap: isMobile ? 1 : 1.5, mb: 2.5 }}>
+              {totpCode.map((digit, index) => (
+                <input
+                  key={index}
+                  ref={(el) => (inputRefs.current[index] = el)}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleDigitChange(e.target.value, index)}
+                  onKeyDown={(e) => handleDigitKeyDown(e, index)}
+                  disabled={step === "submitting"}
+                  style={{
+                    width: isMobile ? "42px" : "54px",
+                    height: isMobile ? "52px" : "62px",
+                    fontSize: "24px",
+                    fontWeight: 700,
+                    textAlign: "center",
+                    borderRadius: "12px",
+                    border: error ? "2px solid #f44336" : "2px solid #ddd",
+                    outline: "none",
+                    background: step === "submitting" ? "#f5f5f5" : "#fff",
+                    transition: "border 0.2s",
+                  }}
+                />
+              ))}
+            </Box>
+
+            {error && (
+              <Box sx={{
+                bgcolor: "#fff5f5", border: "1px solid #f44336",
+                borderRadius: "8px", p: 1.5, mb: 2,
+              }}>
+                <Typography fontSize={13} color="#c62828">{error}</Typography>
+              </Box>
+            )}
+
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={handleVerifyAndRegister}
+              disabled={step === "submitting"}
+              sx={{
+                backgroundColor: mainButtonColor,
+                color: "#fff", fontWeight: 700,
+                fontSize: "15px", borderRadius: "12px",
+                py: 1.5, textTransform: "none", mb: 1.5,
+                "&:hover": { backgroundColor: mainButtonColor, opacity: 0.92 },
+              }}
+            >
+              {step === "submitting" ? (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                  <CircularProgress size={18} sx={{ color: "#fff" }} />
+                  Registering…
+                </Box>
+              ) : "Verify & Complete Registration"}
+            </Button>
+
+            {/* Back to QR scan */}
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={() => { setStep("scan"); setError(""); }}
+              disabled={step === "submitting"}
+              sx={{
+                fontWeight: 600, fontSize: "13px",
+                borderRadius: "12px", py: 1.25,
+                textTransform: "none", color: "#555",
+                borderColor: "#ddd",
+                "&:hover": { borderColor: "#bbb", bgcolor: "#fafafa" },
+              }}
+            >
+              ← Back to QR code
+            </Button>
+          </>
+        )}
+      </Box>
+    </Modal>
   );
 };
 
@@ -625,12 +1066,6 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [snack, setSnack] = useState({ open: false, message: "", severity: "info" });
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const otpRefs = useRef([]);
-  const [showOtpModal, setShowOtpModal] = useState(false);
-  const [resendTimer, setResendTimer] = useState(180);
-  const [loadingOtp, setLoadingOtp] = useState(false);
-  const [tempEmail, setTempEmail] = useState("");
   const navigate = useNavigate();
 
   const handleChanges = (e) => {
@@ -664,6 +1099,15 @@ const Register = () => {
   const [branches, setBranches] = useState([]);
   const [branchId, setBranchId] = useState("");
 
+  // ── NEW: TOTP modal state ──────────────────────────────────────────────────
+  const [showTotpModal, setShowTotpModal] = useState(false);
+  const [tempEmail, setTempEmail] = useState("");
+  // Snapshot of the full payload to pass into TotpSetupModal
+  const [registrationPayload, setRegistrationPayload] = useState(null);
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const [redirectLoading, setRedirectLoading] = useState(false);
+
   // Mobile slides
   const [mobileSlides, setMobileSlides] = useState([]);
   useEffect(() => {
@@ -685,71 +1129,7 @@ const Register = () => {
       .catch((err) => console.error("Error fetching curriculum options:", err));
   }, []);
 
-  const handleOtpChange = (value, index) => {
-    if (!/^\d?$/.test(value)) return;
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-    if (value && index < 5) otpRefs.current[index + 1]?.focus();
-  };
-
-  const handleOtpKeyDown = (e, index) => {
-    if (e.key === "Backspace") {
-      if (otp[index]) {
-        const newOtp = [...otp];
-        newOtp[index] = "";
-        setOtp(newOtp);
-      } else if (index > 0) {
-        otpRefs.current[index - 1]?.focus();
-      }
-    }
-    if (e.key === "Enter" && !loadingOtp) verifyOtp();
-  };
-
   const [errors, setErrors] = useState({});
-
-  const handleRegister = async () => {
-    if (isSubmitting) return;
-    if (!reminderChecked) {
-      setSnack({ open: true, message: "You must agree to the Terms and Conditions before registering.", severity: "warning" });
-      return;
-    }
-    if (!isFormValid()) {
-      setSnack({ open: true, message: "Please fill up all required fields!", severity: "warning" });
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!branchId || !registrationOpen) {
-      setSnack({ open: true, message: "Registration is closed for this campus.", severity: "error" });
-      return;
-    }
-    if (!emailRegex.test(usersData.email)) {
-      setSnack({ open: true, message: "Please enter a valid email address!", severity: "error" });
-      return;
-    }
-    if (usersData.password !== confirmPassword) {
-      setSnack({ open: true, message: "Passwords do not match!", severity: "error" });
-      return;
-    }
-    const normalizedEmail = usersData.email.trim().toLowerCase();
-    setIsSubmitting(true);
-    try {
-      await axios.post(`${API_BASE_URL}/api/check-registration-duplicate`, {
-        email: normalizedEmail, firstName, lastName, birthday,
-      });
-      await axios.post(`${API_BASE_URL}/api/request-otp`, { email: normalizedEmail, audit_log_db: "db" });
-      setTempEmail(normalizedEmail);
-      setOtp(["", "", "", "", "", ""]);
-      setShowOtpModal(true);
-      startResendTimer();
-      setSnack({ open: true, message: "OTP sent to your email", severity: "success" });
-      setTimeout(() => otpRefs.current[0]?.focus(), 150);
-    } catch (error) {
-      setSnack({ open: true, message: error.response?.data?.message || "Failed to send OTP", severity: "error" });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const [programAvailability, setProgramAvailability] = useState([]);
   const [activeSchoolYearId, setActiveSchoolYearId] = useState(null);
@@ -809,56 +1189,81 @@ const Register = () => {
 
   const getIconTop = (hasError) => hasError ? "55%" : "70%";
 
-  const startResendTimer = () => {
-    setResendTimer(60);
-    const interval = setInterval(() => {
-      setResendTimer((prev) => {
-        if (prev <= 1) { clearInterval(interval); return 0; }
-        return prev - 1;
-      });
-    }, 1000);
-  };
+  // ── UPDATED: handleRegister now opens TotpSetupModal instead of email OTP ─
+  const handleRegister = async () => {
+    if (isSubmitting) return;
 
-  const resendOtp = async () => {
-    try {
-      setLoadingOtp(true);
-      await axios.post(`${API_BASE_URL}/api/request-otp`, { email: tempEmail, audit_log_db: "db" });
-      startResendTimer();
-      setSnack({ open: true, message: "OTP resent!", severity: "success" });
-    } catch (err) {
-      setSnack({ open: true, message: err.response?.data?.message || "Failed to resend OTP", severity: "error" });
-    }
-    setLoadingOtp(false);
-  };
-
-  const [redirectLoading, setRedirectLoading] = useState(false);
-
-  const verifyOtp = async () => {
-    const otpValue = otp.join("");
-    if (!/^\d{6}$/.test(otpValue)) {
-      setSnack({ open: true, message: "Enter complete 6-digit OTP", severity: "error" });
+    if (!reminderChecked) {
+      setSnack({ open: true, message: "You must agree to the Terms and Conditions before registering.", severity: "warning" });
       return;
     }
-    setLoadingOtp(true);
-    try {
-      const response = await axios.post(`${API_BASE_URL}/api/register`, {
-        ...usersData, email: tempEmail || usersData.email.trim().toLowerCase(), campus: branchId,
-        lastName, firstName, middleName, birthday, academicProgram, applyingAs,
-        program: selectedCurriculum, active_school_year_id: activeSchoolYearId,
-        otp: otpValue, audit_log_db: "db",
-      });
-      if (!response.data.success) {
-        setSnack({ open: true, message: response.data.message, severity: "error" });
-        return;
-      }
-      setShowOtpModal(false);
-      setRedirectLoading(true);
-      setTimeout(() => navigate("/login_applicant"), 3000);
-    } catch (err) {
-      setSnack({ open: true, message: err.response?.data?.message || "Something went wrong.", severity: "error" });
-    } finally {
-      setLoadingOtp(false);
+    if (!isFormValid()) {
+      setSnack({ open: true, message: "Please fill up all required fields!", severity: "warning" });
+      return;
     }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!branchId || !registrationOpen) {
+      setSnack({ open: true, message: "Registration is closed for this campus.", severity: "error" });
+      return;
+    }
+    if (!emailRegex.test(usersData.email)) {
+      setSnack({ open: true, message: "Please enter a valid email address!", severity: "error" });
+      return;
+    }
+    if (usersData.password !== confirmPassword) {
+      setSnack({ open: true, message: "Passwords do not match!", severity: "error" });
+      return;
+    }
+
+    const normalizedEmail = usersData.email.trim().toLowerCase();
+    setIsSubmitting(true);
+
+    try {
+      // Step 1: duplicate check (same as before)
+      await axios.post(`${API_BASE_URL}/api/check-registration-duplicate`, {
+        email: normalizedEmail,
+        firstName,
+        lastName,
+        birthday,
+      });
+
+      // Step 2: Build and stash the full registration payload
+      // The `otp` field will be filled in by TotpSetupModal when the user
+      // enters their Google Authenticator code.
+      setTempEmail(normalizedEmail);
+      setRegistrationPayload({
+        ...usersData,
+        email: normalizedEmail,
+        campus: branchId,
+        lastName,
+        firstName,
+        middleName,
+        birthday,
+        academicProgram,
+        applyingAs,
+        program: selectedCurriculum,
+        active_school_year_id: activeSchoolYearId,
+        audit_log_db: "db",
+      });
+
+      // Step 3: Open the TOTP modal (it calls /register-totp-setup internally)
+      setShowTotpModal(true);
+    } catch (error) {
+      setSnack({
+        open: true,
+        message: error.response?.data?.message || "Validation failed. Please try again.",
+        severity: "error",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Called by TotpSetupModal on successful /register response
+  const handleTotpSuccess = () => {
+    setShowTotpModal(false);
+    setRedirectLoading(true);
+    setTimeout(() => navigate("/login_applicant"), 3000);
   };
 
   const [registrationOpen, setRegistrationOpen] = useState(true);
@@ -1200,6 +1605,18 @@ const Register = () => {
                 </div>
               </div>
 
+              {/* Google Authenticator notice */}
+              <Box sx={{
+                display: "flex", gap: 1.5, alignItems: "flex-start",
+                bgcolor: "#f0f7ff", border: "1px solid #b3d4ff",
+                borderRadius: "10px", p: 1.5, mt: 2,
+              }}>
+                <PhoneAndroidIcon sx={{ color: "#1565c0", fontSize: 20, flexShrink: 0, mt: 0.2 }} />
+                <Typography fontSize={12.5} color="#1a237e" lineHeight={1.6}>
+                  <strong>Two-factor authentication required.</strong> After clicking Submit, you will be asked to scan a QR code using <strong>Google Authenticator</strong> on your phone. Please have it ready.
+                </Typography>
+              </Box>
+
               <Box sx={{ display: "flex", justifyContent: "center", marginTop: "20px" }}>
                 <FormControlLabel
                   control={<Checkbox checked={reminderChecked} onChange={(e) => setReminderChecked(e.target.checked)} />}
@@ -1242,7 +1659,7 @@ const Register = () => {
                   fontSize: "16px",
                 }}
               >
-                {!registrationOpen ? "REGISTRATION CLOSED" : isSubmitting ? "REGISTERING..." : "SUBMIT APPLICATION"}
+                {!registrationOpen ? "REGISTRATION CLOSED" : isSubmitting ? "VALIDATING..." : "SUBMIT APPLICATION"}
               </div>
 
               <div className="LinkContainer RegistrationLink" style={{ margin: "0.1rem 0rem", fontSize: isMobile ? "13px" : undefined }}>
@@ -1261,60 +1678,16 @@ const Register = () => {
           </div>
         </Container>
 
-        {/* OTP Modal */}
-        <Modal open={showOtpModal} onClose={() => setShowOtpModal(false)}>
-          <Box sx={{
-            position: "absolute", top: "50%", left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: isMobile ? "calc(100% - 40px)" : 440,
-            maxWidth: 440,
-            bgcolor: "#fff", borderRadius: "20px",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.15)", p: isMobile ? 3 : 4, border: "1px solid #eee",
-          }}>
-            <button onClick={() => setShowOtpModal(false)} style={{
-              position: "absolute", top: "12px", right: "12px",
-              backgroundColor: "black", color: "white", border: "none", borderRadius: "50%",
-              width: "34px", height: "34px", cursor: "pointer", fontSize: "16px", fontWeight: "bold",
-            }}>✕</button>
-            <h2 style={{ fontSize: "22px", fontWeight: 700, marginBottom: "8px" }}>Verify your email</h2>
-            <p style={{ color: "#666", fontSize: "14px", lineHeight: 1.6, marginBottom: "20px" }}>
-              We sent a 6-digit verification code to your registered email address.
-            </p>
-            <Box sx={{ display: "flex", justifyContent: "center", gap: isMobile ? 1 : 1.5, mb: 3 }}>
-              {otp.map((digit, index) => (
-                <input key={index} ref={(el) => (otpRefs.current[index] = el)}
-                  type="text" inputMode="numeric" maxLength={1} value={digit}
-                  onChange={(e) => handleOtpChange(e.target.value, index)}
-                  onKeyDown={(e) => handleOtpKeyDown(e, index)}
-                  style={{
-                    width: isMobile ? "42px" : "54px", height: isMobile ? "50px" : "60px",
-                    fontSize: "22px", fontWeight: 700, textAlign: "center",
-                    borderRadius: "14px", border: "2px solid #ddd", outline: "none",
-                  }} />
-              ))}
-            </Box>
-            <p style={{ fontSize: "13px", color: "#777", marginBottom: "18px", textAlign: "center" }}>
-              This email can only be used once for admission verification.
-            </p>
-            <button onClick={verifyOtp} disabled={loadingOtp} style={{
-              width: "100%", padding: "14px", borderRadius: "12px", border: "none",
-              backgroundColor: mainButtonColor, color: "white", fontWeight: 700, fontSize: "15px",
-              cursor: loadingOtp ? "not-allowed" : "pointer",
-            }}>
-              {loadingOtp ? "Verifying..." : "Verify & Continue"}
-            </button>
-            <button onClick={resendOtp} disabled={resendTimer > 0} style={{
-              width: "100%", marginTop: "12px", padding: "12px", borderRadius: "12px",
-              border: "1px solid #ddd", background: "#fff", fontWeight: 600,
-              color: resendTimer > 0 ? "#999" : "#333",
-            }}>
-              {resendTimer > 0 ? `Resend code in ${resendTimer}s` : "Resend code"}
-            </button>
-            <p style={{ marginTop: "14px", fontSize: "12px", color: "#999", textAlign: "center" }}>
-              Didn't receive the code? Check your spam folder.
-            </p>
-          </Box>
-        </Modal>
+        {/* ── TOTP Setup Modal (replaces old email OTP modal) ── */}
+        <TotpSetupModal
+          open={showTotpModal}
+          onClose={() => setShowTotpModal(false)}
+          onSuccess={handleTotpSuccess}
+          email={tempEmail}
+          mainButtonColor={mainButtonColor}
+          isMobile={isMobile}
+          registrationPayload={registrationPayload}
+        />
 
         <Snackbar open={snack.open} autoHideDuration={4000} onClose={handleClose} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
           <Alert severity={snack.severity} onClose={handleClose} sx={{ width: "100%" }}>{snack.message}</Alert>

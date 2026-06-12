@@ -6,8 +6,17 @@ const {
 
 const getConfiguredSenderAccounts = () =>
   [
-    { user: process.env.CCS_EMAIL_USER1, pass: process.env.CCS_EMAIL_PASS1 },
-    { user: process.env.CCS_EMAIL_USER2, pass: process.env.CCS_EMAIL_PASS2 },
+    { user: process.env.EMAIL_USER1, pass: process.env.EMAIL_USER1 },
+    { user: process.env.EMAIL_USER2, pass: process.env.EMAIL_USER2 },
+    { user: process.env.EMAIL_USER3, pass: process.env.EMAIL_USER3 },
+    { user: process.env.EMAIL_USER4, pass: process.env.EMAIL_USER4 },
+    { user: process.env.EMAIL_USER5, pass: process.env.EMAIL_USER5 },
+    { user: process.env.EMAIL_USER6, pass: process.env.EMAIL_USER6 },
+    { user: process.env.EMAIL_USER7, pass: process.env.EMAIL_USER7 },
+    { user: process.env.EMAIL_USER8, pass: process.env.EMAIL_USER8 },
+    { user: process.env.EMAIL_USER9, pass: process.env.EMAIL_USER9 },
+    { user: process.env.EMAIL_USER10, pass: process.env.EMAIL_USER9 },
+
   ].filter((account) => account.user && account.pass);
 
 const normalizeSenderEmail = (senderEmail) =>
@@ -193,8 +202,8 @@ module.exports = function registerSocketHandlers({
         const transporter = nodemailer.createTransport({
           service: "gmail",
           auth: {
-            user: process.env.EMAIL_USER3,
-            pass: process.env.EMAIL_PASS3,
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
           },
         });
 
@@ -202,7 +211,7 @@ module.exports = function registerSocketHandlers({
         // SEND EMAIL
         // =========================
         const info = await transporter.sendMail({
-          from: `"${shortTerm} - Information System" <${process.env.EMAIL_USER3}>`,
+          from: `"${shortTerm} - Information System" <${process.env.EMAIL_USER}>`,
           to: email,
           subject: `${shortTerm} Applicant Password Reset`,
           text: `
@@ -1585,9 +1594,10 @@ WHERE proctor LIKE ?
         user_person_id,
         audit_actor_id,
         audit_actor_role,
+        department_id,  // ADD THIS
+        program_id,     // ADD THIS
       }) => {
         try {
-          //  Fetch applicants linked to the interview schedule
           const [rows] = await db.query(
             `SELECT
             ia.schedule_id,
@@ -1635,7 +1645,6 @@ WHERE proctor LIKE ?
           const finalSubjectComputed =
             finalSubject || rows[0]?.dprtmnt_name || "Interview Schedule";
 
-          //  Use db3 (enrollment)    user_accounts instead of prof
           const [actorRows] = await db3.query(
             `SELECT
             email AS actor_email,
@@ -1652,24 +1661,22 @@ WHERE proctor LIKE ?
 
           const actor = actorRows[0] || null;
 
-          //  Format: ROLE (EMPLOYEE_ID) - LastName, FirstName MiddleName
-          const actorEmail = actor?.actor_email || "earistmis@gmail.com";
-          const actorName = actor
-            ? `${actor.role.toUpperCase()} (${actor.employee_id || "N/A"}) - ${actor.last_name}, ${actor.first_name}${actor.middle_name ? " " + actor.middle_name : ""}`
-            : "SYSTEM";
-
-          const sent = [];
-          const failed = [];
-
+          // UPDATED QUERY - filter by department_id and program_id
           const [userEmail] = await db.query(
-            `SELECT sender_name FROM email_template_employees 
-            INNER JOIN email_templates ON email_template_employees.template_id = email_templates.template_id
-            WHERE employee_id = ?`,
-            [actor?.employee_id || null],
+            `SELECT et.sender_name
+         FROM email_template_employees ete
+         INNER JOIN email_templates et ON ete.template_id = et.template_id
+         WHERE ete.employee_id = ?
+           AND et.department_id = ?
+           AND et.program_id = ?
+           AND et.is_active = 1
+         ORDER BY et.updated_at DESC
+         LIMIT 1`,
+            [actor?.employee_id || null, department_id, program_id],
           );
 
           if (userEmail.length === 0) {
-            throw new Error("User not assigned to college email.");
+            throw new Error("User not assigned to a matching college email for this program.");
           }
 
           const senderEmail = userEmail[0].sender_name;
@@ -1685,6 +1692,18 @@ WHERE proctor LIKE ?
             service: "gmail",
             auth: senderAccount,
           });
+
+          const sent = [];
+          const failed = [];
+
+          function formatTime(timeStr) {
+            if (!timeStr) return "";
+            const [hours, minutes] = timeStr.split(":");
+            let h = parseInt(hours, 10);
+            const ampm = h >= 12 ? "PM" : "AM";
+            h = h % 12 || 12;
+            return `${h}:${minutes} ${ampm}`;
+          }
 
           for (const row of rows) {
             if (!row.emailAddress) {
@@ -1715,18 +1734,13 @@ WHERE proctor LIKE ?
             await transporter.sendMail(mailOptions);
 
             try {
-              // Mark applicant email sent
               await db.query(
                 "UPDATE interview_applicants SET email_sent = 1 WHERE applicant_id = ?",
                 [row.applicant_number],
               );
-
               sent.push(row.applicant_number);
             } catch (err) {
-              console.error(
-                ` Failed to send interview email to ${row.emailAddress}:`,
-                err.message,
-              );
+              console.error(`Failed to send interview email to ${row.emailAddress}:`, err.message);
               await db.query(
                 "UPDATE interview_applicants SET email_sent = 0 WHERE applicant_id = ?",
                 [row.applicant_number],
@@ -1735,17 +1749,11 @@ WHERE proctor LIKE ?
             }
           }
 
-          const safeActor =
-            audit_actor_id || actor?.employee_id || user_person_id || "unknown";
-          const roleLabel = formatAuditActorRole(
-            audit_actor_role || actor?.role,
-          );
+          const safeActor = audit_actor_id || actor?.employee_id || user_person_id || "unknown";
+          const roleLabel = formatAuditActorRole(audit_actor_role || actor?.role);
           const scheduleLabel = await getInterviewScheduleLabel(schedule_id);
           const sentList = sent.length > 0 ? sent.join(", ") : "None";
-          const failedNote =
-            failed.length > 0
-              ? ` Failed applicant(s): ${failed.join(", ")}.`
-              : "";
+          const failedNote = failed.length > 0 ? ` Failed applicant(s): ${failed.join(", ")}.` : "";
 
           await insertAuditLogEnrollment({
             actorId: safeActor,
@@ -1755,7 +1763,6 @@ WHERE proctor LIKE ?
             message: `${roleLabel} (${safeActor}) sent qualifying/interview schedule email to ${sent.length} applicant(s) for ${scheduleLabel}. Applicant(s): ${sentList}.${failedNote}`,
           });
 
-          // Emit result to frontend
           socket.emit("send_schedule_emails_result", {
             success: true,
             sent,
@@ -1763,13 +1770,12 @@ WHERE proctor LIKE ?
             message: `Interview emails processed: Sent=${sent.length}, Failed=${failed.length}`,
           });
 
-          // Refresh schedule data for connected clients.
           io.emit("schedule_updated", { schedule_id });
         } catch (err) {
           console.error("Error in send_interview_emails:", err);
           socket.emit("send_schedule_emails_result", {
             success: false,
-            error: "Server error sending interview emails.",
+            error: err.message || "Server error sending interview emails.",
           });
         }
       },
@@ -5570,6 +5576,8 @@ WHERE proctor LIKE ?
       interview_status_value,
       audit_actor_id,
       audit_actor_role,
+      department_id,  // ADD THIS
+      program_id,     // ADD THIS
     } = req.body;
 
     if (!to || !subject || !html) {
@@ -5578,20 +5586,14 @@ WHERE proctor LIKE ?
 
     try {
       const [actorRows] = await db3.query(
-        `SELECT
-        role,
-        employee_id,
-        last_name,
-        first_name,
-        middle_name
-      FROM user_accounts
-      WHERE person_id = ?
-      LIMIT 1`,
+        `SELECT role, employee_id, last_name, first_name, middle_name
+       FROM user_accounts
+       WHERE person_id = ?
+       LIMIT 1`,
         [user_person_id],
       );
 
       const actor = actorRows[0];
-      console.log("actor", actor);
       if (!actor) {
         return res.status(404).json({ message: "User account not found" });
       }
@@ -5602,30 +5604,34 @@ WHERE proctor LIKE ?
 
       const shortTerm = company?.short_term || "EARIST";
 
+      // UPDATED QUERY - filter by department_id and program_id
       const [userEmailRows] = await db.query(
-        `SELECT sender_name, department_id 
-       FROM email_templates 
-       WHERE employee_id = ?`,
-        [actor.employee_id],
+        `SELECT et.sender_name, et.department_id
+       FROM email_template_employees ete
+       INNER JOIN email_templates et ON ete.template_id = et.template_id
+       WHERE ete.employee_id = ?
+         AND et.department_id = ?
+         AND et.program_id = ?
+         AND et.is_active = 1
+       ORDER BY et.updated_at DESC
+       LIMIT 1`,
+        [actor.employee_id, department_id, program_id],
       );
 
       const templateRow = userEmailRows[0];
 
       if (!templateRow) {
-        return res.status(404).json({ message: "Email template not found" });
+        return res.status(404).json({ message: "Email template not found for this program." });
       }
 
       const senderEmail = templateRow.sender_name || senderName;
 
       const [depRows] = await db3.query(
-        `SELECT dprtmnt_name 
-       FROM dprtmnt_table 
-       WHERE dprtmnt_id = ?`,
+        `SELECT dprtmnt_name FROM dprtmnt_table WHERE dprtmnt_id = ?`,
         [templateRow.department_id],
       );
 
-      const depName =
-        depRows.length > 0 ? depRows[0].dprtmnt_name : "Department";
+      const depName = depRows.length > 0 ? depRows[0].dprtmnt_name : "Department";
 
       const senderAccount = getSenderAccountForEmail(senderEmail);
 
@@ -5636,16 +5642,13 @@ WHERE proctor LIKE ?
       }
 
       const nextInterviewStatus = update_interview_status
-        ? interview_status_value === undefined ||
-          interview_status_value === null
+        ? interview_status_value === undefined || interview_status_value === null
           ? 1
           : Number(interview_status_value)
         : null;
 
       if (update_interview_status && ![0, 1].includes(nextInterviewStatus)) {
-        return res
-          .status(400)
-          .json({ message: "interview_status_value must be 0 or 1" });
+        return res.status(400).json({ message: "interview_status_value must be 0 or 1" });
       }
 
       const transporter = nodemailer.createTransport({
@@ -5663,16 +5666,15 @@ WHERE proctor LIKE ?
       if (update_interview_status) {
         await db.query(
           `INSERT INTO person_status_table (person_id, applicant_id, interview_status)
-           SELECT ant.person_id, ant.applicant_number, ?
-           FROM applicant_numbering_table ant
-           WHERE ant.applicant_number = ?
-           ON DUPLICATE KEY UPDATE interview_status = VALUES(interview_status)`,
+         SELECT ant.person_id, ant.applicant_number, ?
+         FROM applicant_numbering_table ant
+         WHERE ant.applicant_number = ?
+         ON DUPLICATE KEY UPDATE interview_status = VALUES(interview_status)`,
           [nextInterviewStatus, applicant_number],
         );
       }
 
-      const safeActor =
-        audit_actor_id || actor.employee_id || user_person_id || "unknown";
+      const safeActor = audit_actor_id || actor.employee_id || user_person_id || "unknown";
       const actorRole = audit_actor_role || actor.role || "registrar";
       const roleLabel = formatAuditActorRole(actorRole);
       let applicantNumber = applicant_number || "N/A";
@@ -5681,32 +5683,25 @@ WHERE proctor LIKE ?
       try {
         const [[applicantRow]] = await db.query(
           `SELECT
-             ant.applicant_number,
-             pt.first_name,
-             pt.middle_name,
-             pt.last_name
-           FROM person_table pt
-           LEFT JOIN applicant_numbering_table ant ON ant.person_id = pt.person_id
-           WHERE pt.emailAddress = ? OR ant.applicant_number = ?
-           LIMIT 1`,
+           ant.applicant_number,
+           pt.first_name,
+           pt.middle_name,
+           pt.last_name
+         FROM person_table pt
+         LEFT JOIN applicant_numbering_table ant ON ant.person_id = pt.person_id
+         WHERE pt.emailAddress = ? OR ant.applicant_number = ?
+         LIMIT 1`,
           [to, applicant_number || ""],
         );
 
         if (applicantRow) {
           applicantNumber = applicantRow.applicant_number || applicantNumber;
-          applicantName = [
-            applicantRow.first_name,
-            applicantRow.middle_name,
-            applicantRow.last_name,
-          ]
+          applicantName = [applicantRow.first_name, applicantRow.middle_name, applicantRow.last_name]
             .filter(Boolean)
             .join(" ");
         }
       } catch (auditLookupErr) {
-        console.error(
-          "Failed to look up qualifying/interview email applicant:",
-          auditLookupErr,
-        );
+        console.error("Failed to look up qualifying/interview email applicant:", auditLookupErr);
       }
 
       await insertAuditLogAdmission({
@@ -5719,8 +5714,8 @@ WHERE proctor LIKE ?
 
       res.json({ success: true, message: "Email sent successfully" });
     } catch (err) {
-      console.error(" Error sending email:", err);
-      res.status(500).json({ success: false, message: "Failed to send email" });
+      console.error("Error sending email:", err);
+      res.status(500).json({ success: false, message: err.message || "Failed to send email" });
     }
   });
 

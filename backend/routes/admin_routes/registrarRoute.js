@@ -289,9 +289,10 @@ router.post("/register_registrar", upload.single("profile_picture"), async (req,
       ]
     );
 
-    // ✅ Force password change + disable OTP on first login
+
+    // REPLACE WITH:
     await db3.query(
-      `UPDATE user_accounts SET force_password_change = 1, require_otp = 0 WHERE employee_id = ? AND role = 'registrar'`,
+      `UPDATE user_accounts SET force_password_change = 1, totp_enabled = 0 WHERE employee_id = ? AND role = 'registrar'`,
       [employee_id]
     );
 

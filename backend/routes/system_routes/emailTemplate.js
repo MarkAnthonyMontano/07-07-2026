@@ -112,8 +112,16 @@ const getTaggedEmployeeLabels = async (employeeIds) => {
 
 const getConfiguredSenderEmails = () =>
   [
-    process.env.CCS_EMAIL_USER1,
-    process.env.CCS_EMAIL_USER2,
+    process.env.EMAIL_USER1,
+    process.env.EMAIL_USER2,
+    process.env.EMAIL_USER3,
+    process.env.EMAIL_USER4,
+    process.env.EMAIL_USER5,
+    process.env.EMAIL_USER6,
+    process.env.EMAIL_USER7,
+    process.env.EMAIL_USER8,
+    process.env.EMAIL_USER9,
+    process.env.EMAIL_USER10,
   ]
     .filter(Boolean)
     .map((email) => email.trim().toLowerCase());

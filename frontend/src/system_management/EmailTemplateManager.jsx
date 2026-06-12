@@ -671,40 +671,24 @@ export default function EmailTemplateManager() {
                   </Typography>
 
                   <Box display="flex" alignItems="center" gap={1}>
+                    {/* reuse the same pagination controls from paginationBar */}
                     {[
                       { label: "First", action: () => setCurrentPage(1), disabled: currentPage === 1 },
                       { label: "Prev", action: () => setCurrentPage((p) => Math.max(p - 1, 1)), disabled: currentPage === 1 },
                     ].map(({ label, action, disabled }) => (
-                      <Button
-                        key={label}
-                        onClick={action}
-                        disabled={disabled}
-                        variant="outlined"
-                        size="small"
+                      <Button key={label} onClick={action} disabled={disabled} variant="outlined" size="small"
                         sx={{
-                          minWidth: 80,
-                          color: "white",
-                          borderColor: "white",
-                          backgroundColor: "transparent",
+                          minWidth: 80, color: "white", borderColor: "white", backgroundColor: "transparent",
                           "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" },
                           "&.Mui-disabled": { color: "white", borderColor: "white", backgroundColor: "transparent", opacity: 1 },
                         }}
-                      >
-                        {label}
-                      </Button>
+                      >{label}</Button>
                     ))}
 
                     <FormControl size="small" sx={{ minWidth: 80 }}>
-                      <Select
-                        value={currentPage}
-                        onChange={(e) => setCurrentPage(Number(e.target.value))}
-                        displayEmpty
+                      <Select value={currentPage} onChange={(e) => setCurrentPage(Number(e.target.value))} displayEmpty
                         sx={{
-                          fontSize: "12px",
-                          height: 36,
-                          color: "white",
-                          border: "1px solid white",
-                          backgroundColor: "transparent",
+                          fontSize: "12px", height: 36, color: "white", border: "1px solid white", backgroundColor: "transparent",
                           ".MuiOutlinedInput-notchedOutline": { borderColor: "white" },
                           "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
                           "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
@@ -713,9 +697,7 @@ export default function EmailTemplateManager() {
                         MenuProps={{ PaperProps: { sx: { maxHeight: 200, backgroundColor: "#fff" } } }}
                       >
                         {Array.from({ length: totalPages }, (_, i) => (
-                          <MenuItem key={i + 1} value={i + 1}>
-                            Page {i + 1}
-                          </MenuItem>
+                          <MenuItem key={i + 1} value={i + 1}>Page {i + 1}</MenuItem>
                         ))}
                       </Select>
                     </FormControl>
@@ -728,23 +710,13 @@ export default function EmailTemplateManager() {
                       { label: "Next", action: () => setCurrentPage((p) => Math.min(p + 1, totalPages)), disabled: currentPage === totalPages },
                       { label: "Last", action: () => setCurrentPage(totalPages), disabled: currentPage === totalPages },
                     ].map(({ label, action, disabled }) => (
-                      <Button
-                        key={label}
-                        onClick={action}
-                        disabled={disabled}
-                        variant="outlined"
-                        size="small"
+                      <Button key={label} onClick={action} disabled={disabled} variant="outlined" size="small"
                         sx={{
-                          minWidth: 80,
-                          color: "white",
-                          borderColor: "white",
-                          backgroundColor: "transparent",
+                          minWidth: 80, color: "white", borderColor: "white", backgroundColor: "transparent",
                           "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" },
                           "&.Mui-disabled": { color: "white", borderColor: "white", backgroundColor: "transparent", opacity: 1 },
                         }}
-                      >
-                        {label}
-                      </Button>
+                      >{label}</Button>
                     ))}
 
                     <Button
@@ -757,12 +729,9 @@ export default function EmailTemplateManager() {
                         width: "250px",
                         textTransform: "none",
                         px: 2,
+                        border: "1px solid white",
                       }}
-                      onClick={() => {
-                        setEditing(null);
-                        resetForm();
-                        setOpenFormDialog(true);
-                      }}
+                      onClick={() => { setEditing(null); resetForm(); setOpenFormDialog(true); }}
                     >
                       + Add Email Account
                     </Button>
