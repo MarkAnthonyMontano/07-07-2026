@@ -142,7 +142,7 @@ const ApplicantScoring = () => {
         },
         {
             label: "Applicant Profile",
-            to: "//admission_personal_information",
+            to: "/admission_personal_information",
             icon: <PersonIcon fontSize="large" />,
         },
         {
@@ -166,7 +166,6 @@ const ApplicantScoring = () => {
             to: "/registrar_examination_profile",
             icon: <PersonSearchIcon fontSize="large" />,
         },
-
 
         {
             label: "Entrance Examination Score",

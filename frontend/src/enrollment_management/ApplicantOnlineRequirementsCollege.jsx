@@ -1060,7 +1060,7 @@ const RegistrarRequirements = () => {
             fontSize: '36px',
           }}
         >
-       APPLICANT ONLINE REQUIREMENTS
+          APPLICANT ONLINE REQUIREMENTS
         </Typography>
 
 

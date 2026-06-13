@@ -29,7 +29,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import DateField from "../components/DateField";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import AssignmentIcon from "@mui/icons-material/Assignment";
-
+import AddIcon from '@mui/icons-material/Add';
 const ReadmissionDashboard4 = () => {
 
     const settings = useContext(SettingsContext);
@@ -77,7 +77,8 @@ const ReadmissionDashboard4 = () => {
     const stepsData = [
         { label: "Student List", to: "/student_list", icon: <SchoolIcon fontSize="large" /> },
         { label: "Student Profile", to: "/student_registrar_personal_information", icon: <PersonIcon fontSize="large" /> },
-        { label: "Student Online Requirements Registrar", to: "student_online_requirements_college", icon: <AssignmentIcon fontSize="large" /> },
+        { label: "Student Online Requirements Registrar", to: "/student_online_requirements_registrar", icon: <AssignmentIcon fontSize="large" /> },
+        { label: "Course Tagging", to: "/course_tagging", icon: <AddIcon fontSize="large" /> },
         { label: "Search Certificate of Registration", to: "/search_cor", icon: <ListAltIcon fontSize="large" /> },
         { label: "Report of Grades", to: "/report_of_grades", icon: <GradeIcon fontSize="large" /> },
         { label: "Transcript of Records", to: "/transcript_of_records", icon: <ReceiptLongIcon fontSize="large" /> },
@@ -360,11 +361,11 @@ const ReadmissionDashboard4 = () => {
     const [clickedSteps, setClickedSteps] = useState([]);
 
     const steps = [
-         { label: "Personal Information", icon: <PersonIcon />, path: "/student_registrar_personal_information" },
-    { label: "Family Background", icon: <FamilyRestroomIcon />, path: "/student_registrar_family_background" },
-    { label: "Educational Attainment", icon: <SchoolIcon />, path: "/student_registrar_educational_attainment" },
-    { label: "Health Medical Records", icon: <HealthAndSafetyIcon />, path: "/student_registrar_health_medical_records" },
-    { label: "Other Information", icon: <InfoIcon />, path: "/student_registrar_other_information" },
+        { label: "Personal Information", icon: <PersonIcon />, path: "/student_registrar_personal_information" },
+        { label: "Family Background", icon: <FamilyRestroomIcon />, path: "/student_registrar_family_background" },
+        { label: "Educational Attainment", icon: <SchoolIcon />, path: "/student_registrar_educational_attainment" },
+        { label: "Health Medical Records", icon: <HealthAndSafetyIcon />, path: "/student_registrar_health_medical_records" },
+        { label: "Other Information", icon: <InfoIcon />, path: "/student_registrar_other_information" },
     ];
 
     const handleStepClick = (index) => {
@@ -799,13 +800,13 @@ const ReadmissionDashboard4 = () => {
             <Container>
 
                 <Container>
-                       <h1 style={{ fontSize: "50px", fontWeight: "bold", textAlign: "center", color: subtitleColor, marginTop: "25px" }}>
-            STUDENT FORM
-          </h1>
-          <div style={{ textAlign: "center" }}>
-            Please update your personal information to keep your student records accurate and up to date for the upcoming academic year at{" "}
-            {shortTerm ? <><strong>{shortTerm.toUpperCase()}</strong> - {companyName || ""}</> : companyName || ""}.
-          </div>
+                    <h1 style={{ fontSize: "50px", fontWeight: "bold", textAlign: "center", color: subtitleColor, marginTop: "25px" }}>
+                        STUDENT FORM
+                    </h1>
+                    <div style={{ textAlign: "center" }}>
+                        Please update your personal information to keep your student records accurate and up to date for the upcoming academic year at{" "}
+                        {shortTerm ? <><strong>{shortTerm.toUpperCase()}</strong> - {companyName || ""}</> : companyName || ""}.
+                    </div>
                 </Container>
 
                 <br />

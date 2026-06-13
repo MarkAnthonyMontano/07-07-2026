@@ -112,8 +112,8 @@ const AssignScheduleToApplicants = () => {
 
     useEffect(() => {
         socket.current = io(API_BASE_URL, {
-           path: "/api/socket.io",
-           transports: ["websocket", "polling"],
+            path: "/api/socket.io",
+            transports: ["websocket", "polling"],
         });
 
         return () => {
@@ -129,7 +129,7 @@ const AssignScheduleToApplicants = () => {
         },
         {
             label: "Applicant Profile",
-            to: "//admission_personal_information",
+            to: "/admission_personal_information",
             icon: <PersonIcon fontSize="large" />,
         },
         {
@@ -153,7 +153,6 @@ const AssignScheduleToApplicants = () => {
             to: "/registrar_examination_profile",
             icon: <PersonSearchIcon fontSize="large" />,
         },
-
 
         {
             label: "Entrance Examination Score",

@@ -104,7 +104,6 @@ const AdminDashboard4 = () => {
       icon: <PersonSearchIcon fontSize="large" />,
     },
 
-
     {
       label: "Entrance Examination Score",
       to: "/applicant_scoring",
@@ -449,7 +448,7 @@ const AdminDashboard4 = () => {
 
   const steps = person.person_id
     ? [
-     { label: "Personal Information", icon: <PersonIcon />, path: `/admission_personal_information?person_id=${userID}` },
+      { label: "Personal Information", icon: <PersonIcon />, path: `/admission_personal_information?person_id=${userID}` },
       { label: "Family Background", icon: <FamilyRestroomIcon />, path: `/admission_family_background?person_id=${userID}` },
       { label: "Educational Attainment", icon: <SchoolIcon />, path: `/admission_educational_attainment?person_id=${userID}` },
       { label: "Health Medical Records", icon: <HealthAndSafetyIcon />, path: `/admission_health_medical_records?person_id=${userID}` },
@@ -636,7 +635,7 @@ const AdminDashboard4 = () => {
             fontSize: '36px',
           }}
         >
-      HEALTH MEDICAL RECORDS
+          HEALTH MEDICAL RECORDS
         </Typography>
       </Box>
       <hr style={{ border: "1px solid #ccc", width: "100%" }} />
@@ -700,7 +699,7 @@ const AdminDashboard4 = () => {
             {index < stepsData.length - 1 && (
               <Box
                 sx={{
-               
+
                   mx: 1, // margin to keep spacing
                 }}
               />
@@ -709,8 +708,8 @@ const AdminDashboard4 = () => {
         ))}
       </Box>
 
-        <br/>
-     <br/>
+      <br />
+      <br />
 
 
 

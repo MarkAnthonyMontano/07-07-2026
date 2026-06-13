@@ -1168,6 +1168,7 @@ const SuperAdminApplicantList = () => {
       <hr style={{ border: "1px solid #ccc", width: "100%" }} />
 
       <br />
+      <br />
 
       <TableContainer
         component={Paper}

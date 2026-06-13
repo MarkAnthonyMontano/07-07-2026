@@ -27,7 +27,7 @@ import API_BASE_URL from "../apiConfig";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 
 import AssignmentIcon from "@mui/icons-material/Assignment";
-
+import AddIcon from '@mui/icons-material/Add';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 const ReadmissionDashboard3 = () => {
 
@@ -71,12 +71,13 @@ const ReadmissionDashboard3 = () => {
   }, [settings]);
 
   const stepsData = [
-    { label: "Student List", to: "/student_list", icon: <SchoolIcon fontSize="large" /> },
-    { label: "Student Profile", to: "/student_registrar_personal_information", icon: <PersonIcon fontSize="large" /> },
-    { label: "Student Online Requirements Registrar", to: "student_online_requirements_college", icon: <AssignmentIcon fontSize="large" /> },
-    { label: "Search Certificate of Registration", to: "/search_cor", icon: <ListAltIcon fontSize="large" /> },
-    { label: "Report of Grades", to: "/report_of_grades", icon: <GradeIcon fontSize="large" /> },
-    { label: "Transcript of Records", to: "/transcript_of_records", icon: <ReceiptLongIcon fontSize="large" /> },
+        { label: "Student List", to: "/student_list", icon: <SchoolIcon fontSize="large" /> },
+        { label: "Student Profile", to: "/student_registrar_personal_information", icon: <PersonIcon fontSize="large" /> },
+        { label: "Student Online Requirements Registrar", to: "/student_online_requirements_registrar", icon: <AssignmentIcon fontSize="large" /> },
+        { label: "Course Tagging", to: "/course_tagging", icon: <AddIcon fontSize="large" /> },
+        { label: "Search Certificate of Registration", to: "/search_cor", icon: <ListAltIcon fontSize="large" /> },
+        { label: "Report of Grades", to: "/report_of_grades", icon: <GradeIcon fontSize="large" /> },
+        { label: "Transcript of Records", to: "/transcript_of_records", icon: <ReceiptLongIcon fontSize="large" /> },
   ];
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -795,7 +796,7 @@ const ReadmissionDashboard3 = () => {
       <Container>
 
         <Container>
-               <h1 style={{ fontSize: "50px", fontWeight: "bold", textAlign: "center", color: subtitleColor, marginTop: "25px" }}>
+          <h1 style={{ fontSize: "50px", fontWeight: "bold", textAlign: "center", color: subtitleColor, marginTop: "25px" }}>
             STUDENT FORM
           </h1>
           <div style={{ textAlign: "center" }}>

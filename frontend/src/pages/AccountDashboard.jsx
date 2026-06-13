@@ -126,15 +126,16 @@ const AccountDashboard = () => {
     {
       key: "applicantManagement", label: "Applicant Management", icon: Badge,
       items: [
-        { title: "Applicant Information", link: "/super_admin_applicant_dashboard1", icon: Info, page_id: 75 },
-        { title: "Applicant Online Requirements", link: "/applicant_online_requirements_admin", icon: Assignment, page_id: 160 },
+        { title: "Applicant Information", link: "/applicant_admin_personal_information", icon: Info, page_id: 75 },
+        { title: "Applicant Online Requirements", link: "/applicant_online_requirements_admin", icon: Assignment, page_id: 84 },
         { title: "Archive", link: "/archived", icon: FolderCopy, page_id: 142 },
+        { title: "Upload Applicants", link: "/upload_applicants", icon: FolderCopy, page_id: 166 },
       ],
     },
     {
       key: "studentManagement", label: "Student Management", icon: School,
       items: [
-        { title: "Student Information", link: "/super_admin_student_dashboard1", icon: Info, page_id: 86 },
+        { title: "Student Information", link: "/student_admin_personal_information", icon: Info, page_id: 86 },
         { title: "Student Online Requirements", link: "/student_online_requirements_admin", icon: Assignment, page_id: 150 },
         { title: "Edit Personal Information", link: "/admin_student_edit_permissions1", icon: FolderCopy, page_id: 155 },
         { title: "Edit Family Background", link: "/admin_student_edit_permissions2", icon: FolderCopy, page_id: 156 },

@@ -181,7 +181,8 @@ const UserPageAccess = () => {
         `${API_BASE_URL}/api/page_access/${user.employee_id}`,
       );
 
-      const allPages = pagesResp.data || [];
+      const allPages = (pagesResp.data || []).sort((a, b) => a.id - b.id);
+
       const accessRows = accessResp.data || [];
       const accessMap = buildDefaultPermissionState(allPages);
 
@@ -619,7 +620,7 @@ const UserPageAccess = () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/api/pages`);
 
-      const pagesData = res.data || [];
+      const pagesData = (res.data || []).sort((a, b) => a.id - b.id);
 
       const defaultAccess = buildAccessLevelPermissionState(pagesData);
 
@@ -650,7 +651,7 @@ const UserPageAccess = () => {
       ]);
 
       const levels = accessRes.data || [];
-      const pagesData = pagesRes.data || [];
+      const pagesData = (pagesRes.data || []).sort((a, b) => a.id - b.id);
 
       const defaultAccess = buildAccessLevelPermissionState(pagesData);
 
@@ -1863,7 +1864,7 @@ const UserPageAccess = () => {
                       key={p.id}
                       sx={{ "&:hover": { backgroundColor: "#f5f5f5" }, transition: "background-color 0.2s" }}
                     >
-                      <TableCell sx={{ textAlign: "center", border: `1px solid ${borderColor}` }}>{i + 1}</TableCell>
+                      <TableCell sx={{ textAlign: "center", border: `1px solid ${borderColor}` }}>{p.id}</TableCell>
                       <TableCell sx={{ textAlign: "center", border: `1px solid ${borderColor}` }}>
                         <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
                           {Number(p.id) === PROTECTED_PAGE_ID && (
@@ -2038,7 +2039,7 @@ const UserPageAccess = () => {
                       key={p.id}
                       sx={{ "&:hover": { backgroundColor: "#f5f5f5" }, transition: "background-color 0.2s" }}
                     >
-                      <TableCell sx={{ textAlign: "center", border: `1px solid ${borderColor}` }}>{i + 1}</TableCell>
+                      <TableCell sx={{ textAlign: "center", border: `1px solid ${borderColor}` }}>{p.id}</TableCell>
                       <TableCell sx={{ textAlign: "center", border: `1px solid ${borderColor}` }}>{p.page_description}</TableCell>
                       <TableCell sx={{ textAlign: "center", border: `1px solid ${borderColor}` }}>{p.page_group}</TableCell>
                       <TableCell sx={{ textAlign: "center", border: `1px solid ${borderColor}` }}>
@@ -2252,7 +2253,7 @@ const UserPageAccess = () => {
                       key={p.id}
                       sx={{ "&:hover": { backgroundColor: "#f5f5f5" }, transition: "background-color 0.2s" }}
                     >
-                      <TableCell sx={{ textAlign: "center", border: `1px solid ${borderColor}` }}>{i + 1}</TableCell>
+                      <TableCell sx={{ textAlign: "center", border: `1px solid ${borderColor}` }}>{p.id}</TableCell>
                       <TableCell sx={{ textAlign: "center", border: `1px solid ${borderColor}` }}>{p.page_description}</TableCell>
                       <TableCell sx={{ textAlign: "center", border: `1px solid ${borderColor}` }}>{p.page_group}</TableCell>
                       <TableCell sx={{ textAlign: "center", border: `1px solid ${borderColor}` }}>

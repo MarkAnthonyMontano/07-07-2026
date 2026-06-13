@@ -70,7 +70,7 @@ const ExaminationProfile = () => {
     },
     {
       label: "Applicant Profile",
-      to: "//admission_personal_information",
+      to: "/admission_personal_information",
       icon: <PersonIcon fontSize="large" />,
     },
     {
@@ -501,9 +501,8 @@ const ExaminationProfile = () => {
           }
           getOptionLabel={(option) =>
             option
-              ? `${option.applicant_number || ""} - ${option.last_name || ""}, ${option.first_name || ""} ${
-                  option.middle_name || ""
-                } (${option.emailAddress || ""})`
+              ? `${option.applicant_number || ""} - ${option.last_name || ""}, ${option.first_name || ""} ${option.middle_name || ""
+              } (${option.emailAddress || ""})`
               : ""
           }
           onInputChange={(event, newInputValue, reason) => {
@@ -1673,11 +1672,11 @@ const ExaminationProfile = () => {
                       >
                         {curriculumOptions.length > 0
                           ? curriculumOptions.find(
-                              (item) =>
-                                item?.curriculum_id?.toString() ===
-                                (person?.program ?? "").toString(),
-                            )?.program_description ||
-                            (person?.program ?? "")
+                            (item) =>
+                              item?.curriculum_id?.toString() ===
+                              (person?.program ?? "").toString(),
+                          )?.program_description ||
+                          (person?.program ?? "")
                           : "Loading..."}
                       </div>
                     </div>
@@ -1712,10 +1711,10 @@ const ExaminationProfile = () => {
                       >
                         {curriculumOptions.length > 0
                           ? curriculumOptions.find(
-                              (item) =>
-                                item?.curriculum_id?.toString() ===
-                                (person?.program ?? "").toString(),
-                            )?.major || ""
+                            (item) =>
+                              item?.curriculum_id?.toString() ===
+                              (person?.program ?? "").toString(),
+                          )?.major || ""
                           : "Loading..."}
                       </div>
                     </div>
@@ -1865,12 +1864,12 @@ const ExaminationProfile = () => {
                       >
                         {examSchedule?.schedule_created_at
                           ? new Date(
-                              examSchedule.schedule_created_at,
-                            ).toLocaleDateString("en-US", {
-                              month: "long",
-                              day: "numeric",
-                              year: "numeric",
-                            })
+                            examSchedule.schedule_created_at,
+                          ).toLocaleDateString("en-US", {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                          })
                           : ""}
                       </span>
                     </div>
@@ -2416,12 +2415,12 @@ const ExaminationProfile = () => {
                         {" "}
                         {examSchedule?.schedule_created_at
                           ? new Date(
-                              examSchedule.schedule_created_at,
-                            ).toLocaleDateString("en-US", {
-                              month: "long",
-                              day: "numeric",
-                              year: "numeric",
-                            })
+                            examSchedule.schedule_created_at,
+                          ).toLocaleDateString("en-US", {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                          })
                           : ""}
                         <div
                           style={{ marginTop: "-3px" }}
@@ -2529,21 +2528,19 @@ const ExaminationProfile = () => {
                       }}
                     >
                       {curriculumOptions.length > 0
-                        ? `${
-                            curriculumOptions.find(
-                              (item) =>
-                                item?.curriculum_id?.toString() ===
-                                (person?.program ?? "").toString(),
-                            )?.program_description ||
-                            person?.program ||
-                            ""
-                          } ${
-                            curriculumOptions.find(
-                              (c) =>
-                                c.curriculum_id?.toString() ===
-                                (person?.program ?? "").toString(),
-                            )?.major || ""
-                          }`
+                        ? `${curriculumOptions.find(
+                          (item) =>
+                            item?.curriculum_id?.toString() ===
+                            (person?.program ?? "").toString(),
+                        )?.program_description ||
+                        person?.program ||
+                        ""
+                        } ${curriculumOptions.find(
+                          (c) =>
+                            c.curriculum_id?.toString() ===
+                            (person?.program ?? "").toString(),
+                        )?.major || ""
+                        }`
                         : "Loading..."}
                     </div>
                   </td>
@@ -3339,12 +3336,12 @@ const ExaminationProfile = () => {
                         {" "}
                         {examSchedule?.schedule_created_at
                           ? new Date(
-                              examSchedule.schedule_created_at,
-                            ).toLocaleDateString("en-US", {
-                              month: "long",
-                              day: "numeric",
-                              year: "numeric",
-                            })
+                            examSchedule.schedule_created_at,
+                          ).toLocaleDateString("en-US", {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                          })
                           : ""}
                         <div
                           style={{ marginTop: "-3px" }}
@@ -3452,21 +3449,19 @@ const ExaminationProfile = () => {
                       }}
                     >
                       {curriculumOptions.length > 0
-                        ? `${
-                            curriculumOptions.find(
-                              (item) =>
-                                item?.curriculum_id?.toString() ===
-                                (person?.program ?? "").toString(),
-                            )?.program_description ||
-                            person?.program ||
-                            ""
-                          } ${
-                            curriculumOptions.find(
-                              (c) =>
-                                c.curriculum_id?.toString() ===
-                                (person?.program ?? "").toString(),
-                            )?.major || ""
-                          }`
+                        ? `${curriculumOptions.find(
+                          (item) =>
+                            item?.curriculum_id?.toString() ===
+                            (person?.program ?? "").toString(),
+                        )?.program_description ||
+                        person?.program ||
+                        ""
+                        } ${curriculumOptions.find(
+                          (c) =>
+                            c.curriculum_id?.toString() ===
+                            (person?.program ?? "").toString(),
+                        )?.major || ""
+                        }`
                         : "Loading..."}
                     </div>
                   </td>
@@ -5855,12 +5850,12 @@ const ExaminationProfile = () => {
                         {" "}
                         {examSchedule?.schedule_created_at
                           ? new Date(
-                              examSchedule.schedule_created_at,
-                            ).toLocaleDateString("en-US", {
-                              month: "long",
-                              day: "numeric",
-                              year: "numeric",
-                            })
+                            examSchedule.schedule_created_at,
+                          ).toLocaleDateString("en-US", {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                          })
                           : ""}
                         <div
                           style={{ marginTop: "-3px" }}
@@ -5968,21 +5963,19 @@ const ExaminationProfile = () => {
                       }}
                     >
                       {curriculumOptions.length > 0
-                        ? `${
-                            curriculumOptions.find(
-                              (item) =>
-                                item?.curriculum_id?.toString() ===
-                                (person?.program ?? "").toString(),
-                            )?.program_description ||
-                            person?.program ||
-                            ""
-                          } ${
-                            curriculumOptions.find(
-                              (c) =>
-                                c.curriculum_id?.toString() ===
-                                (person?.program ?? "").toString(),
-                            )?.major || ""
-                          }`
+                        ? `${curriculumOptions.find(
+                          (item) =>
+                            item?.curriculum_id?.toString() ===
+                            (person?.program ?? "").toString(),
+                        )?.program_description ||
+                        person?.program ||
+                        ""
+                        } ${curriculumOptions.find(
+                          (c) =>
+                            c.curriculum_id?.toString() ===
+                            (person?.program ?? "").toString(),
+                        )?.major || ""
+                        }`
                         : "Loading..."}
                     </div>
                   </td>
@@ -6842,12 +6835,12 @@ const ExaminationProfile = () => {
                         {" "}
                         {examSchedule?.schedule_created_at
                           ? new Date(
-                              examSchedule.schedule_created_at,
-                            ).toLocaleDateString("en-US", {
-                              month: "long",
-                              day: "numeric",
-                              year: "numeric",
-                            })
+                            examSchedule.schedule_created_at,
+                          ).toLocaleDateString("en-US", {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                          })
                           : ""}
                         <div
                           style={{ marginTop: "-3px" }}
@@ -6955,21 +6948,19 @@ const ExaminationProfile = () => {
                       }}
                     >
                       {curriculumOptions.length > 0
-                        ? `${
-                            curriculumOptions.find(
-                              (item) =>
-                                item?.curriculum_id?.toString() ===
-                                (person?.program ?? "").toString(),
-                            )?.program_description ||
-                            person?.program ||
-                            ""
-                          } ${
-                            curriculumOptions.find(
-                              (c) =>
-                                c.curriculum_id?.toString() ===
-                                (person?.program ?? "").toString(),
-                            )?.major || ""
-                          }`
+                        ? `${curriculumOptions.find(
+                          (item) =>
+                            item?.curriculum_id?.toString() ===
+                            (person?.program ?? "").toString(),
+                        )?.program_description ||
+                        person?.program ||
+                        ""
+                        } ${curriculumOptions.find(
+                          (c) =>
+                            c.curriculum_id?.toString() ===
+                            (person?.program ?? "").toString(),
+                        )?.major || ""
+                        }`
                         : "Loading..."}
                     </div>
                   </td>

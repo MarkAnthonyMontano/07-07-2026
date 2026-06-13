@@ -71,41 +71,41 @@ const RegistrarDashboard3 = () => {
     }, [settings]);
 
     const stepsData = [
-       {
+        {
             label: "Applicant List",
             to: "/applicant_list",
             icon: <SchoolIcon fontSize="large" />,
-          },
-          {
+        },
+        {
             label: "Applicant Profile",
             to: "/applicant_college_personal_information",
             icon: <PersonIcon fontSize="large" />,
-          },
-          {
+        },
+        {
             label: "Applicant Online Requirements",
-            to: "applicant_online_requirements_college",
+            to: "/applicant_online_requirements_college",
             icon: <AssignmentIcon fontSize="large" />,
-          },
-            {
+        },
+        {
             label: "Entrance Examination Score",
             to: "/entrance_examination_score",
             icon: <ScoreIcon fontSize="large" />,
-          },
-          {
+        },
+        {
             label: "Qualifying / Interview Schedule Management",
             to: "/assign_schedule_applicants_qualifying_interview",
             icon: <ScheduleIcon fontSize="large" />,
-          },
-          {
+        },
+        {
             label: "Qualifying / Interview Exam Score",
             to: "/qualifying_interview_exam_scores",
             icon: <ScoreIcon fontSize="large" />,
-          },
-          {
+        },
+        {
             label: "Student Numbering",
             to: "/student_numbering_per_college",
             icon: <DashboardIcon fontSize="large" />,
-          },
+        },
     ];
     const [currentStep, setCurrentStep] = useState(1);
     const [visitedSteps, setVisitedSteps] = useState(Array(stepsData.length).fill(false));
@@ -452,11 +452,11 @@ const RegistrarDashboard3 = () => {
 
     const steps = person.person_id
         ? [
-              { label: "Personal Information", icon: <PersonIcon />, path: `/applicant_college_personal_information?person_id=${userID}` },
-      { label: "Family Background", icon: <FamilyRestroomIcon />, path: `/applicant_college_family_background?person_id=${userID}` },
-      { label: "Educational Attainment", icon: <SchoolIcon />, path: `/applicant_college_educational_attainment?person_id=${userID}` },
-      { label: "Health Medical Records", icon: <HealthAndSafetyIcon />, path: `/applicant_college_health_medical_records?person_id=${userID}` },
-      { label: "Other Information", icon: <InfoIcon />, path: `/applicant_college_other_information?person_id=${userID}` },
+            { label: "Personal Information", icon: <PersonIcon />, path: `/applicant_college_personal_information?person_id=${userID}` },
+            { label: "Family Background", icon: <FamilyRestroomIcon />, path: `/applicant_college_family_background?person_id=${userID}` },
+            { label: "Educational Attainment", icon: <SchoolIcon />, path: `/applicant_college_educational_attainment?person_id=${userID}` },
+            { label: "Health Medical Records", icon: <HealthAndSafetyIcon />, path: `/applicant_college_health_medical_records?person_id=${userID}` },
+            { label: "Other Information", icon: <InfoIcon />, path: `/applicant_college_other_information?person_id=${userID}` },
         ]
         : [];
 
@@ -634,7 +634,7 @@ const RegistrarDashboard3 = () => {
             </Box>
             <hr style={{ border: "1px solid #ccc", width: "100%" }} />
             <br />
-            
+
 
             <Box
                 sx={{

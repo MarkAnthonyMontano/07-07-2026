@@ -278,7 +278,7 @@ const MedicalDashboard1 = () => {
   const [hasAccess, setHasAccess] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const pageId = 38;
+  const pageId = 25;
 
   const [employeeID, setEmployeeID] = useState("");
 

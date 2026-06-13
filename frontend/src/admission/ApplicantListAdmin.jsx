@@ -165,7 +165,7 @@ const AdminApplicantList = () => {
       sessionStorage.setItem("edit_applicant_number", String(searchValue));
     }
 
-    navigate(`//admission_personal_information?person_id=${personId}`);
+    navigate(`/admission_personal_information?person_id=${personId}`);
   };
 
   const tabs = [
@@ -176,7 +176,7 @@ const AdminApplicantList = () => {
     },
     {
       label: "Applicant Profile",
-      to: "//admission_personal_information",
+      to: "/admission_personal_information",
       icon: <PersonIcon fontSize="large" />,
     },
     {

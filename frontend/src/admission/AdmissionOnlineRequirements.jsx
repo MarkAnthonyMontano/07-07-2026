@@ -54,7 +54,7 @@ const tabs = [
   },
   {
     label: "Applicant Profile",
-    to: "//admission_personal_information",
+    to: "/admission_personal_information",
     icon: <PersonIcon fontSize="large" />,
   },
   {
@@ -78,7 +78,6 @@ const tabs = [
     to: "/registrar_examination_profile",
     icon: <PersonSearchIcon fontSize="large" />,
   },
-
 
   {
     label: "Entrance Examination Score",
@@ -1212,7 +1211,7 @@ const StudentRequirements = () => {
             fontSize: '36px',
           }}
         >
-        APPLICANT ONLINE REQUIREMENTS
+          APPLICANT ONLINE REQUIREMENTS
         </Typography>
 
 

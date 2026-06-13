@@ -131,7 +131,6 @@ const AdminDashboard1 = () => {
       icon: <PersonSearchIcon fontSize="large" />,
     },
 
-
     {
       label: "Entrance Examination Score",
       to: "/applicant_scoring",

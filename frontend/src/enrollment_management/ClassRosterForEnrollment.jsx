@@ -44,38 +44,38 @@ const ClassRoster = () => {
   const settings = useContext(SettingsContext);
 
   // ─── Theme colors ────────────────────────────────────────────────────────────
-  const [titleColor,     setTitleColor]     = useState("#000000");
-  const [subtitleColor,  setSubtitleColor]  = useState("#555555");
-  const [borderColor,    setBorderColor]    = useState("#000000");
-  const [mainButtonColor,setMainButtonColor]= useState("#1976d2");
+  const [titleColor, setTitleColor] = useState("#000000");
+  const [subtitleColor, setSubtitleColor] = useState("#555555");
+  const [borderColor, setBorderColor] = useState("#000000");
+  const [mainButtonColor, setMainButtonColor] = useState("#1976d2");
   const [subButtonColor, setSubButtonColor] = useState("#ffffff");
-  const [stepperColor,   setStepperColor]   = useState("#000000");
+  const [stepperColor, setStepperColor] = useState("#000000");
 
   // ─── School branding ─────────────────────────────────────────────────────────
-  const [fetchedLogo,    setFetchedLogo]    = useState(null);
-  const [companyName,    setCompanyName]    = useState("");
-  const [shortTerm,      setShortTerm]      = useState("");
-  const [campusAddress,  setCampusAddress]  = useState("");
-  const [user,        setUser]        = useState("");
-  const [adminData,   setAdminData]   = useState({ dprtmnt_id: "" });
+  const [fetchedLogo, setFetchedLogo] = useState(null);
+  const [companyName, setCompanyName] = useState("");
+  const [shortTerm, setShortTerm] = useState("");
+  const [campusAddress, setCampusAddress] = useState("");
+  const [user, setUser] = useState("");
+  const [adminData, setAdminData] = useState({ dprtmnt_id: "" });
 
   // ─── Data ─────────────────────────────────────────────────────────────────────
-  const [students,        setStudents]        = useState([]);
-  const [schoolYears,     setSchoolYears]     = useState([]);
-  const [semesters,       setSemesters]       = useState([]);
-  const [department,      setDepartment]      = useState([]);
-  const [allCurriculums,  setAllCurriculums]  = useState([]);
+  const [students, setStudents] = useState([]);
+  const [schoolYears, setSchoolYears] = useState([]);
+  const [semesters, setSemesters] = useState([]);
+  const [department, setDepartment] = useState([]);
+  const [allCurriculums, setAllCurriculums] = useState([]);
   const [curriculumOptions, setCurriculumOptions] = useState([]);
 
   // ─── Filters ──────────────────────────────────────────────────────────────────
-  const [selectedSchoolYear,       setSelectedSchoolYear]       = useState("");
-  const [selectedSchoolSemester,   setSelectedSchoolSemester]   = useState("");
+  const [selectedSchoolYear, setSelectedSchoolYear] = useState("");
+  const [selectedSchoolSemester, setSelectedSchoolSemester] = useState("");
   const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("");
-  const [selectedProgramFilter,    setSelectedProgramFilter]    = useState("");
+  const [selectedProgramFilter, setSelectedProgramFilter] = useState("");
   const isProgramLocked = hasRegistrarCurriculumRestriction();
-  const [selectedStatusFilter,     setSelectedStatusFilter]     = useState("Regular");
-  const [selectedRemarkFilter,     setSelectedRemarkFilter]     = useState("Ongoing");
-  const [sortOrder,                setSortOrder]                = useState("asc");
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState("Regular");
+  const [selectedRemarkFilter, setSelectedRemarkFilter] = useState("Ongoing");
+  const [sortOrder, setSortOrder] = useState("asc");
 
   // ─── Pagination ───────────────────────────────────────────────────────────────
   const [currentPage, setCurrentPage] = useState(1);
@@ -83,10 +83,10 @@ const ClassRoster = () => {
 
   // ─── Access control ───────────────────────────────────────────────────────────
   const [hasAccess, setHasAccess] = useState(null);
-  const [loading,   setLoading]   = useState(false);
+  const [loading, setLoading] = useState(false);
   const pageId = 152;
 
-  const navigate  = useNavigate();
+  const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(5);
 
   const remarksMap = { 0: "Ongoing", 1: "Passed", 2: "Failed", 3: "Incomplete", 4: "Drop" };
@@ -95,23 +95,23 @@ const ClassRoster = () => {
   const getStudentRegularLabel = (student) =>
     getStudentRegularStatus(student) === 1 ? "Regular" : "Irregular";
 
-  const tabs= [
-         { label: "Student List", to: "/student_list_for_enrollment", icon: <SchoolIcon fontSize="large"/> },
-           { label: "Student Profile", to: "/student_college_personal_information", icon: <PersonIcon fontSize="large" /> },
-           { label: "Student Online Requirements", to: "student_online_requirements_college", icon: <AssignmentIcon fontSize="large"/> },
-           { label: "Course Tagging", to: "/course_tagging_for_college", icon: <UploadFileIcon fontSize="large"/> },
-           { label: "Search COR", to: "/search_cor_for_college", icon: <MenuBookIcon fontSize="large"/> },
-           { label: "Class List", to: "/class_roster_enrollment", icon: <PersonSearchIcon fontSize="large"/> },
-   
+  const tabs = [
+    { label: "Student List", to: "/student_list_for_enrollment", icon: <SchoolIcon fontSize="large" /> },
+    { label: "Student Profile", to: "/student_college_personal_information", icon: <PersonIcon fontSize="large" /> },
+    { label: "Student Online Requirements", to: "/student_online_requirements_college", icon: <AssignmentIcon fontSize="large" /> },
+    { label: "Course Tagging", to: "/course_tagging_for_college", icon: <UploadFileIcon fontSize="large" /> },
+    { label: "Search COR", to: "/search_cor_for_college", icon: <MenuBookIcon fontSize="large" /> },
+    { label: "Class List", to: "/class_roster_enrollment", icon: <PersonSearchIcon fontSize="large" /> },
+
   ];
 
   // ─────────────────────────────────────────────────────────────────────────────
   // STEP 1 & 2 — Auth + access check
   // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    const storedUser     = localStorage.getItem("email");
-    const storedRole     = localStorage.getItem("role");
-    const storedID       = localStorage.getItem("person_id");
+    const storedUser = localStorage.getItem("email");
+    const storedRole = localStorage.getItem("role");
+    const storedID = localStorage.getItem("person_id");
     const storedEmployee = localStorage.getItem("employee_id");
 
     if (storedUser && storedRole && storedID) {
@@ -248,16 +248,16 @@ const ClassRoster = () => {
   // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!settings) return;
-    if (settings.title_color)      setTitleColor(settings.title_color);
-    if (settings.subtitle_color)   setSubtitleColor(settings.subtitle_color);
-    if (settings.border_color)     setBorderColor(settings.border_color);
+    if (settings.title_color) setTitleColor(settings.title_color);
+    if (settings.subtitle_color) setSubtitleColor(settings.subtitle_color);
+    if (settings.border_color) setBorderColor(settings.border_color);
     if (settings.main_button_color) setMainButtonColor(settings.main_button_color);
-    if (settings.sub_button_color)  setSubButtonColor(settings.sub_button_color);
-    if (settings.stepper_color)     setStepperColor(settings.stepper_color);
-    if (settings.logo_url)          setFetchedLogo(`${API_BASE_URL}${settings.logo_url}`);
-    else                            setFetchedLogo(EaristLogo);
-    if (settings.company_name)  setCompanyName(settings.company_name);
-    if (settings.short_term)    setShortTerm(settings.short_term);
+    if (settings.sub_button_color) setSubButtonColor(settings.sub_button_color);
+    if (settings.stepper_color) setStepperColor(settings.stepper_color);
+    if (settings.logo_url) setFetchedLogo(`${API_BASE_URL}${settings.logo_url}`);
+    else setFetchedLogo(EaristLogo);
+    if (settings.company_name) setCompanyName(settings.company_name);
+    if (settings.short_term) setShortTerm(settings.short_term);
     if (settings.campus_address) setCampusAddress(settings.campus_address);
   }, [settings]);
 
@@ -269,7 +269,7 @@ const ClassRoster = () => {
     navigate(to);
   };
 
-  const handleSchoolYearChange     = e => { setSelectedSchoolYear(e.target.value);     setCurrentPage(1); };
+  const handleSchoolYearChange = e => { setSelectedSchoolYear(e.target.value); setCurrentPage(1); };
   const handleSchoolSemesterChange = e => { setSelectedSchoolSemester(e.target.value); setCurrentPage(1); };
 
   const handleDepartmentChange = (selectedDept) => {
@@ -286,15 +286,15 @@ const ClassRoster = () => {
   // ─────────────────────────────────────────────────────────────────────────────
   const filteredStudents = students
     .filter(s => {
-      const matchDept     = selectedDepartmentFilter === "" || s.dprtmnt_id          === selectedDepartmentFilter;
-      const matchProgram  = selectedProgramFilter    === "" || String(s.curriculum_id) === String(selectedProgramFilter);
+      const matchDept = selectedDepartmentFilter === "" || s.dprtmnt_id === selectedDepartmentFilter;
+      const matchProgram = selectedProgramFilter === "" || String(s.curriculum_id) === String(selectedProgramFilter);
       const matchRegistrarCurriculum = isRegistrarCurriculumMatch(s.curriculum_id);
-      const matchYear     = selectedSchoolYear       === "" || String(s.year_id)     === String(selectedSchoolYear);
-      const matchSemester = selectedSchoolSemester   === "" || String(s.semester_id) === String(selectedSchoolSemester);
-      const matchStatus   = selectedStatusFilter     === ""
-        || (selectedStatusFilter === "Regular"   && getStudentRegularStatus(s) === 1)
+      const matchYear = selectedSchoolYear === "" || String(s.year_id) === String(selectedSchoolYear);
+      const matchSemester = selectedSchoolSemester === "" || String(s.semester_id) === String(selectedSchoolSemester);
+      const matchStatus = selectedStatusFilter === ""
+        || (selectedStatusFilter === "Regular" && getStudentRegularStatus(s) === 1)
         || (selectedStatusFilter === "Irregular" && getStudentRegularStatus(s) !== 1);
-      const matchRemark   = selectedRemarkFilter === "" || remarksMap[s.en_remarks] === selectedRemarkFilter;
+      const matchRemark = selectedRemarkFilter === "" || remarksMap[s.en_remarks] === selectedRemarkFilter;
 
       return matchDept && matchProgram && matchRegistrarCurriculum && matchYear && matchSemester && matchStatus && matchRemark;
     })
@@ -304,7 +304,7 @@ const ClassRoster = () => {
       return sortOrder === "asc" ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
     });
 
-  const totalPages       = Math.ceil(filteredStudents.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
   const paginatedStudents = filteredStudents.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -316,11 +316,11 @@ const ClassRoster = () => {
   const printDiv = () => {
     const resolvedAddress = settings?.campus_address?.trim() || settings?.address?.trim() || "No address set in Settings";
     const logoSrc = fetchedLogo || EaristLogo;
-    const name    = companyName?.trim() || "";
-    const words   = name.split(" ");
-    const mid     = Math.ceil(words.length / 2);
-    const line1   = words.slice(0, mid).join(" ");
-    const line2   = words.slice(mid).join(" ");
+    const name = companyName?.trim() || "";
+    const words = name.split(" ");
+    const mid = Math.ceil(words.length / 2);
+    const line1 = words.slice(0, mid).join(" ");
+    const line2 = words.slice(mid).join(" ");
 
     const newWin = window.open("", "Print-Window");
     newWin.document.open();
@@ -361,9 +361,9 @@ const ClassRoster = () => {
         </thead>
         <tbody>
           ${filteredStudents.map((s, i) => {
-            const prog = curriculumOptions.find(c => String(c.curriculum_id) === String(s.curriculum_id));
-            const sem  = semesters.find(sm => String(sm.semester_id) === String(s.semester_id));
-            return `<tr>
+      const prog = curriculumOptions.find(c => String(c.curriculum_id) === String(s.curriculum_id));
+      const sem = semesters.find(sm => String(sm.semester_id) === String(s.semester_id));
+      return `<tr>
               <td>${i + 1}</td>
               <td>${s.student_number ?? "N/A"}</td>
               <td>${s.last_name}, ${s.first_name} ${s.middle_name ?? ""} ${s.extension ?? ""}</td>
@@ -374,7 +374,7 @@ const ClassRoster = () => {
               <td>${s.created_at ? new Date(s.created_at).toLocaleDateString("en-PH") : "N/A"}</td>
               <td>${getStudentRegularLabel(s)}</td>
             </tr>`;
-          }).join("")}
+    }).join("")}
         </tbody>
       </table>
     </div>
@@ -395,7 +395,7 @@ const ClassRoster = () => {
   // Render
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-     <Box
+    <Box
       sx={{
         height: "calc(100vh - 150px)",
         overflowY: "auto",
@@ -418,11 +418,11 @@ const ClassRoster = () => {
             fontSize: '36px',
           }}
         >
-        CLASS LIST
+          CLASS LIST
         </Typography>
 
 
-    
+
       </Box>
 
       <hr style={{ border: "1px solid #ccc", width: "100%" }} />
@@ -486,8 +486,8 @@ const ClassRoster = () => {
         ))}
       </Box>
 
-     <br/>
-     <br/>
+      <br />
+      <br />
 
 
       {/* ── Pagination bar ── */}
@@ -502,24 +502,28 @@ const ClassRoster = () => {
                   </Typography>
                   <Box display="flex" alignItems="center" gap={1}>
                     {[
-                      { label: "First", onClick: () => setCurrentPage(1),             disabled: currentPage === 1 },
-                      { label: "Prev",  onClick: () => setCurrentPage(p => Math.max(p - 1, 1)), disabled: currentPage === 1 },
+                      { label: "First", onClick: () => setCurrentPage(1), disabled: currentPage === 1 },
+                      { label: "Prev", onClick: () => setCurrentPage(p => Math.max(p - 1, 1)), disabled: currentPage === 1 },
                     ].map(btn => (
                       <Button key={btn.label} onClick={btn.onClick} disabled={btn.disabled} variant="outlined" size="small"
-                        sx={{ minWidth: 80, color: "white", borderColor: "white", backgroundColor: "transparent",
+                        sx={{
+                          minWidth: 80, color: "white", borderColor: "white", backgroundColor: "transparent",
                           "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" },
-                          "&.Mui-disabled": { color: "white", borderColor: "white", opacity: 1 } }}>
+                          "&.Mui-disabled": { color: "white", borderColor: "white", opacity: 1 }
+                        }}>
                         {btn.label}
                       </Button>
                     ))}
 
                     <FormControl size="small" sx={{ minWidth: 80 }}>
                       <Select value={currentPage} onChange={e => setCurrentPage(Number(e.target.value))}
-                        sx={{ fontSize: "12px", height: 36, color: "white", border: "1px solid white", backgroundColor: "transparent",
+                        sx={{
+                          fontSize: "12px", height: 36, color: "white", border: "1px solid white", backgroundColor: "transparent",
                           ".MuiOutlinedInput-notchedOutline": { borderColor: "white" },
                           "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
                           "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
-                          "& svg": { color: "white" } }}
+                          "& svg": { color: "white" }
+                        }}
                         MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}>
                         {Array.from({ length: totalPages }, (_, i) => (
                           <MenuItem key={i + 1} value={i + 1}>Page {i + 1}</MenuItem>
@@ -531,19 +535,23 @@ const ClassRoster = () => {
 
                     {[
                       { label: "Next", onClick: () => setCurrentPage(p => Math.min(p + 1, totalPages)), disabled: currentPage === totalPages },
-                      { label: "Last", onClick: () => setCurrentPage(totalPages),                        disabled: currentPage === totalPages },
+                      { label: "Last", onClick: () => setCurrentPage(totalPages), disabled: currentPage === totalPages },
                     ].map(btn => (
                       <Button key={btn.label} onClick={btn.onClick} disabled={btn.disabled} variant="outlined" size="small"
-                        sx={{ minWidth: 80, color: "white", borderColor: "white", backgroundColor: "transparent",
+                        sx={{
+                          minWidth: 80, color: "white", borderColor: "white", backgroundColor: "transparent",
                           "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" },
-                          "&.Mui-disabled": { color: "white", borderColor: "white", opacity: 1 } }}>
+                          "&.Mui-disabled": { color: "white", borderColor: "white", opacity: 1 }
+                        }}>
                         {btn.label}
                       </Button>
                     ))}
 
                     <Button onClick={() => setSortOrder(p => p === "asc" ? "desc" : "asc")} variant="outlined" size="small"
-                      sx={{ minWidth: 100, color: "white", borderColor: "white", backgroundColor: "transparent",
-                        "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" } }}>
+                      sx={{
+                        minWidth: 100, color: "white", borderColor: "white", backgroundColor: "transparent",
+                        "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" }
+                      }}>
                       Sort: {sortOrder === "asc" ? "A–Z" : "Z–A"}
                     </Button>
                   </Box>
@@ -561,10 +569,12 @@ const ClassRoster = () => {
           {/* Row 1: print */}
           <Box sx={{ display: "flex", gap: "1rem", justifyContent: "space-between" }}>
             <button onClick={printDiv}
-              style={{ padding: "5px 20px", border: "2px solid black", backgroundColor: "#f0f0f0", color: "black",
+              style={{
+                padding: "5px 20px", border: "2px solid black", backgroundColor: "#f0f0f0", color: "black",
                 borderRadius: "5px", cursor: "pointer", fontSize: "14px", fontWeight: "bold",
                 transition: "background-color 0.3s, transform 0.2s", height: "40px",
-                display: "flex", alignItems: "center", gap: "8px", maxWidth: "220px", userSelect: "none" }}
+                display: "flex", alignItems: "center", gap: "8px", maxWidth: "220px", userSelect: "none"
+              }}
               onMouseEnter={e => e.currentTarget.style.backgroundColor = "#d3d3d3"}
               onMouseLeave={e => e.currentTarget.style.backgroundColor = "#f0f0f0"}
               onMouseDown={e => e.currentTarget.style.transform = "scale(0.95)"}
@@ -677,25 +687,25 @@ const ClassRoster = () => {
         <Table size="small">
           <TableHead sx={{ backgroundColor: settings?.header_color || "#1976d2" }}>
             <TableRow>
-              {["#","Student Number","Name","Program Description","Program Code",
-                "Year Level","Semester","Remarks","Date Enrolled","Student Status"].map(h => (
-                <TableCell key={h} sx={{ color: "white", textAlign: "center", fontSize: "12px", border: `1px solid ${borderColor}` }}>
-                  {h}
-                </TableCell>
-              ))}
+              {["#", "Student Number", "Name", "Program Description", "Program Code",
+                "Year Level", "Semester", "Remarks", "Date Enrolled", "Student Status"].map(h => (
+                  <TableCell key={h} sx={{ color: "white", textAlign: "center", fontSize: "12px", border: `1px solid ${borderColor}` }}>
+                    {h}
+                  </TableCell>
+                ))}
             </TableRow>
           </TableHead>
-  <TableBody
-              sx={{
-                border: `1px solid ${borderColor}`,
-                "& .MuiTableRow-root:nth-of-type(odd)": {
-                  backgroundColor: "#ffffff",
-                },
-                "& .MuiTableRow-root:nth-of-type(even)": {
-                  backgroundColor: "lightgray",
-                },
-              }}
-            >
+          <TableBody
+            sx={{
+              border: `1px solid ${borderColor}`,
+              "& .MuiTableRow-root:nth-of-type(odd)": {
+                backgroundColor: "#ffffff",
+              },
+              "& .MuiTableRow-root:nth-of-type(even)": {
+                backgroundColor: "lightgray",
+              },
+            }}
+          >
             {paginatedStudents.map((s, i) => (
               <TableRow key={`${s.student_number}-${i}`}>
                 <TableCell sx={{ textAlign: "center", border: `1px solid ${borderColor}` }}>

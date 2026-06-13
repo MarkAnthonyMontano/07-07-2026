@@ -249,7 +249,7 @@ const AdminDashboard2 = () => {
 
   const steps = person.person_id
     ? [
-     { label: "Personal Information", icon: <PersonIcon />, path: `/applicant_registrar_personal_information?person_id=${userID}` },
+      { label: "Personal Information", icon: <PersonIcon />, path: `/applicant_registrar_personal_information?person_id=${userID}` },
       { label: "Family Background", icon: <FamilyRestroomIcon />, path: `/applicant_registrar_family_background?person_id=${userID}` },
       { label: "Educational Attainment", icon: <SchoolIcon />, path: `/applicant_registrar_educational_attainment?person_id=${userID}` },
       { label: "Health Medical Records", icon: <HealthAndSafetyIcon />, path: `/applicant_registrar_health_medical_records?person_id=${userID}` },
@@ -749,7 +749,7 @@ const AdminDashboard2 = () => {
         </Typography>
       </Box>
       <hr style={{ border: "1px solid #ccc", width: "100%" }} />
-   
+
 
       <br />
       <br />

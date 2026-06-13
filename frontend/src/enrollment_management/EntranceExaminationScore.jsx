@@ -146,7 +146,7 @@ const ApplicantScoringReadOnly = () => {
         },
         {
             label: "Applicant Online Requirements",
-            to: "applicant_online_requirements_college",
+            to: "/applicant_online_requirements_college",
             icon: <AssignmentIcon fontSize="large" />,
         },
         {

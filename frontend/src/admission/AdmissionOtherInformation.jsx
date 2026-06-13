@@ -103,7 +103,6 @@ const AdminDashboard5 = () => {
       icon: <PersonSearchIcon fontSize="large" />,
     },
 
-
     {
       label: "Entrance Examination Score",
       to: "/applicant_scoring",
@@ -283,7 +282,7 @@ const AdminDashboard5 = () => {
 
   const steps = userID
     ? [
-     { label: "Personal Information", icon: <PersonIcon />, path: `/admission_personal_information?person_id=${userID}` },
+      { label: "Personal Information", icon: <PersonIcon />, path: `/admission_personal_information?person_id=${userID}` },
       { label: "Family Background", icon: <FamilyRestroomIcon />, path: `/admission_family_background?person_id=${userID}` },
       { label: "Educational Attainment", icon: <SchoolIcon />, path: `/admission_educational_attainment?person_id=${userID}` },
       { label: "Health Medical Records", icon: <HealthAndSafetyIcon />, path: `/admission_health_medical_records?person_id=${userID}` },

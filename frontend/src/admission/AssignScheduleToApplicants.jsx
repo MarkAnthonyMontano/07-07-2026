@@ -113,7 +113,7 @@ const AssignScheduleToApplicants = () => {
     },
     {
       label: "Applicant Profile",
-      to: "//admission_personal_information",
+      to: "/admission_personal_information",
       icon: <PersonIcon fontSize="large" />,
     },
     {
@@ -560,9 +560,9 @@ const AssignScheduleToApplicants = () => {
           prev.map((s) =>
             Number(s.schedule_id) === Number(selectedSchedule)
               ? {
-                  ...s,
-                  current_occupancy: currentCount + (res.assigned?.length || 0),
-                }
+                ...s,
+                current_occupancy: currentCount + (res.assigned?.length || 0),
+              }
               : s,
           ),
         );
@@ -606,12 +606,12 @@ const AssignScheduleToApplicants = () => {
         prev.map((s) =>
           Number(s.schedule_id) === Number(assignedScheduleId)
             ? {
-                ...s,
-                current_occupancy: Math.max(
-                  Number(s.current_occupancy || 0) - 1,
-                  0,
-                ),
-              }
+              ...s,
+              current_occupancy: Math.max(
+                Number(s.current_occupancy || 0) - 1,
+                0,
+              ),
+            }
             : s,
         ),
       );
@@ -711,9 +711,9 @@ const AssignScheduleToApplicants = () => {
           prev.map((s) =>
             Number(s.schedule_id) === Number(selectedSchedule)
               ? {
-                  ...s,
-                  current_occupancy: currentCount + (res.assigned?.length || 0),
-                }
+                ...s,
+                current_occupancy: currentCount + (res.assigned?.length || 0),
+              }
               : s,
           ),
         );
@@ -1057,7 +1057,7 @@ This printed permit must be presented to your proctor on the exam day to verify 
     const matchesSemester =
       selectedSchoolSemester === "" ||
       normalize(personData.middle_code) ===
-        normalize(selectedSemester?.semester_code);
+      normalize(selectedSemester?.semester_code);
 
     return (
       emailNotSent &&
@@ -1449,11 +1449,11 @@ This printed permit must be presented to your proctor on the exam day to verify 
                 value={
                   selectedSchedule
                     ? (() => {
-                        const s = getSelectedScheduleData();
-                        return s
-                          ? `${s.current_occupancy ?? 0}/${s.room_quota}`
-                          : "";
-                      })()
+                      const s = getSelectedScheduleData();
+                      return s
+                        ? `${s.current_occupancy ?? 0}/${s.room_quota}`
+                        : "";
+                    })()
                     : ""
                 }
                 InputProps={{ readOnly: true }}
@@ -2178,10 +2178,9 @@ This printed permit must be presented to your proctor on the exam day to verify 
                               };
 
                               setEmailMessage(
-                                `Hello, ${person.first_name} ${
-                                  person.middle_name
-                                    ? person.middle_name.charAt(0) + "."
-                                    : ""
+                                `Hello, ${person.first_name} ${person.middle_name
+                                  ? person.middle_name.charAt(0) + "."
+                                  : ""
                                 } ${person.last_name}
 
 You have been assigned to the following Entrance Examination schedule:

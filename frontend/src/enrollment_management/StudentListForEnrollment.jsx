@@ -99,8 +99,8 @@ const StudentListForEnrollment = () => {
 
     useEffect(() => {
         socket.current = io(API_BASE_URL, {
-           path: "/api/socket.io",
-           transports: ["websocket", "polling"],
+            path: "/api/socket.io",
+            transports: ["websocket", "polling"],
         });
 
         return () => {
@@ -129,12 +129,12 @@ const StudentListForEnrollment = () => {
     };
 
     const tabs = [
-        { label: "Student List", to: "/student_list_for_enrollment", icon: <SchoolIcon fontSize="large"/> },
+        { label: "Student List", to: "/student_list_for_enrollment", icon: <SchoolIcon fontSize="large" /> },
         { label: "Student Profile", to: "/student_college_personal_information", icon: <PersonIcon fontSize="large" /> },
-        { label: "Student Online Requirements", to: "/student_official_requirements", icon: <AssignmentIcon fontSize="large"/> },
-        { label: "Course Tagging", to: "/course_tagging_for_college", icon: <UploadFileIcon fontSize="large"/> },
-        { label: "Search COR", to: "/search_cor_for_college", icon: <MenuBookIcon fontSize="large"/> },
-        { label: "Class List", to: "/class_roster_enrollment", icon: <PersonSearchIcon fontSize="large"/> },
+        { label: "Student Online Requirements", to: "/student_online_requirements_college", icon: <AssignmentIcon fontSize="large" /> },
+        { label: "Course Tagging", to: "/course_tagging_for_college", icon: <UploadFileIcon fontSize="large" /> },
+        { label: "Search COR", to: "/search_cor_for_college", icon: <MenuBookIcon fontSize="large" /> },
+        { label: "Class List", to: "/class_roster_enrollment", icon: <PersonSearchIcon fontSize="large" /> },
 
     ];
 

@@ -235,7 +235,7 @@ const MedicalStudentList = () => {
       icon: <SchoolIcon fontSize="large" />,
     },
     {
-      label: "Applicant Form",
+      label: "Applicant Profile",
       to: "/medical_personal_information",
       icon: <PersonIcon fontSize="large" />,
     },
@@ -1046,7 +1046,7 @@ const MedicalStudentList = () => {
             fontSize: "36px",
           }}
         >
-          APPLICANT LIST
+         STUDENT LIST
         </Typography>
 
         <TextField
