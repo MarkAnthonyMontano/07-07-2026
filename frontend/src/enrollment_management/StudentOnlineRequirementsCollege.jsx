@@ -22,6 +22,7 @@ import {
 } from "@mui/material";
 import API_BASE_URL from "../apiConfig";
 import { restrictToRegistrarCurriculum } from "../utils/registrarCurriculumRestriction";
+import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 import Search from "@mui/icons-material/Search";
 import { Link, useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
@@ -235,6 +236,8 @@ const OfficialRequirements = () => {
 
   const [curriculumOptions, setCurriculumOptions] = useState([]);
 
+  const scopeRevision = useRegistrarScopeRevision();
+
   useEffect(() => {
     const fetchCurriculums = async () => {
       try {
@@ -246,7 +249,7 @@ const OfficialRequirements = () => {
     };
 
     fetchCurriculums();
-  }, []);
+  }, [scopeRevision]);
 
   {
     curriculumOptions.find(

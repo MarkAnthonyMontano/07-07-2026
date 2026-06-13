@@ -8,6 +8,11 @@ const {
 } = require("../database/database");
 const { insertAuditLogEnrollment } = require("../../utils/auditLogger");
 const {
+  getScopesForEmployees,
+  buildEmployeeScopePayload,
+  formatScopesSummary,
+} = require("../../utils/registrarScopeService");
+const {
   CanCreate,
   CanDelete,
   CanEdit,
@@ -583,30 +588,51 @@ router.get("/registrars", async (req, res) => {
         ua.last_name,
         ua.email,
         ua.access_level,
-        ua.dprtmnt_id,   
+        ua.dprtmnt_id,
         at.access_description,
         ua.role,
         ua.status,
-        ua.program_id AS curriculum_id,
-        pt.program_id,
         d.dprtmnt_name,
-        d.dprtmnt_code,
-        pt.program_description,
-        pt.program_code,
-        pt.major,
-        yt.year_description AS current_year,
-        yt.year_description + 1 AS next_year
+        d.dprtmnt_code
       FROM user_accounts ua
       INNER JOIN access_table at ON ua.access_level = at.access_id
       LEFT JOIN dprtmnt_table d ON ua.dprtmnt_id = d.dprtmnt_id
-      LEFT JOIN curriculum_table ct ON ua.program_id = ct.curriculum_id
-      LEFT JOIN program_table pt ON ct.program_id = pt.program_id
-      LEFT JOIN year_table yt ON ct.year_id = yt.year_id
+      WHERE ua.role = 'registrar'
       ORDER BY ua.id DESC;
     `;
 
     const [results] = await db3.query(sql);
-    res.json(results);
+    const scopeMap = await getScopesForEmployees(
+      results.map((row) => row.employee_id),
+    );
+
+    const enriched = await Promise.all(
+      results.map(async (row) => {
+        const scopes = scopeMap.get(String(row.employee_id)) || [];
+        const scopePayload = await buildEmployeeScopePayload(row.employee_id, row);
+        const primaryScope = scopes[0];
+
+        return {
+          ...row,
+          scopes,
+          scopes_summary: formatScopesSummary(scopes),
+          dprtmnt_id: scopePayload.dprtmnt_id ?? row.dprtmnt_id ?? null,
+          curriculum_id: scopePayload.curriculum_id ?? null,
+          dprtmnt_name: primaryScope?.dprtmnt_name || row.dprtmnt_name || null,
+          dprtmnt_code: primaryScope?.dprtmnt_code || row.dprtmnt_code || null,
+          program_code:
+            scopes.length === 1 ? primaryScope?.program_code || null : null,
+          program_description:
+            scopes.length === 1
+              ? primaryScope?.program_description || null
+              : null,
+          major: scopes.length === 1 ? primaryScope?.major || null : null,
+          program_id: scopes.length === 1 ? primaryScope?.program_id || null : null,
+        };
+      }),
+    );
+
+    res.json(enriched);
   } catch (error) {
     console.error("Server error:", error);
     res.status(500).json({ error: "Server error" });

@@ -43,10 +43,12 @@ import SchoolIcon from "@mui/icons-material/School";
 import PersonSearchIcon from "@mui/icons-material/PersonSearch";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import {
-    hasRegistrarCurriculumRestriction,
     isRegistrarCurriculumMatch,
+    isRegistrarProgramSelectionLocked,
     restrictToRegistrarCurriculum,
+    syncRegistrarScopeFromAdminData,
 } from "../utils/registrarCurriculumRestriction";
+import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 
 const StudentListForEnrollment = () => {
     const socket = useRef(null);
@@ -238,6 +240,7 @@ const StudentListForEnrollment = () => {
         try {
             const res = await axios.get(`${API_BASE_URL}/api/admin_data/${user}`);
             setAdminData(res.data);
+            syncRegistrarScopeFromAdminData(res.data);
         } catch (err) {
             console.error("Error fetching admin data:", err);
         }
@@ -368,7 +371,8 @@ const StudentListForEnrollment = () => {
     const [selectedRegistrarStatus, setSelectedRegistrarStatus] = useState("");
     const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("");
     const [selectedProgramFilter, setSelectedProgramFilter] = useState("");
-    const isProgramLocked = hasRegistrarCurriculumRestriction();
+    const scopeRevision = useRegistrarScopeRevision();
+    const isProgramLocked = isRegistrarProgramSelectionLocked();
     const [department, setDepartment] = useState([]);
     const [allCurriculums, setAllCurriculums] = useState([]);
     const [schoolYears, setSchoolYears] = useState([]);
@@ -609,7 +613,7 @@ const StudentListForEnrollment = () => {
                 setAllCurriculums(restrictedCurriculums);
                 setCurriculumOptions(restrictedCurriculums);
             });
-    }, []);
+    }, [scopeRevision]);
 
     const handleDepartmentChange = (selectedDept) => {
         setSelectedDepartmentFilter(selectedDept);

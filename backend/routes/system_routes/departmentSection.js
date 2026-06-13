@@ -54,12 +54,14 @@ const getActorLabel = (req) => {
 const getDepartmentSectionLabel = async (departmentSectionId) => {
   const [[details]] = await db3.query(
     `SELECT y.year_description, p.program_code, p.program_description, p.major,
-            st.description AS section_description
+            st.description AS section_description,
+            yl.year_level_description
      FROM dprtmnt_section_table dst
      INNER JOIN curriculum_table c ON dst.curriculum_id = c.curriculum_id
      INNER JOIN year_table y ON c.year_id = y.year_id
      INNER JOIN program_table p ON c.program_id = p.program_id
      INNER JOIN section_table st ON dst.section_id = st.id
+     LEFT JOIN year_level_table yl ON dst.year_level_id = yl.year_level_id
      WHERE dst.id = ?
      LIMIT 1`,
     [departmentSectionId],
@@ -74,7 +76,11 @@ const getDepartmentSectionLabel = async (departmentSectionId) => {
     details.major,
   ].filter(Boolean).join(" ");
 
-  return `${programLabel} - ${details.section_description}`;
+  const yearLevelLabel = details.year_level_description
+    ? ` (${details.year_level_description})`
+    : "";
+
+  return `${programLabel} - ${details.section_description}${yearLevelLabel}`;
 };
 
 // ACTIVE CURRICULUM
@@ -243,44 +249,46 @@ router.get("/section_table/:dprtmnt_id", async (req, res) => {
 
 // DEPARTMENT SECTION - CREATE
 router.post("/department_section", CanCreate, async (req, res) => {
-  const { curriculum_id, section_id } = req.body;
+  const { curriculum_id, section_id, year_level_id } = req.body;
 
-  if (!curriculum_id || !section_id) {
+  if (!curriculum_id || !section_id || !year_level_id) {
     return res
       .status(400)
-      .json({ error: "Curriculum ID and Section ID are required" });
+      .json({ error: "Curriculum ID, Section ID, and Year Level are required" });
   }
 
   try {
     const [existing] = await db3.query(
       `
       SELECT * FROM dprtmnt_section_table
-      WHERE curriculum_id = ? AND section_id = ?
+      WHERE curriculum_id = ? AND section_id = ? AND year_level_id = ?
       `,
-      [curriculum_id, section_id],
+      [curriculum_id, section_id, year_level_id],
     );
 
     if (existing.length > 0) {
       return res.status(400).json({
-        message: "This department-section combination already exists.",
+        message: "This department-section-year level combination already exists.",
       });
     }
 
     const query = `
-      INSERT INTO dprtmnt_section_table (curriculum_id, section_id, dsstat)
-      VALUES (?, ?, 0)
+      INSERT INTO dprtmnt_section_table (curriculum_id, section_id, year_level_id, dsstat)
+      VALUES (?, ?, ?, 0)
     `;
 
-    const [result] = await db3.query(query, [curriculum_id, section_id]);
+    const [result] = await db3.query(query, [curriculum_id, section_id, year_level_id]);
 
     const [[details]] = await db3.query(
-      `SELECT y.year_description, p.program_code, st.description AS section_description
+      `SELECT y.year_description, p.program_code, st.description AS section_description,
+              yl.year_level_description
        FROM curriculum_table c
        INNER JOIN year_table y ON c.year_id = y.year_id
        INNER JOIN program_table p ON c.program_id = p.program_id
        INNER JOIN section_table st ON st.id = ?
+       LEFT JOIN year_level_table yl ON yl.year_level_id = ?
        WHERE c.curriculum_id = ?`,
-      [section_id, curriculum_id],
+      [section_id, year_level_id, curriculum_id],
     );
     const { actorId, actorRole } = getAuditActor(req);
     const roleLabel = formatAuditActorRole(actorRole);
@@ -288,10 +296,13 @@ router.post("/department_section", CanCreate, async (req, res) => {
       ? `${details.year_description} ${details.program_code}`
       : `curriculum ID ${curriculum_id}`;
     const sectionLabel = details?.section_description || `section ID ${section_id}`;
+    const yearLevelLabel = details?.year_level_description
+      ? ` (${details.year_level_description})`
+      : "";
     await insertDepartmentSectionAuditLog({
       req,
       action: "DEPARTMENT_SECTION_CREATE",
-      message: `${roleLabel} (${actorId}) created department section ${curriculumLabel} - ${sectionLabel}.`,
+      message: `${roleLabel} (${actorId}) created department section ${curriculumLabel} - ${sectionLabel}${yearLevelLabel}.`,
     });
 
     res.status(201).json({
@@ -309,26 +320,26 @@ router.post("/department_section", CanCreate, async (req, res) => {
 // DEPARTMENT SECTION - UPDATE
 router.put("/department_section/:id", CanEdit, async (req, res) => {
   const { id } = req.params;
-  const { curriculum_id, section_id } = req.body;
+  const { curriculum_id, section_id, year_level_id } = req.body;
 
-  if (!curriculum_id || !section_id) {
+  if (!curriculum_id || !section_id || !year_level_id) {
     return res
       .status(400)
-      .json({ error: "Curriculum ID and Section ID are required" });
+      .json({ error: "Curriculum ID, Section ID, and Year Level are required" });
   }
 
   try {
     const [existing] = await db3.query(
       `SELECT id
        FROM dprtmnt_section_table
-       WHERE curriculum_id = ? AND section_id = ? AND id != ?
+       WHERE curriculum_id = ? AND section_id = ? AND year_level_id = ? AND id != ?
        LIMIT 1`,
-      [curriculum_id, section_id, id],
+      [curriculum_id, section_id, year_level_id, id],
     );
 
     if (existing.length > 0) {
       return res.status(400).json({
-        message: "This department-section combination already exists.",
+        message: "This department-section-year level combination already exists.",
       });
     }
 
@@ -336,9 +347,9 @@ router.put("/department_section/:id", CanEdit, async (req, res) => {
 
     const [result] = await db3.query(
       `UPDATE dprtmnt_section_table
-       SET curriculum_id = ?, section_id = ?
+       SET curriculum_id = ?, section_id = ?, year_level_id = ?
        WHERE id = ?`,
-      [curriculum_id, section_id, id],
+      [curriculum_id, section_id, year_level_id, id],
     );
 
     if (result.affectedRows === 0) {
@@ -402,6 +413,8 @@ router.get("/department_section", async (req, res) => {
       SELECT
         dst.id as department_section_id,
         dst.dsstat,
+        dst.year_level_id,
+        ylt.year_level_description,
         pt.program_code,
         pt.program_description,
         pt.major,
@@ -412,6 +425,7 @@ router.get("/department_section", async (req, res) => {
         st.description AS section_description
       FROM dprtmnt_section_table dst
       INNER JOIN curriculum_table ct ON dst.curriculum_id = ct.curriculum_id
+      LEFT JOIN year_level_table ylt ON dst.year_level_id = ylt.year_level_id
       LEFT JOIN (
         SELECT curriculum_id, MIN(dprtmnt_id) AS dprtmnt_id
         FROM dprtmnt_curriculum_table

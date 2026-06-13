@@ -34,11 +34,13 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import PersonIcon from "@mui/icons-material/Person";
 import {
-  hasRegistrarCurriculumRestriction,
   getRegistrarCurriculumId,
   isRegistrarCurriculumMatch,
+  isRegistrarProgramSelectionLocked,
   restrictToRegistrarCurriculum,
+  syncRegistrarScopeFromAdminData,
 } from "../utils/registrarCurriculumRestriction";
+import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 
 const ClassRoster = () => {
   const settings = useContext(SettingsContext);
@@ -72,7 +74,8 @@ const ClassRoster = () => {
   const [selectedSchoolSemester, setSelectedSchoolSemester] = useState("");
   const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("");
   const [selectedProgramFilter, setSelectedProgramFilter] = useState("");
-  const isProgramLocked = hasRegistrarCurriculumRestriction();
+  const isProgramLocked = isRegistrarProgramSelectionLocked();
+  const scopeRevision = useRegistrarScopeRevision();
   const [selectedStatusFilter, setSelectedStatusFilter] = useState("Regular");
   const [selectedRemarkFilter, setSelectedRemarkFilter] = useState("Ongoing");
   const [sortOrder, setSortOrder] = useState("asc");
@@ -150,6 +153,7 @@ const ClassRoster = () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/api/admin_data/${user}`);
         setAdminData(res.data);
+        syncRegistrarScopeFromAdminData(res.data);
       } catch (err) {
         console.error("Error fetching admin data:", err);
       }
@@ -218,7 +222,7 @@ const ClassRoster = () => {
         setCurriculumOptions(restrictedCurriculums);
       })
       .catch(console.error);
-  }, []);
+  }, [scopeRevision]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // STEP 6 — Apply UI restrictions based on the user's department

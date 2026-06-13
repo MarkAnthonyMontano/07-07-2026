@@ -44,10 +44,13 @@ import LoadingOverlay from "../components/LoadingOverlay";
 import SearchIcon from "@mui/icons-material/Search";
 import API_BASE_URL from "../apiConfig";
 import {
-  hasRegistrarCurriculumRestriction,
   isRegistrarCurriculumMatch,
+  isRegistrarProgramSelectionLocked,
+  refreshRegistrarCurriculumId,
   restrictToRegistrarCurriculum,
+  syncRegistrarScopeFromAdminData,
 } from "../utils/registrarCurriculumRestriction";
+import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import ScoreIcon from "@mui/icons-material/Score";
 import DateField from "../components/DateField";
@@ -241,7 +244,10 @@ const ApplicantList = () => {
   const [userID, setUserID] = useState("");
   const [user, setUser] = useState("");
   const [userRole, setUserRole] = useState("");
-  const [adminData, setAdminData] = useState({ dprtmnt_id: "" });
+  const [adminData, setAdminData] = useState({
+    dprtmnt_id: "",
+    dprtmnt_ids: [],
+  });
 
   useEffect(() => {
     const storedUser = localStorage.getItem("email");
@@ -271,7 +277,8 @@ const ApplicantList = () => {
   const fetchPersonData = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/api/admin_data/${user}`);
-      setAdminData(res.data); // { dprtmnt_id: "..." }
+      setAdminData(res.data);
+      syncRegistrarScopeFromAdminData(res.data);
     } catch (err) {
       console.error("Error fetching admin data:", err);
     }
@@ -422,7 +429,11 @@ const ApplicantList = () => {
     }
   };
 
-  const handleSubmittedDocumentsChange = async (upload_id, checked, person_id) => {
+  const handleSubmittedDocumentsChange = async (
+    upload_id,
+    checked,
+    person_id,
+  ) => {
     try {
       const res = await axios.put(
         `${API_BASE_URL}/api/submitted-documents/${upload_id}`,
@@ -467,12 +478,12 @@ const ApplicantList = () => {
         prev.map((p) =>
           p.person_id === person_id
             ? {
-              ...p,
-              registrar_status: status,
-              submitted_documents: status, // sync with checkbox
-              remarks: status ? 1 : 0,
-              missing_documents: status ? [] : null,
-            }
+                ...p,
+                registrar_status: status,
+                submitted_documents: status, // sync with checkbox
+                remarks: status ? 1 : 0,
+                missing_documents: status ? [] : null,
+              }
             : p,
         ),
       );
@@ -498,23 +509,44 @@ const ApplicantList = () => {
   }, []);
 
   const [curriculumOptions, setCurriculumOptions] = useState([]);
+  const [allCurriculums, setAllCurriculums] = useState([]);
+  const scopeRevision = useRegistrarScopeRevision();
 
   useEffect(() => {
-    if (!adminData.dprtmnt_id) return;
+    if (userRole !== "registrar" || !employeeID) return;
+    refreshRegistrarCurriculumId(employeeID).catch((err) => {
+      console.error("Error refreshing registrar scope:", err);
+    });
+  }, [userRole, employeeID]);
+
+  useEffect(() => {
+    const departmentIds =
+      Array.isArray(adminData.dprtmnt_ids) && adminData.dprtmnt_ids.length
+        ? adminData.dprtmnt_ids
+        : adminData.dprtmnt_id
+          ? [adminData.dprtmnt_id]
+          : [];
+
+    if (!departmentIds.length) return;
 
     const fetchCurriculums = async () => {
       try {
-        const response = await axios.get(
-          `${API_BASE_URL}/api/applied_program/${adminData.dprtmnt_id}`,
+        const responses = await Promise.all(
+          departmentIds.map((departmentId) =>
+            axios.get(`${API_BASE_URL}/api/applied_program/${departmentId}`),
+          ),
         );
-        setCurriculumOptions(restrictToRegistrarCurriculum(response.data));
+        const merged = responses.flatMap((response) => response.data || []);
+        const restricted = restrictToRegistrarCurriculum(merged);
+        setCurriculumOptions(restricted);
+        setAllCurriculums(restricted);
       } catch (error) {
         console.error("Error fetching curriculum options:", error);
       }
     };
 
     fetchCurriculums();
-  }, [adminData.dprtmnt_id]);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
 
   const [selectedApplicantStatus, setSelectedApplicantStatus] = useState("");
   const [sortBy, setSortBy] = useState("name");
@@ -525,7 +557,6 @@ const ApplicantList = () => {
   const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("");
   const [selectedProgramFilter, setSelectedProgramFilter] = useState("");
   const [department, setDepartment] = useState([]);
-  const [allCurriculums, setAllCurriculums] = useState([]);
   const [schoolYears, setSchoolYears] = useState([]);
   const [semesters, setSchoolSemester] = useState([]);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState("");
@@ -542,19 +573,19 @@ const ApplicantList = () => {
     : "";
   const selectedDepartmentFilterValue =
     selectedDepartmentFilter === "" ||
-      department.some(
-        (dep) => String(dep.dprtmnt_name) === String(selectedDepartmentFilter),
-      )
+    department.some(
+      (dep) => String(dep.dprtmnt_name) === String(selectedDepartmentFilter),
+    )
       ? selectedDepartmentFilter
       : "";
   const selectedProgramFilterValue =
     selectedProgramFilter === "" ||
-      curriculumOptions.some(
-        (prog) => String(prog.program_code) === String(selectedProgramFilter),
-      )
+    curriculumOptions.some(
+      (prog) => String(prog.program_code) === String(selectedProgramFilter),
+    )
       ? selectedProgramFilter
       : "";
-  const isProgramLocked = hasRegistrarCurriculumRestriction();
+  const isProgramLocked = isRegistrarProgramSelectionLocked();
 
   useEffect(() => {
     if (!isProgramLocked) return;
@@ -639,8 +670,8 @@ const ApplicantList = () => {
       .trim()
       .toLowerCase()
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")  // remove accents
-      .replace(/[^a-z0-9]/g, "");       // remove dots, commas, spaces, etc.
+      .replace(/[\u0300-\u036f]/g, "") // remove accents
+      .replace(/[^a-z0-9]/g, ""); // remove dots, commas, spaces, etc.
 
   // ── DETECTOR 1: Suspicious name (special characters / slight variation) ──
   // Catches: "Montano." vs "Montano", "De Leon" vs "DeLeon"
@@ -658,7 +689,9 @@ const ApplicantList = () => {
     return (person) => {
       const ln = normalizeName(person.last_name);
       const fn = normalizeName(person.first_name);
-      const bd = person.birthOfDate ? String(person.birthOfDate).split("T")[0] : "";
+      const bd = person.birthOfDate
+        ? String(person.birthOfDate).split("T")[0]
+        : "";
       if (!ln || !fn) return false;
       const key = `${ln}|${fn}|${bd}`;
       // Only flag if normalized key has duplicates BUT exact name doesn't
@@ -693,7 +726,9 @@ const ApplicantList = () => {
     return (person) => {
       const ln = normalizeName(person.last_name);
       const fn = normalizeName(person.first_name);
-      const bd = person.birthOfDate ? String(person.birthOfDate).split("T")[0] : "";
+      const bd = person.birthOfDate
+        ? String(person.birthOfDate).split("T")[0]
+        : "";
       if (!ln || !fn) return false;
       const key = `${ln}|${fn}|${bd}`;
       // Flag only the NEW account (hasn't taken exam yet)
@@ -707,7 +742,6 @@ const ApplicantList = () => {
 
   const isSuspiciousDuplicate = detectSuspiciousDuplicates(persons);
   const isExamTakenDuplicate = detectExamTakenDuplicates(persons);
-
 
   // helper to make string comparisons robust
   const normalize = (s) => (s ?? "").toString().trim().toLowerCase();
@@ -791,7 +825,7 @@ const ApplicantList = () => {
         overrideBySearch ||
         selectedSchoolSemester === "" ||
         normalize(personData.middle_code) ===
-        normalize(selectedSemester?.semester_code);
+          normalize(selectedSemester?.semester_code);
 
       /* 📆 FROM–TO DATE RANGE (fixed 100%) */
       let matchesDateRange = true;
@@ -896,21 +930,38 @@ const ApplicantList = () => {
   }, []);
 
   useEffect(() => {
-    if (!adminData.dprtmnt_id) return;
+    const departmentIds =
+      Array.isArray(adminData.dprtmnt_ids) && adminData.dprtmnt_ids.length
+        ? adminData.dprtmnt_ids
+        : adminData.dprtmnt_id
+          ? [adminData.dprtmnt_id]
+          : [];
+
+    if (!departmentIds.length) return;
 
     const fetchDepartments = async () => {
       try {
-        const response = await axios.get(
-          `${API_BASE_URL}/api/departments/${adminData.dprtmnt_id}`,
-        ); // ✅ Update if needed
-        setDepartment(response.data);
+        const responses = await Promise.all(
+          departmentIds.map((departmentId) =>
+            axios.get(`${API_BASE_URL}/api/departments/${departmentId}`),
+          ),
+        );
+        const mergedDepartments = responses.flatMap(
+          (response) => response.data || [],
+        );
+        const uniqueDepartments = [
+          ...new Map(
+            mergedDepartments.map((dep) => [String(dep.dprtmnt_id), dep]),
+          ).values(),
+        ];
+        setDepartment(uniqueDepartments);
       } catch (error) {
         console.error("Error fetching departments:", error);
       }
     };
 
     fetchDepartments();
-  }, [adminData.dprtmnt_id]);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -993,12 +1044,21 @@ const ApplicantList = () => {
   const activeDocumentOptions = getDocumentOptionsForPerson(activePerson);
 
   useEffect(() => {
+    const departmentIds =
+      Array.isArray(adminData.dprtmnt_ids) && adminData.dprtmnt_ids.length
+        ? adminData.dprtmnt_ids
+        : adminData.dprtmnt_id
+          ? [adminData.dprtmnt_id]
+          : [];
+
+    if (departmentIds.length) return;
+
     axios.get(`${API_BASE_URL}/api/applied_program`).then((res) => {
       const restrictedCurriculums = restrictToRegistrarCurriculum(res.data);
       setAllCurriculums(restrictedCurriculums);
       setCurriculumOptions(restrictedCurriculums);
     });
-  }, []);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
 
   useEffect(() => {
     if (department.length > 0 && !selectedDepartmentFilter) {
@@ -1138,20 +1198,22 @@ const ApplicantList = () => {
                  <div style="font-size: 13px; font-family: Arial">Republic of the Philippines</div>
    
                  <!-- ✅ Dynamic company name -->
-                 ${name
-        ? `
+                 ${
+                   name
+                     ? `
                        <b style="letter-spacing: 1px; font-size: 20px; font-family: Arial, sans-serif;">
                          ${firstLine}
                        </b>
-                       ${secondLine
-          ? `<div style="letter-spacing: 1px; font-size: 20px; font-family: Arial, sans-serif;">
+                       ${
+                         secondLine
+                           ? `<div style="letter-spacing: 1px; font-size: 20px; font-family: Arial, sans-serif;">
                                <b>${secondLine}</b>
                              </div>`
-          : ""
-        }
+                           : ""
+                       }
                      `
-        : ""
-      }
+                     : ""
+                 }
    
                  <!-- ✅ Dynamic campus address -->
                  <div style="font-size: 13px; font-family: Arial">${resolvedCampusAddress}</div>
@@ -1178,30 +1240,31 @@ const ApplicantList = () => {
                </thead>
                <tbody>
                  ${filteredPersons
-        .map(
-          (person) => `
+                   .map(
+                     (person) => `
                        <tr>
                          <td style="width:10%">${person.applicant_number || ""}</td>
                          <td style="width:40%">${person.last_name}, ${person.first_name} ${person.middle_name || ""} ${person.extension || ""}</td>
-                         <td style="width:15%">${allCurriculums.find(
-            (item) =>
-              item.curriculum_id?.toString() ===
-              person.program?.toString(),
-          )?.program_code ?? "N/A"
-            }</td>                 
+                         <td style="width:15%">${
+                           allCurriculums.find(
+                             (item) =>
+                               item.curriculum_id?.toString() ===
+                               person.program?.toString(),
+                           )?.program_code ?? "N/A"
+                         }</td>                 
                          <td style="width:10%">${person.generalAverage1 || ""}</td>
                          <td style="width:10%">${new Date(
-              person.created_at.split("T")[0],
-            ).toLocaleDateString("en-PH", {
-              year: "numeric",
-              month: "short",
-              day: "2-digit",
-            })}</td>
+                           person.created_at.split("T")[0],
+                         ).toLocaleDateString("en-PH", {
+                           year: "numeric",
+                           month: "short",
+                           day: "2-digit",
+                         })}</td>
                          <td style="width:15%">${getApplicantStatus(person)}</td>
                        </tr>
                      `,
-        )
-        .join("")}
+                   )
+                   .join("")}
                </tbody>
              </table>
            </div>
@@ -1858,24 +1921,57 @@ const ApplicantList = () => {
                 </Select>
               </FormControl>
             </Box>
-
           </Box>
         </Box>
 
-        <Box display="flex" flexDirection="column" alignItems="center" gap={1} mb={1}>
-          <Typography fontSize={16} fontWeight="bold">Color Indication</Typography>
+        <Box
+          display="flex"
+          flexDirection="column"
+          alignItems="center"
+          gap={1}
+          mb={1}
+        >
+          <Typography fontSize={16} fontWeight="bold">
+            Color Indication
+          </Typography>
           <Box display="flex" justifyContent="center" gap={2} flexWrap="wrap">
             <Box display="flex" alignItems="center" gap={0.5}>
-              <Box sx={{ width: 16, height: 16, backgroundColor: "#A5D6A7", border: "1px solid #ccc", borderRadius: 0.5 }} />
+              <Box
+                sx={{
+                  width: 16,
+                  height: 16,
+                  backgroundColor: "#A5D6A7",
+                  border: "1px solid #ccc",
+                  borderRadius: 0.5,
+                }}
+              />
               <Typography fontSize={12}>Submitted Documents</Typography>
             </Box>
             <Box display="flex" alignItems="center" gap={0.5}>
-              <Box sx={{ width: 16, height: 16, backgroundColor: "#EF9A9A", border: "1px solid #ccc", borderRadius: 0.5 }} />
+              <Box
+                sx={{
+                  width: 16,
+                  height: 16,
+                  backgroundColor: "#EF9A9A",
+                  border: "1px solid #ccc",
+                  borderRadius: 0.5,
+                }}
+              />
               <Typography fontSize={12}>Exam Schedule Sent</Typography>
             </Box>
             <Box display="flex" alignItems="center" gap={0.5}>
-              <Box sx={{ width: 16, height: 16, backgroundColor: "#FFCC80", border: "1px solid #ccc", borderRadius: 0.5 }} />
-              <Typography fontSize={12}>Duplicate / Suspicious / Re-registration Detected</Typography>
+              <Box
+                sx={{
+                  width: 16,
+                  height: 16,
+                  backgroundColor: "#FFCC80",
+                  border: "1px solid #ccc",
+                  borderRadius: 0.5,
+                }}
+              />
+              <Typography fontSize={12}>
+                Duplicate / Suspicious / Re-registration Detected
+              </Typography>
             </Box>
           </Box>
         </Box>
@@ -2055,7 +2151,12 @@ const ApplicantList = () => {
             </TableRow>
           </TableHead>
           {/* --- Confirmation Dialog --- */}
-          <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth="xs" fullWidth>
+          <Dialog
+            open={confirmOpen}
+            onClose={() => setConfirmOpen(false)}
+            maxWidth="xs"
+            fullWidth
+          >
             <DialogTitle
               sx={{
                 background: settings?.header_color || "#9E0000",
@@ -2070,7 +2171,8 @@ const ApplicantList = () => {
 
             <DialogContent sx={{ p: 3, mt: 2 }}>
               <Typography sx={{ mb: 2 }}>
-                {confirmMessage || "Are you sure you want to update this applicant's status?"}
+                {confirmMessage ||
+                  "Are you sure you want to update this applicant's status?"}
               </Typography>
 
               <Typography sx={{ color: "#d32f2f", fontSize: "0.95rem" }}>
@@ -2081,7 +2183,11 @@ const ApplicantList = () => {
             </DialogContent>
 
             <DialogActions sx={{ px: 3, pb: 2 }}>
-              <Button onClick={() => setConfirmOpen(false)} color="error" variant="outlined">
+              <Button
+                onClick={() => setConfirmOpen(false)}
+                color="error"
+                variant="outlined"
+              >
                 Cancel
               </Button>
               <Button
@@ -2116,39 +2222,41 @@ const ApplicantList = () => {
             ) : (
               currentPersons.map((person, index) => (
                 <TableRow
-                key={person.person_id}
-                sx={{
-                  backgroundColor: (() => {
-                    const hasSubmitted = Number(person.submitted_documents) === 1;
-                    const isAnyDuplicate =
-                      isDuplicateApplicant(person) ||
-                      isSuspiciousDuplicate(person) ||
-                      isExamTakenDuplicate(person);
-                    const hasExamSent = person.schedule_id && Number(person.email_sent) === 1;
+                  key={person.person_id}
+                  sx={{
+                    backgroundColor: (() => {
+                      const hasSubmitted =
+                        Number(person.submitted_documents) === 1;
+                      const isAnyDuplicate =
+                        isDuplicateApplicant(person) ||
+                        isSuspiciousDuplicate(person) ||
+                        isExamTakenDuplicate(person);
+                      const hasExamSent =
+                        person.schedule_id && Number(person.email_sent) === 1;
 
-                    if (hasSubmitted) return "#A5D6A7";  // green     — submitted documents
-                    if (isAnyDuplicate) return "#FFCC80";  // medium salmon orange — duplicate / suspicious
-                    if (hasExamSent) return "#EF9A9A";  // sky blue  — exam schedule sent
+                      if (hasSubmitted) return "#A5D6A7"; // green     — submitted documents
+                      if (isAnyDuplicate) return "#FFCC80"; // medium salmon orange — duplicate / suspicious
+                      if (hasExamSent) return "#EF9A9A"; // sky blue  — exam schedule sent
 
-                    return index % 2 === 0 ? "#ffffff" : "lightgray";
-                  })(),
+                      return index % 2 === 0 ? "#ffffff" : "lightgray";
+                    })(),
 
-                  color: "black",
-
-                  "& td:not(.clickable-cell)": {
                     color: "black",
-                  },
 
-                  fontWeight:
-                    Number(person.submitted_documents) === 1 ||
+                    "& td:not(.clickable-cell)": {
+                      color: "black",
+                    },
+
+                    fontWeight:
+                      Number(person.submitted_documents) === 1 ||
                       isDuplicateApplicant(person) ||
                       isSuspiciousDuplicate(person) ||
                       isExamTakenDuplicate(person) ||
                       (person.schedule_id && Number(person.email_sent) === 1)
-                      ? "bold"
-                      : "normal",
-                }}
-              >
+                        ? "bold"
+                        : "normal",
+                  }}
+                >
                   {/* # */}
                   <TableCell
                     sx={{
@@ -2377,20 +2485,20 @@ const ApplicantList = () => {
                           width: "160px",
                           backgroundColor:
                             person.submitted_documents === 1 &&
-                              person.registrar_status === 1 &&
-                              Array.isArray(person.missing_documents) &&
-                              person.missing_documents.length === 0
+                            person.registrar_status === 1 &&
+                            Array.isArray(person.missing_documents) &&
+                            person.missing_documents.length === 0
                               ? "#4CAF50"
                               : Array.isArray(person.missing_documents) &&
-                                person.missing_documents.length > 0
+                                  person.missing_documents.length > 0
                                 ? "#FFD580"
                                 : "#D6F0FF",
                           border: "3px solid black",
                           color:
                             person.submitted_documents === 1 &&
-                              person.registrar_status === 1 &&
-                              Array.isArray(person.missing_documents) &&
-                              person.missing_documents.length === 0
+                            person.registrar_status === 1 &&
+                            Array.isArray(person.missing_documents) &&
+                            person.missing_documents.length === 0
                               ? "white"
                               : "black",
                           fontWeight: "bold",
@@ -2399,21 +2507,21 @@ const ApplicantList = () => {
                           "&:hover": {
                             backgroundColor:
                               person.submitted_documents === 1 &&
-                                person.registrar_status === 1 &&
-                                Array.isArray(person.missing_documents) &&
-                                person.missing_documents.length === 0
+                              person.registrar_status === 1 &&
+                              Array.isArray(person.missing_documents) &&
+                              person.missing_documents.length === 0
                                 ? "#45A049"
                                 : Array.isArray(person.missing_documents) &&
-                                  person.missing_documents.length > 0
+                                    person.missing_documents.length > 0
                                   ? "#FFC04D"
                                   : "#B9E3FF",
                           },
                         }}
                       >
                         {person.submitted_documents === 1 &&
-                          person.registrar_status === 1 &&
-                          Array.isArray(person.missing_documents) &&
-                          person.missing_documents.length === 0
+                        person.registrar_status === 1 &&
+                        Array.isArray(person.missing_documents) &&
+                        person.missing_documents.length === 0
                           ? "✅ Completed"
                           : "📋 Missing Docs"}
                       </Button>
@@ -2486,7 +2594,12 @@ const ApplicantList = () => {
             )}
           </TableBody>
 
-          <Dialog open={openDialog} onClose={handleCloseDialog} fullWidth maxWidth="sm">
+          <Dialog
+            open={openDialog}
+            onClose={handleCloseDialog}
+            fullWidth
+            maxWidth="sm"
+          >
             <DialogTitle
               sx={{
                 background: settings?.header_color || "#9E0000",
@@ -2497,14 +2610,16 @@ const ApplicantList = () => {
               }}
             >
               {Array.isArray(activePerson?.missing_documents) &&
-                activePerson.missing_documents.length === 0 &&
-                activePerson?.submitted_documents === 1 &&
-                activePerson?.registrar_status === 1
+              activePerson.missing_documents.length === 0 &&
+              activePerson?.submitted_documents === 1 &&
+              activePerson?.registrar_status === 1
                 ? "✅ Completed All Documents"
                 : "Mark Missing Documents"}
             </DialogTitle>
 
-            <DialogContent sx={{ maxHeight: 400, overflowY: "auto", p: 3, mt: 2 }}>
+            <DialogContent
+              sx={{ maxHeight: 400, overflowY: "auto", p: 3, mt: 2 }}
+            >
               {activeDocumentOptions.length === 0 ? (
                 <Typography sx={{ textAlign: "center", color: "gray", mt: 2 }}>
                   No requirements found in database.
@@ -2519,7 +2634,9 @@ const ApplicantList = () => {
                   }}
                 >
                   {activeDocumentOptions.map((doc) => {
-                    const selectedArray = Array.isArray(activePerson?.missing_documents)
+                    const selectedArray = Array.isArray(
+                      activePerson?.missing_documents,
+                    )
                       ? activePerson.missing_documents
                       : [];
 
@@ -2533,7 +2650,11 @@ const ApplicantList = () => {
                         key={doc.key}
                         control={
                           <Checkbox
-                            checked={isCompleted ? true : selectedArray.includes(doc.key)}
+                            checked={
+                              isCompleted
+                                ? true
+                                : selectedArray.includes(doc.key)
+                            }
                             disabled={isCompleted}
                             onChange={(e) => {
                               if (isCompleted) return;
@@ -2541,7 +2662,9 @@ const ApplicantList = () => {
                                 ? [...selectedArray, doc.key]
                                 : selectedArray.filter((x) => x !== doc.key);
                               setActivePerson((prev) =>
-                                prev ? { ...prev, missing_documents: updated } : prev,
+                                prev
+                                  ? { ...prev, missing_documents: updated }
+                                  : prev,
                               );
                             }}
                           />
@@ -2562,7 +2685,11 @@ const ApplicantList = () => {
             </DialogContent>
 
             <DialogActions sx={{ px: 3, pb: 2 }}>
-              <Button color="error" variant="outlined" onClick={handleCloseDialog}>
+              <Button
+                color="error"
+                variant="outlined"
+                onClick={handleCloseDialog}
+              >
                 Cancel
               </Button>
               {!(
@@ -2571,10 +2698,14 @@ const ApplicantList = () => {
                 activePerson?.submitted_documents === 1 &&
                 activePerson?.registrar_status === 1
               ) && (
-                  <Button variant="contained" color="primary" onClick={handleSaveMissingDocs}>
-                    Save
-                  </Button>
-                )}
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleSaveMissingDocs}
+                >
+                  Save
+                </Button>
+              )}
             </DialogActions>
           </Dialog>
         </Table>

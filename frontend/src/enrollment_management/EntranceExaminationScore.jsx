@@ -34,10 +34,12 @@ import PeopleIcon from "@mui/icons-material/People";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
 import _ from "lodash";
 import {
-    hasRegistrarCurriculumRestriction,
     isRegistrarCurriculumMatch,
+    isRegistrarProgramSelectionLocked,
     restrictToRegistrarCurriculum,
+    syncRegistrarScopeFromAdminData,
 } from "../utils/registrarCurriculumRestriction";
+import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 import Unauthorized from "../components/Unauthorized";
 import LoadingOverlay from "../components/LoadingOverlay";
 import SearchIcon from "@mui/icons-material/Search";
@@ -356,6 +358,7 @@ const ApplicantScoringReadOnly = () => {
         try {
             const res = await axios.get(`${API_BASE_URL}/api/admin_data/${user}`);
             setAdminData(res.data);
+            syncRegistrarScopeFromAdminData(res.data);
         } catch (err) {
             console.error("Error fetching admin data:", err);
         }
@@ -497,7 +500,8 @@ const ApplicantScoringReadOnly = () => {
 
     const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("");
     const [selectedProgramFilter, setSelectedProgramFilter] = useState("");
-    const isProgramLocked = hasRegistrarCurriculumRestriction();
+    const isProgramLocked = isRegistrarProgramSelectionLocked();
+    const scopeRevision = useRegistrarScopeRevision();
     const [department, setDepartment] = useState([]);
     const [allCurriculums, setAllCurriculums] = useState([]);
     const selectedDepartmentFilterValue =
@@ -772,7 +776,7 @@ const ApplicantScoringReadOnly = () => {
         };
 
         fetchDepartments();
-    }, [adminData.dprtmnt_id]);
+    }, [adminData.dprtmnt_id, scopeRevision]);
 
     useEffect(() => {
         if (!adminData.dprtmnt_id) return;
@@ -791,7 +795,7 @@ const ApplicantScoringReadOnly = () => {
         };
 
         fetchCurriculums();
-    }, [adminData.dprtmnt_id]);
+    }, [adminData.dprtmnt_id, scopeRevision]);
 
     useEffect(() => {
         if (department.length > 0 && allCurriculums.length > 0 && !selectedDepartmentFilter) {

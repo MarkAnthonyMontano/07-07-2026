@@ -1603,19 +1603,39 @@ router.get("/subject-enrollment-count", async (req, res) => {
 // ADMIN DATA (DEPARTMENT BY EMAIL)
 router.get("/admin_data/:email", async (req, res) => {
   const { email } = req.params;
-  console.log("Email: ", email);
 
   try {
-    const [rows] = await db3.query(
-      "SELECT ua.dprtmnt_id FROM user_accounts AS ua WHERE email = ?",
-      [email]
+    const {
+      buildEmployeeScopePayload,
+      ensureRegistrarScopeTable,
+    } = require("../../utils/registrarScopeService");
+
+    await ensureRegistrarScopeTable();
+
+    const [[userAccount]] = await db3.query(
+      `SELECT ua.employee_id, ua.dprtmnt_id
+       FROM user_accounts AS ua
+       WHERE ua.email = ?
+       LIMIT 1`,
+      [email],
     );
 
-    if (rows.length > 0) {
-      res.json(rows[0]);
-    } else {
-      res.status(404).json({ error: "User not found" });
+    if (!userAccount) {
+      return res.status(404).json({ error: "User not found" });
     }
+
+    const scopePayload = await buildEmployeeScopePayload(
+      userAccount.employee_id,
+      userAccount,
+    );
+
+    res.json({
+      dprtmnt_id: scopePayload.dprtmnt_id ?? userAccount.dprtmnt_id ?? null,
+      dprtmnt_ids: scopePayload.dprtmnt_ids,
+      scopes: scopePayload.scopes,
+      allowed_curriculum_ids: scopePayload.allowed_curriculum_ids,
+      curriculum_id: scopePayload.curriculum_id ?? null,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch department" });

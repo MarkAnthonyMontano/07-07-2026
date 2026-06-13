@@ -157,7 +157,7 @@ const SystemDashboardPanel = () => {
     { key: "slotConfiguration", label: "Slot Configuration", icon: School,
       items: [{ title: "Program Slot Remaining", link: "/program_slot_limit", icon: People, page_id: 110 }] },
     { key: "sectionManagement", label: "Section Management", icon: Class,
-      items: [{ title: "Section Panel Form", link: "/section_panel", icon: Class, page_id: 57 }] },
+      items: [{ title: "Section Panel Form", link: "/section_panel", icon: Class, page_id: 57 },{ title: "Section Slot Management", link: "/section_slot_management", icon: MeetingRoom, page_id: 167 }] },
     { key: "semesterManagement", label: "Semester Management", icon: Timeline,
       items: [{ title: "Semester Panel Form", link: "/semester_panel", icon: Timeline, page_id: 58 }] },
     { key: "yearManagement", label: "Year Management", icon: CalendarToday,

@@ -44,10 +44,12 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import ScoreIcon from '@mui/icons-material/Score';
 import CloseIcon from "@mui/icons-material/Close";
 import {
-    hasRegistrarCurriculumRestriction,
     isRegistrarCurriculumMatch,
+    isRegistrarProgramSelectionLocked,
     restrictToRegistrarCurriculum,
+    syncRegistrarScopeFromAdminData,
 } from "../utils/registrarCurriculumRestriction";
+import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 import PersonIcon from "@mui/icons-material/Person";
 
 const StudentNumbering = () => {
@@ -292,7 +294,8 @@ const StudentNumbering = () => {
     const [curriculumOptions, setCurriculumOptions] = useState([]);
     const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("");
     const [selectedProgramFilter, setSelectedProgramFilter] = useState("");
-    const isProgramLocked = hasRegistrarCurriculumRestriction();
+    const scopeRevision = useRegistrarScopeRevision();
+    const isProgramLocked = isRegistrarProgramSelectionLocked();
     const [selectedCampus, setSelectedCampus] = useState("");
     const [department, setDepartment] = useState([]);
     const [allCurriculums, setAllCurriculums] = useState([]);
@@ -386,7 +389,8 @@ const StudentNumbering = () => {
             const fetchPersonData = async () => {
                 try {
                     const res = await axios.get(`${API_BASE_URL}/api/admin_data/${userID}`);
-                    setAdminData(res.data); // { dprtmnt_id: "..." }
+                    setAdminData(res.data);
+                    syncRegistrarScopeFromAdminData(res.data);
                 } catch (err) {
                     console.error("Error fetching admin data:", err);
                 }
@@ -404,7 +408,7 @@ const StudentNumbering = () => {
                 setAllCurriculums(restrictedCurriculums);
                 setCurriculumOptions(restrictedCurriculums);
             });
-    }, []);
+    }, [scopeRevision]);
 
     useEffect(() => {
         if (!adminData.dprtmnt_id) return;
@@ -419,7 +423,7 @@ const StudentNumbering = () => {
         };
 
         fetchDepartments();
-    }, [adminData.dprtmnt_id]);
+    }, [adminData.dprtmnt_id, scopeRevision]);
 
     useEffect(() => {
         if (!adminData.dprtmnt_id) return;
@@ -435,7 +439,7 @@ const StudentNumbering = () => {
         };
 
         fetchCurriculums();
-    }, [adminData.dprtmnt_id]);
+    }, [adminData.dprtmnt_id, scopeRevision]);
 
     useEffect(() => {
         axios

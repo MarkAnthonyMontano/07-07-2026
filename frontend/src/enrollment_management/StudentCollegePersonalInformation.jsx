@@ -41,9 +41,10 @@ import cities from "../data/city.json";
 import barangays from "../data/barangay.json";
 import {
   getRegistrarCurriculumId,
-  hasRegistrarCurriculumRestriction,
+  isRegistrarProgramSelectionLocked,
   restrictToRegistrarCurriculum,
 } from "../utils/registrarCurriculumRestriction";
+import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 import { useNavigate } from "react-router-dom";
 import Search from "@mui/icons-material/Search";
 import { motion } from "framer-motion";
@@ -1274,7 +1275,8 @@ const OfficialStudentDashboard1 = () => {
   }, [person.permanentMunicipality]);
 
   const [curriculumOptions, setCurriculumOptions] = useState([]);
-  const isProgramLocked = hasRegistrarCurriculumRestriction();
+  const scopeRevision = useRegistrarScopeRevision();
+  const isProgramLocked = isRegistrarProgramSelectionLocked();
   const registrarCurriculumId = getRegistrarCurriculumId();
 
   useEffect(() => {
@@ -1288,7 +1290,7 @@ const OfficialStudentDashboard1 = () => {
     };
 
     fetchCurriculums();
-  }, []);
+  }, [scopeRevision]);
 
   const filteredCurriculum = curriculumOptions.filter((item) => {
     // ✅ CAMPUS FILTER

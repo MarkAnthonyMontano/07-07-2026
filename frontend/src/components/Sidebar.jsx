@@ -28,6 +28,7 @@ import WorkIcon from "@mui/icons-material/Work";
 import SchoolIcon from "@mui/icons-material/School";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import API_BASE_URL from "../apiConfig";
+import { syncRegistrarScopeFromEmployeeResponse } from "../utils/registrarCurriculumRestriction";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import {
   AccountTree,
@@ -544,11 +545,15 @@ const SideBar = ({
     const determineScope = async (eid) => {
       try {
         const { data: emp } = await axios.get(`${API_BASE_URL}/api/employee/${eid}`);
+        syncRegistrarScopeFromEmployeeResponse(emp);
         const mc = (emp?.accessList ?? []).filter(pid => GLOBAL_PAGE_IDS.includes(pid)).length;
         setGlobalAccessCount(mc);
         if (mc > GLOBAL_ACCESS_THRESHOLD) { setClassRosterScope("GLOBAL"); return; }
         const { data: adm } = await axios.get(`${API_BASE_URL}/api/admin_data/${localStorage.getItem("email")}`);
-        setClassRosterScope(adm?.dprtmnt_id ? "DEPARTMENT" : "GLOBAL");
+        const hasDepartmentScope =
+          adm?.dprtmnt_id ||
+          (Array.isArray(adm?.dprtmnt_ids) && adm.dprtmnt_ids.length > 0);
+        setClassRosterScope(hasDepartmentScope ? "DEPARTMENT" : "GLOBAL");
       } catch { setClassRosterScope("GLOBAL"); }
     };
     determineScope(empID);
@@ -640,10 +645,10 @@ const SideBar = ({
   };
 
   const uploadHandlers = {
-    registrar: makeUploadHandler("/admin/update_registrar_profile", "Admin1by1"),
-    applicant: makeUploadHandler("/form/upload-profile-picture", "Applicant1by1"),
-    faculty: makeUploadHandler("/faculty/update_faculty", "Faculty1by1"),
-    student: makeUploadHandler("/update_student", "Student1by1"),
+    registrar: makeUploadHandler("/api/update_registrar_profile", "Admin1by1"),
+    applicant: makeUploadHandler("/api/upload-profile-picture", "Applicant1by1"),
+    faculty: makeUploadHandler("/api/update_faculty", "Faculty1by1"),
+    student: makeUploadHandler("/api/update_student", "Student1by1"),
   };
 
   function accessObjToSet(list) {
@@ -783,7 +788,7 @@ const SideBar = ({
     { key: "branchAdministration", label: "Branch Administration", icon: AccountTree, items: [{ title: "Branch Management", link: "/admin_branches", icon: Settings, page_id: 138 }] },
     { key: "communicationManagement", label: "Communication", icon: Campaign, items: [{ title: "Email Sender", link: "/email_template_manager", icon: Email, page_id: 67 }, { title: "Announcement", link: "/announcement", icon: Campaign, page_id: 66 }] },
     { key: "slotConfiguration", label: "Slot Configuration", icon: School, items: [{ title: "Program Slot Remaining", link: "/program_slot_limit", icon: People, page_id: 110 }] },
-    { key: "sectionManagement", label: "Section Management", icon: Class, items: [{ title: "Section Panel Form", link: "/section_panel", icon: Class, page_id: 57 }] },
+    { key: "sectionManagement", label: "Section Management", icon: Class, items: [{ title: "Section Panel Form", link: "/section_panel", icon: Class, page_id: 57 },{ title: "Section Slot Management", link: "/section_slot_management", icon: MeetingRoom, page_id: 167 }] },
     { key: "semesterManagement", label: "Semester Management", icon: Timeline, items: [{ title: "Semester Panel Form", link: "/semester_panel", icon: Timeline, page_id: 58 }] },
     { key: "yearManagement", label: "Year Management", icon: CalendarToday, items: [{ title: "Year Level Panel Form", link: "/year_level_panel", icon: Layers, page_id: 63 }, { title: "Year Panel Form", link: "/year_panel", icon: CalendarToday, page_id: 64 }, { title: "School Year Panel", link: "/school_year_panel", icon: DateRange, page_id: 55 }] },
     { key: "evaluationManagement", label: "Evaluation Management", icon: Assessment, items: [{ title: "Evaluation Management", link: "/evaluation_crud", icon: HelpOutline, page_id: 23 }, { title: "TOSF CRUD", link: "/tosf_crud", icon: HelpOutline, page_id: 99 }] },

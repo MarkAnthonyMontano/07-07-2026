@@ -44,10 +44,12 @@ import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
 import Unauthorized from "../components/Unauthorized";
 import LoadingOverlay from "../components/LoadingOverlay";
 import {
-  hasRegistrarCurriculumRestriction,
   isRegistrarCurriculumMatch,
+  isRegistrarProgramSelectionLocked,
   restrictToRegistrarCurriculum,
+  syncRegistrarScopeFromAdminData,
 } from "../utils/registrarCurriculumRestriction";
+import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 import SearchIcon from "@mui/icons-material/Search";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import ScoreIcon from "@mui/icons-material/Score";
@@ -524,7 +526,8 @@ const QualifyingExamScore = () => {
   const fetchPersonData = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/api/admin_data/${user}`);
-      setAdminData(res.data); // { dprtmnt_id: "..." }
+      setAdminData(res.data);
+      syncRegistrarScopeFromAdminData(res.data);
     } catch (err) {
       console.error("Error fetching admin data:", err);
     }
@@ -577,7 +580,8 @@ const QualifyingExamScore = () => {
 
   const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("");
   const [selectedProgramFilter, setSelectedProgramFilter] = useState("");
-  const isProgramLocked = hasRegistrarCurriculumRestriction();
+  const scopeRevision = useRegistrarScopeRevision();
+  const isProgramLocked = isRegistrarProgramSelectionLocked();
   const [department, setDepartment] = useState([]);
   const [allCurriculums, setAllCurriculums] = useState([]);
   const [schoolYears, setSchoolYears] = useState([]);
@@ -842,7 +846,7 @@ const QualifyingExamScore = () => {
       setAllCurriculums(restrictedCurriculums);
       setCurriculumOptions(restrictedCurriculums);
     });
-  }, []);
+  }, [scopeRevision]);
 
   const handleDepartmentChange = (selectedDept) => {
     setSelectedDepartmentFilter(selectedDept);
@@ -1823,14 +1827,18 @@ const QualifyingExamScore = () => {
   const resolveSenderForApplicant = async (applicant) => {
     const programId = applicant?.program;
     const currentEmployeeId = employeeID || localStorage.getItem("employee_id");
+    const curriculumMatch = allCurriculums.find(
+      (curriculum) => String(curriculum.curriculum_id) === String(programId),
+    );
+    const departmentId = curriculumMatch?.dprtmnt_id || adminData.dprtmnt_id;
 
-    if (!adminData.dprtmnt_id || !programId || !currentEmployeeId) {
+    if (!departmentId || !programId || !currentEmployeeId) {
       throw new Error("Department, program, and employee are required to find a sender email.");
     }
 
     const res = await axios.get(`${API_BASE_URL}/api/email-templates/active-senders`, {
       params: {
-        department_id: adminData.dprtmnt_id,
+        department_id: departmentId,
         program_id: programId,
         employee_id: currentEmployeeId,
       },

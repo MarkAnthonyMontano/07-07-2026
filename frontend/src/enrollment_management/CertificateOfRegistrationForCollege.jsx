@@ -36,6 +36,7 @@ import {
   isRegistrarCurriculumMatch,
   restrictToRegistrarCurriculum,
 } from "../utils/registrarCurriculumRestriction";
+import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 
 const CertificateOfRegistrationForCollege = forwardRef(
 
@@ -669,6 +670,7 @@ const CertificateOfRegistrationForCollege = forwardRef(
     const [tosf, setTosfData] = useState([]);
     const [scholarshipTypes, setScholarshipTypes] = useState([]);
     const [curriculumOptions, setCurriculumOptions] = useState([]);
+    const scopeRevision = useRegistrarScopeRevision();
 
     useEffect(() => {
       const fetchCurriculums = async () => {
@@ -683,7 +685,7 @@ const CertificateOfRegistrationForCollege = forwardRef(
       };
 
       fetchCurriculums();
-    }, []);
+    }, [scopeRevision]);
 
     {
       curriculumOptions.find(

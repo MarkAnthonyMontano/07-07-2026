@@ -10,6 +10,12 @@ const {
 } = require('../database/database');
 const { CanDelete } = require("../../middleware/pagePermissions");
 const { insertAuditLogEnrollment } = require("../../utils/auditLogger");
+const {
+  ensureRegistrarScopeTable,
+  parseScopesFromBody,
+  syncScopes,
+  buildEmployeeScopePayload,
+} = require("../../utils/registrarScopeService");
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -17,6 +23,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.use(async (req, res, next) => {
   try {
     await ensurePageAccessPermissionColumns();
+    await ensureRegistrarScopeTable();
     next();
   } catch (err) {
     console.error("Failed to prepare page_access permission columns:", err);
@@ -259,8 +266,16 @@ router.post("/register_registrar", upload.single("profile_picture"), async (req,
       await fs.promises.writeFile(finalPath, file.buffer);
     }
 
-    const deptValue = dprtmnt_id === "" ? null : dprtmnt_id;
-    const curriculumValue = curriculum_id && curriculum_id !== "" ? Number(curriculum_id) : null;
+    const scopes = await parseScopesFromBody(req.body);
+    const scopedDepartmentIds = [
+      ...new Set(scopes.map((scope) => scope.dprtmnt_id).filter(Boolean)),
+    ];
+    const deptValue =
+      scopedDepartmentIds.length === 1
+        ? scopedDepartmentIds[0]
+        : dprtmnt_id === "" || dprtmnt_id === undefined
+          ? null
+          : Number(dprtmnt_id) || null;
 
     const [registrar] = await db3.query(
       `SELECT MAX(person_id) AS latest_person_id FROM user_accounts;`
@@ -270,8 +285,8 @@ router.post("/register_registrar", upload.single("profile_picture"), async (req,
 
     await db3.query(
       `INSERT INTO user_accounts 
-       (person_id, employee_id, last_name, middle_name, first_name, role, email, password, status, dprtmnt_id, profile_picture, access_level, program_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (person_id, employee_id, last_name, middle_name, first_name, role, email, password, status, dprtmnt_id, profile_picture, access_level)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         personIdForRegistrar + 1,
         employee_id,
@@ -285,7 +300,6 @@ router.post("/register_registrar", upload.single("profile_picture"), async (req,
         deptValue,
         profilePicName,
         Number(access_level),
-        curriculumValue
       ]
     );
 
@@ -295,6 +309,8 @@ router.post("/register_registrar", upload.single("profile_picture"), async (req,
       `UPDATE user_accounts SET force_password_change = 1, totp_enabled = 0 WHERE employee_id = ? AND role = 'registrar'`,
       [employee_id]
     );
+
+    await syncScopes(employee_id, scopes);
 
     const [accessRows] = await db3.query(
       "SELECT access_page FROM access_table WHERE access_id = ?",
@@ -379,12 +395,7 @@ router.put("/update_registrar/:id", upload.single("profile_picture"), async (req
       await fs.promises.writeFile(finalPath, file.buffer);
     }
 
-    const deptValue = data.dprtmnt_id === "" ? null : data.dprtmnt_id;
-
-    // Resolve curriculum_id: explicit empty string clears it, otherwise keep current.
-    const curriculumValue = data.curriculum_id !== undefined
-      ? (data.curriculum_id === "" ? null : Number(data.curriculum_id))
-      : (current.program_id ?? null);
+    const scopes = await parseScopesFromBody(data);
     const passwordValue =
       typeof data.password === "string" ? data.password.trim() : "";
     const hashedPassword = passwordValue
@@ -400,9 +411,14 @@ router.put("/update_registrar/:id", upload.single("profile_picture"), async (req
     const employeeIdChanged =
       String(nextEmployeeId) !== String(current.employee_id);
 
+    await syncScopes(nextEmployeeId, scopes);
+    const scopePayload = await buildEmployeeScopePayload(nextEmployeeId, {
+      dprtmnt_id: current.dprtmnt_id,
+    });
+
     await db3.query(
       `UPDATE user_accounts 
-       SET employee_id=?, last_name=?, middle_name=?, first_name=?, role=?, email=?, password=COALESCE(?, password), status=?, dprtmnt_id=?, profile_picture=?, access_level=?, program_id=?
+       SET employee_id=?, last_name=?, middle_name=?, first_name=?, role=?, email=?, password=COALESCE(?, password), status=?, dprtmnt_id=?, profile_picture=?, access_level=?
        WHERE id=?`,
       [
         nextEmployeeId,
@@ -413,10 +429,9 @@ router.put("/update_registrar/:id", upload.single("profile_picture"), async (req
         data.email?.toLowerCase() || current.email,
         hashedPassword,
         data.status ?? current.status,
-        deptValue,
+        scopePayload.dprtmnt_id ?? null,
         finalFilename,
         nextAccessLevel,
-        curriculumValue,
         id
       ]
     );

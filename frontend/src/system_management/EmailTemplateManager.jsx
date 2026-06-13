@@ -49,7 +49,6 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import PeopleIcon from "@mui/icons-material/People";
 import PersonRemoveIcon from "@mui/icons-material/PersonRemove";
 
-
 export default function EmailTemplateManager() {
   const settings = useContext(SettingsContext);
   const [titleColor, setTitleColor] = useState("#000000");
@@ -70,7 +69,8 @@ export default function EmailTemplateManager() {
     if (settings.title_color) setTitleColor(settings.title_color);
     if (settings.subtitle_color) setSubtitleColor(settings.subtitle_color);
     if (settings.border_color) setBorderColor(settings.border_color);
-    if (settings.main_button_color) setMainButtonColor(settings.main_button_color);
+    if (settings.main_button_color)
+      setMainButtonColor(settings.main_button_color);
     if (settings.sub_button_color) setSubButtonColor(settings.sub_button_color);
     if (settings.stepper_color) setStepperColor(settings.stepper_color);
 
@@ -102,8 +102,10 @@ export default function EmailTemplateManager() {
     headers: {
       "x-employee-id": employeeID || localStorage.getItem("employee_id") || "",
       "x-page-id": pageId,
-      "x-audit-actor-id": employeeID || localStorage.getItem("employee_id") || "",
-      "x-audit-actor-role": userRole || localStorage.getItem("role") || "registrar",
+      "x-audit-actor-id":
+        employeeID || localStorage.getItem("employee_id") || "",
+      "x-audit-actor-role":
+        userRole || localStorage.getItem("role") || "registrar",
     },
   });
 
@@ -131,7 +133,9 @@ export default function EmailTemplateManager() {
 
   const checkAccess = async (employeeID) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/page_access/${employeeID}/${pageId}`);
+      const response = await axios.get(
+        `${API_BASE_URL}/api/page_access/${employeeID}/${pageId}`,
+      );
       if (response.data && response.data.page_privilege === 1) {
         setHasAccess(true);
         setCanCreate(Number(response.data?.can_create) === 1);
@@ -169,7 +173,9 @@ export default function EmailTemplateManager() {
 
   // ── Tagged employees panel ──────────────────────────────────────────────────
   const [expandedTemplateId, setExpandedTemplateId] = useState(null);
-  const [taggedEmployeesByTemplate, setTaggedEmployeesByTemplate] = useState({});
+  const [taggedEmployeesByTemplate, setTaggedEmployeesByTemplate] = useState(
+    {},
+  );
   const [loadingTagged, setLoadingTagged] = useState({});
 
   // ── Untag (remove single employee) dialog ──────────────────────────────────
@@ -216,13 +222,19 @@ export default function EmailTemplateManager() {
 
   const handleOpenUntagDialog = (template, employee) => {
     if (!canDelete) {
-      showSnack("You do not have permission to remove tagged employees", "error");
+      showSnack(
+        "You do not have permission to remove tagged employees",
+        "error",
+      );
       return;
     }
 
-    const employeeName = [employee.last_name, employee.first_name, employee.middle_name]
-      .filter(Boolean)
-      .join(", ") || employee.email || String(employee.employee_id);
+    const employeeName =
+      [employee.last_name, employee.first_name, employee.middle_name]
+        .filter(Boolean)
+        .join(", ") ||
+      employee.email ||
+      String(employee.employee_id);
 
     setUntagTarget({
       templateId: template.template_id,
@@ -248,7 +260,7 @@ export default function EmailTemplateManager() {
       if (currentIds.length === 0) {
         showSnack(
           "Cannot remove — at least one employee must remain tagged.",
-          "warning"
+          "warning",
         );
         setOpenUntagDialog(false);
         setUntagTarget(null);
@@ -258,7 +270,7 @@ export default function EmailTemplateManager() {
       await axios.put(
         `${API}/${templateId}/employees`,
         { employee_ids: currentIds },
-        getAuditHeaders()
+        getAuditHeaders(),
       );
 
       showSnack("Employee removed from template successfully", "success");
@@ -293,7 +305,10 @@ export default function EmailTemplateManager() {
 
   const handleAdd = async () => {
     if (!canCreate) {
-      showSnack("You do not have permission to create email templates", "error");
+      showSnack(
+        "You do not have permission to create email templates",
+        "error",
+      );
       return false;
     }
     if (!form.sender_name.trim()) {
@@ -308,7 +323,12 @@ export default function EmailTemplateManager() {
     try {
       await axios.post(API, form, getAuditHeaders());
       showSnack("Template successfully added", "success");
-      setForm({ sender_name: "", department_id: "", program_id: "", is_active: true });
+      setForm({
+        sender_name: "",
+        department_id: "",
+        program_id: "",
+        is_active: true,
+      });
       loadTemplates();
       return true;
     } catch (err) {
@@ -341,7 +361,10 @@ export default function EmailTemplateManager() {
       return false;
     }
     if (!form.sender_name.trim() || !form.department_id || !form.program_id) {
-      showSnack("Gmail account, department, and program are required", "warning");
+      showSnack(
+        "Gmail account, department, and program are required",
+        "warning",
+      );
       return false;
     }
 
@@ -349,12 +372,20 @@ export default function EmailTemplateManager() {
       await axios.put(`${API}/${editing}`, form, getAuditHeaders());
       showSnack("Template updated successfully", "success");
       setEditing(null);
-      setForm({ sender_name: "", department_id: "", program_id: "", is_active: true });
+      setForm({
+        sender_name: "",
+        department_id: "",
+        program_id: "",
+        is_active: true,
+      });
       loadTemplates();
       return true;
     } catch (err) {
       console.error("Error updating template:", err);
-      showSnack(err.response?.data?.error || "Failed to update template", "error");
+      showSnack(
+        err.response?.data?.error || "Failed to update template",
+        "error",
+      );
       return false;
     }
   };
@@ -364,7 +395,7 @@ export default function EmailTemplateManager() {
   const totalPages = Math.ceil(rows.length / rowsPerPage);
   const paginatedRows = rows.slice(
     (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
+    currentPage * rowsPerPage,
   );
 
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
@@ -372,7 +403,10 @@ export default function EmailTemplateManager() {
 
   const handleDelete = async (id) => {
     if (!canDelete) {
-      showSnack("You do not have permission to delete email templates", "error");
+      showSnack(
+        "You do not have permission to delete email templates",
+        "error",
+      );
       return;
     }
     try {
@@ -391,20 +425,25 @@ export default function EmailTemplateManager() {
   };
 
   const [departments, setDepartments] = useState([]);
-  const [programs, setPrograms] = useState([]);
+  const [activeCurriculums, setActiveCurriculums] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [openTagDialog, setOpenTagDialog] = useState(false);
   const [taggingTemplate, setTaggingTemplate] = useState(null);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
 
   const resetForm = () => {
-    setForm({ sender_name: "", department_id: "", program_id: "", is_active: true });
+    setForm({
+      sender_name: "",
+      department_id: "",
+      program_id: "",
+      is_active: true,
+    });
   };
 
-  const filteredPrograms = programs.filter(
+  const filteredPrograms = activeCurriculums.filter(
     (program) =>
       !form.department_id ||
-      String(program.dprtmnt_id) === String(form.department_id)
+      String(program.dprtmnt_id) === String(form.department_id),
   );
 
   const getProgramLabel = (program) => {
@@ -415,7 +454,7 @@ export default function EmailTemplateManager() {
 
   const getEmployeeLabel = (employeeId) => {
     const employee = employees.find(
-      (item) => String(item.employee_id) === String(employeeId)
+      (item) => String(item.employee_id) === String(employeeId),
     );
     if (!employee) return employeeId;
     const name = [employee.last_name, employee.first_name, employee.middle_name]
@@ -434,9 +473,19 @@ export default function EmailTemplateManager() {
     setOpenTagDialog(true);
 
     try {
-      const res = await axios.get(`${API}/${row.template_id}/employees`);
+      const [taggedRes, eligibleRes] = await Promise.all([
+        axios.get(`${API}/${row.template_id}/employees`),
+        axios.get(`${API}/${row.template_id}/eligible-employees`),
+      ]);
+      setEmployees(eligibleRes.data || []);
       setSelectedEmployeeIds(
-        (res.data || []).map((employee) => String(employee.employee_id))
+        (taggedRes.data || [])
+          .map((employee) => String(employee.employee_id))
+          .filter((employeeId) =>
+            (eligibleRes.data || []).some(
+              (eligible) => String(eligible.employee_id) === employeeId,
+            ),
+          ),
       );
     } catch (err) {
       console.error("Failed to load tagged employees:", err);
@@ -455,7 +504,7 @@ export default function EmailTemplateManager() {
       await axios.put(
         `${API}/${taggingTemplate.template_id}/employees`,
         { employee_ids: selectedEmployeeIds },
-        getAuditHeaders()
+        getAuditHeaders(),
       );
       showSnack("Employees tagged successfully", "success");
       setOpenTagDialog(false);
@@ -495,24 +544,16 @@ export default function EmailTemplateManager() {
   useEffect(() => {
     const fetchPrograms = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/api/applied_program`);
-        setPrograms(res.data || []);
+        const res = await axios.get(
+          `${API_BASE_URL}/api/get_active_curriculum`,
+        );
+        setActiveCurriculums(res.data || []);
       } catch (err) {
-        console.error("Failed to fetch programs", err);
-      }
-    };
-
-    const fetchEmployees = async () => {
-      try {
-        const res = await axios.get(`${API_BASE_URL}/api/get_employee`);
-        setEmployees(res.data || []);
-      } catch (err) {
-        console.error("Failed to fetch employees", err);
+        console.error("Failed to fetch active curriculums", err);
       }
     };
 
     fetchPrograms();
-    fetchEmployees();
   }, []);
 
   if (loading || hasAccess === null) {
@@ -541,8 +582,16 @@ export default function EmailTemplateManager() {
 
         <Box display="flex" alignItems="center" gap={1}>
           {[
-            { label: "First", action: () => setCurrentPage(1), disabled: currentPage === 1 },
-            { label: "Prev", action: () => setCurrentPage((p) => Math.max(p - 1, 1)), disabled: currentPage === 1 },
+            {
+              label: "First",
+              action: () => setCurrentPage(1),
+              disabled: currentPage === 1,
+            },
+            {
+              label: "Prev",
+              action: () => setCurrentPage((p) => Math.max(p - 1, 1)),
+              disabled: currentPage === 1,
+            },
           ].map(({ label, action, disabled }) => (
             <Button
               key={label}
@@ -555,8 +604,16 @@ export default function EmailTemplateManager() {
                 color: "white",
                 borderColor: "white",
                 backgroundColor: "transparent",
-                "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" },
-                "&.Mui-disabled": { color: "white", borderColor: "white", backgroundColor: "transparent", opacity: 1 },
+                "&:hover": {
+                  borderColor: "white",
+                  backgroundColor: "rgba(255,255,255,0.1)",
+                },
+                "&.Mui-disabled": {
+                  color: "white",
+                  borderColor: "white",
+                  backgroundColor: "transparent",
+                  opacity: 1,
+                },
               }}
             >
               {label}
@@ -575,11 +632,17 @@ export default function EmailTemplateManager() {
                 border: "1px solid white",
                 backgroundColor: "transparent",
                 ".MuiOutlinedInput-notchedOutline": { borderColor: "white" },
-                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
-                "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
+                "&:hover .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "white",
+                },
+                "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "white",
+                },
                 "& svg": { color: "white" },
               }}
-              MenuProps={{ PaperProps: { sx: { maxHeight: 200, backgroundColor: "#fff" } } }}
+              MenuProps={{
+                PaperProps: { sx: { maxHeight: 200, backgroundColor: "#fff" } },
+              }}
             >
               {Array.from({ length: totalPages }, (_, i) => (
                 <MenuItem key={i + 1} value={i + 1}>
@@ -594,8 +657,16 @@ export default function EmailTemplateManager() {
           </Typography>
 
           {[
-            { label: "Next", action: () => setCurrentPage((p) => Math.min(p + 1, totalPages)), disabled: currentPage === totalPages },
-            { label: "Last", action: () => setCurrentPage(totalPages), disabled: currentPage === totalPages },
+            {
+              label: "Next",
+              action: () => setCurrentPage((p) => Math.min(p + 1, totalPages)),
+              disabled: currentPage === totalPages,
+            },
+            {
+              label: "Last",
+              action: () => setCurrentPage(totalPages),
+              disabled: currentPage === totalPages,
+            },
           ].map(({ label, action, disabled }) => (
             <Button
               key={label}
@@ -608,8 +679,16 @@ export default function EmailTemplateManager() {
                 color: "white",
                 borderColor: "white",
                 backgroundColor: "transparent",
-                "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" },
-                "&.Mui-disabled": { color: "white", borderColor: "white", backgroundColor: "transparent", opacity: 1 },
+                "&:hover": {
+                  borderColor: "white",
+                  backgroundColor: "rgba(255,255,255,0.1)",
+                },
+                "&.Mui-disabled": {
+                  color: "white",
+                  borderColor: "white",
+                  backgroundColor: "transparent",
+                  opacity: 1,
+                },
               }}
             >
               {label}
@@ -642,7 +721,10 @@ export default function EmailTemplateManager() {
           mb: 2,
         }}
       >
-        <Typography variant="h4" sx={{ fontWeight: "bold", color: titleColor, fontSize: "36px" }}>
+        <Typography
+          variant="h4"
+          sx={{ fontWeight: "bold", color: titleColor, fontSize: "36px" }}
+        >
           EMAIL TEMPLATE MANAGER
         </Typography>
       </Box>
@@ -665,7 +747,11 @@ export default function EmailTemplateManager() {
                   color: "white",
                 }}
               >
-                <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Box
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
                   <Typography fontSize="14px" fontWeight="bold" color="white">
                     Total Registered Email Accounts: {rows.length}
                   </Typography>
@@ -673,31 +759,76 @@ export default function EmailTemplateManager() {
                   <Box display="flex" alignItems="center" gap={1}>
                     {/* reuse the same pagination controls from paginationBar */}
                     {[
-                      { label: "First", action: () => setCurrentPage(1), disabled: currentPage === 1 },
-                      { label: "Prev", action: () => setCurrentPage((p) => Math.max(p - 1, 1)), disabled: currentPage === 1 },
+                      {
+                        label: "First",
+                        action: () => setCurrentPage(1),
+                        disabled: currentPage === 1,
+                      },
+                      {
+                        label: "Prev",
+                        action: () => setCurrentPage((p) => Math.max(p - 1, 1)),
+                        disabled: currentPage === 1,
+                      },
                     ].map(({ label, action, disabled }) => (
-                      <Button key={label} onClick={action} disabled={disabled} variant="outlined" size="small"
+                      <Button
+                        key={label}
+                        onClick={action}
+                        disabled={disabled}
+                        variant="outlined"
+                        size="small"
                         sx={{
-                          minWidth: 80, color: "white", borderColor: "white", backgroundColor: "transparent",
-                          "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" },
-                          "&.Mui-disabled": { color: "white", borderColor: "white", backgroundColor: "transparent", opacity: 1 },
+                          minWidth: 80,
+                          color: "white",
+                          borderColor: "white",
+                          backgroundColor: "transparent",
+                          "&:hover": {
+                            borderColor: "white",
+                            backgroundColor: "rgba(255,255,255,0.1)",
+                          },
+                          "&.Mui-disabled": {
+                            color: "white",
+                            borderColor: "white",
+                            backgroundColor: "transparent",
+                            opacity: 1,
+                          },
                         }}
-                      >{label}</Button>
+                      >
+                        {label}
+                      </Button>
                     ))}
 
                     <FormControl size="small" sx={{ minWidth: 80 }}>
-                      <Select value={currentPage} onChange={(e) => setCurrentPage(Number(e.target.value))} displayEmpty
+                      <Select
+                        value={currentPage}
+                        onChange={(e) => setCurrentPage(Number(e.target.value))}
+                        displayEmpty
                         sx={{
-                          fontSize: "12px", height: 36, color: "white", border: "1px solid white", backgroundColor: "transparent",
-                          ".MuiOutlinedInput-notchedOutline": { borderColor: "white" },
-                          "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
-                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
+                          fontSize: "12px",
+                          height: 36,
+                          color: "white",
+                          border: "1px solid white",
+                          backgroundColor: "transparent",
+                          ".MuiOutlinedInput-notchedOutline": {
+                            borderColor: "white",
+                          },
+                          "&:hover .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "white",
+                          },
+                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "white",
+                          },
                           "& svg": { color: "white" },
                         }}
-                        MenuProps={{ PaperProps: { sx: { maxHeight: 200, backgroundColor: "#fff" } } }}
+                        MenuProps={{
+                          PaperProps: {
+                            sx: { maxHeight: 200, backgroundColor: "#fff" },
+                          },
+                        }}
                       >
                         {Array.from({ length: totalPages }, (_, i) => (
-                          <MenuItem key={i + 1} value={i + 1}>Page {i + 1}</MenuItem>
+                          <MenuItem key={i + 1} value={i + 1}>
+                            Page {i + 1}
+                          </MenuItem>
                         ))}
                       </Select>
                     </FormControl>
@@ -707,16 +838,43 @@ export default function EmailTemplateManager() {
                     </Typography>
 
                     {[
-                      { label: "Next", action: () => setCurrentPage((p) => Math.min(p + 1, totalPages)), disabled: currentPage === totalPages },
-                      { label: "Last", action: () => setCurrentPage(totalPages), disabled: currentPage === totalPages },
+                      {
+                        label: "Next",
+                        action: () =>
+                          setCurrentPage((p) => Math.min(p + 1, totalPages)),
+                        disabled: currentPage === totalPages,
+                      },
+                      {
+                        label: "Last",
+                        action: () => setCurrentPage(totalPages),
+                        disabled: currentPage === totalPages,
+                      },
                     ].map(({ label, action, disabled }) => (
-                      <Button key={label} onClick={action} disabled={disabled} variant="outlined" size="small"
+                      <Button
+                        key={label}
+                        onClick={action}
+                        disabled={disabled}
+                        variant="outlined"
+                        size="small"
                         sx={{
-                          minWidth: 80, color: "white", borderColor: "white", backgroundColor: "transparent",
-                          "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" },
-                          "&.Mui-disabled": { color: "white", borderColor: "white", backgroundColor: "transparent", opacity: 1 },
+                          minWidth: 80,
+                          color: "white",
+                          borderColor: "white",
+                          backgroundColor: "transparent",
+                          "&:hover": {
+                            borderColor: "white",
+                            backgroundColor: "rgba(255,255,255,0.1)",
+                          },
+                          "&.Mui-disabled": {
+                            color: "white",
+                            borderColor: "white",
+                            backgroundColor: "transparent",
+                            opacity: 1,
+                          },
                         }}
-                      >{label}</Button>
+                      >
+                        {label}
+                      </Button>
                     ))}
 
                     <Button
@@ -731,7 +889,11 @@ export default function EmailTemplateManager() {
                         px: 2,
                         border: "1px solid white",
                       }}
-                      onClick={() => { setEditing(null); resetForm(); setOpenFormDialog(true); }}
+                      onClick={() => {
+                        setEditing(null);
+                        resetForm();
+                        setOpenFormDialog(true);
+                      }}
                     >
                       + Add Email Account
                     </Button>
@@ -758,12 +920,60 @@ export default function EmailTemplateManager() {
           <Table stickyHeader size="small">
             <TableHead>
               <TableRow>
-                <TableCell sx={{ border: `1px solid ${borderColor}`, backgroundColor: "#F5F5F5", color: "#000" }}>#</TableCell>
-                <TableCell sx={{ border: `1px solid ${borderColor}`, backgroundColor: "#F5F5F5", color: "#000" }}>Gmail Account</TableCell>
-                <TableCell sx={{ border: `1px solid ${borderColor}`, backgroundColor: "#F5F5F5", color: "#000" }}>Department</TableCell>
-                <TableCell sx={{ border: `1px solid ${borderColor}`, backgroundColor: "#F5F5F5", color: "#000" }}>Program</TableCell>
-                <TableCell sx={{ border: `1px solid ${borderColor}`, backgroundColor: "#F5F5F5", color: "#000" }}>Tagged Employees</TableCell>
-                <TableCell sx={{ border: `1px solid ${borderColor}`, backgroundColor: "#F5F5F5", color: "#000" }}>Active</TableCell>
+                <TableCell
+                  sx={{
+                    border: `1px solid ${borderColor}`,
+                    backgroundColor: "#F5F5F5",
+                    color: "#000",
+                  }}
+                >
+                  #
+                </TableCell>
+                <TableCell
+                  sx={{
+                    border: `1px solid ${borderColor}`,
+                    backgroundColor: "#F5F5F5",
+                    color: "#000",
+                  }}
+                >
+                  Gmail Account
+                </TableCell>
+                <TableCell
+                  sx={{
+                    border: `1px solid ${borderColor}`,
+                    backgroundColor: "#F5F5F5",
+                    color: "#000",
+                  }}
+                >
+                  Department
+                </TableCell>
+                <TableCell
+                  sx={{
+                    border: `1px solid ${borderColor}`,
+                    backgroundColor: "#F5F5F5",
+                    color: "#000",
+                  }}
+                >
+                  Program
+                </TableCell>
+                <TableCell
+                  sx={{
+                    border: `1px solid ${borderColor}`,
+                    backgroundColor: "#F5F5F5",
+                    color: "#000",
+                  }}
+                >
+                  Tagged Employees
+                </TableCell>
+                <TableCell
+                  sx={{
+                    border: `1px solid ${borderColor}`,
+                    backgroundColor: "#F5F5F5",
+                    color: "#000",
+                  }}
+                >
+                  Active
+                </TableCell>
                 <TableCell
                   sx={{
                     width: "300px",
@@ -781,20 +991,29 @@ export default function EmailTemplateManager() {
             <TableBody
               sx={{
                 border: `1px solid ${borderColor}`,
-                "& .MuiTableRow-root:nth-of-type(odd)": { backgroundColor: "#ffffff" },
-                "& .MuiTableRow-root:nth-of-type(even)": { backgroundColor: "lightgray" },
+                "& .MuiTableRow-root:nth-of-type(odd)": {
+                  backgroundColor: "#ffffff",
+                },
+                "& .MuiTableRow-root:nth-of-type(even)": {
+                  backgroundColor: "lightgray",
+                },
               }}
             >
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ border: `1px solid ${borderColor}` }}>
+                  <TableCell
+                    colSpan={7}
+                    align="center"
+                    sx={{ border: `1px solid ${borderColor}` }}
+                  >
                     No templates found.
                   </TableCell>
                 </TableRow>
               ) : (
                 paginatedRows.map((r, index) => {
                   const isExpanded = expandedTemplateId === r.template_id;
-                  const taggedEmployees = taggedEmployeesByTemplate[r.template_id] || [];
+                  const taggedEmployees =
+                    taggedEmployeesByTemplate[r.template_id] || [];
                   const isLoadingTagged = loadingTagged[r.template_id];
 
                   return (
@@ -804,8 +1023,12 @@ export default function EmailTemplateManager() {
                         <TableCell sx={{ border: `1px solid ${borderColor}` }}>
                           {(currentPage - 1) * rowsPerPage + index + 1}
                         </TableCell>
-                        <TableCell sx={{ border: `1px solid ${borderColor}` }}>{r.sender_name}</TableCell>
-                        <TableCell sx={{ border: `1px solid ${borderColor}` }}>{r.department_name || "N/A"}</TableCell>
+                        <TableCell sx={{ border: `1px solid ${borderColor}` }}>
+                          {r.sender_name}
+                        </TableCell>
+                        <TableCell sx={{ border: `1px solid ${borderColor}` }}>
+                          {r.department_name || "N/A"}
+                        </TableCell>
                         <TableCell sx={{ border: `1px solid ${borderColor}` }}>
                           {r.program_code
                             ? `${r.program_code} - ${r.program_description || ""}${r.major ? ` (${r.major})` : ""}`
@@ -814,13 +1037,27 @@ export default function EmailTemplateManager() {
 
                         {/* Tagged employees count — clickable to expand */}
                         <TableCell sx={{ border: `1px solid ${borderColor}` }}>
-                          <Tooltip title={isExpanded ? "Hide tagged employees" : "View tagged employees"}>
+                          <Tooltip
+                            title={
+                              isExpanded
+                                ? "Hide tagged employees"
+                                : "View tagged employees"
+                            }
+                          >
                             <Button
                               size="small"
                               variant="text"
-                              onClick={() => toggleExpandTemplate(r.template_id)}
+                              onClick={() =>
+                                toggleExpandTemplate(r.template_id)
+                              }
                               startIcon={<PeopleIcon fontSize="small" />}
-                              endIcon={isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                              endIcon={
+                                isExpanded ? (
+                                  <ExpandLessIcon fontSize="small" />
+                                ) : (
+                                  <ExpandMoreIcon fontSize="small" />
+                                )
+                              }
                               sx={{
                                 textTransform: "none",
                                 color: "#1976d2",
@@ -830,7 +1067,9 @@ export default function EmailTemplateManager() {
                               }}
                             >
                               {Number(r.tagged_employee_count || 0)} Employee
-                              {Number(r.tagged_employee_count || 0) !== 1 ? "s" : ""}
+                              {Number(r.tagged_employee_count || 0) !== 1
+                                ? "s"
+                                : ""}
                             </Button>
                           </Tooltip>
                         </TableCell>
@@ -839,7 +1078,12 @@ export default function EmailTemplateManager() {
                           {r.is_active ? "Yes" : "No"}
                         </TableCell>
 
-                        <TableCell sx={{ width: "300px", border: `1px solid ${borderColor}` }}>
+                        <TableCell
+                          sx={{
+                            width: "300px",
+                            border: `1px solid ${borderColor}`,
+                          }}
+                        >
                           <Box sx={{ display: "flex", gap: 1 }}>
                             <Button
                               variant="contained"
@@ -916,11 +1160,17 @@ export default function EmailTemplateManager() {
                           colSpan={7}
                           sx={{
                             p: 0,
-                            border: isExpanded ? `1px solid ${borderColor}` : "none",
+                            border: isExpanded
+                              ? `1px solid ${borderColor}`
+                              : "none",
                             backgroundColor: "#EAF3FB",
                           }}
                         >
-                          <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                          <Collapse
+                            in={isExpanded}
+                            timeout="auto"
+                            unmountOnExit
+                          >
                             <Box sx={{ p: 2 }}>
                               {/* Sub-table header */}
                               <Box
@@ -931,8 +1181,16 @@ export default function EmailTemplateManager() {
                                   mb: 1,
                                 }}
                               >
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                  <PeopleIcon sx={{ color: "#1976d2", fontSize: 18 }} />
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                  }}
+                                >
+                                  <PeopleIcon
+                                    sx={{ color: "#1976d2", fontSize: 18 }}
+                                  />
                                   <Typography
                                     fontSize="13px"
                                     fontWeight={700}
@@ -943,13 +1201,22 @@ export default function EmailTemplateManager() {
                                   <Chip
                                     label={taggedEmployees.length}
                                     size="small"
-                                    sx={{ backgroundColor: "#1976d2", color: "white", fontSize: "11px", height: 20 }}
+                                    sx={{
+                                      backgroundColor: "#1976d2",
+                                      color: "white",
+                                      fontSize: "11px",
+                                      height: 20,
+                                    }}
                                   />
                                 </Box>
                               </Box>
 
                               {isLoadingTagged ? (
-                                <Typography fontSize="13px" color="text.secondary" sx={{ py: 1 }}>
+                                <Typography
+                                  fontSize="13px"
+                                  color="text.secondary"
+                                  sx={{ py: 1 }}
+                                >
                                   Loading employees…
                                 </Typography>
                               ) : taggedEmployees.length === 0 ? (
@@ -962,31 +1229,103 @@ export default function EmailTemplateManager() {
                                     backgroundColor: "#f9f9f9",
                                   }}
                                 >
-                                  <Typography fontSize="13px" color="text.secondary">
+                                  <Typography
+                                    fontSize="13px"
+                                    color="text.secondary"
+                                  >
                                     No employees tagged to this template yet.
                                   </Typography>
                                   <Button
                                     size="small"
                                     variant="outlined"
                                     startIcon={<GroupAddIcon />}
-                                    sx={{ mt: 1, textTransform: "none", fontSize: "12px" }}
+                                    sx={{
+                                      mt: 1,
+                                      textTransform: "none",
+                                      fontSize: "12px",
+                                    }}
                                     onClick={() => handleOpenTagDialog(r)}
                                   >
                                     Tag Employees
                                   </Button>
                                 </Box>
                               ) : (
-                                <Table size="small" sx={{ border: `1px solid #ccc`, borderRadius: 1 }}>
+                                <Table
+                                  size="small"
+                                  sx={{
+                                    border: `1px solid #ccc`,
+                                    borderRadius: 1,
+                                  }}
+                                >
                                   <TableHead>
-                                    <TableRow sx={{ backgroundColor: "#1976d2" }}>
-                                      <TableCell sx={{ color: "white", fontWeight: 700, fontSize: "12px", border: "1px solid #90CAF9", py: 0.8 }}>#</TableCell>
-                                      <TableCell sx={{ color: "white", fontWeight: 700, fontSize: "12px", border: "1px solid #90CAF9", py: 0.8 }}>Employee ID</TableCell>
-                                      <TableCell sx={{ color: "white", fontWeight: 700, fontSize: "12px", border: "1px solid #90CAF9", py: 0.8 }}>Name</TableCell>
-                                      <TableCell sx={{ color: "white", fontWeight: 700, fontSize: "12px", border: "1px solid #90CAF9", py: 0.8 }}>Email</TableCell>
-                                      <TableCell sx={{ color: "white", fontWeight: 700, fontSize: "12px", border: "1px solid #90CAF9", py: 0.8 }}>Position</TableCell>
+                                    <TableRow
+                                      sx={{ backgroundColor: "#1976d2" }}
+                                    >
+                                      <TableCell
+                                        sx={{
+                                          color: "white",
+                                          fontWeight: 700,
+                                          fontSize: "12px",
+                                          border: "1px solid #90CAF9",
+                                          py: 0.8,
+                                        }}
+                                      >
+                                        #
+                                      </TableCell>
+                                      <TableCell
+                                        sx={{
+                                          color: "white",
+                                          fontWeight: 700,
+                                          fontSize: "12px",
+                                          border: "1px solid #90CAF9",
+                                          py: 0.8,
+                                        }}
+                                      >
+                                        Employee ID
+                                      </TableCell>
+                                      <TableCell
+                                        sx={{
+                                          color: "white",
+                                          fontWeight: 700,
+                                          fontSize: "12px",
+                                          border: "1px solid #90CAF9",
+                                          py: 0.8,
+                                        }}
+                                      >
+                                        Name
+                                      </TableCell>
+                                      <TableCell
+                                        sx={{
+                                          color: "white",
+                                          fontWeight: 700,
+                                          fontSize: "12px",
+                                          border: "1px solid #90CAF9",
+                                          py: 0.8,
+                                        }}
+                                      >
+                                        Email
+                                      </TableCell>
+                                      <TableCell
+                                        sx={{
+                                          color: "white",
+                                          fontWeight: 700,
+                                          fontSize: "12px",
+                                          border: "1px solid #90CAF9",
+                                          py: 0.8,
+                                        }}
+                                      >
+                                        Position
+                                      </TableCell>
                                       <TableCell
                                         align="center"
-                                        sx={{ color: "white", fontWeight: 700, fontSize: "12px", border: "1px solid #90CAF9", py: 0.8, width: 100 }}
+                                        sx={{
+                                          color: "white",
+                                          fontWeight: 700,
+                                          fontSize: "12px",
+                                          border: "1px solid #90CAF9",
+                                          py: 0.8,
+                                          width: 100,
+                                        }}
                                       >
                                         Action
                                       </TableCell>
@@ -994,38 +1333,86 @@ export default function EmailTemplateManager() {
                                   </TableHead>
                                   <TableBody>
                                     {taggedEmployees.map((emp, empIndex) => {
-                                      const fullName = [emp.last_name, emp.first_name, emp.middle_name]
-                                        .filter(Boolean)
-                                        .join(", ") || "—";
+                                      const fullName =
+                                        [
+                                          emp.last_name,
+                                          emp.first_name,
+                                          emp.middle_name,
+                                        ]
+                                          .filter(Boolean)
+                                          .join(", ") || "—";
                                       return (
                                         <TableRow
                                           key={emp.employee_id}
                                           sx={{
-                                            backgroundColor: empIndex % 2 === 0 ? "#ffffff" : "#e3f2fd",
-                                            "&:hover": { backgroundColor: "#bbdefb" },
+                                            backgroundColor:
+                                              empIndex % 2 === 0
+                                                ? "#ffffff"
+                                                : "#e3f2fd",
+                                            "&:hover": {
+                                              backgroundColor: "#bbdefb",
+                                            },
                                           }}
                                         >
-                                          <TableCell sx={{ fontSize: "12px", border: "1px solid #cfd8dc", py: 0.7 }}>
+                                          <TableCell
+                                            sx={{
+                                              fontSize: "12px",
+                                              border: "1px solid #cfd8dc",
+                                              py: 0.7,
+                                            }}
+                                          >
                                             {empIndex + 1}
                                           </TableCell>
-                                          <TableCell sx={{ fontSize: "12px", border: "1px solid #cfd8dc", py: 0.7 }}>
+                                          <TableCell
+                                            sx={{
+                                              fontSize: "12px",
+                                              border: "1px solid #cfd8dc",
+                                              py: 0.7,
+                                            }}
+                                          >
                                             {emp.employee_id}
                                           </TableCell>
-                                          <TableCell sx={{ fontSize: "12px", border: "1px solid #cfd8dc", py: 0.7 }}>
+                                          <TableCell
+                                            sx={{
+                                              fontSize: "12px",
+                                              border: "1px solid #cfd8dc",
+                                              py: 0.7,
+                                            }}
+                                          >
                                             {fullName}
                                           </TableCell>
-                                          <TableCell sx={{ fontSize: "12px", border: "1px solid #cfd8dc", py: 0.7 }}>
+                                          <TableCell
+                                            sx={{
+                                              fontSize: "12px",
+                                              border: "1px solid #cfd8dc",
+                                              py: 0.7,
+                                            }}
+                                          >
                                             {emp.email || "—"}
                                           </TableCell>
-                                          <TableCell sx={{ fontSize: "12px", border: "1px solid #cfd8dc", py: 0.7 }}>
+                                          <TableCell
+                                            sx={{
+                                              fontSize: "12px",
+                                              border: "1px solid #cfd8dc",
+                                              py: 0.7,
+                                            }}
+                                          >
                                             {emp.position || "—"}
                                           </TableCell>
-                                          <TableCell align="center" sx={{ border: "1px solid #cfd8dc", py: 0.7 }}>
+                                          <TableCell
+                                            align="center"
+                                            sx={{
+                                              border: "1px solid #cfd8dc",
+                                              py: 0.7,
+                                            }}
+                                          >
                                             <Tooltip title="Remove from template">
                                               <Button
                                                 variant="contained"
                                                 size="small"
-                                                startIcon={<PersonRemoveIcon fontSize="small" />}
+                                                startIcon={
+                                                  <PersonRemoveIcon fontSize="small" />
+                                                }
                                                 sx={{
                                                   backgroundColor: "#9E0000",
                                                   color: "white",
@@ -1033,9 +1420,13 @@ export default function EmailTemplateManager() {
                                                   textTransform: "none",
                                                   height: 30,
                                                   px: 1.5,
-                                                  "&:hover": { backgroundColor: "#7b0000" },
+                                                  "&:hover": {
+                                                    backgroundColor: "#7b0000",
+                                                  },
                                                 }}
-                                                onClick={() => handleOpenUntagDialog(r, emp)}
+                                                onClick={() =>
+                                                  handleOpenUntagDialog(r, emp)
+                                                }
                                               >
                                                 Remove
                                               </Button>
@@ -1070,7 +1461,10 @@ export default function EmailTemplateManager() {
       </TableContainer>
 
       {/* ── Delete Template Dialog ── */}
-      <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
+      <Dialog
+        open={openDeleteDialog}
+        onClose={() => setOpenDeleteDialog(false)}
+      >
         <DialogTitle>Confirm Delete Template</DialogTitle>
         <DialogContent>
           <Typography>
@@ -1079,7 +1473,11 @@ export default function EmailTemplateManager() {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button color="error" variant="outlined" onClick={() => setOpenDeleteDialog(false)}>
+          <Button
+            color="error"
+            variant="outlined"
+            onClick={() => setOpenDeleteDialog(false)}
+          >
             Cancel
           </Button>
           <Button
@@ -1108,7 +1506,8 @@ export default function EmailTemplateManager() {
             <b>{untagTarget?.templateName}</b>?
           </Typography>
           <Typography fontSize="13px" color="text.secondary" sx={{ mt: 1 }}>
-            This employee will no longer receive emails sent through this template.
+            This employee will no longer receive emails sent through this
+            template.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -1139,7 +1538,9 @@ export default function EmailTemplateManager() {
         onClose={() => setOpenFormDialog(false)}
         maxWidth="md"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 3, overflow: "hidden", boxShadow: 6 } }}
+        PaperProps={{
+          sx: { borderRadius: 3, overflow: "hidden", boxShadow: 6 },
+        }}
       >
         <DialogTitle
           sx={{
@@ -1154,7 +1555,11 @@ export default function EmailTemplateManager() {
         </DialogTitle>
 
         <DialogContent sx={{ p: 3 }}>
-          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2, mt: 1 }}>
+          <Typography
+            variant="subtitle1"
+            fontWeight={700}
+            sx={{ mb: 2, mt: 1 }}
+          >
             Email Account Details
           </Typography>
 
@@ -1164,7 +1569,9 @@ export default function EmailTemplateManager() {
                 fullWidth
                 label="Sender Name"
                 value={form.sender_name}
-                onChange={(e) => setForm({ ...form, sender_name: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, sender_name: e.target.value })
+                }
               />
             </Grid>
 
@@ -1175,7 +1582,11 @@ export default function EmailTemplateManager() {
                 label="Department"
                 value={form.department_id || ""}
                 onChange={(e) =>
-                  setForm({ ...form, department_id: e.target.value, program_id: "" })
+                  setForm({
+                    ...form,
+                    department_id: e.target.value,
+                    program_id: "",
+                  })
                 }
               >
                 <MenuItem value="">Select Department</MenuItem>
@@ -1193,12 +1604,17 @@ export default function EmailTemplateManager() {
                 fullWidth
                 label="Program"
                 value={form.program_id || ""}
-                onChange={(e) => setForm({ ...form, program_id: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, program_id: e.target.value })
+                }
                 disabled={!form.department_id}
               >
                 <MenuItem value="">Select Program</MenuItem>
                 {filteredPrograms.map((program) => (
-                  <MenuItem key={program.curriculum_id} value={program.curriculum_id}>
+                  <MenuItem
+                    key={program.curriculum_id}
+                    value={program.curriculum_id}
+                  >
                     {getProgramLabel(program)}
                   </MenuItem>
                 ))}
@@ -1210,7 +1626,9 @@ export default function EmailTemplateManager() {
                 control={
                   <Switch
                     checked={form.is_active}
-                    onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                    onChange={(e) =>
+                      setForm({ ...form, is_active: e.target.checked })
+                    }
                   />
                 }
                 label="Active"
@@ -1266,6 +1684,9 @@ export default function EmailTemplateManager() {
               ? `${taggingTemplate.program_code} - ${taggingTemplate.program_description || ""}`
               : "N/A"}
           </Typography>
+          <Typography fontSize="13px" color="text.secondary" sx={{ mb: 2 }}>
+            Only employees assigned to this department/program can be tagged.
+          </Typography>
 
           <FormControl fullWidth>
             <InputLabel id="tag-employees-label">Employees</InputLabel>
@@ -1277,7 +1698,7 @@ export default function EmailTemplateManager() {
               onChange={(e) => {
                 const value = e.target.value;
                 setSelectedEmployeeIds(
-                  typeof value === "string" ? value.split(",") : value
+                  typeof value === "string" ? value.split(",") : value,
                 );
               }}
               renderValue={(selected) =>
@@ -1287,14 +1708,27 @@ export default function EmailTemplateManager() {
               }
               MenuProps={{ PaperProps: { sx: { maxHeight: 360 } } }}
             >
-              {employees.map((employee) => (
-                <MenuItem key={employee.employee_id} value={String(employee.employee_id)}>
-                  <Checkbox
-                    checked={selectedEmployeeIds.includes(String(employee.employee_id))}
-                  />
-                  <ListItemText primary={getEmployeeLabel(employee.employee_id)} />
+              {employees.length === 0 ? (
+                <MenuItem disabled value="">
+                  No eligible employees for this template
                 </MenuItem>
-              ))}
+              ) : (
+                employees.map((employee) => (
+                  <MenuItem
+                    key={employee.employee_id}
+                    value={String(employee.employee_id)}
+                  >
+                    <Checkbox
+                      checked={selectedEmployeeIds.includes(
+                        String(employee.employee_id),
+                      )}
+                    />
+                    <ListItemText
+                      primary={getEmployeeLabel(employee.employee_id)}
+                    />
+                  </MenuItem>
+                ))
+              )}
             </Select>
           </FormControl>
 
@@ -1331,7 +1765,11 @@ export default function EmailTemplateManager() {
         onClose={handleCloseSnack}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
-        <Alert severity={snack.severity} onClose={handleCloseSnack} sx={{ width: "100%" }}>
+        <Alert
+          severity={snack.severity}
+          onClose={handleCloseSnack}
+          sx={{ width: "100%" }}
+        >
           {snack.message}
         </Alert>
       </Snackbar>

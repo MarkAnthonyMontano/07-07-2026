@@ -12,6 +12,9 @@ const {
   insertAuditLogAdmission,
   insertAuditLogEnrollment,
 } = require("../../utils/auditLogger");
+const {
+  resolveRegistrarLoginFields,
+} = require("../../utils/registrarScopeService");
 const router = express.Router();
 
 // ─── In-memory stores ───────────────────────────────────────────────────────
@@ -739,7 +742,7 @@ router.post("/login", async (req, res) => {
                ua.totp_secret, ua.totp_enabled, NULL AS profile_image,
                NULL AS fname, NULL AS mname, NULL AS lname,
                ua.status, 'user' AS source, ua.dprtmnt_id,
-               dt.dprtmnt_name, ua.program_id AS curriculum_id,
+               dt.dprtmnt_name, NULL AS curriculum_id,
                ua.force_password_change
         FROM user_accounts AS ua
         LEFT JOIN dprtmnt_table AS dt ON ua.dprtmnt_id = dt.dprtmnt_id
@@ -858,6 +861,11 @@ router.post("/login", async (req, res) => {
     );
     const accessList = rows.map((r) => Number(r.page_id));
     const failureCount = record.count || 0;
+    const registrarFields = await resolveRegistrarLoginFields(
+      user.employee_id,
+      user.role,
+      user.dprtmnt_id,
+    );
 
     const token = webtoken.sign(
       {
@@ -865,8 +873,8 @@ router.post("/login", async (req, res) => {
         employee_id: user.employee_id,
         email: user.email,
         role: user.role,
-        department: user.dprtmnt_id,
-        curriculum_id: user.curriculum_id,
+        department: registrarFields.department,
+        curriculum_id: registrarFields.curriculum_id,
         prof_id: user.source === "prof" ? user.account_id : null,
         accessList,
       },
@@ -884,8 +892,8 @@ router.post("/login", async (req, res) => {
       person_id: user.person_id,
       prof_id: user.source === "prof" ? user.account_id : null,
       employee_id: user.employee_id,
-      department: user.dprtmnt_id,
-      curriculum_id: user.curriculum_id,
+      department: registrarFields.department,
+      curriculum_id: registrarFields.curriculum_id,
       accessList,
       force_password_change: user.force_password_change === 1,
       // Tells /verify-login-totp which table to read/write the secret from

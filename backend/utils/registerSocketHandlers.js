@@ -6,16 +6,16 @@ const {
 
 const getConfiguredSenderAccounts = () =>
   [
-    { user: process.env.EMAIL_USER1, pass: process.env.EMAIL_USER1 },
-    { user: process.env.EMAIL_USER2, pass: process.env.EMAIL_USER2 },
-    { user: process.env.EMAIL_USER3, pass: process.env.EMAIL_USER3 },
-    { user: process.env.EMAIL_USER4, pass: process.env.EMAIL_USER4 },
-    { user: process.env.EMAIL_USER5, pass: process.env.EMAIL_USER5 },
-    { user: process.env.EMAIL_USER6, pass: process.env.EMAIL_USER6 },
-    { user: process.env.EMAIL_USER7, pass: process.env.EMAIL_USER7 },
-    { user: process.env.EMAIL_USER8, pass: process.env.EMAIL_USER8 },
-    { user: process.env.EMAIL_USER9, pass: process.env.EMAIL_USER9 },
-    { user: process.env.EMAIL_USER10, pass: process.env.EMAIL_USER9 },
+    { user: process.env.EMAIL_USER1, pass: process.env.EMAIL_PASS1 },
+    { user: process.env.EMAIL_USER2, pass: process.env.EMAIL_PASS2 },
+    { user: process.env.EMAIL_USER3, pass: process.env.EMAIL_PASS3 },
+    { user: process.env.EMAIL_USER4, pass: process.env.EMAIL_PASS4 },
+    { user: process.env.EMAIL_USER5, pass: process.env.EMAIL_PASS5 },
+    { user: process.env.EMAIL_USER6, pass: process.env.EMAIL_PASS6 },
+    { user: process.env.EMAIL_USER7, pass: process.env.EMAIL_PASS7 },
+    { user: process.env.EMAIL_USER8, pass: process.env.EMAIL_PASS8 },
+    { user: process.env.EMAIL_USER9, pass: process.env.EMAIL_PASS9 },
+    { user: process.env.EMAIL_USER10, pass: process.env.EMAIL_PASS10 },
 
   ].filter((account) => account.user && account.pass);
 
@@ -113,6 +113,83 @@ module.exports = function registerSocketHandlers({
     if (!schedule) return `Schedule ${scheduleId}`;
 
     return `Schedule ${schedule.schedule_id} (${schedule.schedule_date}, ${schedule.building_description || "N/A"} ${schedule.room_description || ""}, ${schedule.start_time || ""}-${schedule.end_time || ""})`;
+  };
+
+  const applicantOnlineDocsDir = path.join(
+    __dirname,
+    "uploads",
+    "ApplicantOnlineDocuments",
+  );
+  const studentOnlineDocsDir = path.join(
+    __dirname,
+    "uploads",
+    "StudentOnlineDocuments",
+  );
+
+  const buildStudentRequirementFilename = (
+    applicantNumber,
+    studentNumber,
+    filePath,
+    shortLabelFallback = "Unknown",
+  ) => {
+    const sourceFilename = path.basename(String(filePath || ""));
+    if (!sourceFilename) return "";
+
+    const applicantPrefix = applicantNumber
+      ? `${String(applicantNumber).trim()}_`
+      : "";
+    if (applicantPrefix && sourceFilename.startsWith(applicantPrefix)) {
+      return `${studentNumber}_${sourceFilename.slice(applicantPrefix.length)}`;
+    }
+
+    const ext = path.extname(sourceFilename);
+    const yearMatch = sourceFilename.match(/_(\d{4})[^/\\]*$/);
+    const year = yearMatch ? yearMatch[1] : String(new Date().getFullYear());
+
+    return `${studentNumber}_${shortLabelFallback}_${year}${ext}`;
+  };
+
+  const copyRequirementFileForEnrollment = async ({
+    sourceFilename,
+    targetFilename,
+    applicantNumber,
+    studentNumber,
+    shortLabelFallback = "Unknown",
+  }) => {
+    if (!sourceFilename) {
+      return { copied: false, filePath: "" };
+    }
+
+    const normalizedSource = path.basename(String(sourceFilename));
+    const normalizedTarget =
+      targetFilename ||
+      buildStudentRequirementFilename(
+        applicantNumber,
+        studentNumber,
+        normalizedSource,
+        shortLabelFallback,
+      );
+
+    if (!normalizedTarget) {
+      return { copied: false, filePath: normalizedSource };
+    }
+
+    if (!fs.existsSync(studentOnlineDocsDir)) {
+      fs.mkdirSync(studentOnlineDocsDir, { recursive: true });
+    }
+
+    const sourcePath = path.join(applicantOnlineDocsDir, normalizedSource);
+    const targetPath = path.join(studentOnlineDocsDir, normalizedTarget);
+
+    if (!fs.existsSync(sourcePath)) {
+      console.warn(
+        `[assign-student-number] requirement file not found: ${sourcePath}`,
+      );
+      return { copied: false, filePath: normalizedTarget };
+    }
+
+    fs.copyFileSync(sourcePath, targetPath);
+    return { copied: true, filePath: normalizedTarget };
   };
 
   io.on("connection", (socket) => {
@@ -633,6 +710,39 @@ WHERE proctor LIKE ?
           [person_id],
         );
 
+        const [[applicantNumberRow]] = await db.query(
+          `SELECT applicant_number
+           FROM applicant_numbering_table
+           WHERE person_id = ?
+           LIMIT 1`,
+          [person_id],
+        );
+        const applicantNumber = applicantNumberRow?.applicant_number || null;
+
+        const requirementShortLabels = new Map();
+        if (requirements.length) {
+          const requirementIds = [
+            ...new Set(
+              requirements
+                .map((req) => req.requirements_id)
+                .filter((id) => id !== null && id !== undefined),
+            ),
+          ];
+
+          if (requirementIds.length) {
+            const [requirementRows] = await db.query(
+              `SELECT id, short_label
+               FROM requirements_table
+               WHERE id IN (?)`,
+              [requirementIds],
+            );
+
+            for (const row of requirementRows) {
+              requirementShortLabels.set(row.id, row.short_label || "Unknown");
+            }
+          }
+        }
+
         const [studentFuturePI] = await db3.query(
           `SELECT MAX(person_id) AS latest_person_id FROM person_table;`,
         );
@@ -651,8 +761,25 @@ WHERE proctor LIKE ?
           [personIdForStudent + 1, 0, 0, 0, 0, 0, 0],
         );
 
-        //  Copy requirements to db3
+        //  Copy requirements to db3 and StudentOnlineDocuments
         for (const req of requirements) {
+          const shortLabel =
+            requirementShortLabels.get(req.requirements_id) || "Unknown";
+          const targetFilename = buildStudentRequirementFilename(
+            applicantNumber,
+            student_number,
+            req.file_path,
+            shortLabel,
+          );
+          const { filePath: enrollmentFilePath } =
+            await copyRequirementFileForEnrollment({
+              sourceFilename: req.file_path,
+              targetFilename,
+              applicantNumber,
+              studentNumber: student_number,
+              shortLabelFallback: shortLabel,
+            });
+
           await db3.query(
             `INSERT INTO requirement_uploads
           (requirements_id, person_id, submitted_documents, file_path, original_name, remarks, status, document_status, registrar_status, created_at)
@@ -661,7 +788,7 @@ WHERE proctor LIKE ?
               req.requirements_id,
               personIdForStudent + 1,
               req.submitted_documents,
-              req.file_path,
+              enrollmentFilePath || targetFilename || req.file_path,
               req.original_name,
               req.remarks,
               req.status,

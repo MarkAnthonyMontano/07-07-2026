@@ -6,6 +6,11 @@ const {
   CanEdit,
 } = require("../../middleware/pagePermissions");
 const { insertAuditLogAdmission } = require("../../utils/auditLogger");
+const {
+  isInScope,
+  resolveProgramFromCurriculum,
+  ensureRegistrarScopeTable,
+} = require("../../utils/registrarScopeService");
 
 const router = express.Router();
 
@@ -132,6 +137,63 @@ const normalizeSenderEmail = (senderEmail) =>
 const isConfiguredSenderEmail = (senderEmail) =>
   getConfiguredSenderEmails().includes(normalizeSenderEmail(senderEmail));
 
+const getTemplateScope = async (templateId) => {
+  const [[template]] = await db.query(
+    `SELECT et.template_id, et.department_id, et.program_id AS curriculum_id
+     FROM email_templates et
+     WHERE et.template_id = ?
+     LIMIT 1`,
+    [templateId],
+  );
+
+  if (!template) return null;
+
+  const resolved = await resolveProgramFromCurriculum(template.curriculum_id);
+  return {
+    ...template,
+    program_id: resolved?.program_id || null,
+  };
+};
+
+const validateEmployeesForTemplateScope = async (templateScope, employeeIds = []) => {
+  if (!templateScope?.department_id || !templateScope?.program_id) {
+    return { ok: false, error: "Template department/program scope is invalid" };
+  }
+
+  const invalidEmployees = [];
+
+  for (const employeeId of employeeIds) {
+    const allowed = await isInScope(
+      employeeId,
+      templateScope.department_id,
+      templateScope.program_id,
+    );
+    if (!allowed) invalidEmployees.push(employeeId);
+  }
+
+  if (invalidEmployees.length) {
+    return {
+      ok: false,
+      error: `Employee(s) ${invalidEmployees.join(", ")} are not assigned to this department/program`,
+    };
+  }
+
+  return { ok: true };
+};
+
+const ensureActiveCurriculum = async (curriculumId) => {
+  const [[row]] = await db3.query(
+    `SELECT curriculum_id
+     FROM curriculum_table
+     WHERE curriculum_id = ?
+       AND lock_status = 1
+     LIMIT 1`,
+    [curriculumId],
+  );
+
+  return Boolean(row);
+};
+
 // GET all templates with department name
 router.get("/email-templates", async (req, res) => {
   try {
@@ -182,6 +244,13 @@ router.post("/email-templates", CanCreate, async (req, res) => {
       });
     }
 
+    const isActive = await ensureActiveCurriculum(program_id);
+    if (!isActive) {
+      return res.status(400).json({
+        error: "Program must be an active curriculum",
+      });
+    }
+
     const [result] = await db.query(
       "INSERT INTO email_templates (sender_name, department_id, program_id, is_active) VALUES (?, ?, ?, ?)",
       [senderEmail, department_id, program_id, is_active ? 1 : 0],
@@ -216,6 +285,15 @@ router.put("/email-templates/:id", CanEdit, async (req, res) => {
       return res.status(400).json({
         error: "Gmail account must match a configured sender email in the backend .env file",
       });
+    }
+
+    if (program_id !== undefined && program_id !== null) {
+      const isActive = await ensureActiveCurriculum(program_id);
+      if (!isActive) {
+        return res.status(400).json({
+          error: "Program must be an active curriculum",
+        });
+      }
     }
 
     const [result] = await db.query(
@@ -280,6 +358,43 @@ router.delete("/email-templates/:id", CanDelete, async (req, res) => {
   }
 });
 
+router.get("/email-templates/:id/eligible-employees", async (req, res) => {
+  try {
+    await ensureRegistrarScopeTable();
+    const templateScope = await getTemplateScope(req.params.id);
+    if (!templateScope) {
+      return res.status(404).json({ error: "Template not found" });
+    }
+
+    if (!templateScope.department_id || !templateScope.program_id) {
+      return res.json([]);
+    }
+
+    const [rows] = await db3.query(
+      `SELECT
+         ua.employee_id,
+         ua.first_name,
+         ua.middle_name,
+         ua.last_name,
+         ua.email,
+         ua.role AS position
+       FROM user_accounts ua
+       INNER JOIN registrar_scope_table rst
+       ON rst.employee_id = ua.employee_id
+       WHERE rst.dprtmnt_id = ?
+         AND rst.program_id = ?
+         AND ua.role != 'student'
+       ORDER BY ua.last_name, ua.first_name, ua.employee_id`,
+      [templateScope.department_id, templateScope.program_id],
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch eligible employees" });
+  }
+});
+
 router.get("/email-templates/:id/employees", async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -330,6 +445,15 @@ router.put("/email-templates/:id/employees", CanEdit, async (req, res) => {
       return res.status(404).json({ error: "Template not found" });
     }
 
+    const templateScope = await getTemplateScope(req.params.id);
+    const scopeValidation = await validateEmployeesForTemplateScope(
+      templateScope,
+      uniqueEmployeeIds,
+    );
+    if (!scopeValidation.ok) {
+      return res.status(400).json({ error: scopeValidation.error });
+    }
+
     await db.query("DELETE FROM email_template_employees WHERE template_id = ?", [
       req.params.id,
     ]);
@@ -369,7 +493,10 @@ router.get("/email-templates/active-senders", async (req, res) => {
        FROM email_templates et
        INNER JOIN email_template_employees ete
        ON et.template_id = ete.template_id
+       INNER JOIN enrollment.curriculum_table ct
+       ON et.program_id = ct.curriculum_id
        WHERE et.is_active = 1
+         AND ct.lock_status = 1
          AND et.department_id = ?
          AND et.program_id = ?
          AND ete.employee_id = ?

@@ -45,9 +45,10 @@ import PersonIcon from "@mui/icons-material/Person";
 import SchoolIcon from "@mui/icons-material/School";
 import {
   getRegistrarCurriculumId,
-  hasRegistrarCurriculumRestriction,
+  isRegistrarProgramSelectionLocked,
   restrictToRegistrarCurriculum,
 } from "../utils/registrarCurriculumRestriction";
+import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 import ExamPermit from "../applicant/ExamPermit";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import AssignmentIcon from "@mui/icons-material/Assignment";
@@ -1370,7 +1371,8 @@ const RegistrarDashboard1 = () => {
   }, [person.permanentMunicipality]);
 
   const [curriculumOptions, setCurriculumOptions] = useState([]);
-  const isProgramLocked = hasRegistrarCurriculumRestriction();
+  const scopeRevision = useRegistrarScopeRevision();
+  const isProgramLocked = isRegistrarProgramSelectionLocked();
   const registrarCurriculumId = getRegistrarCurriculumId();
 
   useEffect(() => {
@@ -1384,7 +1386,7 @@ const RegistrarDashboard1 = () => {
     };
 
     fetchCurriculums();
-  }, []);
+  }, [scopeRevision]);
 
   const filteredCurriculum = curriculumOptions.filter((item) => {
     // ✅ CAMPUS FILTER

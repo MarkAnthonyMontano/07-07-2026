@@ -19,7 +19,11 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
+    Autocomplete,
+    IconButton,
 } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
+import AddIcon from "@mui/icons-material/Add";
 import { SettingsContext } from "../App";
 import API_BASE_URL from "../apiConfig";
 import axios from "axios";
@@ -29,18 +33,20 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import EaristLogo from "../assets/EaristLogo.png";
 
-const SlotMonitoring = () => {
+const SectionSlotManagement = () => {
     const settings = useContext(SettingsContext);
-    const pageId = 123;
+    const pageId = 167;
 
     const [borderColor, setBorderColor] = useState("#000000");
     const [titleColor, setTitleColor] = useState("#6D2323");
     const [fetchedLogo, setFetchedLogo] = useState(EaristLogo);
     const [loading, setLoading] = useState(false);
     const [hasAccess, setHasAccess] = useState(null);
+    const [canCreate, setCanCreate] = useState(false);
+    const [canEdit, setCanEdit] = useState(false);
+    const [canDelete, setCanDelete] = useState(false);
     const [employeeID, setEmployeeID] = useState("");
-    const [employeeScopes, setEmployeeScopes] = useState([]);
-    const [isScopeRestricted, setIsScopeRestricted] = useState(false);
+    const [userRole, setUserRole] = useState("");
 
     const [schoolYears, setSchoolYears] = useState([]);
     const [semesters, setSchoolSemester] = useState([]);
@@ -60,7 +66,20 @@ const SlotMonitoring = () => {
     const [slotRows, setSlotRows] = useState([]);
     const [sectionOptionRows, setSectionOptionRows] = useState([]);
     const [selectedSectionFilter, setSelectedSectionFilter] = useState("");
+    const [editTarget, setEditTarget] = useState(null);
+    const [editSlotsValue, setEditSlotsValue] = useState("");
+    const [savingEditSlots, setSavingEditSlots] = useState(false);
     const [subjectsModalOpen, setSubjectsModalOpen] = useState(false);
+    const [activeTagSectionId, setActiveTagSectionId] = useState("");
+    const [activeTagSectionLabel, setActiveTagSectionLabel] = useState("");
+    const [tagModalOpen, setTagModalOpen] = useState(false);
+    const [selectedCourseToTag, setSelectedCourseToTag] = useState("");
+    const [pendingCourseTags, setPendingCourseTags] = useState([]);
+    const [taggedSubjects, setTaggedSubjects] = useState([]);
+    const [untagTarget, setUntagTarget] = useState(null);
+    const [untagCheck, setUntagCheck] = useState(null);
+    const [savingTags, setSavingTags] = useState(false);
+    const [dataRefreshKey, setDataRefreshKey] = useState(0);
     const [snackbar, setSnackbar] = useState({
         open: false,
         message: "",
@@ -93,6 +112,15 @@ const SlotMonitoring = () => {
         }
     }, [settings]);
 
+    const getPermissionHeaders = () => ({
+        headers: {
+            "x-employee-id": employeeID || localStorage.getItem("employee_id") || "",
+            "x-page-id": pageId,
+            "x-audit-actor-id": employeeID || localStorage.getItem("employee_id") || "",
+            "x-audit-actor-role": userRole || localStorage.getItem("role") || "registrar",
+        },
+    });
+
     useEffect(() => {
         const storedUser = localStorage.getItem("email");
         const storedRole = localStorage.getItem("role");
@@ -101,31 +129,12 @@ const SlotMonitoring = () => {
 
         if (storedUser && storedRole && storedID && storedEmployeeID) {
             setEmployeeID(storedEmployeeID);
+            setUserRole(storedRole);
             checkAccess(storedEmployeeID);
-            loadEmployeeScope(storedEmployeeID);
         } else {
             window.location.href = "/login";
         }
     }, []);
-
-    const loadEmployeeScope = async (employeeIDValue) => {
-        try {
-            const response = await axios.get(`${API_BASE_URL}/api/employee/${employeeIDValue}`);
-            const scopes = response.data?.scopes || [];
-            setEmployeeScopes(scopes);
-            setIsScopeRestricted(scopes.length > 0);
-        } catch (err) {
-            console.error("Error loading employee scope:", err);
-        }
-    };
-
-    const scopedDepartmentIds = [
-        ...new Set(employeeScopes.map((scope) => String(scope.dprtmnt_id))),
-    ];
-    const scopedProgramsForDepartment = (departmentId) =>
-        employeeScopes
-            .filter((scope) => String(scope.dprtmnt_id) === String(departmentId))
-            .map((scope) => String(scope.program_id));
 
     const checkAccess = async (employeeIDValue) => {
         setLoading(true);
@@ -135,8 +144,14 @@ const SlotMonitoring = () => {
             );
             if (response.data && response.data.page_privilege === 1) {
                 setHasAccess(true);
+                setCanCreate(Number(response.data?.can_create) === 1);
+                setCanEdit(Number(response.data?.can_edit) === 1);
+                setCanDelete(Number(response.data?.can_delete) === 1);
             } else {
                 setHasAccess(false);
+                setCanCreate(false);
+                setCanEdit(false);
+                setCanDelete(false);
             }
         } catch (error) {
             console.error("Error checking access:", error);
@@ -152,7 +167,7 @@ const SlotMonitoring = () => {
             .get(`${API_BASE_URL}/api/get_school_year/`)
             .then((res) => setSchoolYears(res.data))
             .catch((err) => console.error(err));
-    }, [hasAccess])
+    }, [hasAccess]);
 
     useEffect(() => {
         if (hasAccess !== true) return;
@@ -199,10 +214,10 @@ const SlotMonitoring = () => {
     useEffect(() => {
         if (hasAccess !== true) return;
         fetchDepartments();
-    }, [hasAccess, employeeScopes]);
+    }, [hasAccess])
 
     useEffect(() => {
-        if (department.length > 0 && !selectedDepartmentFilter && scopedDepartmentIds.length === 0) {
+        if (department.length > 0 && !selectedDepartmentFilter) {
             const firstDeptId = department[0].dprtmnt_id;
             setSelectedDepartmentFilter(firstDeptId);
             fetchPrograms(firstDeptId);
@@ -210,10 +225,10 @@ const SlotMonitoring = () => {
     }, [department, selectedDepartmentFilter]);
 
     useEffect(() => {
-        if (programs.length > 0 && !selectedProgram && scopedProgramsForDepartment(selectedDepartmentFilter).length === 0) {
+        if (programs.length > 0 && !selectedProgram) {
             setSelectedProgram(programs[0].program_id);
         }
-    }, [programs, selectedProgram, selectedDepartmentFilter, employeeScopes]);
+    }, [programs, selectedProgram]);
 
     useEffect(() => {
         if (yearLevels.length > 0 && !selectedYearLevel) {
@@ -225,19 +240,8 @@ const SlotMonitoring = () => {
         if (hasAccess !== true) return;
         try {
             const res = await axios.get(`${API_BASE_URL}/api/get_department`);
-            const allDepartments = res.data || [];
-            if (scopedDepartmentIds.length > 0) {
-                const scoped = allDepartments.filter((dep) =>
-                    scopedDepartmentIds.includes(String(dep.dprtmnt_id)),
-                );
-                setDepartment(scoped);
-                if (scoped.length > 0) {
-                    setSelectedDepartmentFilter(scoped[0].dprtmnt_id);
-                    fetchPrograms(scoped[0].dprtmnt_id);
-                }
-            } else {
-                setDepartment(allDepartments);
-            }
+            setDepartment(res.data);
+            console.log(res.data);
         } catch (err) {
             console.error("Fetch error:", err);
         }
@@ -248,21 +252,9 @@ const SlotMonitoring = () => {
         if (!dprtmnt_id) return;
         try {
             const res = await axios.get(`${API_BASE_URL}/api/applied_program/${dprtmnt_id}`);
-            const allPrograms = res.data || [];
-            const allowedProgramIds = scopedProgramsForDepartment(dprtmnt_id);
-            if (allowedProgramIds.length > 0) {
-                const scoped = allPrograms.filter((prog) =>
-                    allowedProgramIds.includes(String(prog.program_id)),
-                );
-                setPrograms(scoped);
-                if (scoped.length > 0) {
-                    setSelectedProgram(scoped[0].program_id);
-                }
-            } else {
-                setPrograms(allPrograms);
-            }
+            setPrograms(res.data);
         } catch (err) {
-            console.error("Department fetch error:", err);
+            console.error("❌ Department fetch error:", err);
         }
     };
 
@@ -314,8 +306,12 @@ const SlotMonitoring = () => {
                 !campusFilter
             ) {
                 setSectionOptionRows([]);
+                setSelectedSectionFilter("");
                 return;
             }
+
+            setSectionOptionRows([]);
+            setSelectedSectionFilter("");
 
             try {
                 const sectionResponse = await axios.get(`${API_BASE_URL}/api/section-slot/sections`, {
@@ -328,10 +324,6 @@ const SlotMonitoring = () => {
                         semesterId: selectedSchoolSemester,
                         campus: campusFilter,
                         activeSchoolYearId: selectedActiveSchoolYear,
-                        enforceScope: "1",
-                    },
-                    headers: {
-                        "x-employee-id": employeeID || localStorage.getItem("employee_id") || "",
                     },
                 });
 
@@ -381,11 +373,7 @@ const SlotMonitoring = () => {
                         semesterId: selectedSchoolSemester,
                         campus: campusFilter,
                         activeSchoolYearId: selectedActiveSchoolYear,
-                        enforceScope: "1",
                         ...(selectedCourse ? { courseId: selectedCourse } : {}),
-                    },
-                    headers: {
-                        "x-employee-id": employeeID || localStorage.getItem("employee_id") || "",
                     },
                 });
                 const rows = slotResponse.data || [];
@@ -452,6 +440,7 @@ const SlotMonitoring = () => {
         selectedActiveSchoolYear,
         campusFilter,
         selectedCurriculumId,
+        dataRefreshKey,
     ]);
 
     useEffect(() => {
@@ -639,6 +628,199 @@ const SlotMonitoring = () => {
         };
     };
 
+    const handleSchoolYearChange = (event) => {
+        setSelectedSchoolYear(event.target.value);
+    };
+
+    const handleSchoolSemesterChange = (event) => {
+        setSelectedSchoolSemester(event.target.value);
+    };
+
+    const handleCollegeChange = (e) => {
+        const selectedId = e.target.value;
+
+        setSelectedDepartmentFilter(selectedId);
+        setSelectedProgram("");
+        setPrograms([]);
+        setCourses([]);
+        setSelectedCourse("");
+        setSlotRows([]);
+        fetchPrograms(selectedId);
+    };
+
+    const showSnackbar = (message, severity = "success") => {
+        setSnackbar({ open: true, message, severity });
+    };
+
+    const fetchTaggedSubjects = async (departmentSectionId) => {
+        const sectionId = departmentSectionId || activeTagSectionId;
+        if (!sectionId || !selectedActiveSchoolYear) {
+            setTaggedSubjects([]);
+            return;
+        }
+        try {
+            const response = await axios.get(
+                `${API_BASE_URL}/api/section-slot/tagged-subjects/${sectionId}`,
+                { params: { activeSchoolYearId: selectedActiveSchoolYear } },
+            );
+            setTaggedSubjects(response.data || []);
+        } catch (err) {
+            console.error("Error fetching tagged subjects:", err);
+            setTaggedSubjects([]);
+        }
+    };
+
+    const openTagModalForSection = async (row) => {
+        if (!canCreate) {
+            showSnackbar("You do not have permission to tag subjects.", "error");
+            return;
+        }
+        const sectionId = row.department_section_id;
+        const sectionLabel = `${row.program_code || ""}-${row.section_description || ""}`;
+        setActiveTagSectionId(sectionId);
+        setActiveTagSectionLabel(sectionLabel);
+        await fetchTaggedSubjects(sectionId);
+        setPendingCourseTags([]);
+        setSelectedCourseToTag("");
+        setTagModalOpen(true);
+    };
+
+    const addPendingCourse = () => {
+        const course = courses.find(
+            (item) => String(item.course_id) === String(selectedCourseToTag),
+        );
+        if (!course) return;
+
+        const alreadyTagged = taggedSubjects.some(
+            (item) => String(item.course_id) === String(course.course_id),
+        );
+        const alreadyPending = pendingCourseTags.some(
+            (item) => String(item.course_id) === String(course.course_id),
+        );
+
+        if (alreadyTagged || alreadyPending) {
+            showSnackbar("Course is already tagged or pending.", "error");
+            return;
+        }
+
+        setPendingCourseTags((prev) => [...prev, course]);
+        setSelectedCourseToTag("");
+    };
+
+    const removePendingCourse = (courseId) => {
+        setPendingCourseTags((prev) =>
+            prev.filter((item) => String(item.course_id) !== String(courseId)),
+        );
+    };
+
+    const handleSaveTags = async () => {
+        if (!canCreate || pendingCourseTags.length === 0 || !activeTagSectionId) return;
+
+        setSavingTags(true);
+        try {
+            await axios.post(
+                `${API_BASE_URL}/api/section-slot/tag`,
+                {
+                    department_section_id: activeTagSectionId,
+                    curriculum_id: selectedCurriculumId,
+                    active_school_year_id: selectedActiveSchoolYear,
+                    year_level_id: selectedYearLevel,
+                    semester_id: selectedSchoolSemester,
+                    course_ids: pendingCourseTags.map((item) => item.course_id),
+                },
+                getPermissionHeaders(),
+            );
+
+            const baseRow =
+                slotRows.find(
+                    (row) => String(row.department_section_id) === String(activeTagSectionId),
+                ) ||
+                sectionOptionRows.find(
+                    (row) => String(row.department_section_id) === String(activeTagSectionId),
+                ) ||
+                {};
+
+            const optimisticRows = pendingCourseTags.map((course) => ({
+                ...baseRow,
+                department_section_id: activeTagSectionId,
+                course_id: course.course_id,
+                course_code: course.course_code,
+                course_description: course.course_description,
+                section_subject_id: null,
+                schedule: null,
+                faculty_name: null,
+                enrolled_student: 0,
+                max_slots: baseRow.max_slots ?? 0,
+            }));
+
+            setSlotRows((prev) => {
+                const withoutPlaceholder = prev.filter(
+                    (row) =>
+                        !(
+                            String(row.department_section_id) === String(activeTagSectionId) &&
+                            !row.course_id
+                        ),
+                );
+                return [...withoutPlaceholder, ...optimisticRows];
+            });
+
+            setTagModalOpen(false);
+            setPendingCourseTags([]);
+            setActiveTagSectionId("");
+            setActiveTagSectionLabel("");
+            showSnackbar("Subjects tagged successfully.");
+            setDataRefreshKey((prev) => prev + 1);
+        } catch (err) {
+            console.error("Error saving tags:", err);
+            showSnackbar(err.response?.data?.error || "Failed to tag subjects.", "error");
+        } finally {
+            setSavingTags(false);
+        }
+    };
+
+    const requestUntag = async (tagRow) => {
+        if (!canDelete) {
+            showSnackbar("You do not have permission to untag subjects.", "error");
+            return;
+        }
+        try {
+            const response = await axios.get(
+                `${API_BASE_URL}/api/section-slot/tag/${tagRow.section_subject_id}/check`,
+            );
+            setUntagCheck(response.data);
+            setUntagTarget(tagRow);
+        } catch (err) {
+            console.error("Error checking untag:", err);
+            showSnackbar("Failed to validate untag request.", "error");
+        }
+    };
+
+    const handleConfirmUntag = async () => {
+        if (!untagTarget || !canDelete) return;
+
+        const removedId = untagTarget.section_subject_id;
+        const previousRows = slotRows;
+
+        setSlotRows((prev) =>
+            prev.filter((row) => String(row.section_subject_id) !== String(removedId)),
+        );
+        setUntagTarget(null);
+        setUntagCheck(null);
+
+        try {
+            await axios.delete(
+                `${API_BASE_URL}/api/section-slot/tag/${removedId}`,
+                getPermissionHeaders(),
+            );
+            showSnackbar("Subject untagged successfully.");
+            setDataRefreshKey((prev) => prev + 1);
+        } catch (err) {
+            setSlotRows(previousRows);
+            console.error("Error untagging subject:", err);
+            showSnackbar(err.response?.data?.error || "Failed to untag subject.", "error");
+        }
+    };
+
     const renderPdfLetterhead = async (doc, { titleLine = null, subtitleLine = null } = {}) => {
         const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -764,30 +946,6 @@ const SlotMonitoring = () => {
             schoolYearLabel,
             semesterLabel,
         };
-    };
-
-    const handleSchoolYearChange = (event) => {
-        setSelectedSchoolYear(event.target.value);
-    };
-
-    const handleSchoolSemesterChange = (event) => {
-        setSelectedSchoolSemester(event.target.value);
-    };
-
-    const handleCollegeChange = (e) => {
-        const selectedId = e.target.value;
-
-        setSelectedDepartmentFilter(selectedId);
-        setSelectedProgram("");
-        setPrograms([]);
-        setCourses([]);
-        setSelectedCourse("");
-        setSlotRows([]);
-        fetchPrograms(selectedId);
-    };
-
-    const showSnackbar = (message, severity = "success") => {
-        setSnackbar({ open: true, message, severity });
     };
 
     const handleDownloadSubjectsPdf = async () => {
@@ -921,6 +1079,49 @@ const SlotMonitoring = () => {
         }
     };
 
+    const openEditSlot = (row) => {
+        if (!canEdit) {
+            showSnackbar("You do not have permission to edit slots.", "error");
+            return;
+        }
+        setEditTarget(row);
+        setEditSlotsValue(row.max_slots ?? "");
+    };
+
+    const handleSaveEditSlots = async () => {
+        if (!editTarget?.section_subject_id || !canEdit) return;
+
+        const parsed = Number(editSlotsValue);
+        if (editSlotsValue === "" || Number.isNaN(parsed) || parsed < 0) {
+            showSnackbar("Enter a valid non-negative slot value.", "error");
+            return;
+        }
+
+        setSavingEditSlots(true);
+        try {
+            await axios.put(
+                `${API_BASE_URL}/api/section-slot/tag/${editTarget.section_subject_id}/max-slots`,
+                { max_slots: parsed },
+                getPermissionHeaders(),
+            );
+            setSlotRows((prev) =>
+                prev.map((row) =>
+                    String(row.section_subject_id) === String(editTarget.section_subject_id)
+                        ? { ...row, max_slots: parsed }
+                        : row,
+                ),
+            );
+            setEditTarget(null);
+            setEditSlotsValue("");
+            showSnackbar("Max slots saved.");
+        } catch (err) {
+            console.error("Error saving max slots:", err);
+            showSnackbar("Failed to save max slots.", "error");
+        } finally {
+            setSavingEditSlots(false);
+        }
+    };
+
     if (loading || hasAccess === null) {
         return <LoadingOverlay open={loading} message="Loading..." />;
     }
@@ -943,7 +1144,7 @@ const SlotMonitoring = () => {
                     mb: 2,
                 }}
             >
-                SLOT MONITORING
+                SECTION SLOT MANAGEMENT
             </Typography>
 
             <hr style={{ border: "1px solid #ccc", width: "100%" }} />
@@ -1030,7 +1231,6 @@ const SlotMonitoring = () => {
                                             name="college"
                                             value={selectedDepartmentFilter}
                                             onChange={handleCollegeChange}
-                                            disabled={scopedDepartmentIds.length === 1}
                                             sx={{ width: "485px", textAlign: "left" }}
                                             MenuProps={{
                                                 PaperProps: {
@@ -1056,7 +1256,6 @@ const SlotMonitoring = () => {
                                             name="program"
                                             value={selectedProgram}
                                             onChange={(e) => setSelectedProgram(e.target.value)}
-                                            disabled={scopedProgramsForDepartment(selectedDepartmentFilter).length === 1}
                                             sx={{ width: "485px", textAlign: "left" }}
                                             MenuProps={{
                                                 PaperProps: {
@@ -1083,7 +1282,7 @@ const SlotMonitoring = () => {
                                         </Typography>
                                         <Select
                                             name="sectionFilter"
-                                            value={selectedSectionFilter}
+                                            value={selectedSectionFilter ? String(selectedSectionFilter) : ""}
                                             onChange={(e) => setSelectedSectionFilter(e.target.value)}
                                             sx={{ width: "230px", textAlign: "left" }}
                                             MenuProps={{
@@ -1099,7 +1298,7 @@ const SlotMonitoring = () => {
                                             {sectionOptions.map((section) => (
                                                 <MenuItem
                                                     key={section.department_section_id}
-                                                    value={section.department_section_id}
+                                                    value={String(section.department_section_id)}
                                                 >
                                                     {section.program_code}-{section.section_description}
                                                 </MenuItem>
@@ -1197,6 +1396,22 @@ const SlotMonitoring = () => {
                                 >
                                     Actual Size
                                 </Button>
+                                {canCreate ? (
+                                    <Button
+                                        disabled={!selectedSectionFilter}
+                                        sx={{ backgroundColor: settings?.main_button_color || settings?.header_color || "#1976d2", color: "white" }}
+                                        onClick={() => {
+                                            const section = sectionOptions.find(
+                                                (item) =>
+                                                    String(item.department_section_id) ===
+                                                    String(selectedSectionFilter),
+                                            );
+                                            if (section) openTagModalForSection(section);
+                                        }}
+                                    >
+                                        Tag Subjects
+                                    </Button>
+                                ) : null}
                                 <Button
                                     disabled={!selectedSectionFilter || subjectRows.length === 0}
                                     sx={{ backgroundColor: settings?.main_button_color || settings?.header_color || "#1976d2", color: "white" }}
@@ -1227,6 +1442,7 @@ const SlotMonitoring = () => {
                             <TableCell sx={{ color: "white", textAlign: "center" }}>Schedule</TableCell>
                             <TableCell sx={{ color: "white", textAlign: "center", width: "120px" }}>Slots</TableCell>
                             <TableCell sx={{ color: "white", textAlign: "center", width: "120px" }}>Enrolled</TableCell>
+                            <TableCell sx={{ color: "white", textAlign: "center", width: "140px" }}>Actions</TableCell>
                         </TableRow>
                     </TableHead>
                      <TableBody
@@ -1256,11 +1472,50 @@ const SlotMonitoring = () => {
                                     <TableCell sx={{ textAlign: "center" }}>
                                         {row.course_id ? (row.enrolled_student ?? 0) : "—"}
                                     </TableCell>
+                                    <TableCell sx={{ textAlign: "center" }}>
+                                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5 }}>
+                                            {canEdit && row.section_subject_id ? (
+                                                <Button
+                                                    size="small"
+                                                    variant="contained"
+                                                    onClick={() => openEditSlot(row)}
+                                                    sx={{
+                                                        color: "#fff",
+                                                        backgroundColor: "green",
+                                                        textTransform: "none",
+                                                        fontSize: "12px",
+                                                        minWidth: "52px",
+                                                        "&:hover": { backgroundColor: "#2e7d32" },
+                                                    }}
+                                                >
+                                                    Edit
+                                                </Button>
+                                            ) : null}
+                                            {canDelete && row.section_subject_id ? (
+                                                <Button
+                                                    size="small"
+                                                    variant="contained"
+                                                    onClick={() => requestUntag(row)}
+                                                    sx={{
+                                                        color: "#fff",
+                                                        backgroundColor: "#9E0000",
+                                                        textTransform: "none",
+                                                        fontSize: "12px",
+                                                        minWidth: "58px",
+                                                        "&:hover": { backgroundColor: "#7f0000" },
+                                                    }}
+                                                >
+                                                    Delete
+                                                </Button>
+                                            ) : null}
+                                            {!canEdit && !canDelete ? "—" : (!row.section_subject_id ? "—" : null)}
+                                        </Box>
+                                    </TableCell>
                                 </TableRow>
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={6} sx={{ textAlign: "center", py: 2 }}>
+                                <TableCell colSpan={7} sx={{ textAlign: "center", py: 2 }}>
                                     No records found for the selected filters.
                                 </TableCell>
                             </TableRow>
@@ -1327,6 +1582,218 @@ const SlotMonitoring = () => {
                 </DialogActions>
             </Dialog>
 
+            <Dialog
+                open={tagModalOpen}
+                onClose={() => {
+                    setTagModalOpen(false);
+                    setPendingCourseTags([]);
+                    setSelectedCourseToTag("");
+                    setActiveTagSectionId("");
+                    setActiveTagSectionLabel("");
+                }}
+                fullWidth
+                maxWidth="md"
+            >
+                <DialogTitle>
+                    Tag Subjects{activeTagSectionLabel ? ` — ${activeTagSectionLabel}` : ""}
+                </DialogTitle>
+                <DialogContent>
+                    <Box sx={{ display: "flex", gap: 1, alignItems: "center", mt: 2, mb: 2 }}>
+                        <Autocomplete
+                            options={courses}
+                            fullWidth
+                            getOptionLabel={(option) =>
+                                `${option.course_code || ""} - ${option.course_description || ""}`.trim()
+                            }
+                            value={
+                                courses.find(
+                                    (course) => String(course.course_id) === String(selectedCourseToTag),
+                                ) || null
+                            }
+                            onChange={(event, newValue) => {
+                                setSelectedCourseToTag(newValue ? newValue.course_id : "");
+                            }}
+                            isOptionEqualToValue={(option, value) =>
+                                String(option.course_id) === String(value.course_id)
+                            }
+                            filterOptions={(options, { inputValue }) => {
+                                const input = inputValue.trim().toLowerCase();
+                                if (!input) return options;
+
+                                const exact = options.filter(
+                                    (o) =>
+                                        o.course_code?.toLowerCase() === input ||
+                                        o.course_description?.toLowerCase() === input,
+                                );
+                                if (exact.length > 0) return exact;
+
+                                const startsWith = options.filter(
+                                    (o) =>
+                                        o.course_code?.toLowerCase().startsWith(input) ||
+                                        o.course_description?.toLowerCase().startsWith(input),
+                                );
+                                if (startsWith.length > 0) return startsWith;
+
+                                return options.filter(
+                                    (o) =>
+                                        o.course_code?.toLowerCase().includes(input) ||
+                                        o.course_description?.toLowerCase().includes(input),
+                                );
+                            }}
+                            renderInput={(params) => (
+                                <TextField {...params} label="Select Course" size="small" />
+                            )}
+                        />
+                        <Button
+                            variant="contained"
+                            onClick={addPendingCourse}
+                            disabled={!selectedCourseToTag}
+                            startIcon={<AddIcon />}
+                        >
+                            Add
+                        </Button>
+                    </Box>
+
+                    {pendingCourseTags.length > 0 && (
+                        <Box sx={{ mb: 2 }}>
+                            <Typography fontWeight="bold" mb={1}>To Tag</Typography>
+                            {pendingCourseTags.map((course) => (
+                                <Box
+                                    key={course.course_id}
+                                    sx={{ display: "flex", justifyContent: "space-between", py: 0.5 }}
+                                >
+                                    <Typography>
+                                        {course.course_code} - {course.course_description}
+                                    </Typography>
+                                    <IconButton size="small" onClick={() => removePendingCourse(course.course_id)}>
+                                        <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                </Box>
+                            ))}
+                        </Box>
+                    )}
+
+                    <Typography fontWeight="bold" mb={1}>Already Tagged</Typography>
+                    {taggedSubjects.length > 0 ? (
+                        taggedSubjects.map((item) => (
+                            <Box
+                                key={item.section_subject_id}
+                                sx={{ display: "flex", justifyContent: "space-between", py: 0.5 }}
+                            >
+                                <Typography>
+                                    {item.course_code} - {item.course_description}
+                                </Typography>
+                                {canDelete && (
+                                    <Button
+                                        size="small"
+                                        color="error"
+                                        onClick={() => requestUntag(item)}
+                                    >
+                                        Remove
+                                    </Button>
+                                )}
+                            </Box>
+                        ))
+                    ) : (
+                        <Typography color="text.secondary">No subjects tagged yet.</Typography>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button
+                        onClick={() => {
+                            setTagModalOpen(false);
+                            setPendingCourseTags([]);
+                            setActiveTagSectionId("");
+                            setActiveTagSectionLabel("");
+                        }}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="contained"
+                        disabled={pendingCourseTags.length === 0 || savingTags}
+                        onClick={handleSaveTags}
+                    >
+                        Save Tags
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={Boolean(editTarget)}
+                onClose={() => {
+                    if (savingEditSlots) return;
+                    setEditTarget(null);
+                    setEditSlotsValue("");
+                }}
+                fullWidth
+                maxWidth="xs"
+            >
+                <DialogTitle>Edit Slots</DialogTitle>
+                <DialogContent>
+                    <Typography sx={{ mb: 2 }}>
+                        {editTarget?.program_code}-{editTarget?.section_description || ""} — {editTarget?.course_code || ""}
+                    </Typography>
+                    <TextField
+                        type="number"
+                        label="Max Slots"
+                        fullWidth
+                        value={editSlotsValue}
+                        onChange={(e) => setEditSlotsValue(e.target.value)}
+                        inputProps={{ min: 0 }}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button
+                        onClick={() => {
+                            setEditTarget(null);
+                            setEditSlotsValue("");
+                        }}
+                        disabled={savingEditSlots}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={handleSaveEditSlots}
+                        disabled={savingEditSlots}
+                        sx={{ backgroundColor: settings?.main_button_color || settings?.header_color || "#1976d2" }}
+                    >
+                        {savingEditSlots ? "Saving..." : "Save"}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog open={Boolean(untagTarget)} onClose={() => { setUntagTarget(null); setUntagCheck(null); }}>
+                <DialogTitle>Remove Tagged Subject</DialogTitle>
+                <DialogContent>
+                    <Typography sx={{ mb: 1 }}>
+                        Remove {untagTarget?.course_code} from this section?
+                    </Typography>
+                    {untagCheck?.has_schedule ? (
+                        <Typography color="warning.main">
+                            This subject has a schedule in Schedule Checker. Removing the tag will not delete the schedule.
+                        </Typography>
+                    ) : null}
+                    {Number(untagCheck?.enrolled_count) > 0 ? (
+                        <Typography color="error">
+                            Cannot remove while {untagCheck.enrolled_count} student(s) are enrolled.
+                        </Typography>
+                    ) : null}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => { setUntagTarget(null); setUntagCheck(null); }}>Cancel</Button>
+                    <Button
+                        color="error"
+                        variant="contained"
+                        disabled={Number(untagCheck?.enrolled_count) > 0}
+                        onClick={handleConfirmUntag}
+                    >
+                        Yes, Remove
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={2500}
@@ -1350,4 +1817,4 @@ const SlotMonitoring = () => {
     )
 }
 
-export default SlotMonitoring;
+export default SectionSlotManagement;

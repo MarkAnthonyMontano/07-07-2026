@@ -142,7 +142,8 @@ const DepartmentSection = lazy(() => import("./department_management/DepartmentS
 const DepartmentSectionTagging = lazy(() => import("./department_management/DepartmentSectionTagging"));
 const DepartmentRegistration = lazy(() => import("./department_management/DprtmntRegistration"));
 const DepartmentRoom = lazy(() => import("./department_management/DprtmntRoom"));
-const SectionSlotMonitoring = lazy(() => import("./department_management/SlotMonitoring"));
+const SlotMonitoring = lazy(() => import("./department_management/SlotMonitoring"));
+const SectionSlotManagement = lazy(() => import("./department_management/SectionSlotManagement"));
 const ApplicantList = lazy(() => import("./enrollment_management/ApplicantList"));
 const EntranceExaminationScore = lazy(() => import("./enrollment_management/EntranceExaminationScore"));
 const AssignQualifyingInterviewExam = lazy(() => import("./enrollment_management/AssignQualifyingInterviewExam"));
@@ -900,7 +901,8 @@ function App() {
                       <Route path="/report_of_grades" element={<ProtectedRoute><ReportOfGrade /></ProtectedRoute>} />
                       <Route path="/user_page_access" element={<ProtectedRoute><UserPageAccess /></ProtectedRoute>} />
                       <Route path="/student_scholarship_list" element={<ProtectedRoute><StudentScholarshipList /></ProtectedRoute>} />
-                      <Route path="/section_slot_monitoring" element={<ProtectedRoute><SectionSlotMonitoring /></ProtectedRoute>} />
+                      <Route path="/section_slot_monitoring" element={<ProtectedRoute><SlotMonitoring /></ProtectedRoute>} />
+                      <Route path="/section_slot_management" element={<ProtectedRoute><SectionSlotManagement /></ProtectedRoute>} />
                       <Route path="/student_college_personal_information" element={<ProtectedRoute><StudentCollegePersonalInformation /></ProtectedRoute>} />
                       <Route path="/student_college_family_background" element={<ProtectedRoute><StudentCollegeFamilyBackground /></ProtectedRoute>} />
                       <Route path="/student_college_educational_attainment" element={<ProtectedRoute><StudentCollegeEducationalAttainment /></ProtectedRoute>} />

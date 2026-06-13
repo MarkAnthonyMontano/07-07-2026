@@ -40,6 +40,7 @@ import {
   isRegistrarCurriculumMatch,
   restrictToRegistrarCurriculum,
 } from "../utils/registrarCurriculumRestriction";
+import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 
 
 const InterviewerApplicantList = () => {
@@ -276,6 +277,8 @@ const InterviewerApplicantList = () => {
 
   const [curriculumOptions, setCurriculumOptions] = useState([]);
 
+  const scopeRevision = useRegistrarScopeRevision();
+
   useEffect(() => {
     const fetchCurriculums = async () => {
       try {
@@ -288,7 +291,7 @@ const InterviewerApplicantList = () => {
     };
 
     fetchCurriculums();
-  }, []);
+  }, [scopeRevision]);
 
   const formatDateLong = (dateString) => {
     if (!dateString) return "";

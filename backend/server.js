@@ -35,9 +35,9 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://192.168.50.211:5173",
   "http://136.239.248.62:5173",
-  "http://192.168.50.48:5173",
+  "http://192.168.50.39:5173",
   "http://192.168.1.9:5173",
-  "http://192.168.50.48:5173",
+  "http://192.168.50.39:5173",
 ];
 
 app.use(
@@ -396,9 +396,15 @@ const ipAddress = getDbHost();
 app.get("/api/employee/:employee_id", async (req, res) => {
   try {
     const { employee_id } = req.params;
+    const {
+      buildEmployeeScopePayload,
+      ensureRegistrarScopeTable,
+    } = require("./utils/registrarScopeService");
+
+    await ensureRegistrarScopeTable();
 
     const [[userAccount]] = await db3.query(
-      `SELECT employee_id, dprtmnt_id, program_id AS curriculum_id
+      `SELECT employee_id, dprtmnt_id
        FROM user_accounts
        WHERE employee_id = ?
        LIMIT 1`,
@@ -416,13 +422,20 @@ app.get("/api/employee/:employee_id", async (req, res) => {
     );
 
     const accessList = rows.map((r) => r.page_id);
+    const scopePayload = await buildEmployeeScopePayload(
+      userAccount.employee_id,
+      userAccount,
+    );
 
     res.json({
       success: true,
       accessList,
       employee_id: userAccount.employee_id,
-      dprtmnt_id: userAccount.dprtmnt_id,
-      curriculum_id: userAccount.curriculum_id,
+      dprtmnt_id: scopePayload.dprtmnt_id ?? userAccount.dprtmnt_id ?? null,
+      dprtmnt_ids: scopePayload.dprtmnt_ids,
+      curriculum_id: scopePayload.curriculum_id ?? null,
+      scopes: scopePayload.scopes,
+      allowed_curriculum_ids: scopePayload.allowed_curriculum_ids,
     });
   } catch (err) {
     console.error("Error fetching employee access:", err);
