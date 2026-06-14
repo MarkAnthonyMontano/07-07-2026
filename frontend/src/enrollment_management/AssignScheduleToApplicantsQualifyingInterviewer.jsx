@@ -227,27 +227,46 @@ const AssignScheduleToApplicantsInterviewer = () => {
   }, [user]);
 
   const resolveSenderForApplicant = async (applicant) => {
-    const programId = applicant?.program;
     const currentEmployeeId = employeeID || localStorage.getItem("employee_id");
+    const programId = applicant?.program; // this is curriculum_id from admission.person_table
+
+    // Try to find in allCurriculums (which has enrollment curriculum_ids like 8736)
     const curriculumMatch = allCurriculums.find(
-      (curriculum) => String(curriculum.curriculum_id) === String(programId),
+      (c) => String(c.curriculum_id) === String(programId),
     );
+
+    // ✅ Fall back to adminData.dprtmnt_id if no match found
     const departmentId = curriculumMatch?.dprtmnt_id || adminData.dprtmnt_id;
 
-    if (!departmentId || !programId || !currentEmployeeId) {
-      throw new Error("Department, program, and employee are required to find a sender email.");
-    }
-
-    const res = await axios.get(`${API_BASE_URL}/api/email-templates/active-senders`, {
-      params: {
-        department_id: departmentId,
-        program_id: programId,
-        employee_id: currentEmployeeId,
-      },
+    console.log("🔍 resolveSender:", {
+      applicant_program: programId,
+      curriculumMatch: curriculumMatch || "NOT FOUND in allCurriculums",
+      departmentId,
+      currentEmployeeId,
     });
 
+    if (!currentEmployeeId) {
+      throw new Error("No employee ID found. Please log out and log in again.");
+    }
+    if (!programId) {
+      throw new Error("Program ID missing for this applicant.");
+    }
+
+    const res = await axios.get(
+      `${API_BASE_URL}/api/email-templates/active-senders`,
+      {
+        params: {
+          department_id: departmentId,
+          program_id: programId, // send the raw value — backend will resolve it
+          employee_id: currentEmployeeId,
+        },
+      },
+    );
+
     if (!Array.isArray(res.data) || res.data.length === 0) {
-      throw new Error("No active email account is assigned to this program and employee.");
+      throw new Error(
+        `No active email account for employee ${currentEmployeeId}, program=${programId}, department=${departmentId}.`,
+      );
     }
 
     return res.data[0].sender_name;
@@ -790,9 +809,9 @@ const AssignScheduleToApplicantsInterviewer = () => {
           prev.map((s) =>
             Number(s.schedule_id) === Number(selectedSchedule)
               ? {
-                  ...s,
-                  current_occupancy: currentCount + (res.assigned?.length || 0),
-                }
+                ...s,
+                current_occupancy: currentCount + (res.assigned?.length || 0),
+              }
               : s,
           ),
         );
@@ -938,18 +957,18 @@ const AssignScheduleToApplicantsInterviewer = () => {
       return isNaN(d)
         ? "N/A"
         : d.toLocaleTimeString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          });
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        });
     };
 
     const formattedDate = sched.day_description
       ? new Date(sched.day_description).toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
       : "N/A";
 
     // ✅ Only include the requirements section if the user explicitly
@@ -1211,11 +1230,7 @@ ${requirementsSection}
 
     if (emailTargets.length === 0) {
       setLoading2(false);
-      setSnack({
-        open: true,
-        message: "No selected applicants found.",
-        severity: "warning",
-      });
+      setSnack({ open: true, message: "No selected applicants found.", severity: "warning" });
       return;
     }
 
@@ -1225,11 +1240,7 @@ ${requirementsSection}
 
     if (uniquePrograms.length !== 1) {
       setLoading2(false);
-      setSnack({
-        open: true,
-        message: "Please send emails by one program at a time.",
-        severity: "warning",
-      });
+      setSnack({ open: true, message: "Please send emails by one program at a time.", severity: "warning" });
       return;
     }
 
@@ -1238,13 +1249,16 @@ ${requirementsSection}
       resolvedSender = await resolveSenderForApplicant(emailTargets[0]);
     } catch (err) {
       setLoading2(false);
-      setSnack({
-        open: true,
-        message: err.message || "No active sender account is assigned.",
-        severity: "warning",
-      });
+      setSnack({ open: true, message: err.message || "No active sender account is assigned.", severity: "warning" });
       return;
     }
+
+    // ✅ Resolve department_id and program_id for the socket event
+    const programId = emailTargets[0]?.program;
+    const curriculumMatch = allCurriculums.find(
+      (curriculum) => String(curriculum.curriculum_id) === String(programId),
+    );
+    const departmentId = curriculumMatch?.dprtmnt_id || adminData.dprtmnt_id;
 
     socket.current.emit("send_interview_emails", {
       schedule_id: selectedSchedule,
@@ -1253,10 +1267,11 @@ ${requirementsSection}
       senderName: resolvedSender,
       message: finalPreview,
       user_person_id: loggedInPersonId,
+      department_id: departmentId,   // ✅ ADDED
+      program_id: programId,         // ✅ ADDED
       ...auditActor(),
     });
 
-    // Remove previous listeners (prevents stacking)
     socket.current.off("send_schedule_emails_result");
 
     socket.current.once("send_schedule_emails_result", (emailRes) => {
@@ -1478,7 +1493,7 @@ ${requirementsSection}
     const matchesSemester =
       selectedSchoolSemester === "" ||
       normalize(personData.middle_code) ===
-        normalize(selectedSemester?.semester_code);
+      normalize(selectedSemester?.semester_code);
 
     /* 📅 DATE */
     const createdAtDate = new Date(personData.created_at);
@@ -1946,11 +1961,11 @@ ${requirementsSection}
                 value={
                   selectedSchedule
                     ? (() => {
-                        const s = getSelectedScheduleData();
-                        return s
-                          ? `${s.current_occupancy ?? 0}/${s.room_quota}`
-                          : "";
-                      })()
+                      const s = getSelectedScheduleData();
+                      return s
+                        ? `${s.current_occupancy ?? 0}/${s.room_quota}`
+                        : "";
+                    })()
                     : ""
                 }
                 InputProps={{ readOnly: true }}

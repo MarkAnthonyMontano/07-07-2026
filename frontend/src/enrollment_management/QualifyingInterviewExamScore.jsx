@@ -693,7 +693,7 @@ const QualifyingExamScore = () => {
     const matchesSemester =
       selectedSchoolSemester === "" ||
       normalize(personData.middle_code) ===
-        normalize(selectedSemester?.semester_code);
+      normalize(selectedSemester?.semester_code);
 
     /* 🧮 SCORE COMPUTATION (MUST COME BEFORE FILTERS) */
     const subjectScores = subjects.map((subject) =>
@@ -742,25 +742,25 @@ const QualifyingExamScore = () => {
       .sort((a, b) => {
         const aExam = Number(
           editScores[a.person_id]?.qualifying_exam_score ??
-            a.qualifying_exam_score ??
-            0,
+          a.qualifying_exam_score ??
+          0,
         );
         const aInterview = Number(
           editScores[a.person_id]?.qualifying_interview_score ??
-            a.qualifying_interview_score ??
-            0,
+          a.qualifying_interview_score ??
+          0,
         );
         const aTotal = (aExam + aInterview) / 2;
 
         const bExam = Number(
           editScores[b.person_id]?.qualifying_exam_score ??
-            b.qualifying_exam_score ??
-            0,
+          b.qualifying_exam_score ??
+          0,
         );
         const bInterview = Number(
           editScores[b.person_id]?.qualifying_interview_score ??
-            b.qualifying_interview_score ??
-            0,
+          b.qualifying_interview_score ??
+          0,
         );
         const bTotal = (bExam + bInterview) / 2;
 
@@ -1116,14 +1116,13 @@ const QualifyingExamScore = () => {
           <div class="header-text">
          <div style="font-size: 13px; font-family: Arial">Republic of the Philippines</div>
 
-            ${
-              name
-                ? `
+            ${name
+        ? `
               <div class="school-name">${firstLine}</div>
               ${secondLine ? `<div class="school-name">${secondLine}</div>` : ""}
             `
-                : ""
-            }
+        : ""
+      }
 
             <div class="address">${campusAddress}</div>
 
@@ -1149,31 +1148,30 @@ const QualifyingExamScore = () => {
 
           <tbody>
             ${filteredPersons
-              .map((person) => {
-                const qualifyingExam =
-                  editScores[person.person_id]?.qualifying_exam_score ??
-                  person.qualifying_exam_score ??
-                  0;
+        .map((person) => {
+          const qualifyingExam =
+            editScores[person.person_id]?.qualifying_exam_score ??
+            person.qualifying_exam_score ??
+            0;
 
-                const qualifyingInterview =
-                  editScores[person.person_id]?.qualifying_interview_score ??
-                  person.qualifying_interview_score ??
-                  0;
+          const qualifyingInterview =
+            editScores[person.person_id]?.qualifying_interview_score ??
+            person.qualifying_interview_score ??
+            0;
 
-                const computedTotalAve =
-                  (Number(qualifyingExam) + Number(qualifyingInterview)) / 2;
+          const computedTotalAve =
+            (Number(qualifyingExam) + Number(qualifyingInterview)) / 2;
 
-                return `
+          return `
                 <tr>
                   <td>${person.applicant_number ?? "N/A"}</td>
                   <td>${person.last_name}, ${person.first_name} ${person.middle_name ?? ""} ${person.extension ?? ""}</td>
-                  <td>${
-                    allCurriculums.find(
-                      (item) =>
-                        item.curriculum_id?.toString() ===
-                        person.program?.toString(),
-                    )?.program_code ?? "N/A"
-                  }</td>
+                  <td>${allCurriculums.find(
+            (item) =>
+              item.curriculum_id?.toString() ===
+              person.program?.toString(),
+          )?.program_code ?? "N/A"
+            }</td>
                   <td>${qualifyingExam}</td>
               <td>${person.qualifying_status ?? "—"}</td>
                   <td>${qualifyingInterview}</td>
@@ -1182,8 +1180,8 @@ const QualifyingExamScore = () => {
                   <td>${person.college_approval_status ?? "N/A"}</td>
                 </tr>
               `;
-              })
-              .join("")}
+        })
+        .join("")}
           </tbody>
         </table>
 
@@ -1471,14 +1469,14 @@ const QualifyingExamScore = () => {
       prev.map((p) =>
         applicantNumberSet.has(String(p.applicant_number))
           ? {
-              ...p,
-              assigned: nextStatus === COLLEGE_APPROVAL_STATUS.ACCEPTED,
-              college_approval_status: nextStatus,
-              applicant_interview_status:
-                nextStatus === COLLEGE_APPROVAL_STATUS.WAITING_LIST
-                  ? 0
-                  : p.applicant_interview_status,
-            }
+            ...p,
+            assigned: nextStatus === COLLEGE_APPROVAL_STATUS.ACCEPTED,
+            college_approval_status: nextStatus,
+            applicant_interview_status:
+              nextStatus === COLLEGE_APPROVAL_STATUS.WAITING_LIST
+                ? 0
+                : p.applicant_interview_status,
+          }
           : p,
       ),
     );
@@ -1502,8 +1500,8 @@ const QualifyingExamScore = () => {
   const getCurrentCollegeApprovalStatus = (personData) =>
     Number(
       editScores[personData.person_id]?.status ??
-        personData.college_approval_status ??
-        0,
+      personData.college_approval_status ??
+      0,
     );
 
   const handleAssignSingle = (applicant_number) => {
@@ -1824,32 +1822,51 @@ const QualifyingExamScore = () => {
   const [finalizeConfirmMode, setFinalizeConfirmMode] = useState("bulk");
   const [dprtmntName, setDepartmentName] = useState("");
 
-  const resolveSenderForApplicant = async (applicant) => {
-    const programId = applicant?.program;
-    const currentEmployeeId = employeeID || localStorage.getItem("employee_id");
-    const curriculumMatch = allCurriculums.find(
-      (curriculum) => String(curriculum.curriculum_id) === String(programId),
-    );
-    const departmentId = curriculumMatch?.dprtmnt_id || adminData.dprtmnt_id;
+ const resolveSenderForApplicant = async (applicant) => {
+  const currentEmployeeId = employeeID || localStorage.getItem("employee_id");
+  const programId = applicant?.program; // this is curriculum_id from admission.person_table
 
-    if (!departmentId || !programId || !currentEmployeeId) {
-      throw new Error("Department, program, and employee are required to find a sender email.");
-    }
+  // Try to find in allCurriculums (which has enrollment curriculum_ids like 8736)
+  const curriculumMatch = allCurriculums.find(
+    (c) => String(c.curriculum_id) === String(programId),
+  );
 
-    const res = await axios.get(`${API_BASE_URL}/api/email-templates/active-senders`, {
+  // ✅ Fall back to adminData.dprtmnt_id if no match found
+  const departmentId = curriculumMatch?.dprtmnt_id || adminData.dprtmnt_id;
+
+  console.log("🔍 resolveSender:", {
+    applicant_program: programId,
+    curriculumMatch: curriculumMatch || "NOT FOUND in allCurriculums",
+    departmentId,
+    currentEmployeeId,
+  });
+
+  if (!currentEmployeeId) {
+    throw new Error("No employee ID found. Please log out and log in again.");
+  }
+  if (!programId) {
+    throw new Error("Program ID missing for this applicant.");
+  }
+
+  const res = await axios.get(
+    `${API_BASE_URL}/api/email-templates/active-senders`,
+    {
       params: {
         department_id: departmentId,
-        program_id: programId,
+        program_id: programId, // send the raw value — backend will resolve it
         employee_id: currentEmployeeId,
       },
-    });
+    },
+  );
 
-    if (!Array.isArray(res.data) || res.data.length === 0) {
-      throw new Error("No active email account is assigned to this program and employee.");
-    }
+  if (!Array.isArray(res.data) || res.data.length === 0) {
+    throw new Error(
+      `No active email account for employee ${currentEmployeeId}, program=${programId}, department=${departmentId}.`,
+    );
+  }
 
-    return res.data[0].sender_name;
-  };
+  return res.data[0].sender_name;
+};
 
   useEffect(() => {
     const fetchDepartment = async () => {
@@ -2135,11 +2152,11 @@ Thank you, best regards
     return selectedApplicant
       ? persons.filter((p) => p.applicant_number === selectedApplicant)
       : persons.filter(
-          (p) =>
-            Number(p.college_approval_status) ===
-              COLLEGE_APPROVAL_STATUS.ACCEPTED &&
-            Number(p.applicant_interview_status) !== 1,
-        );
+        (p) =>
+          Number(p.college_approval_status) ===
+          COLLEGE_APPROVAL_STATUS.ACCEPTED &&
+          Number(p.applicant_interview_status) !== 1,
+      );
   };
 
   const getApplicantDisplayName = (applicant) =>
@@ -2188,11 +2205,7 @@ Thank you, best regards
 
     if (targets.length === 0) {
       setLoading2(false);
-      setSnack({
-        open: true,
-        message: "Please select one applicant first.",
-        severity: "warning",
-      });
+      setSnack({ open: true, message: "Please select one applicant first.", severity: "warning" });
       return;
     }
 
@@ -2202,21 +2215,24 @@ Thank you, best regards
     const successfulApplicantNumbers = new Set();
 
     for (const applicant of targets) {
-      // ✅ Try all possible email fields
       const recipientEmail =
         applicant.email || applicant.email_address || applicant.emailAddress;
 
       if (!recipientEmail) {
-        console.warn(
-          `⚠️ Applicant ${applicant.applicant_number} has no email field`,
-        );
-        continue; // skip if no email available
+        console.warn(`⚠️ Applicant ${applicant.applicant_number} has no email field`);
+        continue;
       }
 
       try {
+        // ✅ Resolve department_id and program_id
+        const programId = applicant?.program;
+        const curriculumMatch = allCurriculums.find(
+          (curriculum) => String(curriculum.curriculum_id) === String(programId),
+        );
+        const departmentId = curriculumMatch?.dprtmnt_id || adminData.dprtmnt_id;
+
         const resolvedSender = await resolveSenderForApplicant(applicant);
 
-        // Send email
         await axios.post(`${API_BASE_URL}/api/send-email`, {
           to: recipientEmail,
           subject: emailSubject,
@@ -2226,6 +2242,8 @@ Thank you, best regards
           applicant_number: applicant.applicant_number,
           update_interview_status: true,
           interview_status_value: 1,
+          department_id: departmentId,   // ✅ ADDED
+          program_id: programId,         // ✅ ADDED
           applicant_name: [
             applicant.first_name,
             applicant.middle_name,
@@ -2238,10 +2256,8 @@ Thank you, best regards
         successfulApplicantNumbers.add(applicant.applicant_number);
       } catch (err) {
         console.error(`❌ Failed for ${applicant.applicant_number}`, err);
-        // Continue to next instead of breaking everything
       }
 
-      // optional: small delay to avoid spam blocking (100–300ms)
       await new Promise((res) => setTimeout(res, 200));
     }
 
@@ -2263,25 +2279,20 @@ Thank you, best regards
     setSelectedApplicant(null);
     setLoading2(false);
   };
-  
+
   const confirmSendEmails = async () => {
     setLoading2(true);
     const targets = selectedApplicant
       ? persons.filter((p) => p.applicant_number === selectedApplicant)
       : persons.filter(
-          (p) =>
-            Number(p.college_approval_status) ===
-              COLLEGE_APPROVAL_STATUS.ACCEPTED &&
-            Number(p.applicant_interview_status) !== 1,
-        );
+        (p) =>
+          Number(p.college_approval_status) === COLLEGE_APPROVAL_STATUS.ACCEPTED &&
+          Number(p.applicant_interview_status) !== 1,
+      );
 
     if (targets.length === 0) {
       setLoading2(false);
-      setSnack({
-        open: true,
-        message: "No applicants to send email to.",
-        severity: "warning",
-      });
+      setSnack({ open: true, message: "No applicants to send email to.", severity: "warning" });
       return;
     }
 
@@ -2289,35 +2300,40 @@ Thank you, best regards
     const successfulApplicantNumbers = new Set();
 
     for (const applicant of targets) {
-      // ✅ Try all possible email fields
       const recipientEmail =
         applicant.email || applicant.email_address || applicant.emailAddress;
 
       if (!recipientEmail) {
-        console.warn(
-          `⚠️ Applicant ${applicant.applicant_number} has no email field`,
-        );
-        continue; // skip if no email available
+        console.warn(`⚠️ Applicant ${applicant.applicant_number} has no email field`);
+        continue;
       }
 
       try {
-        // Send email
+        // ✅ Resolve department_id and program_id per applicant
+        const programId = applicant?.program;
+        const curriculumMatch = allCurriculums.find(
+          (curriculum) => String(curriculum.curriculum_id) === String(programId),
+        );
+        const departmentId = curriculumMatch?.dprtmnt_id || adminData.dprtmnt_id;
+
+        const resolvedSender = await resolveSenderForApplicant(applicant);
+
         await axios.post(`${API_BASE_URL}/api/send-email`, {
           to: recipientEmail,
           subject: emailSubject,
           html: finalPreview.replace(/\n/g, "<br/>"),
-          senderName: emailSender,
+          senderName: resolvedSender,
           user_person_id: userID,
           applicant_number: applicant.applicant_number,
           update_interview_status: true,
           interview_status_value: 1,
+          department_id: departmentId,   // ✅ ADDED
+          program_id: programId,         // ✅ ADDED
           applicant_name: [
             applicant.first_name,
             applicant.middle_name,
             applicant.last_name,
-          ]
-            .filter(Boolean)
-            .join(" "),
+          ].filter(Boolean).join(" "),
           ...auditPayload(),
         });
 
@@ -2325,10 +2341,8 @@ Thank you, best regards
         successfulApplicantNumbers.add(applicant.applicant_number);
       } catch (err) {
         console.error(`❌ Failed for ${applicant.applicant_number}`, err);
-        // Continue to next instead of breaking everything
       }
 
-      // optional: small delay to avoid spam blocking (100–300ms)
       await new Promise((res) => setTimeout(res, 200));
     }
 
@@ -2421,7 +2435,7 @@ Thank you, best regards
         const matchesSemester =
           !selectedSchoolSemester ||
           normalize(p.middle_code) ===
-            normalize(selectedSemester?.semester_code);
+          normalize(selectedSemester?.semester_code);
 
         return (
           matchesDepartment &&
@@ -2804,7 +2818,7 @@ Thank you, best regards
                         {selectedFile.size < 1024 * 1024
                           ? (selectedFile.size / 1024).toFixed(1) + " KB"
                           : (selectedFile.size / (1024 * 1024)).toFixed(1) +
-                            " MB"}
+                          " MB"}
                       </Typography>
                     </Box>
                     <Button
@@ -3777,7 +3791,7 @@ Thank you, best regards
                         <Select
                           value={
                             editScores[person.person_id]?.qualifying_status !==
-                            undefined
+                              undefined
                               ? editScores[person.person_id].qualifying_status
                               : (person.qualifying_status ?? "")
                           }
@@ -3841,7 +3855,7 @@ Thank you, best regards
                             editScores[person.person_id]
                               ?.interview_status_result !== undefined
                               ? editScores[person.person_id]
-                                  .interview_status_result
+                                .interview_status_result
                               : (person.interview_status_result ?? "")
                           }
                           onChange={(e) =>
@@ -3950,7 +3964,7 @@ Thank you, best regards
                       }}
                     >
                       {currentCollegeApprovalStatus ===
-                      COLLEGE_APPROVAL_STATUS.ACCEPTED ? (
+                        COLLEGE_APPROVAL_STATUS.ACCEPTED ? (
                         Number(person.applicant_interview_status) === 1 ? (
                           <Button
                             variant="contained"
@@ -4324,131 +4338,131 @@ Thank you, best regards
                   requirements,
                 ).filter((r) => !r.category?.toLowerCase().includes("medical"))
                   .length > 0 && (
-                  <>
-                    <p
-                      style={{
-                        fontWeight: 600,
-                        fontSize: "13px",
-                        color: "#444",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      Main Requirements:
-                    </p>
-                    {filterRequirementsForApplicant(
-                      persons.find(
-                        (p) => p.applicant_number === selectedApplicant,
-                      ),
-                      requirements,
-                    )
-                      .filter(
-                        (r) => !r.category?.toLowerCase().includes("medical"),
+                    <>
+                      <p
+                        style={{
+                          fontWeight: 600,
+                          fontSize: "13px",
+                          color: "#444",
+                          marginBottom: "6px",
+                        }}
+                      >
+                        Main Requirements:
+                      </p>
+                      {filterRequirementsForApplicant(
+                        persons.find(
+                          (p) => p.applicant_number === selectedApplicant,
+                        ),
+                        requirements,
                       )
-                      .map((req, index) => {
-                        const selected = selectedCopies[req.id];
-                        return (
-                          <div
-                            key={req.id}
-                            style={{
-                              border: "1px solid #eee",
-                              borderRadius: "6px",
-                              padding: "10px",
-                              marginBottom: "8px",
-                              backgroundColor: selected ? "#fff8f0" : "white",
-                            }}
-                          >
-                            <div style={{ marginBottom: "6px" }}>
-                              <span style={{ fontWeight: 500 }}>
-                                {index + 1}. {req.description}
-                              </span>
-                              {selected && (
-                                <span
-                                  style={{
-                                    marginLeft: "10px",
-                                    color: "#800000",
-                                    fontWeight: "bold",
-                                  }}
-                                >
-                                  ({selected.toUpperCase()})
+                        .filter(
+                          (r) => !r.category?.toLowerCase().includes("medical"),
+                        )
+                        .map((req, index) => {
+                          const selected = selectedCopies[req.id];
+                          return (
+                            <div
+                              key={req.id}
+                              style={{
+                                border: "1px solid #eee",
+                                borderRadius: "6px",
+                                padding: "10px",
+                                marginBottom: "8px",
+                                backgroundColor: selected ? "#fff8f0" : "white",
+                              }}
+                            >
+                              <div style={{ marginBottom: "6px" }}>
+                                <span style={{ fontWeight: 500 }}>
+                                  {index + 1}. {req.description}
                                 </span>
-                              )}
-                            </div>
-                            <Box display="flex" gap={1} flexWrap="wrap" mt={1}>
-                              {/* ORIGINAL COPY */}
-                              <Button
-                                variant="contained"
-                                onClick={() => handleSelect(req.id, "original")}
-                                sx={{
-                                  backgroundColor:
-                                    selectedCopies[req.id] === "original"
-                                      ? "#1976d2"
-                                      : "#e3f2fd",
-                                  color:
-                                    selectedCopies[req.id] === "original"
-                                      ? "#fff"
-                                      : "#1976d2",
-                                  fontWeight: "bold",
-                                  borderRadius: "10px",
-                                  textTransform: "none",
-                                  "&:hover": {
+                                {selected && (
+                                  <span
+                                    style={{
+                                      marginLeft: "10px",
+                                      color: "#800000",
+                                      fontWeight: "bold",
+                                    }}
+                                  >
+                                    ({selected.toUpperCase()})
+                                  </span>
+                                )}
+                              </div>
+                              <Box display="flex" gap={1} flexWrap="wrap" mt={1}>
+                                {/* ORIGINAL COPY */}
+                                <Button
+                                  variant="contained"
+                                  onClick={() => handleSelect(req.id, "original")}
+                                  sx={{
                                     backgroundColor:
                                       selectedCopies[req.id] === "original"
-                                        ? "#1565c0"
-                                        : "#bbdefb",
-                                  },
-                                }}
-                              >
-                                Original Copy
-                              </Button>
-
-                              {/* XEROX COPY */}
-                              <Button
-                                variant="contained"
-                                onClick={() => handleSelect(req.id, "xerox")}
-                                sx={{
-                                  backgroundColor:
-                                    selectedCopies[req.id] === "xerox"
-                                      ? "#2e7d32"
-                                      : "#e8f5e9",
-                                  color:
-                                    selectedCopies[req.id] === "xerox"
-                                      ? "#fff"
-                                      : "#2e7d32",
-                                  fontWeight: "bold",
-                                  borderRadius: "10px",
-                                  textTransform: "none",
-                                  "&:hover": {
-                                    backgroundColor:
-                                      selectedCopies[req.id] === "xerox"
-                                        ? "#1b5e20"
-                                        : "#c8e6c9",
-                                  },
-                                }}
-                              >
-                                Xerox Copy
-                              </Button>
-
-                              {/* REMOVE BUTTON */}
-                              {selectedCopies[req.id] && (
-                                <Button
-                                  color="error"
-                                  variant="outlined"
-                                  onClick={() => handleSelect(req.id, null)}
-                                  sx={{
+                                        ? "#1976d2"
+                                        : "#e3f2fd",
+                                    color:
+                                      selectedCopies[req.id] === "original"
+                                        ? "#fff"
+                                        : "#1976d2",
                                     fontWeight: "bold",
                                     borderRadius: "10px",
                                     textTransform: "none",
+                                    "&:hover": {
+                                      backgroundColor:
+                                        selectedCopies[req.id] === "original"
+                                          ? "#1565c0"
+                                          : "#bbdefb",
+                                    },
                                   }}
                                 >
-                                  Remove
+                                  Original Copy
                                 </Button>
-                              )}
-                            </Box>
-                          </div>
-                        );
-                      })}
-                  </>
-                )}
+
+                                {/* XEROX COPY */}
+                                <Button
+                                  variant="contained"
+                                  onClick={() => handleSelect(req.id, "xerox")}
+                                  sx={{
+                                    backgroundColor:
+                                      selectedCopies[req.id] === "xerox"
+                                        ? "#2e7d32"
+                                        : "#e8f5e9",
+                                    color:
+                                      selectedCopies[req.id] === "xerox"
+                                        ? "#fff"
+                                        : "#2e7d32",
+                                    fontWeight: "bold",
+                                    borderRadius: "10px",
+                                    textTransform: "none",
+                                    "&:hover": {
+                                      backgroundColor:
+                                        selectedCopies[req.id] === "xerox"
+                                          ? "#1b5e20"
+                                          : "#c8e6c9",
+                                    },
+                                  }}
+                                >
+                                  Xerox Copy
+                                </Button>
+
+                                {/* REMOVE BUTTON */}
+                                {selectedCopies[req.id] && (
+                                  <Button
+                                    color="error"
+                                    variant="outlined"
+                                    onClick={() => handleSelect(req.id, null)}
+                                    sx={{
+                                      fontWeight: "bold",
+                                      borderRadius: "10px",
+                                      textTransform: "none",
+                                    }}
+                                  >
+                                    Remove
+                                  </Button>
+                                )}
+                              </Box>
+                            </div>
+                          );
+                        })}
+                    </>
+                  )}
 
                 {/* Medical Requirements */}
                 {filterRequirementsForApplicant(
@@ -4456,132 +4470,132 @@ Thank you, best regards
                   requirements,
                 ).filter((r) => r.category?.toLowerCase().includes("medical"))
                   .length > 0 && (
-                  <>
-                    <p
-                      style={{
-                        fontWeight: 600,
-                        fontSize: "13px",
-                        color: "#444",
-                        marginTop: "12px",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      Medical Requirements:
-                    </p>
-                    {filterRequirementsForApplicant(
-                      persons.find(
-                        (p) => p.applicant_number === selectedApplicant,
-                      ),
-                      requirements,
-                    )
-                      .filter((r) =>
-                        r.category?.toLowerCase().includes("medical"),
+                    <>
+                      <p
+                        style={{
+                          fontWeight: 600,
+                          fontSize: "13px",
+                          color: "#444",
+                          marginTop: "12px",
+                          marginBottom: "6px",
+                        }}
+                      >
+                        Medical Requirements:
+                      </p>
+                      {filterRequirementsForApplicant(
+                        persons.find(
+                          (p) => p.applicant_number === selectedApplicant,
+                        ),
+                        requirements,
                       )
-                      .map((req) => {
-                        const selected = selectedCopies[req.id];
-                        return (
-                          <div
-                            key={req.id}
-                            style={{
-                              border: "1px solid #eee",
-                              borderRadius: "6px",
-                              padding: "10px",
-                              marginBottom: "8px",
-                              backgroundColor: selected ? "#fff8f0" : "white",
-                            }}
-                          >
-                            <div style={{ marginBottom: "6px" }}>
-                              <span style={{ fontWeight: 500 }}>
-                                • {req.description}
-                              </span>
-                              {selected && (
-                                <span
-                                  style={{
-                                    marginLeft: "10px",
-                                    color: "#800000",
-                                    fontWeight: "bold",
-                                  }}
-                                >
-                                  ({selected.toUpperCase()})
+                        .filter((r) =>
+                          r.category?.toLowerCase().includes("medical"),
+                        )
+                        .map((req) => {
+                          const selected = selectedCopies[req.id];
+                          return (
+                            <div
+                              key={req.id}
+                              style={{
+                                border: "1px solid #eee",
+                                borderRadius: "6px",
+                                padding: "10px",
+                                marginBottom: "8px",
+                                backgroundColor: selected ? "#fff8f0" : "white",
+                              }}
+                            >
+                              <div style={{ marginBottom: "6px" }}>
+                                <span style={{ fontWeight: 500 }}>
+                                  • {req.description}
                                 </span>
-                              )}
-                            </div>
-                            <Box display="flex" gap={1} flexWrap="wrap" mt={1}>
-                              {/* ORIGINAL COPY */}
-                              <Button
-                                variant="contained"
-                                onClick={() => handleSelect(req.id, "original")}
-                                sx={{
-                                  backgroundColor:
-                                    selectedCopies[req.id] === "original"
-                                      ? "#1976d2"
-                                      : "#e3f2fd",
-                                  color:
-                                    selectedCopies[req.id] === "original"
-                                      ? "#fff"
-                                      : "#1976d2",
-                                  fontWeight: "bold",
-                                  borderRadius: "10px",
-                                  textTransform: "none",
-                                  "&:hover": {
+                                {selected && (
+                                  <span
+                                    style={{
+                                      marginLeft: "10px",
+                                      color: "#800000",
+                                      fontWeight: "bold",
+                                    }}
+                                  >
+                                    ({selected.toUpperCase()})
+                                  </span>
+                                )}
+                              </div>
+                              <Box display="flex" gap={1} flexWrap="wrap" mt={1}>
+                                {/* ORIGINAL COPY */}
+                                <Button
+                                  variant="contained"
+                                  onClick={() => handleSelect(req.id, "original")}
+                                  sx={{
                                     backgroundColor:
                                       selectedCopies[req.id] === "original"
-                                        ? "#1565c0"
-                                        : "#bbdefb",
-                                  },
-                                }}
-                              >
-                                Original Copy
-                              </Button>
-
-                              {/* XEROX COPY */}
-                              <Button
-                                variant="contained"
-                                onClick={() => handleSelect(req.id, "xerox")}
-                                sx={{
-                                  backgroundColor:
-                                    selectedCopies[req.id] === "xerox"
-                                      ? "#2e7d32"
-                                      : "#e8f5e9",
-                                  color:
-                                    selectedCopies[req.id] === "xerox"
-                                      ? "#fff"
-                                      : "#2e7d32",
-                                  fontWeight: "bold",
-                                  borderRadius: "10px",
-                                  textTransform: "none",
-                                  "&:hover": {
-                                    backgroundColor:
-                                      selectedCopies[req.id] === "xerox"
-                                        ? "#1b5e20"
-                                        : "#c8e6c9",
-                                  },
-                                }}
-                              >
-                                Xerox Copy
-                              </Button>
-
-                              {/* REMOVE BUTTON */}
-                              {selectedCopies[req.id] && (
-                                <Button
-                                  color="error"
-                                  variant="outlined"
-                                  onClick={() => handleSelect(req.id, null)}
-                                  sx={{
+                                        ? "#1976d2"
+                                        : "#e3f2fd",
+                                    color:
+                                      selectedCopies[req.id] === "original"
+                                        ? "#fff"
+                                        : "#1976d2",
                                     fontWeight: "bold",
                                     borderRadius: "10px",
                                     textTransform: "none",
+                                    "&:hover": {
+                                      backgroundColor:
+                                        selectedCopies[req.id] === "original"
+                                          ? "#1565c0"
+                                          : "#bbdefb",
+                                    },
                                   }}
                                 >
-                                  Remove
+                                  Original Copy
                                 </Button>
-                              )}
-                            </Box>
-                          </div>
-                        );
-                      })}
-                  </>
-                )}
+
+                                {/* XEROX COPY */}
+                                <Button
+                                  variant="contained"
+                                  onClick={() => handleSelect(req.id, "xerox")}
+                                  sx={{
+                                    backgroundColor:
+                                      selectedCopies[req.id] === "xerox"
+                                        ? "#2e7d32"
+                                        : "#e8f5e9",
+                                    color:
+                                      selectedCopies[req.id] === "xerox"
+                                        ? "#fff"
+                                        : "#2e7d32",
+                                    fontWeight: "bold",
+                                    borderRadius: "10px",
+                                    textTransform: "none",
+                                    "&:hover": {
+                                      backgroundColor:
+                                        selectedCopies[req.id] === "xerox"
+                                          ? "#1b5e20"
+                                          : "#c8e6c9",
+                                    },
+                                  }}
+                                >
+                                  Xerox Copy
+                                </Button>
+
+                                {/* REMOVE BUTTON */}
+                                {selectedCopies[req.id] && (
+                                  <Button
+                                    color="error"
+                                    variant="outlined"
+                                    onClick={() => handleSelect(req.id, null)}
+                                    sx={{
+                                      fontWeight: "bold",
+                                      borderRadius: "10px",
+                                      textTransform: "none",
+                                    }}
+                                  >
+                                    Remove
+                                  </Button>
+                                )}
+                              </Box>
+                            </div>
+                          );
+                        })}
+                    </>
+                  )}
               </div>
 
               {/* Important Reminders */}
@@ -4732,131 +4746,131 @@ Thank you, best regards
                   requirements,
                 ).filter((r) => !r.category?.toLowerCase().includes("medical"))
                   .length > 0 && (
-                  <>
-                    <p
-                      style={{
-                        fontWeight: 600,
-                        fontSize: "13px",
-                        color: "#444",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      Main Requirements:
-                    </p>
-                    {filterRequirementsForApplicant(
-                      persons.find(
-                        (p) => p.applicant_number === selectedApplicant,
-                      ),
-                      requirements,
-                    )
-                      .filter(
-                        (r) => !r.category?.toLowerCase().includes("medical"),
+                    <>
+                      <p
+                        style={{
+                          fontWeight: 600,
+                          fontSize: "13px",
+                          color: "#444",
+                          marginBottom: "6px",
+                        }}
+                      >
+                        Main Requirements:
+                      </p>
+                      {filterRequirementsForApplicant(
+                        persons.find(
+                          (p) => p.applicant_number === selectedApplicant,
+                        ),
+                        requirements,
                       )
-                      .map((req, index) => {
-                        const selected = selectedCopies[req.id];
-                        return (
-                          <div
-                            key={req.id}
-                            style={{
-                              border: "1px solid #eee",
-                              borderRadius: "6px",
-                              padding: "10px",
-                              marginBottom: "8px",
-                              backgroundColor: selected ? "#fff8f0" : "white",
-                            }}
-                          >
-                            <div style={{ marginBottom: "6px" }}>
-                              <span style={{ fontWeight: 500 }}>
-                                {index + 1}. {req.description}
-                              </span>
-                              {selected && (
-                                <span
-                                  style={{
-                                    marginLeft: "10px",
-                                    color: "#800000",
-                                    fontWeight: "bold",
-                                  }}
-                                >
-                                  ({selected.toUpperCase()})
+                        .filter(
+                          (r) => !r.category?.toLowerCase().includes("medical"),
+                        )
+                        .map((req, index) => {
+                          const selected = selectedCopies[req.id];
+                          return (
+                            <div
+                              key={req.id}
+                              style={{
+                                border: "1px solid #eee",
+                                borderRadius: "6px",
+                                padding: "10px",
+                                marginBottom: "8px",
+                                backgroundColor: selected ? "#fff8f0" : "white",
+                              }}
+                            >
+                              <div style={{ marginBottom: "6px" }}>
+                                <span style={{ fontWeight: 500 }}>
+                                  {index + 1}. {req.description}
                                 </span>
-                              )}
-                            </div>
-                            <Box display="flex" gap={1} flexWrap="wrap" mt={1}>
-                              {/* ORIGINAL COPY */}
-                              <Button
-                                variant="contained"
-                                onClick={() => handleSelect(req.id, "original")}
-                                sx={{
-                                  backgroundColor:
-                                    selectedCopies[req.id] === "original"
-                                      ? "#1976d2"
-                                      : "#e3f2fd",
-                                  color:
-                                    selectedCopies[req.id] === "original"
-                                      ? "#fff"
-                                      : "#1976d2",
-                                  fontWeight: "bold",
-                                  borderRadius: "10px",
-                                  textTransform: "none",
-                                  "&:hover": {
+                                {selected && (
+                                  <span
+                                    style={{
+                                      marginLeft: "10px",
+                                      color: "#800000",
+                                      fontWeight: "bold",
+                                    }}
+                                  >
+                                    ({selected.toUpperCase()})
+                                  </span>
+                                )}
+                              </div>
+                              <Box display="flex" gap={1} flexWrap="wrap" mt={1}>
+                                {/* ORIGINAL COPY */}
+                                <Button
+                                  variant="contained"
+                                  onClick={() => handleSelect(req.id, "original")}
+                                  sx={{
                                     backgroundColor:
                                       selectedCopies[req.id] === "original"
-                                        ? "#1565c0"
-                                        : "#bbdefb",
-                                  },
-                                }}
-                              >
-                                Original Copy
-                              </Button>
-
-                              {/* XEROX COPY */}
-                              <Button
-                                variant="contained"
-                                onClick={() => handleSelect(req.id, "xerox")}
-                                sx={{
-                                  backgroundColor:
-                                    selectedCopies[req.id] === "xerox"
-                                      ? "#2e7d32"
-                                      : "#e8f5e9",
-                                  color:
-                                    selectedCopies[req.id] === "xerox"
-                                      ? "#fff"
-                                      : "#2e7d32",
-                                  fontWeight: "bold",
-                                  borderRadius: "10px",
-                                  textTransform: "none",
-                                  "&:hover": {
-                                    backgroundColor:
-                                      selectedCopies[req.id] === "xerox"
-                                        ? "#1b5e20"
-                                        : "#c8e6c9",
-                                  },
-                                }}
-                              >
-                                Xerox Copy
-                              </Button>
-
-                              {/* REMOVE BUTTON */}
-                              {selectedCopies[req.id] && (
-                                <Button
-                                  color="error"
-                                  variant="outlined"
-                                  onClick={() => handleSelect(req.id, null)}
-                                  sx={{
+                                        ? "#1976d2"
+                                        : "#e3f2fd",
+                                    color:
+                                      selectedCopies[req.id] === "original"
+                                        ? "#fff"
+                                        : "#1976d2",
                                     fontWeight: "bold",
                                     borderRadius: "10px",
                                     textTransform: "none",
+                                    "&:hover": {
+                                      backgroundColor:
+                                        selectedCopies[req.id] === "original"
+                                          ? "#1565c0"
+                                          : "#bbdefb",
+                                    },
                                   }}
                                 >
-                                  Remove
+                                  Original Copy
                                 </Button>
-                              )}
-                            </Box>
-                          </div>
-                        );
-                      })}
-                  </>
-                )}
+
+                                {/* XEROX COPY */}
+                                <Button
+                                  variant="contained"
+                                  onClick={() => handleSelect(req.id, "xerox")}
+                                  sx={{
+                                    backgroundColor:
+                                      selectedCopies[req.id] === "xerox"
+                                        ? "#2e7d32"
+                                        : "#e8f5e9",
+                                    color:
+                                      selectedCopies[req.id] === "xerox"
+                                        ? "#fff"
+                                        : "#2e7d32",
+                                    fontWeight: "bold",
+                                    borderRadius: "10px",
+                                    textTransform: "none",
+                                    "&:hover": {
+                                      backgroundColor:
+                                        selectedCopies[req.id] === "xerox"
+                                          ? "#1b5e20"
+                                          : "#c8e6c9",
+                                    },
+                                  }}
+                                >
+                                  Xerox Copy
+                                </Button>
+
+                                {/* REMOVE BUTTON */}
+                                {selectedCopies[req.id] && (
+                                  <Button
+                                    color="error"
+                                    variant="outlined"
+                                    onClick={() => handleSelect(req.id, null)}
+                                    sx={{
+                                      fontWeight: "bold",
+                                      borderRadius: "10px",
+                                      textTransform: "none",
+                                    }}
+                                  >
+                                    Remove
+                                  </Button>
+                                )}
+                              </Box>
+                            </div>
+                          );
+                        })}
+                    </>
+                  )}
 
                 {/* Medical Requirements */}
                 {filterRequirementsForApplicant(
@@ -4864,132 +4878,132 @@ Thank you, best regards
                   requirements,
                 ).filter((r) => r.category?.toLowerCase().includes("medical"))
                   .length > 0 && (
-                  <>
-                    <p
-                      style={{
-                        fontWeight: 600,
-                        fontSize: "13px",
-                        color: "#444",
-                        marginTop: "12px",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      Medical Requirements:
-                    </p>
-                    {filterRequirementsForApplicant(
-                      persons.find(
-                        (p) => p.applicant_number === selectedApplicant,
-                      ),
-                      requirements,
-                    )
-                      .filter((r) =>
-                        r.category?.toLowerCase().includes("medical"),
+                    <>
+                      <p
+                        style={{
+                          fontWeight: 600,
+                          fontSize: "13px",
+                          color: "#444",
+                          marginTop: "12px",
+                          marginBottom: "6px",
+                        }}
+                      >
+                        Medical Requirements:
+                      </p>
+                      {filterRequirementsForApplicant(
+                        persons.find(
+                          (p) => p.applicant_number === selectedApplicant,
+                        ),
+                        requirements,
                       )
-                      .map((req) => {
-                        const selected = selectedCopies[req.id];
-                        return (
-                          <div
-                            key={req.id}
-                            style={{
-                              border: "1px solid #eee",
-                              borderRadius: "6px",
-                              padding: "10px",
-                              marginBottom: "8px",
-                              backgroundColor: selected ? "#fff8f0" : "white",
-                            }}
-                          >
-                            <div style={{ marginBottom: "6px" }}>
-                              <span style={{ fontWeight: 500 }}>
-                                • {req.description}
-                              </span>
-                              {selected && (
-                                <span
-                                  style={{
-                                    marginLeft: "10px",
-                                    color: "#800000",
-                                    fontWeight: "bold",
-                                  }}
-                                >
-                                  ({selected.toUpperCase()})
+                        .filter((r) =>
+                          r.category?.toLowerCase().includes("medical"),
+                        )
+                        .map((req) => {
+                          const selected = selectedCopies[req.id];
+                          return (
+                            <div
+                              key={req.id}
+                              style={{
+                                border: "1px solid #eee",
+                                borderRadius: "6px",
+                                padding: "10px",
+                                marginBottom: "8px",
+                                backgroundColor: selected ? "#fff8f0" : "white",
+                              }}
+                            >
+                              <div style={{ marginBottom: "6px" }}>
+                                <span style={{ fontWeight: 500 }}>
+                                  • {req.description}
                                 </span>
-                              )}
-                            </div>
-                            <Box display="flex" gap={1} flexWrap="wrap" mt={1}>
-                              {/* ORIGINAL COPY */}
-                              <Button
-                                variant="contained"
-                                onClick={() => handleSelect(req.id, "original")}
-                                sx={{
-                                  backgroundColor:
-                                    selectedCopies[req.id] === "original"
-                                      ? "#1976d2"
-                                      : "#e3f2fd",
-                                  color:
-                                    selectedCopies[req.id] === "original"
-                                      ? "#fff"
-                                      : "#1976d2",
-                                  fontWeight: "bold",
-                                  borderRadius: "10px",
-                                  textTransform: "none",
-                                  "&:hover": {
+                                {selected && (
+                                  <span
+                                    style={{
+                                      marginLeft: "10px",
+                                      color: "#800000",
+                                      fontWeight: "bold",
+                                    }}
+                                  >
+                                    ({selected.toUpperCase()})
+                                  </span>
+                                )}
+                              </div>
+                              <Box display="flex" gap={1} flexWrap="wrap" mt={1}>
+                                {/* ORIGINAL COPY */}
+                                <Button
+                                  variant="contained"
+                                  onClick={() => handleSelect(req.id, "original")}
+                                  sx={{
                                     backgroundColor:
                                       selectedCopies[req.id] === "original"
-                                        ? "#1565c0"
-                                        : "#bbdefb",
-                                  },
-                                }}
-                              >
-                                Original Copy
-                              </Button>
-
-                              {/* XEROX COPY */}
-                              <Button
-                                variant="contained"
-                                onClick={() => handleSelect(req.id, "xerox")}
-                                sx={{
-                                  backgroundColor:
-                                    selectedCopies[req.id] === "xerox"
-                                      ? "#2e7d32"
-                                      : "#e8f5e9",
-                                  color:
-                                    selectedCopies[req.id] === "xerox"
-                                      ? "#fff"
-                                      : "#2e7d32",
-                                  fontWeight: "bold",
-                                  borderRadius: "10px",
-                                  textTransform: "none",
-                                  "&:hover": {
-                                    backgroundColor:
-                                      selectedCopies[req.id] === "xerox"
-                                        ? "#1b5e20"
-                                        : "#c8e6c9",
-                                  },
-                                }}
-                              >
-                                Xerox Copy
-                              </Button>
-
-                              {/* REMOVE BUTTON */}
-                              {selectedCopies[req.id] && (
-                                <Button
-                                  color="error"
-                                  variant="outlined"
-                                  onClick={() => handleSelect(req.id, null)}
-                                  sx={{
+                                        ? "#1976d2"
+                                        : "#e3f2fd",
+                                    color:
+                                      selectedCopies[req.id] === "original"
+                                        ? "#fff"
+                                        : "#1976d2",
                                     fontWeight: "bold",
                                     borderRadius: "10px",
                                     textTransform: "none",
+                                    "&:hover": {
+                                      backgroundColor:
+                                        selectedCopies[req.id] === "original"
+                                          ? "#1565c0"
+                                          : "#bbdefb",
+                                    },
                                   }}
                                 >
-                                  Remove
+                                  Original Copy
                                 </Button>
-                              )}
-                            </Box>
-                          </div>
-                        );
-                      })}
-                  </>
-                )}
+
+                                {/* XEROX COPY */}
+                                <Button
+                                  variant="contained"
+                                  onClick={() => handleSelect(req.id, "xerox")}
+                                  sx={{
+                                    backgroundColor:
+                                      selectedCopies[req.id] === "xerox"
+                                        ? "#2e7d32"
+                                        : "#e8f5e9",
+                                    color:
+                                      selectedCopies[req.id] === "xerox"
+                                        ? "#fff"
+                                        : "#2e7d32",
+                                    fontWeight: "bold",
+                                    borderRadius: "10px",
+                                    textTransform: "none",
+                                    "&:hover": {
+                                      backgroundColor:
+                                        selectedCopies[req.id] === "xerox"
+                                          ? "#1b5e20"
+                                          : "#c8e6c9",
+                                    },
+                                  }}
+                                >
+                                  Xerox Copy
+                                </Button>
+
+                                {/* REMOVE BUTTON */}
+                                {selectedCopies[req.id] && (
+                                  <Button
+                                    color="error"
+                                    variant="outlined"
+                                    onClick={() => handleSelect(req.id, null)}
+                                    sx={{
+                                      fontWeight: "bold",
+                                      borderRadius: "10px",
+                                      textTransform: "none",
+                                    }}
+                                  >
+                                    Remove
+                                  </Button>
+                                )}
+                              </Box>
+                            </div>
+                          );
+                        })}
+                    </>
+                  )}
               </div>
 
               {/* Important Reminders */}

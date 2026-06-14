@@ -27,6 +27,9 @@ import {
   DialogActions,
   Grid,
   Chip,
+  Checkbox,
+  FormControlLabel,
+  Autocomplete
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
@@ -43,6 +46,9 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
 import { refreshRegistrarCurriculumId } from "../utils/registrarCurriculumRestriction";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+
 
 const RegisterRegistrar = () => {
   const settings = useContext(SettingsContext);
@@ -249,11 +255,16 @@ const RegisterRegistrar = () => {
     setScopes((prev) => prev.filter((_, itemIndex) => itemIndex !== index));
   };
 
+  const [scopeSearch, setScopeSearch] = useState("");
+  const [openDepts, setOpenDepts] = useState(new Set());
+
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setOpenPasswordConfirmDialog(false);
+    setScopeSearch("");
     setEditData(null);
     setShowPassword(false);
+    setOpenDepts(new Set());
     setScopes([]);
     resetScopePicker();
   };
@@ -428,9 +439,9 @@ const RegisterRegistrar = () => {
         const editedEmail = form.email || editData.email || "";
         const isEditingCurrentUser =
           String(editedEmployeeId) ===
-            String(localStorage.getItem("employee_id") || "") ||
+          String(localStorage.getItem("employee_id") || "") ||
           String(editedEmail).toLowerCase() ===
-            String(localStorage.getItem("email") || "").toLowerCase();
+          String(localStorage.getItem("email") || "").toLowerCase();
 
         if (isEditingCurrentUser) {
           localStorage.setItem("employee_id", String(editedEmployeeId));
@@ -497,12 +508,12 @@ const RegisterRegistrar = () => {
     setScopes(
       Array.isArray(r.scopes)
         ? r.scopes.map((scope) => ({
-            dprtmnt_id: scope.dprtmnt_id,
-            program_id: scope.program_id,
-            dprtmnt_name: scope.dprtmnt_name || "",
-            program_code: scope.program_code || "",
-            program_description: scope.program_description || "",
-          }))
+          dprtmnt_id: scope.dprtmnt_id,
+          program_id: scope.program_id,
+          dprtmnt_name: scope.dprtmnt_name || "",
+          program_code: scope.program_code || "",
+          program_description: scope.program_description || "",
+        }))
         : [],
     );
     resetScopePicker();
@@ -606,8 +617,8 @@ const RegisterRegistrar = () => {
       console.error("Delete registrar failed:", err);
       setSnackbarMessage(
         err.response?.data?.message ||
-          err.response?.data?.error ||
-          "Failed to delete registrar",
+        err.response?.data?.error ||
+        "Failed to delete registrar",
       );
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
@@ -1378,77 +1389,249 @@ const RegisterRegistrar = () => {
             />
           </Stack>
 
-          {/* DEPARTMENT / PROGRAM SCOPES */}
-          <Typography fontWeight={700} mt={3} mb={1}>
-            Department & Program Scopes
-          </Typography>
-          <Typography fontSize="13px" color="text.secondary" mb={2}>
-            Tag one or more department/program pairs. Leave empty for
-            unrestricted access on global modules.
-          </Typography>
+
 
           <Stack spacing={2}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Department</InputLabel>
-              <Select
-                value={scopeDeptPick}
-                label="Department"
-                onChange={(e) => {
-                  setScopeDeptPick(e.target.value);
-                  setScopeProgramPick("");
-                }}
-              >
-                <MenuItem value="">Select Department</MenuItem>
-                {department.map((dep) => (
-                  <MenuItem key={dep.dprtmnt_id} value={dep.dprtmnt_id}>
-                    {dep.dprtmnt_name} ({dep.dprtmnt_code})
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
 
-            <FormControl fullWidth size="small">
-              <InputLabel>Program</InputLabel>
-              <Select
-                value={scopeProgramPick}
-                label="Program"
-                disabled={!scopeDeptPick}
-                onChange={(e) => setScopeProgramPick(e.target.value)}
-              >
-                <MenuItem value="">Select Program</MenuItem>
-                {uniqueProgramsForDept(scopeDeptPick).map((program) => (
-                  <MenuItem key={program.program_id} value={program.program_id}>
-                    {program.program_code} - {program.program_description}
-                    {program.major ? ` (${program.major})` : ""}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            {/* DEPARTMENT / PROGRAM SCOPES */}
+            <Typography fontWeight={700} mt={3} mb={1}>
+              Department & Program Scopes
+            </Typography>
+            <Typography fontSize="13px" color="text.secondary" mb={1}>
+              Use the search to quickly find programs, or expand departments to check individually.
+            </Typography>
 
-            <Button
-              variant="outlined"
-              onClick={handleAddScope}
-              disabled={!scopeDeptPick || !scopeProgramPick}
-              sx={{ alignSelf: "flex-start", textTransform: "none" }}
-            >
-              Add Scope
-            </Button>
+            {/* Autocomplete quick-add */}
+            <Autocomplete
+              size="small"
+              options={programs.filter((p) => {
+                // dedupe by program_id
+                const seen = new Set(scopes.map((s) => `${s.dprtmnt_id}:${s.program_id}`));
+                return !seen.has(`${p.dprtmnt_id}:${p.program_id}`);
+              })}
+              getOptionLabel={(p) =>
+                `${p.program_code} - ${p.program_description}${p.major ? ` (${p.major})` : ""}`
+              }
+              groupBy={(p) => {
+                const dept = department.find((d) => String(d.dprtmnt_id) === String(p.dprtmnt_id));
+                return dept ? `${dept.dprtmnt_name} (${dept.dprtmnt_code})` : "Unknown";
+              }}
+              onChange={(_, value) => {
+                if (!value) return;
+                const deptMeta = department.find((d) => String(d.dprtmnt_id) === String(value.dprtmnt_id));
+                const alreadyAdded = scopes.some(
+                  (s) =>
+                    String(s.dprtmnt_id) === String(value.dprtmnt_id) &&
+                    String(s.program_id) === String(value.program_id)
+                );
+                if (!alreadyAdded) {
+                  setScopes((prev) => [
+                    ...prev,
+                    {
+                      dprtmnt_id: Number(value.dprtmnt_id),
+                      program_id: Number(value.program_id),
+                      dprtmnt_name: deptMeta?.dprtmnt_name || "",
+                      program_code: value.program_code || "",
+                      program_description: value.program_description || "",
+                    },
+                  ]);
+                }
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  placeholder="Search and select a program…"
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <>
+                        <SearchIcon sx={{ ml: 0.5, mr: 0.5, color: "gray", fontSize: 18 }} />
+                        {params.InputProps.startAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              sx={{ mb: 2 }}
+              value={null}
+              blurOnSelect
+              clearOnBlur
+            />
 
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+            {/* Collapsible dept checkboxes */}
+            {department.map((dept) => {
+              const progs = uniqueProgramsForDept(dept.dprtmnt_id);
+              if (progs.length === 0) return null;
+
+              const checkedCount = progs.filter((p) =>
+                scopes.some(
+                  (s) =>
+                    String(s.dprtmnt_id) === String(dept.dprtmnt_id) &&
+                    String(s.program_id) === String(p.program_id)
+                )
+              ).length;
+              const allChecked = checkedCount === progs.length && progs.length > 0;
+              const isOpen = openDepts.has(dept.dprtmnt_id);
+
+              return (
+                <Box
+                  key={dept.dprtmnt_id}
+                  sx={{ border: "1px solid #e0e0e0", borderRadius: 2, mb: 1, overflow: "hidden" }}
+                >
+                  {/* Dept header row */}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      px: 1.5,
+                      py: 0.75,
+                      backgroundColor: "#f5f5f5",
+                      cursor: "pointer",
+                      userSelect: "none",
+                    }}
+                  >
+                    {/* Check-all checkbox — stop propagation so it doesn't toggle collapse */}
+                    <Checkbox
+                      size="small"
+                      checked={allChecked}
+                      indeterminate={checkedCount > 0 && !allChecked}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        if (e.target.checked) {
+                          const toAdd = progs
+                            .filter(
+                              (p) =>
+                                !scopes.some(
+                                  (s) =>
+                                    String(s.dprtmnt_id) === String(dept.dprtmnt_id) &&
+                                    String(s.program_id) === String(p.program_id)
+                                )
+                            )
+                            .map((p) => ({
+                              dprtmnt_id: Number(dept.dprtmnt_id),
+                              program_id: Number(p.program_id),
+                              dprtmnt_name: dept.dprtmnt_name,
+                              program_code: p.program_code,
+                              program_description: p.program_description,
+                            }));
+                          setScopes((prev) => [...prev, ...toAdd]);
+                        } else {
+                          setScopes((prev) =>
+                            prev.filter((s) => String(s.dprtmnt_id) !== String(dept.dprtmnt_id))
+                          );
+                        }
+                      }}
+                    />
+
+                    {/* Clickable area for collapse toggle */}
+                    <Box
+                      sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}
+                      onClick={() =>
+                        setOpenDepts((prev) => {
+                          const next = new Set(prev);
+                          next.has(dept.dprtmnt_id) ? next.delete(dept.dprtmnt_id) : next.add(dept.dprtmnt_id);
+                          return next;
+                        })
+                      }
+                    >
+                      <Typography fontSize="13px" fontWeight={600} sx={{ flex: 1 }}>
+                        {dept.dprtmnt_name}
+                      </Typography>
+                      <Chip label={dept.dprtmnt_code} size="small" />
+                      {checkedCount > 0 && (
+                        <Chip label={`${checkedCount}/${progs.length}`} size="small" color="primary" />
+                      )}
+                      {isOpen ? (
+                        <ExpandLessIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                      ) : (
+                        <ExpandMoreIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                      )}
+                    </Box>
+                  </Box>
+
+                  {/* Program checkboxes — only shown when expanded */}
+                  {isOpen && (
+                    <Box sx={{ px: 2, py: 1, display: "grid", gap: 0.25 }}>
+                      {progs.map((p) => {
+                        const isChecked = scopes.some(
+                          (s) =>
+                            String(s.dprtmnt_id) === String(dept.dprtmnt_id) &&
+                            String(s.program_id) === String(p.program_id)
+                        );
+                        return (
+                          <FormControlLabel
+                            key={p.program_id}
+                            sx={{ m: 0 }}
+                            control={
+                              <Checkbox
+                                size="small"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setScopes((prev) => [
+                                      ...prev,
+                                      {
+                                        dprtmnt_id: Number(dept.dprtmnt_id),
+                                        program_id: Number(p.program_id),
+                                        dprtmnt_name: dept.dprtmnt_name,
+                                        program_code: p.program_code,
+                                        program_description: p.program_description,
+                                      },
+                                    ]);
+                                  } else {
+                                    setScopes((prev) =>
+                                      prev.filter(
+                                        (s) =>
+                                          !(
+                                            String(s.dprtmnt_id) === String(dept.dprtmnt_id) &&
+                                            String(s.program_id) === String(p.program_id)
+                                          )
+                                      )
+                                    );
+                                  }
+                                }}
+                              />
+                            }
+                            label={
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                <Typography fontSize="13px">{p.program_description}</Typography>
+                                <Typography fontSize="11px" color="text.secondary">
+                                  {p.program_code}
+                                </Typography>
+                              </Box>
+                            }
+                          />
+                        );
+                      })}
+                    </Box>
+                  )}
+                </Box>
+              );
+            })}
+
+            {/* Selected scopes chips */}
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1 }}>
               {scopes.length === 0 ? (
                 <Typography fontSize="13px" color="text.secondary">
-                  No scopes added yet.
+                  No scopes selected yet.
                 </Typography>
               ) : (
                 scopes.map((scope, index) => (
                   <Chip
                     key={`${scope.dprtmnt_id}-${scope.program_id}-${index}`}
-                    label={`${scope.dprtmnt_name || scope.dprtmnt_id}: ${scope.program_code || scope.program_description || scope.program_id}`}
+                    label={`${scope.dprtmnt_name || scope.dprtmnt_id}: ${scope.program_code || scope.program_id}`}
                     onDelete={() => handleRemoveScope(index)}
+                    color="primary"
+                    variant="outlined"
+                    size="small"
                   />
                 ))
               )}
             </Box>
+
+
 
             <FormControl fullWidth size="small">
               <InputLabel>Access Level</InputLabel>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { SettingsContext } from "../App";
 import axios from "axios";
 import {
@@ -19,15 +19,13 @@ import {
   Switch,
   FormControl,
   Select,
-  InputLabel,
   MenuItem,
   TableContainer,
   Checkbox,
-  ListItemText,
   Collapse,
   Chip,
   Tooltip,
-  IconButton,
+  Autocomplete,
 } from "@mui/material";
 import {
   Dialog,
@@ -38,74 +36,44 @@ import {
 import Unauthorized from "../components/Unauthorized";
 import LoadingOverlay from "../components/LoadingOverlay";
 import API_BASE_URL from "../apiConfig";
-import EaristLogo from "../assets/EaristLogo.png";
 const API = `${API_BASE_URL}/api/email-templates`;
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import SaveIcon from "@mui/icons-material/Save";
-import GroupAddIcon from "@mui/icons-material/GroupAdd";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import PeopleIcon from "@mui/icons-material/People";
 import PersonRemoveIcon from "@mui/icons-material/PersonRemove";
+import SearchIcon from "@mui/icons-material/Search";
 
 export default function EmailTemplateManager() {
   const settings = useContext(SettingsContext);
   const [titleColor, setTitleColor] = useState("#000000");
-  const [subtitleColor, setSubtitleColor] = useState("#555555");
   const [borderColor, setBorderColor] = useState("#000000");
-  const [mainButtonColor, setMainButtonColor] = useState("#1976d2");
-  const [subButtonColor, setSubButtonColor] = useState("#ffffff");
-  const [stepperColor, setStepperColor] = useState("#000000");
-
-  const [fetchedLogo, setFetchedLogo] = useState(null);
-  const [companyName, setCompanyName] = useState("");
-  const [shortTerm, setShortTerm] = useState("");
-  const [campusAddress, setCampusAddress] = useState("");
 
   useEffect(() => {
     if (!settings) return;
-
     if (settings.title_color) setTitleColor(settings.title_color);
-    if (settings.subtitle_color) setSubtitleColor(settings.subtitle_color);
     if (settings.border_color) setBorderColor(settings.border_color);
-    if (settings.main_button_color)
-      setMainButtonColor(settings.main_button_color);
-    if (settings.sub_button_color) setSubButtonColor(settings.sub_button_color);
-    if (settings.stepper_color) setStepperColor(settings.stepper_color);
-
-    if (settings.logo_url) {
-      setFetchedLogo(`${API_BASE_URL}${settings.logo_url}`);
-    } else {
-      setFetchedLogo(EaristLogo);
-    }
-
-    if (settings.company_name) setCompanyName(settings.company_name);
-    if (settings.short_term) setShortTerm(settings.short_term);
-    if (settings.campus_address) setCampusAddress(settings.campus_address);
   }, [settings]);
 
-  const [userID, setUserID] = useState("");
-  const [user, setUser] = useState("");
+  // ── Auth / Access ──────────────────────────────────────────────────────────
   const [userRole, setUserRole] = useState("");
-
   const [hasAccess, setHasAccess] = useState(null);
   const [canCreate, setCanCreate] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
   const [canDelete, setCanDelete] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [employeeID, setEmployeeID] = useState("");
 
   const pageId = 67;
-  const [employeeID, setEmployeeID] = useState("");
 
   const getAuditHeaders = () => ({
     headers: {
       "x-employee-id": employeeID || localStorage.getItem("employee_id") || "",
       "x-page-id": pageId,
-      "x-audit-actor-id":
-        employeeID || localStorage.getItem("employee_id") || "",
-      "x-audit-actor-role":
-        userRole || localStorage.getItem("role") || "registrar",
+      "x-audit-actor-id": employeeID || localStorage.getItem("employee_id") || "",
+      "x-audit-actor-role": userRole || localStorage.getItem("role") || "registrar",
     },
   });
 
@@ -114,13 +82,9 @@ export default function EmailTemplateManager() {
     const storedRole = localStorage.getItem("role");
     const storedID = localStorage.getItem("person_id");
     const storedEmployeeID = localStorage.getItem("employee_id");
-
     if (storedUser && storedRole && storedID) {
-      setUser(storedUser);
       setUserRole(storedRole);
-      setUserID(storedID);
       setEmployeeID(storedEmployeeID);
-
       if (storedRole === "registrar") {
         checkAccess(storedEmployeeID);
       } else {
@@ -131,10 +95,10 @@ export default function EmailTemplateManager() {
     }
   }, []);
 
-  const checkAccess = async (employeeID) => {
+  const checkAccess = async (empID) => {
     try {
       const response = await axios.get(
-        `${API_BASE_URL}/api/page_access/${employeeID}/${pageId}`,
+        `${API_BASE_URL}/api/page_access/${empID}/${pageId}`,
       );
       if (response.data && response.data.page_privilege === 1) {
         setHasAccess(true);
@@ -143,54 +107,92 @@ export default function EmailTemplateManager() {
         setCanDelete(Number(response.data?.can_delete) === 1);
       } else {
         setHasAccess(false);
-        setCanCreate(false);
-        setCanEdit(false);
-        setCanDelete(false);
       }
     } catch (error) {
       console.error("Error checking access:", error);
       setHasAccess(false);
-      setCanCreate(false);
-      setCanEdit(false);
-      setCanDelete(false);
       setLoading(false);
     }
   };
 
+  // ── Master data ────────────────────────────────────────────────────────────
   const [rows, setRows] = useState([]);
-  const [form, setForm] = useState({
-    sender_name: "",
-    department_id: "",
-    program_id: "",
-    is_active: true,
-  });
-  const [editing, setEditing] = useState(null);
-  const [snack, setSnack] = useState({
-    open: false,
-    message: "",
-    severity: "info",
-  });
+  const [departments, setDepartments] = useState([]);
+  const [activeCurriculums, setActiveCurriculums] = useState([]);
+  const [allEmployees, setAllEmployees] = useState([]);
 
-  // ── Tagged employees panel ──────────────────────────────────────────────────
-  const [expandedTemplateId, setExpandedTemplateId] = useState(null);
-  const [taggedEmployeesByTemplate, setTaggedEmployeesByTemplate] = useState(
-    {},
+  useEffect(() => {
+    loadTemplates();
+    fetchDepartments();
+    fetchCurriculums();
+    fetchAllEmployees();
+  }, []);
+
+  const loadTemplates = async () => {
+    try {
+      const res = await axios.get(API);
+      setRows(res.data || []);
+    } catch (err) {
+      showSnack("Failed to load templates", "error");
+    }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/departments`);
+      setDepartments(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch departments", err);
+    }
+  };
+
+  const fetchCurriculums = async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/get_active_curriculum`);
+      setActiveCurriculums(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch active curriculums", err);
+    }
+  };
+
+  const fetchAllEmployees = async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/registrars`);
+      setAllEmployees(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch employees", err);
+    }
+  };
+
+  // ── Snackbar ───────────────────────────────────────────────────────────────
+  const [snack, setSnack] = useState({ open: false, message: "", severity: "info" });
+  const showSnack = (message, severity = "info") =>
+    setSnack({ open: true, message, severity });
+  const handleCloseSnack = (_, reason) => {
+    if (reason === "clickaway") return;
+    setSnack((prev) => ({ ...prev, open: false }));
+  };
+
+  // ── Pagination ─────────────────────────────────────────────────────────────
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 50;
+  const totalPages = Math.max(1, Math.ceil(rows.length / rowsPerPage));
+  const paginatedRows = rows.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage,
   );
-  const [loadingTagged, setLoadingTagged] = useState({});
 
-  // ── Untag (remove single employee) dialog ──────────────────────────────────
-  const [openUntagDialog, setOpenUntagDialog] = useState(false);
-  const [untagTarget, setUntagTarget] = useState(null); // { templateId, templateName, employeeId, employeeName }
+  // ── Expandable tagged-employees panel ──────────────────────────────────────
+  const [expandedTemplateId, setExpandedTemplateId] = useState(null);
+  const [taggedEmployeesByTemplate, setTaggedEmployeesByTemplate] = useState({});
+  const [loadingTagged, setLoadingTagged] = useState({});
 
   const toggleExpandTemplate = async (templateId) => {
     if (expandedTemplateId === templateId) {
       setExpandedTemplateId(null);
       return;
     }
-
     setExpandedTemplateId(templateId);
-
-    // Only fetch if not already loaded
     if (!taggedEmployeesByTemplate[templateId]) {
       setLoadingTagged((prev) => ({ ...prev, [templateId]: true }));
       try {
@@ -200,7 +202,6 @@ export default function EmailTemplateManager() {
           [templateId]: res.data || [],
         }));
       } catch (err) {
-        console.error("Failed to load tagged employees:", err);
         showSnack("Failed to load tagged employees", "error");
       } finally {
         setLoadingTagged((prev) => ({ ...prev, [templateId]: false }));
@@ -208,34 +209,21 @@ export default function EmailTemplateManager() {
     }
   };
 
-  const refreshTaggedEmployees = async (templateId) => {
-    try {
-      const res = await axios.get(`${API}/${templateId}/employees`);
-      setTaggedEmployeesByTemplate((prev) => ({
-        ...prev,
-        [templateId]: res.data || [],
-      }));
-    } catch (err) {
-      console.error("Failed to refresh tagged employees:", err);
-    }
-  };
+  // ── Untag confirm dialog ───────────────────────────────────────────────────
+  const [openUntagDialog, setOpenUntagDialog] = useState(false);
+  const [untagTarget, setUntagTarget] = useState(null);
 
   const handleOpenUntagDialog = (template, employee) => {
     if (!canDelete) {
-      showSnack(
-        "You do not have permission to remove tagged employees",
-        "error",
-      );
+      showSnack("You do not have permission to remove tagged employees", "error");
       return;
     }
-
     const employeeName =
       [employee.last_name, employee.first_name, employee.middle_name]
         .filter(Boolean)
         .join(", ") ||
       employee.email ||
       String(employee.employee_id);
-
     setUntagTarget({
       templateId: template.template_id,
       templateName: template.sender_name,
@@ -245,39 +233,37 @@ export default function EmailTemplateManager() {
     setOpenUntagDialog(true);
   };
 
+  // ── Fixed untag: use already-loaded state, update directly ────────────────
   const handleConfirmUntag = async () => {
     if (!untagTarget) return;
-
     const { templateId, employeeId } = untagTarget;
 
+    const currentTagged = taggedEmployeesByTemplate[templateId] || [];
+    const remaining = currentTagged.filter(
+      (e) => String(e.employee_id) !== String(employeeId),
+    );
+
+    if (remaining.length === 0) {
+      showSnack("Cannot remove — at least one employee must remain tagged.", "warning");
+      setOpenUntagDialog(false);
+      setUntagTarget(null);
+      return;
+    }
+
     try {
-      // Fetch current tagged employees, remove this one, then save
-      const res = await axios.get(`${API}/${templateId}/employees`);
-      const currentIds = (res.data || [])
-        .map((e) => String(e.employee_id))
-        .filter((id) => id !== String(employeeId));
-
-      if (currentIds.length === 0) {
-        showSnack(
-          "Cannot remove — at least one employee must remain tagged.",
-          "warning",
-        );
-        setOpenUntagDialog(false);
-        setUntagTarget(null);
-        return;
-      }
-
       await axios.put(
         `${API}/${templateId}/employees`,
-        { employee_ids: currentIds },
+        { employee_ids: remaining.map((e) => String(e.employee_id)) },
         getAuditHeaders(),
       );
-
-      showSnack("Employee removed from template successfully", "success");
-      await refreshTaggedEmployees(templateId);
-      loadTemplates(); // refresh tagged_employee_count in main table
+      showSnack("Employee removed successfully", "success");
+      // Update local state directly — no re-fetch needed
+      setTaggedEmployeesByTemplate((prev) => ({
+        ...prev,
+        [templateId]: remaining,
+      }));
+      loadTemplates(); // refresh employee count in main table
     } catch (err) {
-      console.error("Failed to untag employee:", err);
       showSnack("Failed to remove employee from template", "error");
     } finally {
       setOpenUntagDialog(false);
@@ -285,287 +271,300 @@ export default function EmailTemplateManager() {
     }
   };
 
-  // ── Existing CRUD ───────────────────────────────────────────────────────────
-  useEffect(() => {
-    loadTemplates();
-  }, []);
+  // ── Form state ─────────────────────────────────────────────────────────────
+  // selectedPrograms: array of { curriculum_id, dprtmnt_id, program_code, program_description, major, dprtmnt_name }
+  // mirrors how RegisterRegistrar uses `scopes`
+  const [selectedPrograms, setSelectedPrograms] = useState([]);
+  const [openProgDepts, setOpenProgDepts] = useState(new Set());
 
-  const loadTemplates = async () => {
-    try {
-      const res = await axios.get(API);
-      setRows(res.data || []);
-    } catch (err) {
-      console.error("Failed to load templates:", err);
-      showSnack("Failed to load templates", "error");
-    }
-  };
+  const [form, setForm] = useState({
+    sender_name: "",
+    is_active: true,
+  });
 
-  const showSnack = (message, severity = "info") =>
-    setSnack({ open: true, message, severity });
+  const [taggedEmployees, setTaggedEmployees] = useState([]);
+  const [openEmpDepts, setOpenEmpDepts] = useState(new Set());
 
-  const handleAdd = async () => {
-    if (!canCreate) {
-      showSnack(
-        "You do not have permission to create email templates",
-        "error",
-      );
-      return false;
-    }
-    if (!form.sender_name.trim()) {
-      showSnack("Sender name is required", "warning");
-      return false;
-    }
-    if (!form.department_id || !form.program_id) {
-      showSnack("Department and program are required", "warning");
-      return false;
-    }
-
-    try {
-      await axios.post(API, form, getAuditHeaders());
-      showSnack("Template successfully added", "success");
-      setForm({
-        sender_name: "",
-        department_id: "",
-        program_id: "",
-        is_active: true,
-      });
-      loadTemplates();
-      return true;
-    } catch (err) {
-      console.error("Error adding template:", err);
-      showSnack(err.response?.data?.error || "Failed to add template", "error");
-      return false;
-    }
-  };
-
+  const [editing, setEditing] = useState(null);
   const [openFormDialog, setOpenFormDialog] = useState(false);
 
-  const handleEdit = (row) => {
+  const resetForm = () => {
+    setForm({ sender_name: "", is_active: true });
+    setSelectedPrograms([]);
+    setOpenProgDepts(new Set());
+    setTaggedEmployees([]);
+    setOpenEmpDepts(new Set());
+  };
+
+  // ── Program helpers (mirrors RegisterRegistrar scope helpers) ──────────────
+  const getProgramLabel = (p) => {
+    if (!p) return "N/A";
+    const major = p.major ? ` (${p.major})` : "";
+    return `${p.program_code || "N/A"} - ${p.program_description || "Unknown"}${major}`;
+  };
+
+  // Programs grouped by dept — using activeCurriculums (same idea as programs in RegisterRegistrar)
+  const uniqueProgramsForDept = (deptId) => {
+    const map = new Map();
+    activeCurriculums
+      .filter((p) => String(p.dprtmnt_id) === String(deptId))
+      .forEach((p) => {
+        if (!map.has(p.curriculum_id)) map.set(p.curriculum_id, p);
+      });
+    return [...map.values()];
+  };
+
+  const isProgramSelected = (p) =>
+    selectedPrograms.some(
+      (s) =>
+        String(s.curriculum_id) === String(p.curriculum_id) &&
+        String(s.dprtmnt_id) === String(p.dprtmnt_id),
+    );
+
+  const toggleProgram = (p, deptName) => {
+    if (isProgramSelected(p)) {
+      setSelectedPrograms((prev) =>
+        prev.filter(
+          (s) =>
+            !(
+              String(s.curriculum_id) === String(p.curriculum_id) &&
+              String(s.dprtmnt_id) === String(p.dprtmnt_id)
+            ),
+        ),
+      );
+    } else {
+      setSelectedPrograms((prev) => [
+        ...prev,
+        {
+          curriculum_id: p.curriculum_id,
+          dprtmnt_id: p.dprtmnt_id,
+          program_code: p.program_code,
+          program_description: p.program_description,
+          major: p.major,
+          dprtmnt_name: deptName,
+        },
+      ]);
+    }
+  };
+
+  const toggleDeptAllPrograms = (dept, progs, checked) => {
+    if (checked) {
+      const toAdd = progs.filter((p) => !isProgramSelected(p));
+      setSelectedPrograms((prev) => [
+        ...prev,
+        ...toAdd.map((p) => ({
+          curriculum_id: p.curriculum_id,
+          dprtmnt_id: p.dprtmnt_id,
+          program_code: p.program_code,
+          program_description: p.program_description,
+          major: p.major,
+          dprtmnt_name: dept.dprtmnt_name,
+        })),
+      ]);
+    } else {
+      setSelectedPrograms((prev) =>
+        prev.filter((s) => String(s.dprtmnt_id) !== String(dept.dprtmnt_id)),
+      );
+    }
+  };
+
+  const toggleProgDeptOpen = (deptId) => {
+    setOpenProgDepts((prev) => {
+      const next = new Set(prev);
+      next.has(deptId) ? next.delete(deptId) : next.add(deptId);
+      return next;
+    });
+  };
+
+  // ── Employee helpers ───────────────────────────────────────────────────────
+  const employeesByDept = departments.reduce((acc, dept) => {
+    const emps = allEmployees.filter(
+      (e) => String(e.dprtmnt_id) === String(dept.dprtmnt_id),
+    );
+    if (emps.length > 0) acc[dept.dprtmnt_id] = emps;
+    return acc;
+  }, {});
+
+  const unassignedEmployees = allEmployees.filter(
+    (e) => !departments.some((d) => String(d.dprtmnt_id) === String(e.dprtmnt_id)),
+  );
+
+  const getEmployeeFullName = (emp) => {
+    const name = [emp.last_name, emp.first_name, emp.middle_name]
+      .filter(Boolean)
+      .join(", ");
+    return name || emp.email || String(emp.employee_id);
+  };
+
+  const isEmployeeTagged = (emp) =>
+    taggedEmployees.some((e) => String(e.employee_id) === String(emp.employee_id));
+
+  const toggleEmployee = (emp, deptName) => {
+    if (isEmployeeTagged(emp)) {
+      setTaggedEmployees((prev) =>
+        prev.filter((e) => String(e.employee_id) !== String(emp.employee_id)),
+      );
+    } else {
+      setTaggedEmployees((prev) => [...prev, { ...emp, dprtmnt_name: deptName }]);
+    }
+  };
+
+  const toggleDeptAllEmployees = (deptId, deptName, emps, checked) => {
+    if (checked) {
+      const toAdd = emps.filter((e) => !isEmployeeTagged(e));
+      setTaggedEmployees((prev) => [
+        ...prev,
+        ...toAdd.map((e) => ({ ...e, dprtmnt_name: deptName })),
+      ]);
+    } else {
+      const empIds = new Set(emps.map((e) => String(e.employee_id)));
+      setTaggedEmployees((prev) =>
+        prev.filter((e) => !empIds.has(String(e.employee_id))),
+      );
+    }
+  };
+
+  const toggleEmpDeptOpen = (deptId) => {
+    setOpenEmpDepts((prev) => {
+      const next = new Set(prev);
+      next.has(deptId) ? next.delete(deptId) : next.add(deptId);
+      return next;
+    });
+  };
+
+  // ── Open Add dialog ────────────────────────────────────────────────────────
+  const handleOpenAdd = () => {
+    if (!canCreate) {
+      showSnack("You do not have permission to create email templates", "error");
+      return;
+    }
+    setEditing(null);
+    resetForm();
+    setOpenFormDialog(true);
+  };
+
+  // ── Open Edit dialog ───────────────────────────────────────────────────────
+  const handleEdit = async (row) => {
     if (!canEdit) {
       showSnack("You do not have permission to edit email templates", "error");
       return;
     }
     setEditing(row.template_id);
+
+    // Re-build selectedPrograms from row.programs (which now carry dprtmnt_id)
+    const existingPrograms = (row.programs || []).map((p) => {
+      const dept = departments.find((d) => String(d.dprtmnt_id) === String(p.dprtmnt_id));
+      return {
+        curriculum_id: p.curriculum_id,
+        dprtmnt_id: p.dprtmnt_id,
+        program_code: p.program_code,
+        program_description: p.program_description,
+        major: p.major,
+        dprtmnt_name: dept?.dprtmnt_name || p.dprtmnt_name || "",
+      };
+    });
+
+    // Load currently tagged employees
+    let existingTagged = [];
+    try {
+      const empRes = await axios.get(`${API}/${row.template_id}/employees`);
+      existingTagged = empRes.data || [];
+    } catch (err) {
+      console.error("Failed to load tagged employees for edit", err);
+    }
+
     setForm({
       sender_name: row.sender_name || "",
-      department_id: row.department_id || "",
-      program_id: row.program_id || "",
       is_active: !!row.is_active,
     });
+    setSelectedPrograms(existingPrograms);
+    setOpenProgDepts(new Set());
+
+    const preTagged = existingTagged.map((et) => {
+      const full = allEmployees.find(
+        (e) => String(e.employee_id) === String(et.employee_id),
+      );
+      return full
+        ? { ...full }
+        : {
+          employee_id: et.employee_id,
+          first_name: et.first_name,
+          middle_name: et.middle_name,
+          last_name: et.last_name,
+          email: et.email,
+          dprtmnt_id: et.dprtmnt_id,
+        };
+    });
+    setTaggedEmployees(preTagged);
+    setOpenEmpDepts(new Set());
+    setOpenFormDialog(true);
   };
 
-  const handleUpdate = async () => {
-    if (!editing) return false;
-    if (!canEdit) {
-      showSnack("You do not have permission to edit email templates", "error");
+  // ── Save ───────────────────────────────────────────────────────────────────
+  const handleSave = async () => {
+    if (!form.sender_name.trim()) {
+      showSnack("Sender name is required", "warning");
       return false;
     }
-    if (!form.sender_name.trim() || !form.department_id || !form.program_id) {
-      showSnack(
-        "Gmail account, department, and program are required",
-        "warning",
-      );
+    if (selectedPrograms.length === 0) {
+      showSnack("At least one program is required", "warning");
       return false;
     }
 
+    const payload = {
+      sender_name: form.sender_name,
+      // Send array of { curriculum_id, dprtmnt_id } so backend stores both
+      program_ids: selectedPrograms.map((p) => ({
+        curriculum_id: String(p.curriculum_id),
+        dprtmnt_id: p.dprtmnt_id ?? null,
+      })),
+      employee_ids: taggedEmployees.map((e) => String(e.employee_id)),
+      is_active: form.is_active,
+    };
+
     try {
-      await axios.put(`${API}/${editing}`, form, getAuditHeaders());
-      showSnack("Template updated successfully", "success");
+      if (editing) {
+        if (!canEdit) { showSnack("No permission to edit", "error"); return false; }
+        await axios.put(`${API}/${editing}`, payload, getAuditHeaders());
+        showSnack("Template updated successfully", "success");
+        setTaggedEmployeesByTemplate((prev) => {
+          const next = { ...prev };
+          delete next[editing];
+          return next;
+        });
+      } else {
+        if (!canCreate) { showSnack("No permission to create", "error"); return false; }
+        await axios.post(API, payload, getAuditHeaders());
+        showSnack("Template added successfully", "success");
+      }
+      resetForm();
       setEditing(null);
-      setForm({
-        sender_name: "",
-        department_id: "",
-        program_id: "",
-        is_active: true,
-      });
       loadTemplates();
       return true;
     } catch (err) {
-      console.error("Error updating template:", err);
-      showSnack(
-        err.response?.data?.error || "Failed to update template",
-        "error",
-      );
+      console.error("Error saving template:", err);
+      showSnack(err.response?.data?.error || "Failed to save template", "error");
       return false;
     }
   };
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 5;
-  const totalPages = Math.ceil(rows.length / rowsPerPage);
-  const paginatedRows = rows.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage,
-  );
-
+  // ── Delete ─────────────────────────────────────────────────────────────────
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState(null);
 
   const handleDelete = async (id) => {
-    if (!canDelete) {
-      showSnack(
-        "You do not have permission to delete email templates",
-        "error",
-      );
-      return;
-    }
+    if (!canDelete) { showSnack("No permission to delete", "error"); return; }
     try {
       await axios.delete(`${API}/${id}`, getAuditHeaders());
       showSnack("Template deleted successfully", "success");
       loadTemplates();
     } catch (err) {
-      console.error("Error deleting template:", err);
       showSnack("Failed to delete template", "error");
     }
   };
 
-  const handleCloseSnack = (_, reason) => {
-    if (reason === "clickaway") return;
-    setSnack((prev) => ({ ...prev, open: false }));
-  };
-
-  const [departments, setDepartments] = useState([]);
-  const [activeCurriculums, setActiveCurriculums] = useState([]);
-  const [employees, setEmployees] = useState([]);
-  const [openTagDialog, setOpenTagDialog] = useState(false);
-  const [taggingTemplate, setTaggingTemplate] = useState(null);
-  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
-
-  const resetForm = () => {
-    setForm({
-      sender_name: "",
-      department_id: "",
-      program_id: "",
-      is_active: true,
-    });
-  };
-
-  const filteredPrograms = activeCurriculums.filter(
-    (program) =>
-      !form.department_id ||
-      String(program.dprtmnt_id) === String(form.department_id),
-  );
-
-  const getProgramLabel = (program) => {
-    if (!program) return "N/A";
-    const major = program.major ? ` (${program.major})` : "";
-    return `${program.program_code || "N/A"} - ${program.program_description || "Unknown Program"}${major}`;
-  };
-
-  const getEmployeeLabel = (employeeId) => {
-    const employee = employees.find(
-      (item) => String(item.employee_id) === String(employeeId),
-    );
-    if (!employee) return employeeId;
-    const name = [employee.last_name, employee.first_name, employee.middle_name]
-      .filter(Boolean)
-      .join(", ");
-    return `${employee.employee_id} - ${name || employee.email || "Employee"}`;
-  };
-
-  const handleOpenTagDialog = async (row) => {
-    if (!canEdit) {
-      showSnack("You do not have permission to tag employees", "error");
-      return;
-    }
-    setTaggingTemplate(row);
-    setSelectedEmployeeIds([]);
-    setOpenTagDialog(true);
-
-    try {
-      const [taggedRes, eligibleRes] = await Promise.all([
-        axios.get(`${API}/${row.template_id}/employees`),
-        axios.get(`${API}/${row.template_id}/eligible-employees`),
-      ]);
-      setEmployees(eligibleRes.data || []);
-      setSelectedEmployeeIds(
-        (taggedRes.data || [])
-          .map((employee) => String(employee.employee_id))
-          .filter((employeeId) =>
-            (eligibleRes.data || []).some(
-              (eligible) => String(eligible.employee_id) === employeeId,
-            ),
-          ),
-      );
-    } catch (err) {
-      console.error("Failed to load tagged employees:", err);
-      showSnack("Failed to load tagged employees", "error");
-    }
-  };
-
-  const handleSaveTaggedEmployees = async () => {
-    if (!taggingTemplate) return;
-    if (selectedEmployeeIds.length === 0) {
-      showSnack("Please select at least one employee", "warning");
-      return;
-    }
-
-    try {
-      await axios.put(
-        `${API}/${taggingTemplate.template_id}/employees`,
-        { employee_ids: selectedEmployeeIds },
-        getAuditHeaders(),
-      );
-      showSnack("Employees tagged successfully", "success");
-      setOpenTagDialog(false);
-      setTaggingTemplate(null);
-      setSelectedEmployeeIds([]);
-      loadTemplates();
-
-      // Refresh expanded panel if open
-      if (expandedTemplateId === taggingTemplate.template_id) {
-        await refreshTaggedEmployees(taggingTemplate.template_id);
-      } else {
-        // Invalidate cache so next expand re-fetches
-        setTaggedEmployeesByTemplate((prev) => {
-          const next = { ...prev };
-          delete next[taggingTemplate.template_id];
-          return next;
-        });
-      }
-    } catch (err) {
-      console.error("Failed to save tagged employees:", err);
-      showSnack("Failed to save tagged employees", "error");
-    }
-  };
-
-  useEffect(() => {
-    const fetchDepartments = async () => {
-      try {
-        const res = await axios.get(`${API_BASE_URL}/api/departments`);
-        setDepartments(res.data || []);
-      } catch (err) {
-        console.error("Failed to fetch departments", err);
-      }
-    };
-    fetchDepartments();
-  }, []);
-
-  useEffect(() => {
-    const fetchPrograms = async () => {
-      try {
-        const res = await axios.get(
-          `${API_BASE_URL}/api/get_active_curriculum`,
-        );
-        setActiveCurriculums(res.data || []);
-      } catch (err) {
-        console.error("Failed to fetch active curriculums", err);
-      }
-    };
-
-    fetchPrograms();
-  }, []);
-
-  if (loading || hasAccess === null) {
-    return <LoadingOverlay open={loading} message="Loading..." />;
-  }
-
-  if (!hasAccess) {
-    return <Unauthorized />;
-  }
-
-  // ─── Pagination bar (reusable) ─────────────────────────────────────────────
-  const paginationBar = (
+  // ── Pagination bar ─────────────────────────────────────────────────────────
+  const PaginationControls = ({ showAddButton }) => (
     <TableCell
       colSpan={10}
       sx={{
@@ -576,1200 +575,685 @@ export default function EmailTemplateManager() {
       }}
     >
       <Box display="flex" justifyContent="space-between" alignItems="center">
-        <Typography fontSize="14px" fontWeight="bold" color="white">
+        <Typography fontSize="14px" fontWeight="bold" color="white" mt={2}>
           Total Registered Email Accounts: {rows.length}
         </Typography>
-
         <Box display="flex" alignItems="center" gap={1}>
           {[
-            {
-              label: "First",
-              action: () => setCurrentPage(1),
-              disabled: currentPage === 1,
-            },
-            {
-              label: "Prev",
-              action: () => setCurrentPage((p) => Math.max(p - 1, 1)),
-              disabled: currentPage === 1,
-            },
+            { label: "First", action: () => setCurrentPage(1), disabled: currentPage === 1 },
+            { label: "Prev", action: () => setCurrentPage((p) => Math.max(p - 1, 1)), disabled: currentPage === 1 },
           ].map(({ label, action, disabled }) => (
-            <Button
-              key={label}
-              onClick={action}
-              disabled={disabled}
-              variant="outlined"
-              size="small"
+            <Button key={label} onClick={action} disabled={disabled} variant="outlined" size="small"
               sx={{
-                minWidth: 80,
-                color: "white",
-                borderColor: "white",
-                backgroundColor: "transparent",
-                "&:hover": {
-                  borderColor: "white",
-                  backgroundColor: "rgba(255,255,255,0.1)",
-                },
-                "&.Mui-disabled": {
-                  color: "white",
-                  borderColor: "white",
-                  backgroundColor: "transparent",
-                  opacity: 1,
-                },
-              }}
-            >
+                minWidth: 80, color: "white", borderColor: "white", backgroundColor: "transparent",
+                "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" },
+                "&.Mui-disabled": { color: "white", borderColor: "white", opacity: 1 }
+              }}>
               {label}
             </Button>
           ))}
-
           <FormControl size="small" sx={{ minWidth: 80 }}>
-            <Select
-              value={currentPage}
-              onChange={(e) => setCurrentPage(Number(e.target.value))}
-              displayEmpty
+            <Select value={currentPage} onChange={(e) => setCurrentPage(Number(e.target.value))}
               sx={{
-                fontSize: "12px",
-                height: 36,
-                color: "white",
-                border: "1px solid white",
+                fontSize: "12px", height: 36, color: "white", border: "1px solid white",
                 backgroundColor: "transparent",
                 ".MuiOutlinedInput-notchedOutline": { borderColor: "white" },
-                "&:hover .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "white",
-                },
-                "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "white",
-                },
-                "& svg": { color: "white" },
+                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
+                "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
+                "& svg": { color: "white" }
               }}
-              MenuProps={{
-                PaperProps: { sx: { maxHeight: 200, backgroundColor: "#fff" } },
-              }}
-            >
+              MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}>
               {Array.from({ length: totalPages }, (_, i) => (
-                <MenuItem key={i + 1} value={i + 1}>
-                  Page {i + 1}
-                </MenuItem>
+                <MenuItem key={i + 1} value={i + 1}>Page {i + 1}</MenuItem>
               ))}
             </Select>
           </FormControl>
-
-          <Typography fontSize="11px" color="white">
-            of {totalPages} page{totalPages > 1 ? "s" : ""}
-          </Typography>
-
+          <Typography fontSize="11px" color="white">of {totalPages} page{totalPages > 1 ? "s" : ""}</Typography>
           {[
-            {
-              label: "Next",
-              action: () => setCurrentPage((p) => Math.min(p + 1, totalPages)),
-              disabled: currentPage === totalPages,
-            },
-            {
-              label: "Last",
-              action: () => setCurrentPage(totalPages),
-              disabled: currentPage === totalPages,
-            },
+            { label: "Next", action: () => setCurrentPage((p) => Math.min(p + 1, totalPages)), disabled: currentPage === totalPages },
+            { label: "Last", action: () => setCurrentPage(totalPages), disabled: currentPage === totalPages },
           ].map(({ label, action, disabled }) => (
-            <Button
-              key={label}
-              onClick={action}
-              disabled={disabled}
-              variant="outlined"
-              size="small"
+            <Button key={label} onClick={action} disabled={disabled} variant="outlined" size="small"
               sx={{
-                minWidth: 80,
-                color: "white",
-                borderColor: "white",
-                backgroundColor: "transparent",
-                "&:hover": {
-                  borderColor: "white",
-                  backgroundColor: "rgba(255,255,255,0.1)",
-                },
-                "&.Mui-disabled": {
-                  color: "white",
-                  borderColor: "white",
-                  backgroundColor: "transparent",
-                  opacity: 1,
-                },
-              }}
-            >
+                minWidth: 80, color: "white", borderColor: "white", backgroundColor: "transparent",
+                "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" },
+                "&.Mui-disabled": { color: "white", borderColor: "white", opacity: 1 }
+              }}>
               {label}
             </Button>
           ))}
+          {showAddButton && (
+            <Button variant="contained" onClick={handleOpenAdd}
+              sx={{
+                backgroundColor: "#1976d2", color: "#fff", fontWeight: "bold",
+                borderRadius: "8px", width: "250px", textTransform: "none", px: 2, border: "1px solid white"
+              }}>
+              + Add Email Account
+            </Button>
+          )}
         </Box>
       </Box>
     </TableCell>
   );
 
-  // ─── Render ────────────────────────────────────────────────────────────────
+  // ── Guards ─────────────────────────────────────────────────────────────────
+  if (loading || hasAccess === null) return <LoadingOverlay open={loading} message="Loading..." />;
+  if (!hasAccess) return <Unauthorized />;
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <Box
-      sx={{
-        height: "calc(100vh - 150px)",
-        overflowY: "auto",
-        paddingRight: 1,
-        backgroundColor: "transparent",
-        mt: 1,
-        padding: 2,
-      }}
-    >
+    <Box sx={{
+      height: "calc(100vh - 150px)", overflowY: "auto", paddingRight: 1,
+      backgroundColor: "transparent", mt: 1, padding: 2
+    }}>
+
       {/* Header */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          mb: 2,
-        }}
-      >
-        <Typography
-          variant="h4"
-          sx={{ fontWeight: "bold", color: titleColor, fontSize: "36px" }}
-        >
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", mb: 2 }}>
+        <Typography variant="h4" sx={{ fontWeight: "bold", color: titleColor, fontSize: "36px" }}>
           EMAIL TEMPLATE MANAGER
         </Typography>
       </Box>
-
       <hr style={{ border: "1px solid #ccc", width: "100%" }} />
       <br />
-      <br />
 
-      {/* ── Top pagination + Add button ── */}
+      {/* Top pagination */}
       <TableContainer component={Paper} sx={{ width: "100%" }}>
-        <Table size="small">
+        <Table size="small"><TableHead><TableRow><PaginationControls showAddButton /></TableRow></TableHead></Table>
+      </TableContainer>
+
+      {/* Main table */}
+      <Box sx={{ backgroundColor: "#f5f5f5", border: `1px solid ${borderColor}`, borderRadius: 1 }}>
+        <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
-              <TableCell
-                colSpan={10}
-                sx={{
-                  border: `1px solid ${borderColor}`,
-                  py: 0.5,
-                  backgroundColor: settings?.header_color || "#1976d2",
-                  color: "white",
-                }}
-              >
-                <Box
-                  display="flex"
-                  justifyContent="space-between"
-                  alignItems="center"
-                >
-                  <Typography fontSize="14px" fontWeight="bold" color="white">
-                    Total Registered Email Accounts: {rows.length}
-                  </Typography>
-
-                  <Box display="flex" alignItems="center" gap={1}>
-                    {/* reuse the same pagination controls from paginationBar */}
-                    {[
-                      {
-                        label: "First",
-                        action: () => setCurrentPage(1),
-                        disabled: currentPage === 1,
-                      },
-                      {
-                        label: "Prev",
-                        action: () => setCurrentPage((p) => Math.max(p - 1, 1)),
-                        disabled: currentPage === 1,
-                      },
-                    ].map(({ label, action, disabled }) => (
-                      <Button
-                        key={label}
-                        onClick={action}
-                        disabled={disabled}
-                        variant="outlined"
-                        size="small"
-                        sx={{
-                          minWidth: 80,
-                          color: "white",
-                          borderColor: "white",
-                          backgroundColor: "transparent",
-                          "&:hover": {
-                            borderColor: "white",
-                            backgroundColor: "rgba(255,255,255,0.1)",
-                          },
-                          "&.Mui-disabled": {
-                            color: "white",
-                            borderColor: "white",
-                            backgroundColor: "transparent",
-                            opacity: 1,
-                          },
-                        }}
-                      >
-                        {label}
-                      </Button>
-                    ))}
-
-                    <FormControl size="small" sx={{ minWidth: 80 }}>
-                      <Select
-                        value={currentPage}
-                        onChange={(e) => setCurrentPage(Number(e.target.value))}
-                        displayEmpty
-                        sx={{
-                          fontSize: "12px",
-                          height: 36,
-                          color: "white",
-                          border: "1px solid white",
-                          backgroundColor: "transparent",
-                          ".MuiOutlinedInput-notchedOutline": {
-                            borderColor: "white",
-                          },
-                          "&:hover .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "white",
-                          },
-                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "white",
-                          },
-                          "& svg": { color: "white" },
-                        }}
-                        MenuProps={{
-                          PaperProps: {
-                            sx: { maxHeight: 200, backgroundColor: "#fff" },
-                          },
-                        }}
-                      >
-                        {Array.from({ length: totalPages }, (_, i) => (
-                          <MenuItem key={i + 1} value={i + 1}>
-                            Page {i + 1}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-
-                    <Typography fontSize="11px" color="white">
-                      of {totalPages} page{totalPages > 1 ? "s" : ""}
-                    </Typography>
-
-                    {[
-                      {
-                        label: "Next",
-                        action: () =>
-                          setCurrentPage((p) => Math.min(p + 1, totalPages)),
-                        disabled: currentPage === totalPages,
-                      },
-                      {
-                        label: "Last",
-                        action: () => setCurrentPage(totalPages),
-                        disabled: currentPage === totalPages,
-                      },
-                    ].map(({ label, action, disabled }) => (
-                      <Button
-                        key={label}
-                        onClick={action}
-                        disabled={disabled}
-                        variant="outlined"
-                        size="small"
-                        sx={{
-                          minWidth: 80,
-                          color: "white",
-                          borderColor: "white",
-                          backgroundColor: "transparent",
-                          "&:hover": {
-                            borderColor: "white",
-                            backgroundColor: "rgba(255,255,255,0.1)",
-                          },
-                          "&.Mui-disabled": {
-                            color: "white",
-                            borderColor: "white",
-                            backgroundColor: "transparent",
-                            opacity: 1,
-                          },
-                        }}
-                      >
-                        {label}
-                      </Button>
-                    ))}
-
-                    <Button
-                      variant="contained"
-                      sx={{
-                        backgroundColor: "#1976d2",
-                        color: "#fff",
-                        fontWeight: "bold",
-                        borderRadius: "8px",
-                        width: "250px",
-                        textTransform: "none",
-                        px: 2,
-                        border: "1px solid white",
-                      }}
-                      onClick={() => {
-                        setEditing(null);
-                        resetForm();
-                        setOpenFormDialog(true);
-                      }}
-                    >
-                      + Add Email Account
-                    </Button>
-                  </Box>
-                </Box>
-              </TableCell>
+              {["#", "Gmail Account", "Departments", "Programs", "Tagged Employees", "Active", "Actions"].map((h) => (
+                <TableCell key={h} sx={{
+                  border: `1px solid ${borderColor}`, backgroundColor: "#F5F5F5",
+                  color: "#000", fontWeight: 600, ...(h === "Actions" ? { width: "220px", textAlign: "center" } : {})
+                }}>
+                  {h}
+                </TableCell>
+              ))}
             </TableRow>
           </TableHead>
-        </Table>
-      </TableContainer>
 
-      {/* ── Main table + expandable tagged-employees panel ── */}
-      <Grid item xs={12} md={7}>
-        <Box
-          sx={{
-            maxHeight: "none",
-            overflowY: "auto",
-            backgroundColor: "#f5f5f5",
-            color: "black",
-            border: `1px solid ${borderColor}`,
-            borderRadius: 1,
-          }}
-        >
-          <Table stickyHeader size="small">
-            <TableHead>
+          <TableBody sx={{
+            "& .MuiTableRow-root:nth-of-type(odd)": { backgroundColor: "#ffffff" },
+            "& .MuiTableRow-root:nth-of-type(even)": { backgroundColor: "lightgray" },
+          }}>
+            {rows.length === 0 ? (
               <TableRow>
-                <TableCell
-                  sx={{
-                    border: `1px solid ${borderColor}`,
-                    backgroundColor: "#F5F5F5",
-                    color: "#000",
-                  }}
-                >
-                  #
-                </TableCell>
-                <TableCell
-                  sx={{
-                    border: `1px solid ${borderColor}`,
-                    backgroundColor: "#F5F5F5",
-                    color: "#000",
-                  }}
-                >
-                  Gmail Account
-                </TableCell>
-                <TableCell
-                  sx={{
-                    border: `1px solid ${borderColor}`,
-                    backgroundColor: "#F5F5F5",
-                    color: "#000",
-                  }}
-                >
-                  Department
-                </TableCell>
-                <TableCell
-                  sx={{
-                    border: `1px solid ${borderColor}`,
-                    backgroundColor: "#F5F5F5",
-                    color: "#000",
-                  }}
-                >
-                  Program
-                </TableCell>
-                <TableCell
-                  sx={{
-                    border: `1px solid ${borderColor}`,
-                    backgroundColor: "#F5F5F5",
-                    color: "#000",
-                  }}
-                >
-                  Tagged Employees
-                </TableCell>
-                <TableCell
-                  sx={{
-                    border: `1px solid ${borderColor}`,
-                    backgroundColor: "#F5F5F5",
-                    color: "#000",
-                  }}
-                >
-                  Active
-                </TableCell>
-                <TableCell
-                  sx={{
-                    width: "300px",
-                    border: `1px solid ${borderColor}`,
-                    backgroundColor: "#F5F5F5",
-                    color: "#000",
-                    textAlign: "center",
-                  }}
-                >
-                  Actions
+                <TableCell colSpan={7} align="center" sx={{ border: `1px solid ${borderColor}` }}>
+                  No templates found.
                 </TableCell>
               </TableRow>
-            </TableHead>
+            ) : (
+              paginatedRows.map((r, index) => {
+                const isExpanded = expandedTemplateId === r.template_id;
+                const tagged = taggedEmployeesByTemplate[r.template_id] || [];
+                const isLoadingTagged = loadingTagged[r.template_id];
+                const programs = r.programs || [];
+                const deptNames = r.department_names || [];
 
-            <TableBody
-              sx={{
-                border: `1px solid ${borderColor}`,
-                "& .MuiTableRow-root:nth-of-type(odd)": {
-                  backgroundColor: "#ffffff",
-                },
-                "& .MuiTableRow-root:nth-of-type(even)": {
-                  backgroundColor: "lightgray",
-                },
-              }}
-            >
-              {rows.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    align="center"
-                    sx={{ border: `1px solid ${borderColor}` }}
-                  >
-                    No templates found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginatedRows.map((r, index) => {
-                  const isExpanded = expandedTemplateId === r.template_id;
-                  const taggedEmployees =
-                    taggedEmployeesByTemplate[r.template_id] || [];
-                  const isLoadingTagged = loadingTagged[r.template_id];
+                return (
+                  <React.Fragment key={r.template_id}>
+                    <TableRow>
+                      <TableCell sx={{ border: `1px solid ${borderColor}` }}>
+                        {(currentPage - 1) * rowsPerPage + index + 1}
+                      </TableCell>
+                      <TableCell sx={{ border: `1px solid ${borderColor}` }}>{r.sender_name}</TableCell>
 
-                  return (
-                    <React.Fragment key={r.template_id}>
-                      {/* ── Template row ── */}
-                      <TableRow>
-                        <TableCell sx={{ border: `1px solid ${borderColor}` }}>
-                          {(currentPage - 1) * rowsPerPage + index + 1}
-                        </TableCell>
-                        <TableCell sx={{ border: `1px solid ${borderColor}` }}>
-                          {r.sender_name}
-                        </TableCell>
-                        <TableCell sx={{ border: `1px solid ${borderColor}` }}>
-                          {r.department_name || "N/A"}
-                        </TableCell>
-                        <TableCell sx={{ border: `1px solid ${borderColor}` }}>
-                          {r.program_code
-                            ? `${r.program_code} - ${r.program_description || ""}${r.major ? ` (${r.major})` : ""}`
-                            : "N/A"}
-                        </TableCell>
-
-                        {/* Tagged employees count — clickable to expand */}
-                        <TableCell sx={{ border: `1px solid ${borderColor}` }}>
-                          <Tooltip
-                            title={
-                              isExpanded
-                                ? "Hide tagged employees"
-                                : "View tagged employees"
-                            }
-                          >
-                            <Button
-                              size="small"
-                              variant="text"
-                              onClick={() =>
-                                toggleExpandTemplate(r.template_id)
-                              }
-                              startIcon={<PeopleIcon fontSize="small" />}
-                              endIcon={
-                                isExpanded ? (
-                                  <ExpandLessIcon fontSize="small" />
-                                ) : (
-                                  <ExpandMoreIcon fontSize="small" />
-                                )
-                              }
-                              sx={{
-                                textTransform: "none",
-                                color: "#1976d2",
-                                fontWeight: 600,
-                                fontSize: "13px",
-                                px: 1,
-                              }}
-                            >
-                              {Number(r.tagged_employee_count || 0)} Employee
-                              {Number(r.tagged_employee_count || 0) !== 1
-                                ? "s"
-                                : ""}
-                            </Button>
-                          </Tooltip>
-                        </TableCell>
-
-                        <TableCell sx={{ border: `1px solid ${borderColor}` }}>
-                          {r.is_active ? "Yes" : "No"}
-                        </TableCell>
-
-                        <TableCell
-                          sx={{
-                            width: "300px",
-                            border: `1px solid ${borderColor}`,
-                          }}
-                        >
-                          <Box sx={{ display: "flex", gap: 1 }}>
-                            <Button
-                              variant="contained"
-                              size="small"
-                              sx={{
-                                backgroundColor: "green",
-                                color: "white",
-                                borderRadius: "5px",
-                                padding: "8px 14px",
-                                width: "100px",
-                                height: "40px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                gap: "5px",
-                              }}
-                              onClick={() => {
-                                handleEdit(r);
-                                setOpenFormDialog(true);
-                              }}
-                            >
-                              <EditIcon fontSize="small" /> Edit
-                            </Button>
-
-                            <Button
-                              variant="contained"
-                              size="small"
-                              sx={{
-                                backgroundColor: "#1976d2",
-                                color: "white",
-                                borderRadius: "5px",
-                                padding: "8px 14px",
-                                width: "100px",
-                                height: "40px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                gap: "5px",
-                              }}
-                              onClick={() => handleOpenTagDialog(r)}
-                            >
-                              <GroupAddIcon fontSize="small" /> Tag
-                            </Button>
-
-                            <Button
-                              variant="contained"
-                              size="small"
-                              sx={{
-                                backgroundColor: "#9E0000",
-                                color: "white",
-                                borderRadius: "5px",
-                                padding: "8px 14px",
-                                width: "100px",
-                                height: "40px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                gap: "5px",
-                              }}
-                              onClick={() => {
-                                setTemplateToDelete(r);
-                                setOpenDeleteDialog(true);
-                              }}
-                            >
-                              <DeleteIcon fontSize="small" /> Delete
-                            </Button>
+                      {/* Departments — derived from programs */}
+                      <TableCell sx={{ border: `1px solid ${borderColor}` }}>
+                        {deptNames.length === 0 ? (
+                          <Typography fontSize="12px" color="text.secondary">N/A</Typography>
+                        ) : (
+                          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                            {deptNames.map((name) => (
+                              <Chip key={name} label={name} size="small"
+                                sx={{ fontSize: "11px", height: 22, backgroundColor: "#e3f2fd" }} />
+                            ))}
                           </Box>
-                        </TableCell>
-                      </TableRow>
+                        )}
+                      </TableCell>
 
-                      {/* ── Expandable tagged employees sub-table ── */}
-                      <TableRow>
-                        <TableCell
-                          colSpan={7}
-                          sx={{
-                            p: 0,
-                            border: isExpanded
-                              ? `1px solid ${borderColor}`
-                              : "none",
-                            backgroundColor: "#EAF3FB",
-                          }}
-                        >
-                          <Collapse
-                            in={isExpanded}
-                            timeout="auto"
-                            unmountOnExit
-                          >
-                            <Box sx={{ p: 2 }}>
-                              {/* Sub-table header */}
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
-                                  mb: 1,
-                                }}
-                              >
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 1,
-                                  }}
-                                >
-                                  <PeopleIcon
-                                    sx={{ color: "#1976d2", fontSize: 18 }}
-                                  />
-                                  <Typography
-                                    fontSize="13px"
-                                    fontWeight={700}
-                                    color="#1976d2"
-                                  >
-                                    Tagged Employees — {r.sender_name}
-                                  </Typography>
-                                  <Chip
-                                    label={taggedEmployees.length}
-                                    size="small"
-                                    sx={{
-                                      backgroundColor: "#1976d2",
-                                      color: "white",
-                                      fontSize: "11px",
-                                      height: 20,
-                                    }}
-                                  />
-                                </Box>
-                              </Box>
+                      {/* Programs chips */}
+                      <TableCell sx={{ border: `1px solid ${borderColor}` }}>
+                        {programs.length === 0 ? (
+                          <Typography fontSize="12px" color="text.secondary">N/A</Typography>
+                        ) : (
+                          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                            {programs.map((p) => (
+                              <Chip key={`${p.curriculum_id}-${p.dprtmnt_id}`}
+                                label={`${p.program_code || "N/A"}${p.major ? ` (${p.major})` : ""}`}
+                                size="small" sx={{ fontSize: "11px", height: 22 }}
+                                title={p.program_description} />
+                            ))}
+                          </Box>
+                        )}
+                      </TableCell>
 
-                              {isLoadingTagged ? (
-                                <Typography
-                                  fontSize="13px"
-                                  color="text.secondary"
-                                  sx={{ py: 1 }}
-                                >
-                                  Loading employees…
+                      {/* Expand tagged employees */}
+                      {/* Expand tagged employees */}
+                      <TableCell sx={{ border: `1px solid ${borderColor}` }}>
+                        <Tooltip title={isExpanded ? "Hide tagged employees" : "View tagged employees"}>
+                          <Button size="small" variant="text"
+                            onClick={() => toggleExpandTemplate(r.template_id)}
+                            startIcon={<PeopleIcon fontSize="small" />}
+                            endIcon={isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                            sx={{ textTransform: "none", color: "#1976d2", fontWeight: 600, fontSize: "13px", px: 1 }}>
+                            {Number(r.tagged_employee_count || 0)} Employee
+                            {Number(r.tagged_employee_count || 0) !== 1 ? "s" : ""}
+                          </Button>
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell sx={{ border: `1px solid ${borderColor}` }}>
+                        {r.is_active ? "Yes" : "No"}
+                      </TableCell>
+
+                      <TableCell sx={{ width: "220px", border: `1px solid ${borderColor}` }}>
+                        <Box sx={{ display: "flex", gap: 1 }}>
+                          <Button variant="contained" size="small" onClick={() => handleEdit(r)}
+                            sx={{
+                              backgroundColor: "green", color: "white", borderRadius: "5px",
+                              padding: "8px 14px", width: "100px", height: "40px",
+                              display: "flex", alignItems: "center", gap: "5px"
+                            }}>
+                            <EditIcon fontSize="small" /> Edit
+                          </Button>
+                          <Button variant="contained" size="small"
+                            onClick={() => { setTemplateToDelete(r); setOpenDeleteDialog(true); }}
+                            sx={{
+                              backgroundColor: "#9E0000", color: "white", borderRadius: "5px",
+                              padding: "8px 14px", width: "100px", height: "40px",
+                              display: "flex", alignItems: "center", gap: "5px"
+                            }}>
+                            <DeleteIcon fontSize="small" /> Delete
+                          </Button>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+
+                    {/* Expandable tagged-employees sub-table */}
+                    <TableRow>
+                      <TableCell colSpan={7} sx={{ p: 0, border: `1px solid ${borderColor}` }}>
+                        <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                          <Box sx={{ p: 2, backgroundColor: "#f5f5f5" }}>
+
+                            {/* Sub-table header label */}
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                              <PeopleIcon sx={{ color: settings?.header_color || "#1976d2", fontSize: 18 }} />
+                              <Typography fontSize="13px" fontWeight={700} color={settings?.header_color || "#1976d2"}>
+                                Tagged Employees — {r.sender_name}
+                              </Typography>
+                              <Chip label={tagged.length} size="small"
+                                sx={{ backgroundColor: settings?.header_color || "#1976d2", color: "white", fontSize: "11px", height: 20 }} />
+                            </Box>
+
+                            {isLoadingTagged ? (
+                              <Typography fontSize="13px" color="text.secondary">Loading employees…</Typography>
+                            ) : tagged.length === 0 ? (
+                              <Box sx={{
+                                py: 2, textAlign: "center", border: `1px dashed ${borderColor}`,
+                                borderRadius: 1, backgroundColor: "#fff"
+                              }}>
+                                <Typography fontSize="13px" color="text.secondary">
+                                  No employees tagged yet.
                                 </Typography>
-                              ) : taggedEmployees.length === 0 ? (
-                                <Box
+                                <Button size="small" variant="outlined"
                                   sx={{
-                                    py: 2,
-                                    textAlign: "center",
-                                    border: "1px dashed #b0bec5",
-                                    borderRadius: 1,
-                                    backgroundColor: "#f9f9f9",
+                                    mt: 1, textTransform: "none", fontSize: "12px",
+                                    borderColor: settings?.header_color || "#1976d2",
+                                    color: settings?.header_color || "#1976d2"
                                   }}
-                                >
-                                  <Typography
-                                    fontSize="13px"
-                                    color="text.secondary"
-                                  >
-                                    No employees tagged to this template yet.
-                                  </Typography>
-                                  <Button
-                                    size="small"
-                                    variant="outlined"
-                                    startIcon={<GroupAddIcon />}
-                                    sx={{
-                                      mt: 1,
-                                      textTransform: "none",
-                                      fontSize: "12px",
-                                    }}
-                                    onClick={() => handleOpenTagDialog(r)}
-                                  >
-                                    Tag Employees
-                                  </Button>
-                                </Box>
-                              ) : (
-                                <Table
-                                  size="small"
-                                  sx={{
-                                    border: `1px solid #ccc`,
-                                    borderRadius: 1,
-                                  }}
-                                >
-                                  <TableHead>
-                                    <TableRow
-                                      sx={{ backgroundColor: "#1976d2" }}
-                                    >
-                                      <TableCell
+                                  onClick={() => handleEdit(r)}>
+                                  Edit to Tag Employees
+                                </Button>
+                              </Box>
+                            ) : (
+                              <Table size="small" sx={{ border: `1px solid ${borderColor}` }}>
+                                <TableHead>
+                                  <TableRow sx={{ backgroundColor: settings?.header_color || "#1976d2" }}>
+                                    {["#", "Employee ID", "Name", "Email", "Position", "Action"].map((h) => (
+                                      <TableCell key={h} align={h === "Action" ? "center" : "left"}
                                         sx={{
-                                          color: "white",
-                                          fontWeight: 700,
-                                          fontSize: "12px",
-                                          border: "1px solid #90CAF9",
-                                          py: 0.8,
-                                        }}
-                                      >
-                                        #
+                                          color: "black", fontWeight: 700, fontSize: "12px",
+                                          border: `1px solid ${borderColor}`, py: 0.8,
+                                          ...(h === "Action" ? { width: 100 } : {})
+                                        }}>
+                                        {h}
                                       </TableCell>
-                                      <TableCell
-                                        sx={{
-                                          color: "white",
-                                          fontWeight: 700,
-                                          fontSize: "12px",
-                                          border: "1px solid #90CAF9",
-                                          py: 0.8,
-                                        }}
-                                      >
-                                        Employee ID
+                                    ))}
+                                  </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                  {tagged.map((emp, ei) => (
+                                    <TableRow key={emp.employee_id}
+                                      sx={{ backgroundColor: ei % 2 === 0 ? "#ffffff" : "lightgray" }}>
+                                      <TableCell sx={{ fontSize: "12px", border: `1px solid ${borderColor}`, py: 0.7 }}>{ei + 1}</TableCell>
+                                      <TableCell sx={{ fontSize: "12px", border: `1px solid ${borderColor}`, py: 0.7 }}>{emp.employee_id}</TableCell>
+                                      <TableCell sx={{ fontSize: "12px", border: `1px solid ${borderColor}`, py: 0.7 }}>
+                                        {[emp.last_name, emp.first_name, emp.middle_name].filter(Boolean).join(", ") || "—"}
                                       </TableCell>
-                                      <TableCell
-                                        sx={{
-                                          color: "white",
-                                          fontWeight: 700,
-                                          fontSize: "12px",
-                                          border: "1px solid #90CAF9",
-                                          py: 0.8,
-                                        }}
-                                      >
-                                        Name
-                                      </TableCell>
-                                      <TableCell
-                                        sx={{
-                                          color: "white",
-                                          fontWeight: 700,
-                                          fontSize: "12px",
-                                          border: "1px solid #90CAF9",
-                                          py: 0.8,
-                                        }}
-                                      >
-                                        Email
-                                      </TableCell>
-                                      <TableCell
-                                        sx={{
-                                          color: "white",
-                                          fontWeight: 700,
-                                          fontSize: "12px",
-                                          border: "1px solid #90CAF9",
-                                          py: 0.8,
-                                        }}
-                                      >
-                                        Position
-                                      </TableCell>
-                                      <TableCell
-                                        align="center"
-                                        sx={{
-                                          color: "white",
-                                          fontWeight: 700,
-                                          fontSize: "12px",
-                                          border: "1px solid #90CAF9",
-                                          py: 0.8,
-                                          width: 100,
-                                        }}
-                                      >
-                                        Action
+                                      <TableCell sx={{ fontSize: "12px", border: `1px solid ${borderColor}`, py: 0.7 }}>{emp.email || "—"}</TableCell>
+                                      <TableCell sx={{ fontSize: "12px", border: `1px solid ${borderColor}`, py: 0.7 }}>{emp.position || "—"}</TableCell>
+                                      <TableCell align="center" sx={{ border: `1px solid ${borderColor}`, py: 0.7 }}>
+                                        <Tooltip title="Remove from template">
+                                          <Button variant="contained" size="small"
+                                            startIcon={<PersonRemoveIcon fontSize="small" />}
+                                            sx={{
+                                              backgroundColor: "#9E0000", color: "white", fontSize: "11px",
+                                              textTransform: "none", height: 30, px: 1.5,
+                                              "&:hover": { backgroundColor: "#7b0000" }
+                                            }}
+                                            onClick={() => handleOpenUntagDialog(r, emp)}>
+                                            Remove
+                                          </Button>
+                                        </Tooltip>
                                       </TableCell>
                                     </TableRow>
-                                  </TableHead>
-                                  <TableBody>
-                                    {taggedEmployees.map((emp, empIndex) => {
-                                      const fullName =
-                                        [
-                                          emp.last_name,
-                                          emp.first_name,
-                                          emp.middle_name,
-                                        ]
-                                          .filter(Boolean)
-                                          .join(", ") || "—";
-                                      return (
-                                        <TableRow
-                                          key={emp.employee_id}
-                                          sx={{
-                                            backgroundColor:
-                                              empIndex % 2 === 0
-                                                ? "#ffffff"
-                                                : "#e3f2fd",
-                                            "&:hover": {
-                                              backgroundColor: "#bbdefb",
-                                            },
-                                          }}
-                                        >
-                                          <TableCell
-                                            sx={{
-                                              fontSize: "12px",
-                                              border: "1px solid #cfd8dc",
-                                              py: 0.7,
-                                            }}
-                                          >
-                                            {empIndex + 1}
-                                          </TableCell>
-                                          <TableCell
-                                            sx={{
-                                              fontSize: "12px",
-                                              border: "1px solid #cfd8dc",
-                                              py: 0.7,
-                                            }}
-                                          >
-                                            {emp.employee_id}
-                                          </TableCell>
-                                          <TableCell
-                                            sx={{
-                                              fontSize: "12px",
-                                              border: "1px solid #cfd8dc",
-                                              py: 0.7,
-                                            }}
-                                          >
-                                            {fullName}
-                                          </TableCell>
-                                          <TableCell
-                                            sx={{
-                                              fontSize: "12px",
-                                              border: "1px solid #cfd8dc",
-                                              py: 0.7,
-                                            }}
-                                          >
-                                            {emp.email || "—"}
-                                          </TableCell>
-                                          <TableCell
-                                            sx={{
-                                              fontSize: "12px",
-                                              border: "1px solid #cfd8dc",
-                                              py: 0.7,
-                                            }}
-                                          >
-                                            {emp.position || "—"}
-                                          </TableCell>
-                                          <TableCell
-                                            align="center"
-                                            sx={{
-                                              border: "1px solid #cfd8dc",
-                                              py: 0.7,
-                                            }}
-                                          >
-                                            <Tooltip title="Remove from template">
-                                              <Button
-                                                variant="contained"
-                                                size="small"
-                                                startIcon={
-                                                  <PersonRemoveIcon fontSize="small" />
-                                                }
-                                                sx={{
-                                                  backgroundColor: "#9E0000",
-                                                  color: "white",
-                                                  fontSize: "11px",
-                                                  textTransform: "none",
-                                                  height: 30,
-                                                  px: 1.5,
-                                                  "&:hover": {
-                                                    backgroundColor: "#7b0000",
-                                                  },
-                                                }}
-                                                onClick={() =>
-                                                  handleOpenUntagDialog(r, emp)
-                                                }
-                                              >
-                                                Remove
-                                              </Button>
-                                            </Tooltip>
-                                          </TableCell>
-                                        </TableRow>
-                                      );
-                                    })}
-                                  </TableBody>
-                                </Table>
-                              )}
-                            </Box>
-                          </Collapse>
-                        </TableCell>
-                      </TableRow>
-                    </React.Fragment>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </Box>
-      </Grid>
-
-      {/* ── Bottom pagination bar ── */}
-      <TableContainer component={Paper} sx={{ width: "100%" }}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>{paginationBar}</TableRow>
-          </TableHead>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            )}
+                          </Box>
+                        </Collapse>
+                      </TableCell>
+                    </TableRow>
+                  </React.Fragment>
+                );
+              })
+            )}
+          </TableBody>
         </Table>
+      </Box>
+
+      {/* Bottom pagination */}
+      <TableContainer component={Paper} sx={{ width: "100%" }}>
+        <Table size="small"><TableHead><TableRow><PaginationControls showAddButton={false} /></TableRow></TableHead></Table>
       </TableContainer>
 
-      {/* ── Delete Template Dialog ── */}
-      <Dialog
-        open={openDeleteDialog}
-        onClose={() => setOpenDeleteDialog(false)}
-      >
+      {/* ── Delete Dialog ── */}
+      <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
         <DialogTitle>Confirm Delete Template</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete the email template{" "}
-            <b>{templateToDelete?.sender_name}</b>?
+            Are you sure you want to delete <b>{templateToDelete?.sender_name}</b>?
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button
-            color="error"
-            variant="outlined"
-            onClick={() => setOpenDeleteDialog(false)}
-          >
-            Cancel
-          </Button>
-          <Button
-            color="error"
-            variant="contained"
-            onClick={() => {
-              handleDelete(templateToDelete.template_id);
-              setOpenDeleteDialog(false);
-              setTemplateToDelete(null);
-            }}
-          >
-            Yes, Delete
-          </Button>
+          <Button color="error" variant="outlined" onClick={() => setOpenDeleteDialog(false)}>Cancel</Button>
+          <Button color="error" variant="contained" onClick={() => {
+            handleDelete(templateToDelete.template_id);
+            setOpenDeleteDialog(false);
+            setTemplateToDelete(null);
+          }}>Yes, Delete</Button>
         </DialogActions>
       </Dialog>
 
-      {/* ── Untag Employee Confirmation Dialog ── */}
+      {/* ── Untag Dialog ── */}
       <Dialog open={openUntagDialog} onClose={() => setOpenUntagDialog(false)}>
         <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <PersonRemoveIcon sx={{ color: "#9E0000" }} />
-          Remove Tagged Employee
+          <PersonRemoveIcon sx={{ color: "#9E0000" }} /> Remove Tagged Employee
         </DialogTitle>
         <DialogContent>
           <Typography>
-            Remove <b>{untagTarget?.employeeName}</b> from the email template{" "}
-            <b>{untagTarget?.templateName}</b>?
+            Remove <b>{untagTarget?.employeeName}</b> from <b>{untagTarget?.templateName}</b>?
           </Typography>
           <Typography fontSize="13px" color="text.secondary" sx={{ mt: 1 }}>
-            This employee will no longer receive emails sent through this
-            template.
+            This employee will no longer receive emails sent through this template.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button
-            color="error"
-            variant="outlined"
-            onClick={() => {
-              setOpenUntagDialog(false);
-              setUntagTarget(null);
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            color="error"
-            variant="contained"
-            startIcon={<PersonRemoveIcon />}
-            onClick={handleConfirmUntag}
-          >
+          <Button color="error" variant="outlined"
+            onClick={() => { setOpenUntagDialog(false); setUntagTarget(null); }}>Cancel</Button>
+          <Button color="error" variant="contained" startIcon={<PersonRemoveIcon />} onClick={handleConfirmUntag}>
             Yes, Remove
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* ── Add / Edit Template Dialog ── */}
-      <Dialog
-        open={openFormDialog}
-        onClose={() => setOpenFormDialog(false)}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: { borderRadius: 3, overflow: "hidden", boxShadow: 6 },
-        }}
-      >
-        <DialogTitle
-          sx={{
-            background: settings?.header_color || "#1976d2",
-            color: "#fff",
-            fontWeight: 700,
-            fontSize: "1.2rem",
-            py: 2,
-          }}
-        >
+      {/* ── Add / Edit Dialog ── */}
+      <Dialog open={openFormDialog} onClose={() => { setOpenFormDialog(false); resetForm(); setEditing(null); }}
+        maxWidth="md" fullWidth
+        PaperProps={{ sx: { borderRadius: 3, overflow: "hidden", boxShadow: 6 } }}>
+
+        <DialogTitle sx={{
+          background: settings?.header_color || "#1976d2", color: "#fff",
+          fontWeight: 700, fontSize: "1.2rem", py: 2
+        }}>
           {editing ? "Edit Email Template" : "New Email Registration"}
         </DialogTitle>
 
         <DialogContent sx={{ p: 3 }}>
-          <Typography
-            variant="subtitle1"
-            fontWeight={700}
-            sx={{ mb: 2, mt: 1 }}
-          >
-            Email Account Details
-          </Typography>
-
           <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Sender Name"
+
+            {/* ── Sender Name ── */}
+            <Grid item xs={12} mt={2}>
+              <Typography fontWeight={700} mb={1}>Email Account Details</Typography>
+              <TextField fullWidth label="Sender Name (Gmail Account)"
                 value={form.sender_name}
-                onChange={(e) =>
-                  setForm({ ...form, sender_name: e.target.value })
-                }
-              />
+                onChange={(e) => setForm({ ...form, sender_name: e.target.value })} />
             </Grid>
 
-            <Grid item xs={12}>
-              <TextField
-                select
-                fullWidth
-                label="Department"
-                value={form.department_id || ""}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    department_id: e.target.value,
-                    program_id: "",
-                  })
-                }
-              >
-                <MenuItem value="">Select Department</MenuItem>
-                {departments.map((d) => (
-                  <MenuItem key={d.dprtmnt_id} value={d.dprtmnt_id}>
-                    {d.dprtmnt_name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-
-            <Grid item xs={12}>
-              <TextField
-                select
-                fullWidth
-                label="Program"
-                value={form.program_id || ""}
-                onChange={(e) =>
-                  setForm({ ...form, program_id: e.target.value })
-                }
-                disabled={!form.department_id}
-              >
-                <MenuItem value="">Select Program</MenuItem>
-                {filteredPrograms.map((program) => (
-                  <MenuItem
-                    key={program.curriculum_id}
-                    value={program.curriculum_id}
-                  >
-                    {getProgramLabel(program)}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-
+            {/* ── Active toggle ── */}
             <Grid item xs={12}>
               <FormControlLabel
-                control={
-                  <Switch
-                    checked={form.is_active}
-                    onChange={(e) =>
-                      setForm({ ...form, is_active: e.target.checked })
-                    }
-                  />
-                }
-                label="Active"
+                control={<Switch checked={form.is_active}
+                  onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />}
+                label="Active" />
+            </Grid>
+
+            {/* ══════════════════════════════════════════════════════════════
+                PROGRAMS — collapsible dept accordion (same as RegisterRegistrar scopes)
+            ══════════════════════════════════════════════════════════════ */}
+            <Grid item xs={12}>
+              <Typography fontWeight={700} mb={0.5}>Programs</Typography>
+              <Typography fontSize="13px" color="text.secondary" mb={1}>
+                Select programs from <b>any department</b>. Use search or expand departments below.
+              </Typography>
+
+              {/* Autocomplete quick-search across ALL curriculums */}
+              <Autocomplete
+                size="small"
+                options={activeCurriculums.filter((p) => !isProgramSelected(p))}
+                getOptionLabel={(p) => getProgramLabel(p)}
+                groupBy={(p) => {
+                  const dept = departments.find((d) => String(d.dprtmnt_id) === String(p.dprtmnt_id));
+                  return dept ? `${dept.dprtmnt_name} (${dept.dprtmnt_code || ""})` : "Other";
+                }}
+                onChange={(_, value) => {
+                  if (!value) return;
+                  const dept = departments.find((d) => String(d.dprtmnt_id) === String(value.dprtmnt_id));
+                  if (!isProgramSelected(value)) {
+                    setSelectedPrograms((prev) => [
+                      ...prev,
+                      {
+                        curriculum_id: value.curriculum_id,
+                        dprtmnt_id: value.dprtmnt_id,
+                        program_code: value.program_code,
+                        program_description: value.program_description,
+                        major: value.major,
+                        dprtmnt_name: dept?.dprtmnt_name || "",
+                      },
+                    ]);
+                  }
+                }}
+                renderInput={(params) => (
+                  <TextField {...params} placeholder="Search program by name or code…"
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <>
+                          <SearchIcon sx={{ ml: 0.5, mr: 0.5, color: "gray", fontSize: 18 }} />
+                          {params.InputProps.startAdornment}
+                        </>
+                      ),
+                    }} />
+                )}
+                sx={{ mb: 2 }}
+                value={null}
+                blurOnSelect
+                clearOnBlur
               />
+
+              {/* Collapsible dept accordion for programs */}
+              {departments.map((dept) => {
+                const progs = uniqueProgramsForDept(dept.dprtmnt_id);
+                if (progs.length === 0) return null;
+
+                const checkedCount = progs.filter((p) => isProgramSelected(p)).length;
+                const allChecked = checkedCount === progs.length && progs.length > 0;
+                const isOpen = openProgDepts.has(dept.dprtmnt_id);
+
+                return (
+                  <Box key={dept.dprtmnt_id}
+                    sx={{ border: "1px solid #e0e0e0", borderRadius: 2, mb: 1, overflow: "hidden" }}>
+                    {/* Dept header */}
+                    <Box sx={{
+                      display: "flex", alignItems: "center", gap: 1,
+                      px: 1.5, py: 0.75, backgroundColor: "#f5f5f5", cursor: "pointer", userSelect: "none"
+                    }}>
+                      <Checkbox size="small" checked={allChecked}
+                        indeterminate={checkedCount > 0 && !allChecked}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          toggleDeptAllPrograms(dept, progs, e.target.checked);
+                        }} />
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}
+                        onClick={() => toggleProgDeptOpen(dept.dprtmnt_id)}>
+                        <Typography fontSize="13px" fontWeight={600} sx={{ flex: 1 }}>
+                          {dept.dprtmnt_name}
+                        </Typography>
+                        {dept.dprtmnt_code && <Chip label={dept.dprtmnt_code} size="small" />}
+                        {checkedCount > 0 && (
+                          <Chip label={`${checkedCount}/${progs.length}`} size="small" color="primary" />
+                        )}
+                        {isOpen
+                          ? <ExpandLessIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                          : <ExpandMoreIcon fontSize="small" sx={{ color: "text.secondary" }} />}
+                      </Box>
+                    </Box>
+
+                    {/* Program checkboxes */}
+                    {isOpen && (
+                      <Box sx={{ px: 2, py: 1, display: "grid", gap: 0.25 }}>
+                        {progs.map((p) => (
+                          <FormControlLabel key={p.curriculum_id} sx={{ m: 0 }}
+                            control={
+                              <Checkbox size="small" checked={isProgramSelected(p)}
+                                onChange={() => toggleProgram(p, dept.dprtmnt_name)} />
+                            }
+                            label={
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                <Typography fontSize="13px">{p.program_description}</Typography>
+                                <Typography fontSize="11px" color="text.secondary">
+                                  {p.program_code}{p.major ? ` (${p.major})` : ""}
+                                </Typography>
+                              </Box>
+                            } />
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })}
+
+              {/* Selected program chips */}
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 1 }}>
+                {selectedPrograms.length === 0 ? (
+                  <Typography fontSize="13px" color="text.secondary">No programs selected yet.</Typography>
+                ) : (
+                  selectedPrograms.map((p, idx) => (
+                    <Chip
+                      key={`${p.curriculum_id}-${p.dprtmnt_id}-${idx}`}
+                      label={`${p.dprtmnt_name ? p.dprtmnt_name + ": " : ""}${p.program_code}${p.major ? ` (${p.major})` : ""}`}
+                      size="small" color="primary" variant="outlined"
+                      onDelete={() => setSelectedPrograms((prev) =>
+                        prev.filter((_, i) => i !== idx)
+                      )}
+                      sx={{ fontSize: "11px" }} />
+                  ))
+                )}
+              </Box>
+            </Grid>
+
+            {/* ══════════════════════════════════════════════════════════════
+                EMPLOYEES — collapsible dept accordion (same pattern)
+            ══════════════════════════════════════════════════════════════ */}
+            <Grid item xs={12}>
+              <Typography fontWeight={700} mb={0.5}>Tag Employees</Typography>
+              <Typography fontSize="13px" color="text.secondary" mb={1}>
+                Tag employees from <b>any department</b>. Use search or expand departments below.
+              </Typography>
+
+              {/* Autocomplete quick-search */}
+              <Autocomplete
+                size="small"
+                options={allEmployees.filter((e) => !isEmployeeTagged(e))}
+                getOptionLabel={(e) => `${e.employee_id} - ${getEmployeeFullName(e)}`}
+                groupBy={(e) => {
+                  const dept = departments.find((d) => String(d.dprtmnt_id) === String(e.dprtmnt_id));
+                  return dept ? dept.dprtmnt_name : "Other";
+                }}
+                onChange={(_, value) => {
+                  if (!value) return;
+                  if (!isEmployeeTagged(value)) {
+                    const dept = departments.find((d) => String(d.dprtmnt_id) === String(value.dprtmnt_id));
+                    setTaggedEmployees((prev) => [
+                      ...prev,
+                      { ...value, dprtmnt_name: dept?.dprtmnt_name || "" },
+                    ]);
+                  }
+                }}
+                renderInput={(params) => (
+                  <TextField {...params} placeholder="Search employee by name or ID…"
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <>
+                          <SearchIcon sx={{ ml: 0.5, mr: 0.5, color: "gray", fontSize: 18 }} />
+                          {params.InputProps.startAdornment}
+                        </>
+                      ),
+                    }} />
+                )}
+                sx={{ mb: 2 }}
+                value={null}
+                blurOnSelect
+                clearOnBlur
+              />
+
+              {/* Collapsible dept accordion for employees */}
+              {departments.map((dept) => {
+                const emps = employeesByDept[dept.dprtmnt_id];
+                if (!emps || emps.length === 0) return null;
+
+                const checkedCount = emps.filter((e) => isEmployeeTagged(e)).length;
+                const allChecked = checkedCount === emps.length;
+                const isOpen = openEmpDepts.has(dept.dprtmnt_id);
+
+                return (
+                  <Box key={dept.dprtmnt_id}
+                    sx={{ border: "1px solid #e0e0e0", borderRadius: 2, mb: 1, overflow: "hidden" }}>
+                    <Box sx={{
+                      display: "flex", alignItems: "center", gap: 1,
+                      px: 1.5, py: 0.75, backgroundColor: "#f5f5f5", cursor: "pointer", userSelect: "none"
+                    }}>
+                      <Checkbox size="small" checked={allChecked}
+                        indeterminate={checkedCount > 0 && !allChecked}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          toggleDeptAllEmployees(dept.dprtmnt_id, dept.dprtmnt_name, emps, e.target.checked);
+                        }} />
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}
+                        onClick={() => toggleEmpDeptOpen(dept.dprtmnt_id)}>
+                        <Typography fontSize="13px" fontWeight={600} sx={{ flex: 1 }}>
+                          {dept.dprtmnt_name}
+                        </Typography>
+                        {dept.dprtmnt_code && <Chip label={dept.dprtmnt_code} size="small" />}
+                        {checkedCount > 0 && (
+                          <Chip label={`${checkedCount}/${emps.length}`} size="small" color="primary" />
+                        )}
+                        {isOpen
+                          ? <ExpandLessIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                          : <ExpandMoreIcon fontSize="small" sx={{ color: "text.secondary" }} />}
+                      </Box>
+                    </Box>
+
+                    {isOpen && (
+                      <Box sx={{ px: 2, py: 1, display: "grid", gap: 0.25 }}>
+                        {emps.map((emp) => (
+                          <FormControlLabel key={emp.employee_id} sx={{ m: 0 }}
+                            control={
+                              <Checkbox size="small" checked={isEmployeeTagged(emp)}
+                                onChange={() => toggleEmployee(emp, dept.dprtmnt_name)} />
+                            }
+                            label={
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                <Typography fontSize="13px">{getEmployeeFullName(emp)}</Typography>
+                                <Typography fontSize="11px" color="text.secondary">{emp.employee_id}</Typography>
+                              </Box>
+                            } />
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })}
+
+              {/* Unassigned employees */}
+              {unassignedEmployees.length > 0 && (
+                <Box sx={{ border: "1px solid #e0e0e0", borderRadius: 2, mb: 1, overflow: "hidden" }}>
+                  <Box sx={{
+                    display: "flex", alignItems: "center", gap: 1,
+                    px: 1.5, py: 0.75, backgroundColor: "#f5f5f5", cursor: "pointer"
+                  }}
+                    onClick={() => toggleEmpDeptOpen("__unassigned__")}>
+                    <Typography fontSize="13px" fontWeight={600} sx={{ flex: 1 }}>Other / Unassigned</Typography>
+                    {openEmpDepts.has("__unassigned__")
+                      ? <ExpandLessIcon fontSize="small" />
+                      : <ExpandMoreIcon fontSize="small" />}
+                  </Box>
+                  {openEmpDepts.has("__unassigned__") && (
+                    <Box sx={{ px: 2, py: 1, display: "grid", gap: 0.25 }}>
+                      {unassignedEmployees.map((emp) => (
+                        <FormControlLabel key={emp.employee_id} sx={{ m: 0 }}
+                          control={
+                            <Checkbox size="small" checked={isEmployeeTagged(emp)}
+                              onChange={() => toggleEmployee(emp, "Other")} />
+                          }
+                          label={
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                              <Typography fontSize="13px">{getEmployeeFullName(emp)}</Typography>
+                              <Typography fontSize="11px" color="text.secondary">{emp.employee_id}</Typography>
+                            </Box>
+                          } />
+                      ))}
+                    </Box>
+                  )}
+                </Box>
+              )}
+
+              {/* Selected employee chips */}
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 1 }}>
+                {taggedEmployees.length === 0 ? (
+                  <Typography fontSize="13px" color="text.secondary">No employees tagged yet.</Typography>
+                ) : (
+                  taggedEmployees.map((emp) => (
+                    <Chip key={emp.employee_id}
+                      label={`${emp.dprtmnt_name ? emp.dprtmnt_name + ": " : ""}${getEmployeeFullName(emp)}`}
+                      size="small" color="primary" variant="outlined"
+                      onDelete={() => setTaggedEmployees((prev) =>
+                        prev.filter((e) => String(e.employee_id) !== String(emp.employee_id))
+                      )}
+                      sx={{ fontSize: "11px" }} />
+                  ))
+                )}
+              </Box>
             </Grid>
           </Grid>
         </DialogContent>
 
         <DialogActions sx={{ px: 3, py: 2, borderTop: "1px solid #e0e0e0" }}>
-          <Button
-            onClick={() => setOpenFormDialog(false)}
-            color="error"
-            variant="outlined"
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            sx={{ px: 4, fontWeight: 600, textTransform: "none" }}
+          <Button onClick={() => { setOpenFormDialog(false); resetForm(); setEditing(null); }}
+            color="error" variant="outlined">Cancel</Button>
+          <Button variant="contained" sx={{ px: 4, fontWeight: 600, textTransform: "none" }}
             onClick={async () => {
-              const saved = editing ? await handleUpdate() : await handleAdd();
+              const saved = await handleSave();
               if (saved) setOpenFormDialog(false);
-            }}
-          >
-            <SaveIcon fontSize="small" /> Save
+            }}>
+            <SaveIcon fontSize="small" sx={{ mr: 0.5 }} /> Save
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* ── Tag Employees Dialog ── */}
-      <Dialog
-        open={openTagDialog}
-        onClose={() => setOpenTagDialog(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle
-          sx={{
-            background: settings?.header_color || "#1976d2",
-            color: "#fff",
-            fontWeight: 700,
-          }}
-        >
-          Tag Employees
-        </DialogTitle>
-        <DialogContent sx={{ p: 3 }}>
-          <Typography fontWeight={700} sx={{ mb: 1, mt: 1 }}>
-            {taggingTemplate?.sender_name || ""}
-          </Typography>
-          <Typography sx={{ mb: 2 }}>
-            {taggingTemplate?.department_name || "N/A"} —{" "}
-            {taggingTemplate?.program_code
-              ? `${taggingTemplate.program_code} - ${taggingTemplate.program_description || ""}`
-              : "N/A"}
-          </Typography>
-          <Typography fontSize="13px" color="text.secondary" sx={{ mb: 2 }}>
-            Only employees assigned to this department/program can be tagged.
-          </Typography>
-
-          <FormControl fullWidth>
-            <InputLabel id="tag-employees-label">Employees</InputLabel>
-            <Select
-              labelId="tag-employees-label"
-              multiple
-              label="Employees"
-              value={selectedEmployeeIds}
-              onChange={(e) => {
-                const value = e.target.value;
-                setSelectedEmployeeIds(
-                  typeof value === "string" ? value.split(",") : value,
-                );
-              }}
-              renderValue={(selected) =>
-                selected.length === 0
-                  ? ""
-                  : `${selected.length} employee${selected.length === 1 ? "" : "s"} selected`
-              }
-              MenuProps={{ PaperProps: { sx: { maxHeight: 360 } } }}
-            >
-              {employees.length === 0 ? (
-                <MenuItem disabled value="">
-                  No eligible employees for this template
-                </MenuItem>
-              ) : (
-                employees.map((employee) => (
-                  <MenuItem
-                    key={employee.employee_id}
-                    value={String(employee.employee_id)}
-                  >
-                    <Checkbox
-                      checked={selectedEmployeeIds.includes(
-                        String(employee.employee_id),
-                      )}
-                    />
-                    <ListItemText
-                      primary={getEmployeeLabel(employee.employee_id)}
-                    />
-                  </MenuItem>
-                ))
-              )}
-            </Select>
-          </FormControl>
-
-          <Box sx={{ mt: 2, maxHeight: 160, overflowY: "auto" }}>
-            {selectedEmployeeIds.map((employeeId) => (
-              <Typography key={employeeId} fontSize="13px">
-                {getEmployeeLabel(employeeId)}
-              </Typography>
-            ))}
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2, borderTop: "1px solid #e0e0e0" }}>
-          <Button
-            onClick={() => setOpenTagDialog(false)}
-            color="error"
-            variant="outlined"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSaveTaggedEmployees}
-            variant="contained"
-            sx={{ px: 4, fontWeight: 600, textTransform: "none" }}
-          >
-            <SaveIcon fontSize="small" /> Save
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ── Snackbar ── */}
-      <Snackbar
-        open={snack.open}
-        autoHideDuration={4000}
-        onClose={handleCloseSnack}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-      >
-        <Alert
-          severity={snack.severity}
-          onClose={handleCloseSnack}
-          sx={{ width: "100%" }}
-        >
+      {/* Snackbar */}
+      <Snackbar open={snack.open} autoHideDuration={4000} onClose={handleCloseSnack}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}>
+        <Alert severity={snack.severity} onClose={handleCloseSnack} sx={{ width: "100%" }}>
           {snack.message}
         </Alert>
       </Snackbar>

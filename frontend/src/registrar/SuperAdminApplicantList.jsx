@@ -1986,7 +1986,7 @@ const SuperAdminApplicantList = () => {
                   }}
                 >
                   <Checkbox
-                    disabled
+                  
                     checked={Number(person.submitted_documents) === 1}
                     onChange={(e) => {
                       const checked = e.target.checked;
