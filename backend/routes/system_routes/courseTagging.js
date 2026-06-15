@@ -2,6 +2,7 @@
 const webtoken = require("jsonwebtoken");
 const { db3 } = require("../database/database");
 const { insertAuditLogEnrollment } = require("../../utils/auditLogger");
+const { resolveStudentScopeForEmployee } = require("../../utils/registrarScopeService");
 
 const router = express.Router();
 
@@ -968,6 +969,35 @@ router.post("/student-tagging", async (req, res) => {
   }
 });
 
+router.post("/registrar/resolve-student-scope", async (req, res) => {
+  const { studentNumber, active_school_year_id, employee_id } = req.body;
+
+  if (!studentNumber) {
+    return res.status(400).json({ message: "Student number is required." });
+  }
+
+  const employeeId =
+    employee_id ||
+    req.headers["x-employee-id"] ||
+    req.headers["x-audit-actor-id"] ||
+    null;
+
+  try {
+    const result = await resolveStudentScopeForEmployee(employeeId, studentNumber, {
+      activeSchoolYearId: active_school_year_id,
+    });
+
+    if (result.error) {
+      return res.status(404).json({ message: result.error });
+    }
+
+    return res.json(result);
+  } catch (err) {
+    console.error("Failed to resolve student scope:", err);
+    return res.status(500).json({ message: "Failed to resolve student scope." });
+  }
+});
+
 // SEARCH STUDENT BY DEPARTMENT
 router.post("/student-tagging/dprtmnt", async (req, res) => {
   const { studentNumber, dprtmntId, active_school_year_id } = req.body;
@@ -1722,6 +1752,264 @@ router.post("/check-student-balance", async (req, res) => {
       hasBalance: false,
       balance: 0,
       message: "Error checking student balance.",
+    });
+  }
+});
+
+const loadStudentPrerequisiteGradeMap = async (studentNumber, courseIds = []) => {
+  const uniqueCourseIds = [...new Set(courseIds.filter(Boolean))];
+  if (!uniqueCourseIds.length) {
+    return new Map();
+  }
+
+  const placeholders = uniqueCourseIds.map(() => "?").join(", ");
+  const [rows] = await db3.query(
+    `
+    SELECT
+      course_id,
+      MAX(CASE WHEN en_remarks = 1 THEN 1 ELSE 0 END) AS has_pass,
+      MAX(CASE WHEN en_remarks = 2 THEN 1 ELSE 0 END) AS has_fail
+    FROM enrolled_subject
+    WHERE student_number = ? AND course_id IN (${placeholders})
+    GROUP BY course_id
+    `,
+    [studentNumber, ...uniqueCourseIds],
+  );
+
+  return new Map(rows.map((row) => [row.course_id, row]));
+};
+
+const evaluatePrerequisiteForCourse = ({
+  courseMeta,
+  semesterId,
+  curriculumId,
+  gradeMap,
+  tagSemesterMap,
+  prereqByCode,
+}) => {
+  const { course_code: courseCode, prereq } = courseMeta;
+
+  if (!prereq || String(prereq).trim() === "") {
+    return {
+      allowed: true,
+      status: "NO_PREREQ",
+      message: `Course ${courseCode} has no prerequisite.`,
+      failedPrereq: [],
+      missingPrereq: [],
+    };
+  }
+
+  const prereqCodes = String(prereq)
+    .split(",")
+    .map((code) => code.trim())
+    .filter(Boolean);
+
+  if (prereqCodes.length === 0) {
+    return {
+      allowed: true,
+      status: "NO_PREREQ",
+      message: `Course ${courseCode} has no prerequisite (empty prereq field).`,
+      failedPrereq: [],
+      missingPrereq: [],
+    };
+  }
+
+  const prereqCourses = prereqCodes
+    .map((code) => prereqByCode.get(code))
+    .filter(Boolean);
+
+  if (!prereqCourses.length) {
+    return {
+      allowed: true,
+      status: "PREREQ_NOT_FOUND",
+      message:
+        "Prerequisite course codes do not exist in course_table. Enrollment is allowed but please verify your curriculum data.",
+      failedPrereq: [],
+      missingPrereq: [],
+    };
+  }
+
+  let applicablePrereqCourses = prereqCourses;
+
+  if (semesterId && curriculumId) {
+    applicablePrereqCourses = prereqCourses.filter((prereqCourse) => {
+      const prereqSemesterId = tagSemesterMap.get(prereqCourse.course_id);
+      if (!prereqSemesterId) return true;
+      return Number(prereqSemesterId) < Number(semesterId);
+    });
+
+    if (applicablePrereqCourses.length === 0) {
+      return {
+        allowed: true,
+        status: "NO_APPLICABLE_PREREQ",
+        message: "Prerequisites are not applicable for the selected semester.",
+        failedPrereq: [],
+        missingPrereq: [],
+      };
+    }
+  }
+
+  const failedPrereq = [];
+  const missingPrereq = [];
+
+  for (const prereqCourse of applicablePrereqCourses) {
+    const grade = gradeMap.get(prereqCourse.course_id) || {};
+    const hasPass = Number(grade.has_pass) === 1;
+    const hasFail = Number(grade.has_fail) === 1;
+
+    if (!hasPass && hasFail) {
+      failedPrereq.push(prereqCourse.course_code);
+    } else if (!hasPass && !hasFail) {
+      missingPrereq.push(prereqCourse.course_code);
+    }
+  }
+
+  if (failedPrereq.length > 0) {
+    return {
+      allowed: false,
+      status: "FAILED_PREREQ",
+      failedPrereq,
+      missingPrereq,
+      message: `Student has FAILED prerequisite(s): ${failedPrereq.join(
+        ", ",
+      )}. They must PASS these before enrolling in ${courseCode}.`,
+    };
+  }
+
+  if (missingPrereq.length > 0) {
+    return {
+      allowed: false,
+      status: "MISSING_PREREQ",
+      failedPrereq,
+      missingPrereq,
+      message: `Student must FIRST ENROLL and PASS prerequisite(s): ${missingPrereq.join(
+        ", ",
+      )} before taking ${courseCode}.`,
+    };
+  }
+
+  return {
+    allowed: true,
+    status: "OK",
+    failedPrereq: [],
+    missingPrereq: [],
+    message: `All prerequisites satisfied for ${courseCode}.`,
+  };
+};
+
+router.post("/check-prerequisites-batch", async (req, res) => {
+  try {
+    const { student_number, curriculum_id, courses } = req.body;
+
+    if (!student_number || !Array.isArray(courses) || courses.length === 0) {
+      return res.status(400).json({
+        message: "student_number and courses are required.",
+      });
+    }
+
+    const courseIds = courses
+      .map((course) => course?.course_id)
+      .filter((courseId) => courseId !== null && courseId !== undefined && courseId !== "");
+
+    if (!courseIds.length) {
+      return res.status(400).json({
+        message: "At least one valid course_id is required.",
+      });
+    }
+
+    const coursePlaceholders = courseIds.map(() => "?").join(", ");
+    const [courseRows] = await db3.query(
+      `SELECT course_id, course_code, prereq FROM course_table WHERE course_id IN (${coursePlaceholders})`,
+      courseIds,
+    );
+    const courseMetaMap = new Map(
+      courseRows.map((row) => [String(row.course_id), row]),
+    );
+
+    const prereqCodes = new Set();
+    for (const row of courseRows) {
+      if (!row.prereq || String(row.prereq).trim() === "") continue;
+      String(row.prereq)
+        .split(",")
+        .map((code) => code.trim())
+        .filter(Boolean)
+        .forEach((code) => prereqCodes.add(code));
+    }
+
+    let prereqCourseRows = [];
+    if (prereqCodes.size > 0) {
+      const codePlaceholders = [...prereqCodes].map(() => "?").join(", ");
+      [prereqCourseRows] = await db3.query(
+        `SELECT course_id, course_code FROM course_table WHERE course_code IN (${codePlaceholders})`,
+        [...prereqCodes],
+      );
+    }
+
+    const prereqByCode = new Map(
+      prereqCourseRows.map((row) => [row.course_code, row]),
+    );
+
+    let tagSemesterMap = new Map();
+    if (curriculum_id && prereqCourseRows.length > 0) {
+      const prereqCourseIds = prereqCourseRows.map((row) => row.course_id);
+      const tagPlaceholders = prereqCourseIds.map(() => "?").join(", ");
+      const [tagRows] = await db3.query(
+        `
+        SELECT course_id, semester_id
+        FROM program_tagging_table
+        WHERE curriculum_id = ? AND course_id IN (${tagPlaceholders})
+        `,
+        [curriculum_id, ...prereqCourseIds],
+      );
+      tagSemesterMap = new Map(
+        tagRows.map((row) => [row.course_id, row.semester_id]),
+      );
+    }
+
+    const gradeMap = await loadStudentPrerequisiteGradeMap(
+      student_number,
+      prereqCourseRows.map((row) => row.course_id),
+    );
+
+    const results = {};
+    for (const course of courses) {
+      const courseId = String(course.course_id);
+      const courseMeta = courseMetaMap.get(courseId);
+
+      if (!courseMeta) {
+        results[courseId] = {
+          allowed: false,
+          status: "COURSE_NOT_FOUND",
+          message: "Course not found in course_table.",
+          failedPrereq: [],
+          missingPrereq: [],
+          hasPrereq: false,
+        };
+        continue;
+      }
+
+      const evaluation = evaluatePrerequisiteForCourse({
+        courseMeta,
+        semesterId: course.semester_id,
+        curriculumId: curriculum_id,
+        gradeMap,
+        tagSemesterMap,
+        prereqByCode,
+      });
+
+      results[courseId] = {
+        ...evaluation,
+        hasPrereq: !["NO_PREREQ", "PREREQ_NOT_FOUND", "NO_APPLICABLE_PREREQ"].includes(
+          evaluation.status,
+        ),
+      };
+    }
+
+    return res.json({ results });
+  } catch (err) {
+    console.error("Error in /check-prerequisites-batch:", err);
+    return res.status(500).json({
+      message: err.message,
     });
   }
 });

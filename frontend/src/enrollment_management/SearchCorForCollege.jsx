@@ -14,6 +14,7 @@ import {
     Paper,
     Snackbar,
     Alert,
+    Chip,
 } from "@mui/material";
 import '../styles/Print.css'
 import CertificateOfRegistrationForCollege from "./CertificateOfRegistrationForCollege";
@@ -33,7 +34,11 @@ import LoadingOverlay from "../components/LoadingOverlay"
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
-import { isRegistrarCurriculumMatch } from "../utils/registrarCurriculumRestriction";
+import {
+    getDepartmentIdsFromAdminData,
+    resolveStudentRegistrarScope,
+    syncRegistrarScopeFromAdminData,
+} from "../utils/registrarCurriculumRestriction";
 import PersonSearchIcon from "@mui/icons-material/PersonSearch";
 import PersonIcon from "@mui/icons-material/Person";
 import { postAuditEvent } from "../utils/auditEvents";
@@ -113,6 +118,8 @@ const SearchCorForCollege = () => {
 
     const [employeeID, setEmployeeID] = useState("");
     const [dprtmntID, setDepartmentID] = useState("");
+    const [departments, setDepartments] = useState([]);
+    const [departmentLoading, setDepartmentLoading] = useState(true);
 
     useEffect(() => {
         const storedUser = localStorage.getItem("email");
@@ -138,13 +145,44 @@ const SearchCorForCollege = () => {
 
     useEffect(() => {
         const email = localStorage.getItem("email");
-
-        if (email) {
-            axios
-                .get(`${API_BASE_URL}/api/admin_data/${email}`)
-                .then((res) => setDepartmentID(res.data.dprtmnt_id))
-                .catch((err) => console.error("Failed to fetch admin data:", err));
+        if (!email) {
+            setDepartmentLoading(false);
+            return;
         }
+
+        const loadDepartments = async () => {
+            try {
+                const res = await axios.get(`${API_BASE_URL}/api/admin_data/${email}`);
+                syncRegistrarScopeFromAdminData(res.data);
+                const departmentIds = getDepartmentIdsFromAdminData(res.data);
+
+                if (!departmentIds.length) {
+                    setDepartments([]);
+                    setDepartmentID("");
+                    return;
+                }
+
+                const responses = await Promise.all(
+                    departmentIds.map((departmentId) =>
+                        axios.get(`${API_BASE_URL}/api/departments/${departmentId}`),
+                    ),
+                );
+                const mergedDepartments = responses.flatMap((response) => response.data || []);
+                const uniqueDepartments = [
+                    ...new Map(
+                        mergedDepartments.map((dep) => [String(dep.dprtmnt_id), dep]),
+                    ).values(),
+                ];
+
+                setDepartments(uniqueDepartments);
+            } catch (err) {
+                console.error("Failed to fetch admin data:", err);
+            } finally {
+                setDepartmentLoading(false);
+            }
+        };
+
+        loadDepartments();
     }, []);
 
     const checkAccess = async (employeeID) => {
@@ -281,39 +319,48 @@ const SearchCorForCollege = () => {
             return;
         }
 
+        if (departmentLoading) {
+            return;
+        }
+
         const fetchStudent = async () => {
             try {
                 setCorPreload(null);
                 setCorPreloadLoading(true);
-                const [res, preloadRes] = await Promise.all([
+                setDepartmentID("");
+
+                const [evalRes, scopeResult] = await Promise.all([
                     fetch(`${API_BASE_URL}/api/program_evaluation/${debouncedStudentNumber}`),
-                    dprtmntID
-                        ? axios
-                            .post(
-                                `${API_BASE_URL}/api/student-tagging/dprtmnt`,
-                                {
-                                    studentNumber: debouncedStudentNumber,
-                                    dprtmntId: dprtmntID,
-                                },
-                                { headers: { "Content-Type": "application/json" } },
-                            )
-                            .catch((err) => {
-                                console.error("College COR preload failed:", err);
-                                return null;
-                            })
-                        : Promise.resolve(null),
+                    resolveStudentRegistrarScope(debouncedStudentNumber),
                 ]);
-                const data = await res.json();
-                const preloadData = preloadRes?.data || null;
-                if (preloadData && !isRegistrarCurriculumMatch(preloadData.activeCurriculum)) {
+
+                if (scopeResult.error) {
                     setSelectedStudent(null);
                     setStudentData([]);
                     setStudentDetails([]);
                     setCorPreload(null);
-                    showSnackbar("This student is outside your assigned curriculum.", "error");
+                    showSnackbar(scopeResult.error, "error");
                     return;
                 }
+
+                const preloadData = scopeResult.preload;
+                setDepartmentID(scopeResult.dprtmntId);
                 setCorPreload(preloadData);
+
+                if (!evalRes.ok) {
+                    const errorBody = await evalRes.json().catch(() => null);
+                    setSelectedStudent(null);
+                    setStudentData([]);
+                    setStudentDetails([]);
+                    setCorPreload(null);
+                    showSnackbar(
+                        errorBody?.message || "No student data found.",
+                        "info",
+                    );
+                    return;
+                }
+
+                const data = await evalRes.json();
 
                 console.log("Fetched student data:", data);
                 if (data) {
@@ -347,7 +394,7 @@ const SearchCorForCollege = () => {
         };
 
         fetchStudent();
-    }, [debouncedStudentNumber, dprtmntID]);
+    }, [debouncedStudentNumber, departmentLoading]);
 
     const divToPrintRef = useRef();
     const [pdfLoading, setPdfLoading] = useState(false);
@@ -467,6 +514,10 @@ const SearchCorForCollege = () => {
         };
     }, []);
 
+    const detectedDepartment = departments.find(
+        (dep) => String(dep.dprtmnt_id) === String(dprtmntID),
+    );
+
     // Put this at the very bottom before the return 
     if (loading || hasAccess === null) {
         return <LoadingOverlay open={loading} message="Loading..." />;
@@ -494,6 +545,8 @@ const SearchCorForCollege = () => {
                 justifyContent="space-between"
                 alignItems="center"
                 mb={2}
+                gap={2}
+                flexWrap="wrap"
             >
                 <Typography variant="h4"
                     sx={{
@@ -505,25 +558,36 @@ const SearchCorForCollege = () => {
                     SEARCH CERTIFICATE OF REGISTRATION
                 </Typography>
 
-                <TextField
-                    variant="outlined"
-                    placeholder="Enter Student Number"
-                    size="small"
-                    value={studentNumber}
+                <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
+                    {detectedDepartment && (
+                        <Chip
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            label={`Matched: ${detectedDepartment.dprtmnt_name} (${detectedDepartment.dprtmnt_code})`}
+                        />
+                    )}
 
-                    onChange={(e) => setStudentNumber(e.target.value)}
-                    sx={{
-                        width: 450,
-                        backgroundColor: "#fff",
-                        borderRadius: 1,
-                        "& .MuiOutlinedInput-root": {
-                            borderRadius: "10px",
-                        },
-                    }}
-                    InputProps={{
-                        startAdornment: <SearchIcon sx={{ mr: 1, color: "gray" }} />,
-                    }}
-                />
+                    <TextField
+                        variant="outlined"
+                        placeholder="Enter Student Number"
+                        size="small"
+                        value={studentNumber}
+                        disabled={departmentLoading}
+                        onChange={(e) => setStudentNumber(e.target.value)}
+                        sx={{
+                            width: 450,
+                            backgroundColor: "#fff",
+                            borderRadius: 1,
+                            "& .MuiOutlinedInput-root": {
+                                borderRadius: "10px",
+                            },
+                        }}
+                        InputProps={{
+                            startAdornment: <SearchIcon sx={{ mr: 1, color: "gray" }} />,
+                        }}
+                    />
+                </Box>
             </Box>
 
             <hr style={{ border: "1px solid #ccc", width: "100%" }} />

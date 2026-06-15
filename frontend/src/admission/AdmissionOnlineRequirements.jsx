@@ -560,12 +560,17 @@ const StudentRequirements = () => {
     }
     try {
       const res = await axios.get(`${API_BASE_URL}/api/person_with_applicant/${personID}`);
+      const { evaluator: _evaluator, ...personData } = res.data;
       const safePerson = {
-        ...res.data,
+        ...personData,
         document_status: res.data.document_status || "",
+        evaluator: null,
       };
-      setPerson(safePerson);   // ✅ only update person
-      // ❌ don't call setSelectedPerson here
+      setPerson(safePerson);
+
+      if (safePerson.applicant_number) {
+        await fetchDocumentStatus(safePerson.applicant_number);
+      }
     } catch (error) {
       console.error("❌ Failed to fetch person data:", error?.response?.data || error.message);
     }
@@ -1565,17 +1570,28 @@ const StudentRequirements = () => {
 
               </TextField>
 
-              {person?.evaluator?.evaluator_email && (
-                <Typography variant="caption" sx={{ marginLeft: 1 }}>
-                  Status Changed By:{" "}
-                  {person.evaluator.evaluator_email.replace(/@gmail\.com$/i, "")} (
-                  {person.evaluator.evaluator_lname || ""}, {person.evaluator.evaluator_fname || ""}{" "}
-                  {person.evaluator.evaluator_mname || ""}
-                  )
-                  <br />
-                  Updated At: {new Date(person.evaluator.created_at).toLocaleString()}
-                </Typography>
-              )}
+              {person?.evaluator &&
+                (person.evaluator.evaluator_email ||
+                  person.evaluator.evaluator_lname ||
+                  person.evaluator.evaluator_fname ||
+                  person.evaluator.evaluator_mname) && (
+                  <Typography variant="caption" sx={{ marginLeft: 1 }}>
+                    Status Changed By:{" "}
+                    {person.evaluator.evaluator_email
+                      ? `${person.evaluator.evaluator_email.replace(/@gmail\.com$/i, "")} `
+                      : ""}
+                    ({person.evaluator.evaluator_lname || ""},{" "}
+                    {person.evaluator.evaluator_fname || ""}{" "}
+                    {person.evaluator.evaluator_mname || ""})
+                    {person.evaluator.created_at && (
+                      <>
+                        <br />
+                        Updated At:{" "}
+                        {new Date(person.evaluator.created_at).toLocaleString()}
+                      </>
+                    )}
+                  </Typography>
+                )}
 
             </Box>
 

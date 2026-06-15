@@ -32,7 +32,11 @@ import AddIcon from "@mui/icons-material/Add";
 import API_BASE_URL from "../apiConfig";
 import ScoreIcon from "@mui/icons-material/Score";
 import { postAuditEvent } from "../utils/auditEvents";
-import { isRegistrarCurriculumMatch } from "../utils/registrarCurriculumRestriction";
+import {
+  getDepartmentIdsFromAdminData,
+  resolveStudentRegistrarScope,
+  syncRegistrarScopeFromAdminData,
+} from "../utils/registrarCurriculumRestriction";
 
 /* ─── Design tokens ─── */
 const TOKEN = {
@@ -219,6 +223,7 @@ const CourseTaggingForSummerCollege = () => {
   const [currentDate, setCurrentDate] = useState("");
   const [personID, setPersonID] = useState("");
   const [hasAccess, setHasAccess] = useState(null);
+  const [accessLoading, setAccessLoading] = useState(true);
 
   const [snack, setSnack] = useState({
     open: false,
@@ -270,6 +275,7 @@ const CourseTaggingForSummerCollege = () => {
   }, []);
 
   const checkAccess = async (employeeID) => {
+    setAccessLoading(true);
     try {
       const response = await axios.get(
         `${API_BASE_URL}/api/page_access/${employeeID}/${pageId}`
@@ -296,7 +302,8 @@ const CourseTaggingForSummerCollege = () => {
       } else {
         console.log("An unexpected error occurred.");
       }
-      setLoading(false);
+    } finally {
+      setAccessLoading(false);
     }
   };
 
@@ -333,9 +340,11 @@ const CourseTaggingForSummerCollege = () => {
   const [, setSectionDescription] = useState("");
   const [sections, setSections] = useState([]);
   const [selectedSection, setSelectedSection] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [sectionLoading, setSectionLoading] = useState(false);
+  const [departmentLoading, setDepartmentLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState(null);
+  const [departments, setDepartments] = useState([]);
   const [yearLevel, setYearLevel] = useState([]);
   const [subjectCounts, setSubjectCounts] = useState({});
   const [isenrolled, setIsEnrolled] = useState(null);
@@ -454,18 +463,19 @@ const CourseTaggingForSummerCollege = () => {
 
   const fetchDepartmentSections = async () => {
     try {
-      setLoading(true);
+      setSectionLoading(true);
+      setError(null);
       const response = await axios.get(`${API_BASE_URL}/api/department-sections`, {
         params: { departmentId: selectedDepartment },
       });
       setTimeout(() => {
         setSections(response.data);
-        setLoading(false);
+        setSectionLoading(false);
       }, 700);
     } catch (err) {
       console.error("Error fetching department sections:", err);
       setError("Failed to load department sections");
-      setLoading(false);
+      setSectionLoading(false);
     }
   };
 
@@ -615,19 +625,24 @@ const CourseTaggingForSummerCollege = () => {
 
   const handleSearchStudent = async () => {
     if (!studentNumber.trim()) { setSnack({ open: true, message: "Please fill in the student number", severity: "warning" }); return; }
+    if (departmentLoading) { setSnack({ open: true, message: "Department scope is still loading. Please try again.", severity: "warning" }); return; }
     if (!activeSchoolYearId || !activeSemesterId) { setSnack({ open: true, message: "Summer school year is not ready yet. Please try again.", severity: "warning" }); return; }
     try {
-      const response = await axios.post(
-        `${API_BASE_URL}/api/student-tagging`,
-        { studentNumber, active_school_year_id: activeSchoolYearId },
-        { headers: { "Content-Type": "application/json" } }
-      );
-      const { token2, isEnrolled, person_id2, studentNumber: studentNum, section, activeCurriculum: effectiveProgram, yearLevel, yearDesc, courseCode: courseCode, courseDescription: courseDescription, firstName: first_name, middleName: middle_name, lastName: last_name, applyingAs: applyingAsValue } = response.data;
-      if (!isRegistrarCurriculumMatch(effectiveProgram)) {
+      const scopeResult = await resolveStudentRegistrarScope(studentNumber.trim(), {
+        activeSchoolYearId,
+      });
+      if (scopeResult.error) {
         setApplyingAs(""); setUserId(null); setCurr(null); setCourses([]); setEnrolled([]); setCurriculumYear(""); setSectionDescription("");
-        setSnack({ open: true, message: "This student is outside your assigned curriculum.", severity: "error" });
+        setSelectedDepartment(null);
+        setSelectedSection("");
+        setSections([]);
+        setSnack({ open: true, message: scopeResult.error, severity: "error" });
         return;
       }
+
+      setSelectedDepartment(scopeResult.dprtmntId);
+      setSelectedSection("");
+      const { token2, isEnrolled, person_id2, studentNumber: studentNum, section, activeCurriculum: effectiveProgram, yearLevel, yearDesc, courseCode: courseCode, courseDescription: courseDescription, firstName: first_name, middleName: middle_name, lastName: last_name, applyingAs: applyingAsValue } = scopeResult.preload;
       setStorageValue("token2", token2); setStorageValue("person_id2", person_id2); setStorageValue("studentNumber", studentNum); setStorageValue("activeCurriculum", effectiveProgram); setStorageValue("yearLevel", yearLevel); setStorageValue("courseCode", courseCode); setStorageValue("courseDescription", courseDescription); setStorageValue("firstName", first_name); setStorageValue("middleName", middle_name); setStorageValue("lastName", last_name); setStorageValue("section", section); setStorageValue("isEnrolled", isEnrolled);
       setUserId(cleanDisplayValue(studentNum)); setUserFirstName(cleanDisplayValue(first_name)); setUserMiddleName(cleanDisplayValue(middle_name)); setUserLastName(cleanDisplayValue(last_name)); setApplyingAs(cleanDisplayValue(applyingAsValue)); setCurr(cleanDisplayValue(effectiveProgram)); setCourseCode(cleanDisplayValue(courseCode)); setCourseDescription(cleanDisplayValue(courseDescription)); setCurriculumYear(cleanDisplayValue(yearDesc)); setPersonID(cleanDisplayValue(person_id2)); setSectionDescription(cleanDisplayValue(section)); setIsEnrolled(isEnrolled);
       await logStudentBasicInfoSearch({ studentNumber: studentNum, firstName: first_name, middleName: middle_name, lastName: last_name });
@@ -648,25 +663,63 @@ const CourseTaggingForSummerCollege = () => {
       setEnrolled([]);
       setCurriculumYear("");
       setSectionDescription("");
+      setSelectedDepartment(null);
+      setSelectedSection("");
+      setSections([]);
       setSnack({ open: true, message: "Student not found or error processing request.", severity: "error" });
     }
   };
 
   useEffect(() => {
     const email = localStorage.getItem("email");
-    if (email) {
-      axios
-        .get(`${API_BASE_URL}/api/admin_data/${email}`)
-        .then((res) => {
-          const deptId = res.data?.dprtmnt_id;
-          setSelectedDepartment(deptId || null);
-        })
-        .catch((err) => {
-          console.error("Failed to fetch admin data:", err);
-          setSnack({ open: true, message: "Failed to load your department.", severity: "error" });
-        });
+    if (!email) {
+      setDepartmentLoading(false);
+      setError("No department is assigned to your account.");
+      return;
     }
+
+    const loadDepartments = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/admin_data/${email}`);
+        syncRegistrarScopeFromAdminData(res.data);
+        const departmentIds = getDepartmentIdsFromAdminData(res.data);
+
+        if (!departmentIds.length) {
+          setSelectedDepartment(null);
+          setDepartments([]);
+          setError("No department is assigned to your account.");
+          return;
+        }
+
+        const responses = await Promise.all(
+          departmentIds.map((departmentId) =>
+            axios.get(`${API_BASE_URL}/api/departments/${departmentId}`),
+          ),
+        );
+        const mergedDepartments = responses.flatMap((response) => response.data || []);
+        const uniqueDepartments = [
+          ...new Map(
+            mergedDepartments.map((dep) => [String(dep.dprtmnt_id), dep]),
+          ).values(),
+        ];
+
+        setDepartments(uniqueDepartments);
+        setError(null);
+      } catch (err) {
+        console.error("Failed to fetch admin data:", err);
+        setError("Failed to load your department.");
+        setSnack({ open: true, message: "Failed to load your department.", severity: "error" });
+      } finally {
+        setDepartmentLoading(false);
+      }
+    };
+
+    loadDepartments();
   }, []);
+
+  const detectedDepartment = departments.find(
+    (dep) => String(dep.dprtmnt_id) === String(selectedDepartment),
+  );
 
   const [selectedFile, setSelectedFile] = useState(null);
 
@@ -779,17 +832,18 @@ const CourseTaggingForSummerCollege = () => {
   };
 
   useEffect(() => {
-    if (!studentNumber) return;
+    if (!studentNumber?.trim()) return;
+    if (departmentLoading) return;
     const delayDebounce = setTimeout(() => { handleSearchStudent(); }, 500);
     return () => clearTimeout(delayDebounce);
-  }, [studentNumber, activeSchoolYearId, activeSemesterId]);
+  }, [studentNumber, activeSchoolYearId, activeSemesterId, departmentLoading]);
 
   /* ── total units ── */
   const totalUnits =
     enrolled.reduce((sum, item) => sum + (parseFloat(item.course_unit) || 0), 0) +
     enrolled.reduce((sum, item) => sum + (parseFloat(item.lab_unit) || 0), 0);
 
-  if (loading || hasAccess === null) return <LoadingOverlay open={loading} message="Loading..." />;
+  if (accessLoading || hasAccess === null) return <LoadingOverlay open message="Loading..." />;
   if (!hasAccess) return <Unauthorized />;
 
   /* ════════════════════════════════════════════════════
@@ -1084,10 +1138,19 @@ const CourseTaggingForSummerCollege = () => {
 
           {/* Section picker */}
           <Box sx={{ p: 2, borderBottom: `1px solid ${TOKEN.border}`, backgroundColor: "#fafafa" }}>
+            {detectedDepartment && (
+              <Chip
+                size="small"
+                color="primary"
+                variant="outlined"
+                label={`Matched: ${detectedDepartment.dprtmnt_name} (${detectedDepartment.dprtmnt_code})`}
+                sx={{ mb: 1.5 }}
+              />
+            )}
             <Typography sx={{ fontSize: "11px", textAlign: "left", fontWeight: 700, color: TOKEN.textMid, mb: 0.75, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Department Section
             </Typography>
-            {loading ? (
+            {departmentLoading || sectionLoading ? (
               <Box sx={{ width: "100%", mt: 1 }}><LinearWithValueLabel /></Box>
             ) : error ? (
               <Typography color="error" sx={{ fontSize: "12px" }}>{error}</Typography>

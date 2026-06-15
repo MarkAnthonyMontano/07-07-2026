@@ -271,17 +271,15 @@ router.get("/uploads/by-applicant/:applicant_number", async (req, res) => {
 
         ua.email AS evaluator_email,
         ua.role  AS evaluator_role,
-        pr.lname AS evaluator_lname,
-        pr.fname AS evaluator_fname,
-        pr.mname AS evaluator_mname
+        ua.last_name AS evaluator_lname,
+        ua.first_name AS evaluator_fname,
+        ua.middle_name AS evaluator_mname
 
       FROM requirement_uploads ru
       JOIN requirements_table rt
         ON ru.requirements_id = rt.id
       LEFT JOIN enrollment.user_accounts ua
         ON ru.last_updated_by = ua.person_id
-      LEFT JOIN enrollment.prof_table pr
-        ON ua.person_id = pr.person_id
       WHERE ru.person_id = ?
       `,
       [person_id],
@@ -303,15 +301,14 @@ router.get("/document_status/:applicant_number", async (req, res) => {
       SELECT
         COALESCE(ru.document_status, 'On process') AS document_status,
         ua.email AS evaluator_email,
-        pr.lname AS evaluator_lname,
-        pr.fname AS evaluator_fname,
-        pr.mname AS evaluator_mname,
+        ua.last_name AS evaluator_lname,
+        ua.first_name AS evaluator_fname,
+        ua.middle_name AS evaluator_mname,
         ru.created_at
       FROM applicant_numbering_table ant
       INNER JOIN person_table pt ON pt.person_id = ant.person_id
       LEFT JOIN requirement_uploads ru ON ru.person_id = pt.person_id
       LEFT JOIN enrollment.user_accounts ua ON ua.person_id = ru.last_updated_by
-      LEFT JOIN enrollment.prof_table pr ON pr.person_id = ua.person_id
       WHERE ant.applicant_number = ?
       ORDER BY ru.upload_id DESC
       LIMIT 1

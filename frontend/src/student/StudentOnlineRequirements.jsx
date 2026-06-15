@@ -143,6 +143,7 @@ const StudentOnlineRequirements = () => {
   }, []);
 
   const handleUpload = async (key, file) => {
+    if (allRequirementsCompleted) return;
     if (!file) return;
 
     const maxSize = 4 * 1024 * 1024;
@@ -170,6 +171,7 @@ const StudentOnlineRequirements = () => {
   };
 
   const handleDelete = async (uploadId) => {
+    if (allRequirementsCompleted) return;
     try {
       await axios.delete(`${API_BASE_URL}/api/student-upload/${uploadId}`);
       setSnack({ open: true, severity: "success", message: "File deleted successfully" });
@@ -282,6 +284,7 @@ const StudentOnlineRequirements = () => {
             component="label"
             startIcon={<CloudUploadIcon />}
             size="small"
+            disabled={allRequirementsCompleted}
             sx={{
               backgroundColor: "#F0C03F",
               color: "white",
@@ -325,6 +328,7 @@ const StudentOnlineRequirements = () => {
               onClick={() => handleDelete(uploaded.upload_id)}
               startIcon={<DeleteIcon />}
               size="small"
+              disabled={allRequirementsCompleted}
               sx={{
                 backgroundColor: "#9E0000",
                 color: "white",
@@ -403,6 +407,7 @@ const StudentOnlineRequirements = () => {
                 variant="contained"
                 component="label"
                 startIcon={<CloudUploadIcon />}
+                disabled={allRequirementsCompleted}
                 sx={{
                   backgroundColor: "#F0C03F",
                   color: "white",
@@ -465,6 +470,7 @@ const StudentOnlineRequirements = () => {
             <Button
               onClick={() => handleDelete(uploaded.upload_id)}
               startIcon={<DeleteIcon />}
+              disabled={allRequirementsCompleted}
               sx={{ backgroundColor: "#9E0000", color: "white", fontWeight: "bold", height: "40px", textTransform: "none", minWidth: "140px" }}
             >
               Delete

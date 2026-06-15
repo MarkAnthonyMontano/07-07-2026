@@ -48,6 +48,7 @@ import {
   isRegistrarProgramSelectionLocked,
   restrictToRegistrarCurriculum,
   syncRegistrarScopeFromAdminData,
+  getDepartmentIdsFromAdminData,
 } from "../utils/registrarCurriculumRestriction";
 import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 import SearchIcon from "@mui/icons-material/Search";
@@ -358,7 +359,7 @@ const QualifyingExamScore = () => {
   const [userID, setUserID] = useState("");
   const [user, setUser] = useState("");
   const [userRole, setUserRole] = useState("");
-  const [adminData, setAdminData] = useState({ dprtmnt_id: "" });
+  const [adminData, setAdminData] = useState({ dprtmnt_id: "", dprtmnt_ids: [] });
   const [loading, setLoading] = useState(false);
   const [loading2, setLoading2] = useState(false);
 
@@ -517,7 +518,7 @@ const QualifyingExamScore = () => {
 
   useEffect(() => {
     fetchApplicants();
-  }, [adminData.dprtmnt_id]);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids]);
 
   useEffect(() => {
     fetchApplicants();
@@ -556,21 +557,30 @@ const QualifyingExamScore = () => {
   }, [user]);
 
   const [curriculumOptions, setCurriculumOptions] = useState([]);
+  const scopeRevision = useRegistrarScopeRevision();
+  const [allCurriculums, setAllCurriculums] = useState([]);
 
   useEffect(() => {
-    if (!adminData.dprtmnt_id) return;
+    const departmentIds = getDepartmentIdsFromAdminData(adminData);
+    if (!departmentIds.length) return;
+
     const fetchCurriculums = async () => {
       try {
-        const response = await axios.get(
-          `${API_BASE_URL}/api/applied_program/${adminData.dprtmnt_id}`,
+        const responses = await Promise.all(
+          departmentIds.map((departmentId) =>
+            axios.get(`${API_BASE_URL}/api/applied_program/${departmentId}`),
+          ),
         );
-        setCurriculumOptions(restrictToRegistrarCurriculum(response.data));
+        const merged = responses.flatMap((response) => response.data || []);
+        const restricted = restrictToRegistrarCurriculum(merged);
+        setAllCurriculums(restricted);
+        setCurriculumOptions(restricted);
       } catch (error) {
         console.error("Error fetching curriculum options:", error);
       }
     };
     fetchCurriculums();
-  }, [adminData.dprtmnt_id]);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
 
   const [selectedApplicantStatus, setSelectedApplicantStatus] = useState("");
   const [sortBy, setSortBy] = useState("name");
@@ -580,10 +590,8 @@ const QualifyingExamScore = () => {
 
   const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("");
   const [selectedProgramFilter, setSelectedProgramFilter] = useState("");
-  const scopeRevision = useRegistrarScopeRevision();
   const isProgramLocked = isRegistrarProgramSelectionLocked();
   const [department, setDepartment] = useState([]);
-  const [allCurriculums, setAllCurriculums] = useState([]);
   const [schoolYears, setSchoolYears] = useState([]);
   const [semesters, setSchoolSemester] = useState([]);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState("");
@@ -803,19 +811,31 @@ const QualifyingExamScore = () => {
   }
 
   useEffect(() => {
-    if (!adminData.dprtmnt_id) return;
+    const departmentIds = getDepartmentIdsFromAdminData(adminData);
+    if (!departmentIds.length) return;
+
     const fetchDepartments = async () => {
       try {
-        const response = await axios.get(
-          `${API_BASE_URL}/api/departments/${adminData.dprtmnt_id}`,
-        ); // ✅ Update if needed
-        setDepartment(response.data);
+        const responses = await Promise.all(
+          departmentIds.map((departmentId) =>
+            axios.get(`${API_BASE_URL}/api/departments/${departmentId}`),
+          ),
+        );
+        const mergedDepartments = responses.flatMap(
+          (response) => response.data || [],
+        );
+        const uniqueDepartments = [
+          ...new Map(
+            mergedDepartments.map((dep) => [String(dep.dprtmnt_id), dep]),
+          ).values(),
+        ];
+        setDepartment(uniqueDepartments);
       } catch (error) {
         console.error("Error fetching departments:", error);
       }
     };
     fetchDepartments();
-  }, [adminData.dprtmnt_id]);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
 
   useEffect(() => {
     if (department.length > 0 && !selectedDepartmentFilter) {
@@ -841,12 +861,15 @@ const QualifyingExamScore = () => {
   }, [curriculumOptions, isProgramLocked]);
 
   useEffect(() => {
+    const departmentIds = getDepartmentIdsFromAdminData(adminData);
+    if (departmentIds.length) return;
+
     axios.get(`${API_BASE_URL}/api/applied_program`).then((res) => {
       const restrictedCurriculums = restrictToRegistrarCurriculum(res.data);
       setAllCurriculums(restrictedCurriculums);
       setCurriculumOptions(restrictedCurriculums);
     });
-  }, [scopeRevision]);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
 
   const handleDepartmentChange = (selectedDept) => {
     setSelectedDepartmentFilter(selectedDept);
@@ -1831,8 +1854,10 @@ const QualifyingExamScore = () => {
     (c) => String(c.curriculum_id) === String(programId),
   );
 
-  // ✅ Fall back to adminData.dprtmnt_id if no match found
-  const departmentId = curriculumMatch?.dprtmnt_id || adminData.dprtmnt_id;
+  const departmentId =
+    curriculumMatch?.dprtmnt_id ||
+    getDepartmentIdsFromAdminData(adminData)[0] ||
+    adminData.dprtmnt_id;
 
   console.log("🔍 resolveSender:", {
     applicant_program: programId,
@@ -1869,10 +1894,14 @@ const QualifyingExamScore = () => {
 };
 
   useEffect(() => {
+    const departmentIds = getDepartmentIdsFromAdminData(adminData);
+    const primaryDepartmentId = departmentIds[0];
+    if (!primaryDepartmentId) return;
+
     const fetchDepartment = async () => {
       try {
         const res = await axios.get(
-          `${API_BASE_URL}/api/dprtmnt_curriculum/${adminData.dprtmnt_id}`,
+          `${API_BASE_URL}/api/dprtmnt_curriculum/${primaryDepartmentId}`,
         );
         setDepartmentName(res.data[0]?.dprtmnt_name);
       } catch (err) {
@@ -1881,7 +1910,7 @@ const QualifyingExamScore = () => {
     };
 
     fetchDepartment();
-  }, [adminData.dprtmnt_id]);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids]);
 
   const [emailMessage, setEmailMessage] = useState("");
 
@@ -2229,7 +2258,10 @@ Thank you, best regards
         const curriculumMatch = allCurriculums.find(
           (curriculum) => String(curriculum.curriculum_id) === String(programId),
         );
-        const departmentId = curriculumMatch?.dprtmnt_id || adminData.dprtmnt_id;
+        const departmentId =
+          curriculumMatch?.dprtmnt_id ||
+          getDepartmentIdsFromAdminData(adminData)[0] ||
+          adminData.dprtmnt_id;
 
         const resolvedSender = await resolveSenderForApplicant(applicant);
 
@@ -2314,7 +2346,10 @@ Thank you, best regards
         const curriculumMatch = allCurriculums.find(
           (curriculum) => String(curriculum.curriculum_id) === String(programId),
         );
-        const departmentId = curriculumMatch?.dprtmnt_id || adminData.dprtmnt_id;
+        const departmentId =
+          curriculumMatch?.dprtmnt_id ||
+          getDepartmentIdsFromAdminData(adminData)[0] ||
+          adminData.dprtmnt_id;
 
         const resolvedSender = await resolveSenderForApplicant(applicant);
 

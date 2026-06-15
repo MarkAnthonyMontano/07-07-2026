@@ -326,46 +326,17 @@ const StudentList = () => {
         try {
             setStudentsLoading(true);
             const listRes = await fetch(
-                `${API_BASE_URL}/api/list_of_students?departmentId=${encodeURIComponent(selectedDepartmentFilter)}`
+                `${API_BASE_URL}/api/list_of_students/details?departmentId=${encodeURIComponent(selectedDepartmentFilter)}`
             );
 
             if (!listRes.ok) {
-                throw new Error("Failed to fetch student numbers");
+                throw new Error("Failed to fetch student list");
             }
 
-            const studentList = await listRes.json();
-            const fetchStudentData = async ({ student_number, active_school_year_id }) => {
-                try {
-                    const dataRes = await fetch(
-                        `${API_BASE_URL}/api/list_of_students/data/${encodeURIComponent(student_number)}/${encodeURIComponent(active_school_year_id)}`
-                    );
-
-                    if (dataRes.status === 404) return null;
-                    if (!dataRes.ok) {
-                        throw new Error(`Failed to fetch data for student ${student_number}`);
-                    }
-
-                    return dataRes.json();
-                } catch (err) {
-                    console.error(`Failed to fetch data for student ${student_number}:`, err);
-                    return null;
-                }
-            };
-
-            const studentDataResponses = [];
-            const batchSize = 10;
-            for (let i = 0; i < studentList.length; i += batchSize) {
-                const batch = studentList.slice(i, i + batchSize);
-                const batchResults = await Promise.all(batch.map(fetchStudentData));
-                studentDataResponses.push(...batchResults);
-            }
-
-            const mergedData = studentDataResponses
-                .filter(Boolean)
-                .map((student) => ({
-                    ...student,
-                    documents: [],
-                }));
+            const mergedData = (await listRes.json()).map((student) => ({
+                ...student,
+                documents: [],
+            }));
 
             mergedData.sort((a, b) => {
                 const yearA = Number(a.year_id ?? Number.MAX_SAFE_INTEGER);
@@ -380,7 +351,6 @@ const StudentList = () => {
             });
 
             setPersons(mergedData);
-            console.log("Student Data: ", mergedData)
         } catch (err) {
             console.error("Error fetching students:", err);
         } finally {

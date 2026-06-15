@@ -38,6 +38,7 @@ import {
     isRegistrarProgramSelectionLocked,
     restrictToRegistrarCurriculum,
     syncRegistrarScopeFromAdminData,
+    getDepartmentIdsFromAdminData,
 } from "../utils/registrarCurriculumRestriction";
 import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 import Unauthorized from "../components/Unauthorized";
@@ -294,7 +295,7 @@ const ApplicantScoringReadOnly = () => {
     const [userID, setUserID] = useState("");
     const [user, setUser] = useState("");
     const [userRole, setUserRole] = useState("");
-    const [adminData, setAdminData] = useState({ dprtmnt_id: "" });
+    const [adminData, setAdminData] = useState({ dprtmnt_id: "", dprtmnt_ids: [] });
 
     const queryParams = new URLSearchParams(location.search);
     const queryPersonId = queryParams.get("person_id")?.trim() || "";
@@ -762,31 +763,46 @@ const ApplicantScoringReadOnly = () => {
     }
 
     useEffect(() => {
-        if (!adminData.dprtmnt_id) return;
+        const departmentIds = getDepartmentIdsFromAdminData(adminData);
+        if (!departmentIds.length) return;
 
         const fetchDepartments = async () => {
             try {
-                const response = await axios.get(
-                    `${API_BASE_URL}/api/departments/${adminData.dprtmnt_id}`
+                const responses = await Promise.all(
+                    departmentIds.map((departmentId) =>
+                        axios.get(`${API_BASE_URL}/api/departments/${departmentId}`),
+                    ),
                 );
-                setDepartment(response.data);
+                const mergedDepartments = responses.flatMap(
+                    (response) => response.data || [],
+                );
+                const uniqueDepartments = [
+                    ...new Map(
+                        mergedDepartments.map((dep) => [String(dep.dprtmnt_id), dep]),
+                    ).values(),
+                ];
+                setDepartment(uniqueDepartments);
             } catch (error) {
                 console.error("Error fetching departments:", error);
             }
         };
 
         fetchDepartments();
-    }, [adminData.dprtmnt_id, scopeRevision]);
+    }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
 
     useEffect(() => {
-        if (!adminData.dprtmnt_id) return;
+        const departmentIds = getDepartmentIdsFromAdminData(adminData);
+        if (!departmentIds.length) return;
 
         const fetchCurriculums = async () => {
             try {
-                const response = await axios.get(
-                    `${API_BASE_URL}/api/applied_program/${adminData.dprtmnt_id}`
+                const responses = await Promise.all(
+                    departmentIds.map((departmentId) =>
+                        axios.get(`${API_BASE_URL}/api/applied_program/${departmentId}`),
+                    ),
                 );
-                const restrictedCurriculums = restrictToRegistrarCurriculum(response.data);
+                const merged = responses.flatMap((response) => response.data || []);
+                const restrictedCurriculums = restrictToRegistrarCurriculum(merged);
                 setAllCurriculums(restrictedCurriculums);
                 setCurriculumOptions(restrictedCurriculums);
             } catch (error) {
@@ -795,7 +811,18 @@ const ApplicantScoringReadOnly = () => {
         };
 
         fetchCurriculums();
-    }, [adminData.dprtmnt_id, scopeRevision]);
+    }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
+
+    useEffect(() => {
+        const departmentIds = getDepartmentIdsFromAdminData(adminData);
+        if (departmentIds.length) return;
+
+        axios.get(`${API_BASE_URL}/api/applied_program`).then((res) => {
+            const restrictedCurriculums = restrictToRegistrarCurriculum(res.data);
+            setAllCurriculums(restrictedCurriculums);
+            setCurriculumOptions(restrictedCurriculums);
+        });
+    }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
 
     useEffect(() => {
         if (department.length > 0 && allCurriculums.length > 0 && !selectedDepartmentFilter) {

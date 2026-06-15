@@ -444,7 +444,8 @@ const CourseTagging = () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_BASE_URL}/api/department-sections`, { params: { departmentId: selectedDepartment } });
-      setTimeout(() => { setSections(response.data); setLoading(false); }, 700);
+      setSections(response.data);
+      setLoading(false);
     } catch (err) {
       console.error("Error fetching department sections:", err);
       setError("Failed to load department sections");
@@ -500,18 +501,42 @@ const CourseTagging = () => {
 
   useEffect(() => {
     const computePrereqStatus = async () => {
-      if (!userId || courses.length === 0) { setPrereqMap({}); return; }
-      const map = {};
-      for (const course of courses) {
-        const res = await checkPrerequisite(userId, course);
-        let hasPrereq = true;
-        if (res.status === "NO_PREREQ" || res.status === "PREREQ_NOT_FOUND") hasPrereq = false;
-        map[course.course_id] = { allowed: !!res.allowed, hasPrereq };
+      if (!userId || courses.length === 0 || !currId) {
+        setPrereqMap({});
+        return;
       }
-      setPrereqMap(map);
+
+      try {
+        const { data } = await axios.post(
+          `${API_BASE_URL}/api/check-prerequisites-batch`,
+          {
+            student_number: userId,
+            curriculum_id: currId,
+            courses: courses.map((course) => ({
+              course_id: course.course_id,
+              semester_id: course.semester_id,
+            })),
+          },
+        );
+
+        const map = {};
+        for (const course of courses) {
+          const result = data.results?.[String(course.course_id)];
+          if (!result) continue;
+          map[course.course_id] = {
+            allowed: !!result.allowed,
+            hasPrereq: !!result.hasPrereq,
+          };
+        }
+        setPrereqMap(map);
+      } catch (err) {
+        console.error("Failed to load prerequisite status:", err);
+        setPrereqMap({});
+      }
     };
+
     computePrereqStatus();
-  }, [userId, courses]);
+  }, [userId, courses, currId]);
 
   const addToCart = async (course) => {
     if (!canCreate) { setSnack({ open: true, message: "You do not have permission to enroll subjects.", severity: "error" }); return; }

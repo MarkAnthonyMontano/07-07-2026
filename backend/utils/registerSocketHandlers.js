@@ -5314,7 +5314,7 @@ WHERE proctor LIKE ?
       const params = [];
 
       if (department_id) {
-        filters.push("dpt.dprtmnt_id = ?");
+        filters.push("dct.dprtmnt_id = ?");
         params.push(department_id);
       }
 
@@ -5323,10 +5323,10 @@ WHERE proctor LIKE ?
         params.push(curriculum_id);
       }
 
-      const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
+      const innerWhereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
 
       const [rows] = await db3.execute(`
-      SELECT DISTINCT
+      SELECT
         snt.student_number,
         pst.campus,
         pst.last_name,
@@ -5339,38 +5339,65 @@ WHERE proctor LIKE ?
         pgt.program_id,
         dpt.dprtmnt_id,
         dpt.dprtmnt_code,
-        es.status,
-        es.is_regular,
-        (
-          SELECT
-            CASE
-              WHEN COUNT(es2.is_regular) = 0 THEN NULL
-              WHEN MIN(es2.is_regular) = 0 THEN 0
-              ELSE 1
-            END
-          FROM enrolled_subject AS es2
-          WHERE es2.student_number = snt.student_number
-            AND es2.active_school_year_id = es.active_school_year_id
-        ) AS official_is_regular,
+        es_base.status,
+        es_base.is_regular,
+        CASE
+          WHEN reg_stats.reg_count = 0 THEN NULL
+          WHEN reg_stats.min_is_regular = 0 THEN 0
+          ELSE 1
+        END AS official_is_regular,
         sy.year_id,
         sy.semester_id,
-        es.en_remarks,
+        es_base.en_remarks,
         ylt.year_level_description,
-        es.curriculum_id
-      FROM enrolled_subject AS es
-        INNER JOIN curriculum_table AS cmt ON es.curriculum_id = cmt.curriculum_id
-        INNER JOIN program_table AS pgt ON cmt.program_id = pgt.program_id
-        INNER JOIN year_table AS yrt ON cmt.year_id = yrt.year_id
-        INNER JOIN active_school_year_table AS sy ON es.active_school_year_id = sy.id
-        INNER JOIN semester_table AS smt ON sy.semester_id = smt.semester_id
-        INNER JOIN program_tagging_table AS ptt ON es.curriculum_id = ptt.curriculum_id
-          AND es.course_id = ptt.course_id AND sy.semester_id = ptt.semester_id
-        INNER JOIN year_level_table AS ylt ON ptt.year_level_id = ylt.year_level_id
-        INNER JOIN student_numbering_table AS snt ON es.student_number = snt.student_number
-        INNER JOIN person_table AS pst ON snt.person_id = pst.person_id
-        INNER JOIN dprtmnt_curriculum_table AS dct ON cmt.curriculum_id = dct.curriculum_id
-        INNER JOIN dprtmnt_table AS dpt ON dct.dprtmnt_id = dpt.dprtmnt_id
-        ${whereClause}
+        es_base.curriculum_id
+      FROM (
+        SELECT
+          es.student_number,
+          es.active_school_year_id,
+          es.curriculum_id,
+          MAX(es.en_remarks) AS en_remarks,
+          MAX(es.status) AS status,
+          MAX(es.is_regular) AS is_regular
+        FROM enrolled_subject AS es
+        INNER JOIN dprtmnt_curriculum_table AS dct
+          ON es.curriculum_id = dct.curriculum_id
+        ${innerWhereClause}
+        GROUP BY es.student_number, es.active_school_year_id, es.curriculum_id
+      ) AS es_base
+        INNER JOIN active_school_year_table AS sy
+          ON es_base.active_school_year_id = sy.id
+        INNER JOIN semester_table AS smt
+          ON sy.semester_id = smt.semester_id
+        INNER JOIN curriculum_table AS cmt
+          ON es_base.curriculum_id = cmt.curriculum_id
+        INNER JOIN program_table AS pgt
+          ON cmt.program_id = pgt.program_id
+        INNER JOIN student_numbering_table AS snt
+          ON es_base.student_number = snt.student_number
+        INNER JOIN person_table AS pst
+          ON snt.person_id = pst.person_id
+        INNER JOIN dprtmnt_curriculum_table AS dct
+          ON cmt.curriculum_id = dct.curriculum_id
+        INNER JOIN dprtmnt_table AS dpt
+          ON dct.dprtmnt_id = dpt.dprtmnt_id
+        INNER JOIN student_status_table AS sst
+          ON es_base.student_number = sst.student_number
+         AND es_base.active_school_year_id = sst.active_school_year_id
+        INNER JOIN year_level_table AS ylt
+          ON sst.year_level_id = ylt.year_level_id
+        LEFT JOIN (
+          SELECT
+            student_number,
+            active_school_year_id,
+            COUNT(is_regular) AS reg_count,
+            MIN(is_regular) AS min_is_regular
+          FROM enrolled_subject
+          GROUP BY student_number, active_school_year_id
+        ) AS reg_stats
+          ON es_base.student_number = reg_stats.student_number
+         AND es_base.active_school_year_id = reg_stats.active_school_year_id
+      ORDER BY pst.last_name ASC, pst.first_name ASC, snt.student_number ASC
     `, params);
 
       if (rows.length === 0) {
@@ -6304,6 +6331,7 @@ WHERE proctor LIKE ?
     }
   });
 
+  //WORKING
   app.get("/api/document_status/:applicant_number", async (req, res) => {
     const { applicant_number } = req.params;
 
@@ -7443,8 +7471,6 @@ WHERE proctor LIKE ?
         ON ru.requirements_id = rt.id
       LEFT JOIN user_accounts ua
         ON ru.last_updated_by = ua.person_id
-      LEFT JOIN .prof_table pr
-        ON ua.person_id = pr.person_id
       WHERE ru.person_id = ?;
     `,
         [person_id],

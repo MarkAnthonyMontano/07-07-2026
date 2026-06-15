@@ -64,6 +64,20 @@ export const getScopedDepartmentIds = () => {
     .filter(Boolean);
 };
 
+export const getDepartmentIdsFromAdminData = (adminData = {}) => {
+  if (Array.isArray(adminData.dprtmnt_ids) && adminData.dprtmnt_ids.length) {
+    return adminData.dprtmnt_ids;
+  }
+  if (
+    adminData.dprtmnt_id !== null &&
+    adminData.dprtmnt_id !== undefined &&
+    adminData.dprtmnt_id !== ""
+  ) {
+    return [adminData.dprtmnt_id];
+  }
+  return [];
+};
+
 export const getAllowedCurriculumIds = () => {
   if (typeof window === "undefined") return [];
   return parseJsonArray(localStorage.getItem(ALLOWED_CURRICULUMS_STORAGE_KEY))
@@ -213,4 +227,52 @@ export const restrictToRegistrarCurriculum = (items = [], getValue) => {
       : item?.curriculum_id ?? item?.program ?? item?.active_curriculum;
     return String(value ?? "") === String(curriculumId);
   });
+};
+
+export const resolveStudentRegistrarScope = async (
+  studentNumber,
+  { activeSchoolYearId } = {},
+) => {
+  const employeeId =
+    typeof window !== "undefined"
+      ? localStorage.getItem("employee_id") || undefined
+      : undefined;
+
+  try {
+    const scopeRes = await axios.post(
+      `${API_BASE_URL}/api/registrar/resolve-student-scope`,
+      {
+        studentNumber,
+        active_school_year_id: activeSchoolYearId || undefined,
+        employee_id: employeeId,
+      },
+      { headers: { "Content-Type": "application/json" } },
+    );
+
+    const { dprtmntId } = scopeRes.data;
+    const payload = { studentNumber, dprtmntId };
+    if (activeSchoolYearId) {
+      payload.active_school_year_id = activeSchoolYearId;
+    }
+
+    const response = await axios.post(
+      `${API_BASE_URL}/api/student-tagging/dprtmnt`,
+      payload,
+      { headers: { "Content-Type": "application/json" } },
+    );
+
+    return {
+      dprtmntId,
+      preload: response.data,
+      context: scopeRes.data.context,
+      curriculumId: scopeRes.data.curriculumId,
+      programId: scopeRes.data.programId,
+    };
+  } catch (err) {
+    return {
+      error:
+        err.response?.data?.message ||
+        "Student not found or is outside your assigned programs.",
+    };
+  }
 };

@@ -34,6 +34,7 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import PersonIcon from "@mui/icons-material/Person";
 import {
+  getDepartmentIdsFromAdminData,
   getRegistrarCurriculumId,
   isRegistrarCurriculumMatch,
   isRegistrarProgramSelectionLocked,
@@ -59,7 +60,7 @@ const ClassRoster = () => {
   const [shortTerm, setShortTerm] = useState("");
   const [campusAddress, setCampusAddress] = useState("");
   const [user, setUser] = useState("");
-  const [adminData, setAdminData] = useState({ dprtmnt_id: "" });
+  const [adminData, setAdminData] = useState({ dprtmnt_id: "", dprtmnt_ids: [] });
 
   // ─── Data ─────────────────────────────────────────────────────────────────────
   const [students, setStudents] = useState([]);
@@ -164,31 +165,61 @@ const ClassRoster = () => {
 
   // ─────────────────────────────────────────────────────────────────────────────
   // ─────────────────────────────────────────────────────────────────────────────
-  // STEP 3 — Fetch students for the logged-in user's department
+  // STEP 3 — Fetch students for the selected department(s)
   // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!adminData?.dprtmnt_id) return;
+    const scopedIds = getDepartmentIdsFromAdminData(adminData);
+    const departmentIdsToFetch = selectedDepartmentFilter
+      ? [selectedDepartmentFilter]
+      : scopedIds.length > 1
+        ? scopedIds
+        : scopedIds.length === 1
+          ? [scopedIds[0]]
+          : department.length > 0
+            ? department.map((dep) => dep.dprtmnt_id)
+            : [];
+
+    if (!departmentIdsToFetch.length) {
+      if (scopedIds.length > 1 && department.length === 0) return;
+      setStudents([]);
+      return;
+    }
 
     const fetchStudents = async () => {
       try {
-        const params = new URLSearchParams();
-        params.set("department_id", adminData.dprtmnt_id);
-
         const curriculumId = getRegistrarCurriculumId();
-        if (curriculumId) {
-          params.set("curriculum_id", curriculumId);
-        }
+        const responses = await Promise.all(
+          departmentIdsToFetch.map(async (departmentId) => {
+            const params = new URLSearchParams();
+            params.set("department_id", departmentId);
+            if (curriculumId) {
+              params.set("curriculum_id", curriculumId);
+            }
+            const url = `${API_BASE_URL}/api/student_number?${params.toString()}`;
+            const res = await axios.get(url);
+            return Array.isArray(res.data) ? res.data : [];
+          }),
+        );
 
-        const url = `${API_BASE_URL}/api/student_number?${params.toString()}`;
-        const res = await axios.get(url);
-        setStudents(res.data);
+        const mergedStudents = [
+          ...new Map(
+            responses
+              .flat()
+              .map((student) => [
+                `${student.student_number}-${student.year_id}-${student.semester_id}-${student.curriculum_id}`,
+                student,
+              ]),
+          ).values(),
+        ];
+
+        setStudents(mergedStudents);
       } catch (err) {
         console.error("Error fetching student data:", err);
       }
     };
 
     fetchStudents();
-  }, [adminData]);
+  }, [selectedDepartmentFilter, scopeRevision, adminData, department]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // STEP 5 — Fetch supporting data (departments, programs, years, semesters)
@@ -210,6 +241,62 @@ const ClassRoster = () => {
         }
       })
       .catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    const departmentIds = getDepartmentIdsFromAdminData(adminData);
+    if (!departmentIds.length) return;
+
+    const fetchDepartments = async () => {
+      try {
+        const responses = await Promise.all(
+          departmentIds.map((departmentId) =>
+            axios.get(`${API_BASE_URL}/api/departments/${departmentId}`),
+          ),
+        );
+        const mergedDepartments = responses.flatMap(
+          (response) => response.data || [],
+        );
+        const uniqueDepartments = [
+          ...new Map(
+            mergedDepartments.map((dep) => [String(dep.dprtmnt_id), dep]),
+          ).values(),
+        ];
+        setDepartment(uniqueDepartments);
+      } catch (error) {
+        console.error("Error fetching departments:", error);
+      }
+    };
+
+    fetchDepartments();
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
+
+  useEffect(() => {
+    const departmentIds = getDepartmentIdsFromAdminData(adminData);
+    if (!departmentIds.length) return;
+
+    const fetchCurriculums = async () => {
+      try {
+        const responses = await Promise.all(
+          departmentIds.map((departmentId) =>
+            axios.get(`${API_BASE_URL}/api/applied_program/${departmentId}`),
+          ),
+        );
+        const merged = responses.flatMap((response) => response.data || []);
+        const restrictedCurriculums = restrictToRegistrarCurriculum(merged);
+        setAllCurriculums(restrictedCurriculums);
+        setCurriculumOptions(restrictedCurriculums);
+      } catch (error) {
+        console.error("Error fetching curriculum options:", error);
+      }
+    };
+
+    fetchCurriculums();
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
+
+  useEffect(() => {
+    const departmentIds = getDepartmentIdsFromAdminData(adminData);
+    if (departmentIds.length) return;
 
     axios.get(`${API_BASE_URL}/api/departments`)
       .then(res => setDepartment(res.data))
@@ -222,7 +309,18 @@ const ClassRoster = () => {
         setCurriculumOptions(restrictedCurriculums);
       })
       .catch(console.error);
-  }, [scopeRevision]);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
+
+  useEffect(() => {
+    if (department.length === 0 || selectedDepartmentFilter) return;
+    const departmentIds = getDepartmentIdsFromAdminData(adminData);
+    if (departmentIds.length !== 1) return;
+    if (allCurriculums.length === 0) return;
+
+    const firstDeptId = department[0].dprtmnt_id;
+    setSelectedDepartmentFilter(firstDeptId);
+    handleDepartmentChange(firstDeptId);
+  }, [department, allCurriculums, selectedDepartmentFilter, adminData]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // STEP 6 — Apply UI restrictions based on the user's department
@@ -236,16 +334,6 @@ const ClassRoster = () => {
       setSelectedProgramFilter(assignedCurriculum.curriculum_id);
     }
   }, [curriculumOptions, isProgramLocked]);
-
-  useEffect(() => {
-    if (!adminData?.dprtmnt_id) return;
-
-    const deptId = adminData.dprtmnt_id;
-    setSelectedDepartmentFilter(deptId);
-
-    const filtered = allCurriculums.filter(c => c.dprtmnt_id === deptId);
-    setCurriculumOptions(filtered.length > 0 ? filtered : allCurriculums);
-  }, [adminData, allCurriculums]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Settings effect
@@ -393,7 +481,16 @@ const ClassRoster = () => {
   if (loading || hasAccess === null) return <LoadingOverlay open={loading} message="Loading..." />;
   if (!hasAccess) return <Unauthorized />;
 
-  const isDeptLocked = Boolean(adminData?.dprtmnt_id);
+  const scopedDepartmentIds = getDepartmentIdsFromAdminData(adminData);
+  const isDeptLocked = scopedDepartmentIds.length === 1 && department.length === 1;
+  const showAllDepartmentsOption = scopedDepartmentIds.length !== 1;
+  const selectedDepartmentFilterValue =
+    selectedDepartmentFilter === "" ||
+    department.some(
+      (dep) => String(dep.dprtmnt_id) === String(selectedDepartmentFilter),
+    )
+      ? selectedDepartmentFilter
+      : "";
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Render
@@ -645,18 +742,21 @@ const ClassRoster = () => {
               <Box display="flex" alignItems="center" gap={1}>
                 <Typography fontSize={13} sx={{ minWidth: "100px" }}>Department:</Typography>
                 <Tooltip
-                  title={isDeptLocked ? "Your account is restricted to your assigned department." : ""}
+                  title={isDeptLocked ? "Your account is assigned to a single department." : ""}
                   placement="top"
                   disableHoverListener={!isDeptLocked}
                 >
                   <span style={{ display: "inline-block" }}>
                     <FormControl size="small" sx={{ width: "400px" }} disabled={isDeptLocked}>
                       <Select
-                        value={selectedDepartmentFilter}
+                        value={selectedDepartmentFilterValue}
                         onChange={e => { if (!isDeptLocked) handleDepartmentChange(e.target.value); }}
                         displayEmpty
                         sx={isDeptLocked ? { backgroundColor: "#f5f5f5", cursor: "not-allowed" } : {}}
                       >
+                        {!isDeptLocked && showAllDepartmentsOption && (
+                          <MenuItem value="">All Departments</MenuItem>
+                        )}
                         {department.map(dep => (
                           <MenuItem key={dep.dprtmnt_id} value={dep.dprtmnt_id}>
                             {dep.dprtmnt_name} ({dep.dprtmnt_code})

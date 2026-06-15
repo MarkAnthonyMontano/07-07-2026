@@ -226,6 +226,131 @@ const resolveProgramFromCurriculum = async (curriculumId) => {
   return row || null;
 };
 
+const getStudentDepartmentFromCurriculum = async (
+  studentNumber,
+  activeSchoolYearId = null,
+) => {
+  const schoolYearFilter = activeSchoolYearId
+    ? `(ss.id IS NULL OR ss.active_school_year_id = 0 OR sy.astatus = 1 OR ss.active_school_year_id = ?)`
+    : `(ss.id IS NULL OR ss.active_school_year_id = 0 OR sy.astatus = 1)`;
+  const params = activeSchoolYearId
+    ? [activeSchoolYearId, studentNumber]
+    : [studentNumber];
+
+  const [rows] = await db3.query(
+    `SELECT DISTINCT
+       sn.student_number,
+       COALESCE(NULLIF(ss.active_curriculum, 0), ptbl.program) AS curriculum_id,
+       ct.program_id,
+       dct.dprtmnt_id,
+       pt.program_code,
+       pt.program_description,
+       pt.major,
+       dt.dprtmnt_name,
+       dt.dprtmnt_code
+     FROM student_numbering_table AS sn
+     INNER JOIN person_table AS ptbl ON sn.person_id = ptbl.person_id
+     LEFT JOIN student_status_table AS ss ON sn.student_number = ss.student_number
+     LEFT JOIN active_school_year_table AS sy ON ss.active_school_year_id = sy.id
+     INNER JOIN curriculum_table AS ct
+       ON ct.curriculum_id = COALESCE(NULLIF(ss.active_curriculum, 0), ptbl.program)
+     INNER JOIN program_table AS pt ON ct.program_id = pt.program_id
+     INNER JOIN dprtmnt_curriculum_table AS dct ON dct.curriculum_id = ct.curriculum_id
+     INNER JOIN dprtmnt_table AS dt ON dt.dprtmnt_id = dct.dprtmnt_id
+     WHERE sn.student_number = ?
+       AND COALESCE(NULLIF(ss.active_curriculum, 0), ptbl.program) IS NOT NULL
+       AND COALESCE(NULLIF(ss.active_curriculum, 0), ptbl.program) <> 0
+       AND ${schoolYearFilter}`,
+    params,
+  );
+
+  return rows;
+};
+
+const resolveStudentScopeForEmployee = async (
+  employeeId,
+  studentNumber,
+  { activeSchoolYearId } = {},
+) => {
+  const contexts = await getStudentDepartmentFromCurriculum(
+    studentNumber,
+    activeSchoolYearId,
+  );
+
+  if (!contexts.length) {
+    const [[studentRow]] = await db3.query(
+      `SELECT 1 AS found
+       FROM student_numbering_table
+       WHERE student_number = ?
+       LIMIT 1`,
+      [studentNumber],
+    );
+
+    if (!studentRow?.found) {
+      return {
+        error: "Student record was not found. Please check the student number.",
+      };
+    }
+
+    return { error: "This student has no curriculum/program assigned yet." };
+  }
+
+  const scopes = employeeId ? await getScopes(employeeId) : [];
+  const allowedCurriculumIds = employeeId
+    ? await getAllowedCurriculumIds(employeeId)
+    : [];
+  const scopedDepartmentIds = employeeId
+    ? await getScopedDepartmentIds(employeeId)
+    : [];
+
+  let matchedContext = null;
+
+  if (scopes.length > 0) {
+    matchedContext = contexts.find((ctx) =>
+      scopes.some(
+        (scope) =>
+          String(scope.dprtmnt_id) === String(ctx.dprtmnt_id) &&
+          String(scope.program_id) === String(ctx.program_id),
+      ),
+    );
+
+    if (!matchedContext) {
+      return { error: "Student is outside your assigned programs." };
+    }
+  } else if (allowedCurriculumIds.length > 0) {
+    matchedContext = contexts.find((ctx) =>
+      allowedCurriculumIds.some(
+        (curriculumId) => String(curriculumId) === String(ctx.curriculum_id),
+      ),
+    );
+
+    if (!matchedContext) {
+      return { error: "Student is outside your assigned curriculum." };
+    }
+  } else if (scopedDepartmentIds.length > 0) {
+    matchedContext = contexts.find((ctx) =>
+      scopedDepartmentIds.some(
+        (departmentId) => String(departmentId) === String(ctx.dprtmnt_id),
+      ),
+    );
+
+    if (!matchedContext) {
+      return { error: "Student is not assigned to your department." };
+    }
+  } else if (!employeeId) {
+    return { error: "No department is assigned to your account." };
+  } else {
+    matchedContext = contexts[0];
+  }
+
+  return {
+    dprtmntId: matchedContext.dprtmnt_id,
+    curriculumId: matchedContext.curriculum_id,
+    programId: matchedContext.program_id,
+    context: matchedContext,
+  };
+};
+
 const syncLegacyColumns = async (employeeId) => {
   const scopes = await getScopes(employeeId);
 
@@ -400,6 +525,8 @@ module.exports = {
   getAllowedCurriculumIds,
   getScopedDepartmentIds,
   resolveProgramFromCurriculum,
+  getStudentDepartmentFromCurriculum,
+  resolveStudentScopeForEmployee,
   syncLegacyColumns,
   parseScopesFromBody,
   migrateLegacyScopes,

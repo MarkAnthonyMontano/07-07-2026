@@ -33,7 +33,11 @@ import PersonSearchIcon from "@mui/icons-material/PersonSearch";
 import API_BASE_URL from "../apiConfig";
 import { useLocation, useNavigate } from "react-router-dom";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
-import { isRegistrarCurriculumMatch } from "../utils/registrarCurriculumRestriction";
+import {
+  getDepartmentIdsFromAdminData,
+  resolveStudentRegistrarScope,
+  syncRegistrarScopeFromAdminData,
+} from "../utils/registrarCurriculumRestriction";
 import PersonIcon from "@mui/icons-material/Person";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
@@ -359,8 +363,10 @@ const CourseTaggingForCollege = () => {
   const [sections, setSections] = useState([]);
   const [selectedSection, setSelectedSection] = useState("");
   const [sectionLoading, setSectionLoading] = useState(false);
+  const [departmentLoading, setDepartmentLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState(null);
+  const [departments, setDepartments] = useState([]);
   const [yearLevel, setYearLevel] = useState([]);
   const [subjectCounts, setSubjectCounts] = useState({});
   const [isenrolled, setIsEnrolled] = useState(null);
@@ -433,31 +439,72 @@ const CourseTaggingForCollege = () => {
     if (userId && currId) refreshEnrolledCourses().catch((err) => console.error(err));
   }, [userId, currId]);
 
-  useEffect(() => { if (selectedDepartment) fetchDepartmentSections(); }, [selectedDepartment]);
+  useEffect(() => {
+    if (selectedDepartment) fetchDepartmentSections();
+  }, [selectedDepartment]);
 
   useEffect(() => {
     const email = localStorage.getItem("email");
-    if (email) {
-      axios.get(`${API_BASE_URL}/api/admin_data/${email}`)
-        .then((res) => {
-          const deptId = res.data?.dprtmnt_id;
-          setSelectedDepartment(deptId || null);
-          if (!deptId) setError("No department is assigned to your account.");
-        })
-        .catch((err) => {
-          console.error("Failed to fetch admin data:", err);
-          setError("Failed to load your department.");
-          setSnack({ open: true, message: "Failed to load your department.", severity: "error" });
-        });
+    if (!email) {
+      setDepartmentLoading(false);
+      setError("No department is assigned to your account.");
+      return;
     }
+
+    const loadDepartments = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/admin_data/${email}`);
+        syncRegistrarScopeFromAdminData(res.data);
+        const departmentIds = getDepartmentIdsFromAdminData(res.data);
+
+        if (!departmentIds.length) {
+          setSelectedDepartment(null);
+          setDepartments([]);
+          setError("No department is assigned to your account.");
+          return;
+        }
+
+        const responses = await Promise.all(
+          departmentIds.map((departmentId) =>
+            axios.get(`${API_BASE_URL}/api/departments/${departmentId}`),
+          ),
+        );
+        const mergedDepartments = responses.flatMap((response) => response.data || []);
+        const uniqueDepartments = [
+          ...new Map(
+            mergedDepartments.map((dep) => [String(dep.dprtmnt_id), dep]),
+          ).values(),
+        ];
+
+        setDepartments(uniqueDepartments);
+        setError(null);
+      } catch (err) {
+        console.error("Failed to fetch admin data:", err);
+        setError("Failed to load your department.");
+        setSnack({
+          open: true,
+          message: "Failed to load your department.",
+          severity: "error",
+        });
+      } finally {
+        setDepartmentLoading(false);
+      }
+    };
+
+    loadDepartments();
   }, []);
+
+  const detectedDepartment = departments.find(
+    (dep) => String(dep.dprtmnt_id) === String(selectedDepartment),
+  );
 
   const fetchDepartmentSections = async () => {
     try {
       setSectionLoading(true);
       setError(null);
       const response = await axios.get(`${API_BASE_URL}/api/department-sections`, { params: { departmentId: selectedDepartment } });
-      setTimeout(() => { setSections(response.data); setSectionLoading(false); }, 700);
+      setSections(response.data);
+      setSectionLoading(false);
     } catch (err) {
       console.error("Error fetching department sections:", err);
       setError("Failed to load department sections");
@@ -497,18 +544,42 @@ const CourseTaggingForCollege = () => {
 
   useEffect(() => {
     const computePrereqStatus = async () => {
-      if (!userId || courses.length === 0) { setPrereqMap({}); return; }
-      const map = {};
-      for (const course of courses) {
-        const res = await checkPrerequisite(userId, course);
-        let hasPrereq = true;
-        if (res.status === "NO_PREREQ" || res.status === "PREREQ_NOT_FOUND") hasPrereq = false;
-        map[course.course_id] = { allowed: !!res.allowed, hasPrereq };
+      if (!userId || courses.length === 0 || !currId) {
+        setPrereqMap({});
+        return;
       }
-      setPrereqMap(map);
+
+      try {
+        const { data } = await axios.post(
+          `${API_BASE_URL}/api/check-prerequisites-batch`,
+          {
+            student_number: userId,
+            curriculum_id: currId,
+            courses: courses.map((course) => ({
+              course_id: course.course_id,
+              semester_id: course.semester_id,
+            })),
+          },
+        );
+
+        const map = {};
+        for (const course of courses) {
+          const result = data.results?.[String(course.course_id)];
+          if (!result) continue;
+          map[course.course_id] = {
+            allowed: !!result.allowed,
+            hasPrereq: !!result.hasPrereq,
+          };
+        }
+        setPrereqMap(map);
+      } catch (err) {
+        console.error("Failed to load prerequisite status:", err);
+        setPrereqMap({});
+      }
     };
+
     computePrereqStatus();
-  }, [userId, courses]);
+  }, [userId, courses, currId]);
 
   const addToCart = async (course) => {
     if (!canCreate) { setSnack({ open: true, message: "You do not have permission to enroll subjects.", severity: "error" }); return; }
@@ -565,21 +636,30 @@ const CourseTaggingForCollege = () => {
 
   const handleSearchStudent = async () => {
     if (!studentNumber.trim()) { setSnack({ open: true, message: "Please fill in the student number", severity: "warning" }); return; }
-    if (!selectedDepartment) { setSnack({ open: true, message: "Department is not loaded yet. Please try again.", severity: "warning" }); return; }
+    if (departmentLoading) { setSnack({ open: true, message: "Department scope is still loading. Please try again.", severity: "warning" }); return; }
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/student-tagging/dprtmnt`, { studentNumber, dprtmntId: selectedDepartment }, { headers: { "Content-Type": "application/json" } });
-      const { token2, isEnrolled, person_id2, studentNumber: studentNum, section, activeCurriculum: effectiveProgram, yearLevel, yearDesc, courseCode: courseCode, courseDescription: courseDescription, firstName: first_name, middleName: middle_name, lastName: last_name, applyingAs: applyingAsValue } = response.data;
-      if (!isRegistrarCurriculumMatch(effectiveProgram)) {
+      const scopeResult = await resolveStudentRegistrarScope(studentNumber.trim());
+      if (scopeResult.error) {
         setApplyingAs(""); setUserId(null); setCurr(null); setCourses([]); setEnrolled([]); setIsEnrolled(false); setCurriculumYear(""); setSectionDescription("");
-        setSnack({ open: true, message: "This student is outside your assigned curriculum.", severity: "error" });
+        setSelectedDepartment(null);
+        setSelectedSection("");
+        setSections([]);
+        setSnack({ open: true, message: scopeResult.error, severity: "error" });
         return;
       }
+
+      setSelectedDepartment(scopeResult.dprtmntId);
+      setSelectedSection("");
+      const { token2, isEnrolled, person_id2, studentNumber: studentNum, section, activeCurriculum: effectiveProgram, yearLevel, yearDesc, courseCode: courseCode, courseDescription: courseDescription, firstName: first_name, middleName: middle_name, lastName: last_name, applyingAs: applyingAsValue } = scopeResult.preload;
       setStorageValue("token2", token2); setStorageValue("person_id2", person_id2); setStorageValue("studentNumber", studentNum); setStorageValue("activeCurriculum", effectiveProgram); setStorageValue("yearLevel", yearLevel); setStorageValue("courseCode", courseCode); setStorageValue("courseDescription", courseDescription); setStorageValue("firstName", first_name); setStorageValue("middleName", middle_name); setStorageValue("lastName", last_name); setStorageValue("section", section); setStorageValue("isEnrolled", isEnrolled);
       setUserId(cleanDisplayValue(studentNum)); setUserFirstName(cleanDisplayValue(first_name)); setUserMiddleName(cleanDisplayValue(middle_name)); setUserLastName(cleanDisplayValue(last_name)); setApplyingAs(cleanDisplayValue(applyingAsValue)); setCurr(cleanDisplayValue(effectiveProgram)); setCourseCode(cleanDisplayValue(courseCode)); setCourseDescription(cleanDisplayValue(courseDescription)); setCurriculumYear(cleanDisplayValue(yearDesc)); setPersonID(cleanDisplayValue(person_id2)); setSectionDescription(cleanDisplayValue(section)); setIsEnrolled(isEnrolled);
       await logStudentBasicInfoSearch({ studentNumber: studentNum, firstName: first_name, middleName: middle_name, lastName: last_name });
       setSnack({ open: true, message: "Student found and authenticated!", severity: "success" });
     } catch (error) {
       setApplyingAs(""); setUserId(null); setCurr(null); setCourses([]); setEnrolled([]); setIsEnrolled(false); setCurriculumYear(""); setSectionDescription("");
+      setSelectedDepartment(null);
+      setSelectedSection("");
+      setSections([]);
       setSnack({ open: true, message: getStudentSearchErrorMessage(error), severity: "error" });
     }
   };
@@ -668,10 +748,11 @@ const CourseTaggingForCollege = () => {
   };
 
   useEffect(() => {
-    if (!studentNumber || !selectedDepartment) return;
+    if (!studentNumber?.trim()) return;
+    if (departmentLoading) return;
     const delayDebounce = setTimeout(() => { handleSearchStudent(); }, 500);
     return () => clearTimeout(delayDebounce);
-  }, [studentNumber, selectedDepartment]);
+  }, [studentNumber, departmentLoading]);
 
   const totalUnits = enrolled.reduce((sum, item) => sum + (parseFloat(item.course_unit) || 0), 0)
     + enrolled.reduce((sum, item) => sum + (parseFloat(item.lab_unit) || 0), 0);
@@ -826,7 +907,6 @@ const CourseTaggingForCollege = () => {
                 Student Number:
               </Typography>
               <TextField
-                label="Student Number"
                 fullWidth
                 size="small"
                 value={studentNumber}
@@ -838,7 +918,6 @@ const CourseTaggingForCollege = () => {
                 Search by Course Code or Description:
               </Typography>
               <TextField
-                label="Search by Course Code or Description"
                 size="small"
                 fullWidth
                 value={searchQuery}
@@ -933,17 +1012,22 @@ const CourseTaggingForCollege = () => {
 
           {/* Section picker */}
           <Box sx={{ p: 2, borderBottom: `1px solid ${TOKEN.border}`, backgroundColor: "#fafafa" }}>
+            {detectedDepartment && (
+              <span style={{ mb: 1.5, fontSize: "32px", width: "100%", display: "flex", alignItems: "center", justifyContent: "start" }}>
+                {`${detectedDepartment.dprtmnt_name} (${detectedDepartment.dprtmnt_code})`}
+              </span>
+            )}
             <Typography sx={{ fontSize: "11px", textAlign: "left", fontWeight: 700, color: TOKEN.textMid, mb: 0.75, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Department Section
             </Typography>
-            {sectionLoading ? (
+            {departmentLoading || sectionLoading ? (
               <Box sx={{ width: "100%", mt: 1 }}><LinearWithValueLabel /></Box>
             ) : error ? (
               <Typography color="error" sx={{ fontSize: "12px" }}>{error}</Typography>
             ) : (
               <TextField
                 select fullWidth value={selectedSection} onChange={handleSectionChange}
-                size="small" label="Select a Department Section"
+                size="small"
                 sx={{ "& .MuiOutlinedInput-root": { fontSize: "13px" } }}
               >
                 <MenuItem value=""><em>Select a department section</em></MenuItem>

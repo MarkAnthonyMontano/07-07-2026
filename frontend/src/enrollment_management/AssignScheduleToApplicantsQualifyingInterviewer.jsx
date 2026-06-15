@@ -50,6 +50,7 @@ import {
   isRegistrarProgramSelectionLocked,
   restrictToRegistrarCurriculum,
   syncRegistrarScopeFromAdminData,
+  getDepartmentIdsFromAdminData,
 } from "../utils/registrarCurriculumRestriction";
 import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
@@ -114,7 +115,7 @@ const AssignScheduleToApplicantsInterviewer = () => {
   }, [settings]);
 
   const [user, setUser] = useState(null);
-  const [adminData, setAdminData] = useState({ dprtmnt_id: "" });
+  const [adminData, setAdminData] = useState({ dprtmnt_id: "", dprtmnt_ids: [] });
   const [emailSender, setEmailSender] = useState("");
   const [loggedInPersonId, setLoggedInPersonId] = useState(null);
 
@@ -235,8 +236,10 @@ const AssignScheduleToApplicantsInterviewer = () => {
       (c) => String(c.curriculum_id) === String(programId),
     );
 
-    // ✅ Fall back to adminData.dprtmnt_id if no match found
-    const departmentId = curriculumMatch?.dprtmnt_id || adminData.dprtmnt_id;
+    const departmentId =
+      curriculumMatch?.dprtmnt_id ||
+      getDepartmentIdsFromAdminData(adminData)[0] ||
+      adminData.dprtmnt_id;
 
     console.log("🔍 resolveSender:", {
       applicant_program: programId,
@@ -344,31 +347,41 @@ const AssignScheduleToApplicantsInterviewer = () => {
   const [selectedApplicantStatus, setSelectedApplicantStatus] = useState("");
   const [curriculumOptions, setCurriculumOptions] = useState([]);
   const scopeRevision = useRegistrarScopeRevision();
+  const [allCurriculums, setAllCurriculums] = useState([]);
 
   useEffect(() => {
-    if (!adminData.dprtmnt_id) return;
+    const departmentIds = getDepartmentIdsFromAdminData(adminData);
+    if (!departmentIds.length) return;
+
     const fetchCurriculums = async () => {
       try {
-        const response = await axios.get(
-          `${API_BASE_URL}/api/applied_program/${adminData.dprtmnt_id}`,
+        const responses = await Promise.all(
+          departmentIds.map((departmentId) =>
+            axios.get(`${API_BASE_URL}/api/applied_program/${departmentId}`),
+          ),
         );
-        setCurriculumOptions(restrictToRegistrarCurriculum(response.data));
+        const merged = responses.flatMap((response) => response.data || []);
+        const restricted = restrictToRegistrarCurriculum(merged);
+        setAllCurriculums(restricted);
+        setCurriculumOptions(restricted);
       } catch (error) {
         console.error("Error fetching curriculum options:", error);
       }
     };
     fetchCurriculums();
-  }, [adminData.dprtmnt_id, scopeRevision]);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
 
   useEffect(() => {
+    const departmentIds = getDepartmentIdsFromAdminData(adminData);
+    if (departmentIds.length) return;
+
     axios.get(`${API_BASE_URL}/api/applied_program`).then((res) => {
       const restrictedCurriculums = restrictToRegistrarCurriculum(res.data);
       setAllCurriculums(restrictedCurriculums);
       setCurriculumOptions(restrictedCurriculums);
     });
-  }, [scopeRevision]);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
 
-  const [allCurriculums, setAllCurriculums] = useState([]);
   const [schoolYears, setSchoolYears] = useState([]);
   const [semesters, setSchoolSemester] = useState([]);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState("");
@@ -433,7 +446,8 @@ const AssignScheduleToApplicantsInterviewer = () => {
     const branchId = schedule?.branch ? String(schedule.branch) : "";
 
     setSelectedCampusFilter(branchId);
-    setSelectedDepartmentFilter(String(adminData.dprtmnt_id ?? ""));
+    const firstDeptId = getDepartmentIdsFromAdminData(adminData)[0];
+    setSelectedDepartmentFilter(firstDeptId ? String(firstDeptId) : "");
     setSelectedProgramFilter("");
     setCurrentPage(1);
   };
@@ -1258,7 +1272,10 @@ ${requirementsSection}
     const curriculumMatch = allCurriculums.find(
       (curriculum) => String(curriculum.curriculum_id) === String(programId),
     );
-    const departmentId = curriculumMatch?.dprtmnt_id || adminData.dprtmnt_id;
+    const departmentId =
+      curriculumMatch?.dprtmnt_id ||
+      getDepartmentIdsFromAdminData(adminData)[0] ||
+      adminData.dprtmnt_id;
 
     socket.current.emit("send_interview_emails", {
       schedule_id: selectedSchedule,
@@ -1351,13 +1368,12 @@ ${requirementsSection}
   const [endDate, setEndDate] = useState("");
 
   const [selectedCampusFilter, setSelectedCampusFilter] = useState("");
-  const userDepartmentId = String(adminData.dprtmnt_id ?? "");
-  const activeDepartmentFilter = selectedDepartmentFilter || userDepartmentId;
-  const userDepartments = department.filter(
-    (dep) => String(dep.dprtmnt_id) === userDepartmentId,
+  const scopedDepartmentIds = getDepartmentIdsFromAdminData(adminData).map(String);
+  const scopedDepartments = department.filter((dep) =>
+    scopedDepartmentIds.includes(String(dep.dprtmnt_id)),
   );
 
-  const filteredDepartments = userDepartments.filter((dep) =>
+  const filteredDepartments = scopedDepartments.filter((dep) =>
     allCurriculums.some(
       (curriculum) =>
         String(curriculum.dprtmnt_id) === String(dep.dprtmnt_id) &&
@@ -1366,7 +1382,13 @@ ${requirementsSection}
     ),
   );
   const selectableDepartments =
-    filteredDepartments.length > 0 ? filteredDepartments : userDepartments;
+    filteredDepartments.length > 0 ? filteredDepartments : scopedDepartments;
+
+  const activeDepartmentFilter =
+    selectedDepartmentFilter ||
+    (selectableDepartments[0]
+      ? String(selectableDepartments[0].dprtmnt_id)
+      : "");
 
   const filteredCurriculumOptions = allCurriculums.filter(
     (curriculum) =>
@@ -1385,13 +1407,15 @@ ${requirementsSection}
   const handleCampusFilterChange = (branchId) => {
     setSelectedCampusFilter(branchId);
     setSelectedSchedule("");
-    setSelectedDepartmentFilter(userDepartmentId);
+    if (selectableDepartments.length > 0) {
+      setSelectedDepartmentFilter(String(selectableDepartments[0].dprtmnt_id));
+    }
     if (!isProgramLocked) setSelectedProgramFilter("");
     setCurrentPage(1);
   };
 
   const handleDepartmentChange = (departmentId) => {
-    setSelectedDepartmentFilter(userDepartmentId || departmentId);
+    setSelectedDepartmentFilter(departmentId);
     if (!isProgramLocked) setSelectedProgramFilter("");
     setCurrentPage(1);
   };
@@ -1595,21 +1619,34 @@ ${requirementsSection}
   const currentPersons = sortedPersons.slice(indexOfFirstItem, indexOfLastItem);
 
   useEffect(() => {
-    if (!adminData.dprtmnt_id) return;
+    const departmentIds = getDepartmentIdsFromAdminData(adminData);
+    if (!departmentIds.length) return;
 
     const fetchDepartments = async () => {
       try {
-        const response = await axios.get(
-          `${API_BASE_URL}/api/departments/${adminData.dprtmnt_id}`,
-        ); // ✅ Update if needed
-        setDepartment(response.data);
-        setSelectedDepartmentFilter(String(adminData.dprtmnt_id));
+        const responses = await Promise.all(
+          departmentIds.map((departmentId) =>
+            axios.get(`${API_BASE_URL}/api/departments/${departmentId}`),
+          ),
+        );
+        const mergedDepartments = responses.flatMap(
+          (response) => response.data || [],
+        );
+        const uniqueDepartments = [
+          ...new Map(
+            mergedDepartments.map((dep) => [String(dep.dprtmnt_id), dep]),
+          ).values(),
+        ];
+        setDepartment(uniqueDepartments);
+        if (uniqueDepartments.length > 0) {
+          setSelectedDepartmentFilter(String(uniqueDepartments[0].dprtmnt_id));
+        }
       } catch (error) {
         console.error("Error fetching departments:", error);
       }
     };
     fetchDepartments();
-  }, [adminData.dprtmnt_id]);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
 
   const maxButtonsToShow = 5;
   let startPage = Math.max(1, currentPage - Math.floor(maxButtonsToShow / 2));
@@ -2118,7 +2155,7 @@ ${requirementsSection}
             </Typography>
             <FormControl size="small" sx={{ width: "250px" }}>
               <Select
-                value={selectedDepartmentFilter || userDepartmentId}
+                value={activeDepartmentFilter}
                 onChange={(e) => handleDepartmentChange(e.target.value)}
                 displayEmpty
               >
@@ -2951,7 +2988,7 @@ ${requirementsSection}
             value={
               department.find(
                 (dep) =>
-                  String(dep.dprtmnt_id) === String(adminData.dprtmnt_id),
+                  String(dep.dprtmnt_id) === String(activeDepartmentFilter),
               )?.dprtmnt_name || ""
             }
             fullWidth
