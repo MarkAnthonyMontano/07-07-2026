@@ -211,6 +211,7 @@ const ApplicantProfile = () => {
     interviewDone: false,
     interviewStatus: "",
     step3: false,
+    step3Status: "",
     step4: false,
     step5: false,
   });
@@ -242,10 +243,28 @@ const ApplicantProfile = () => {
     return "";
   };
 
-  const isAcceptedStatus = (value) =>
-    value === 1 ||
-    String(value ?? "").trim() === "1" ||
-    String(value ?? "").trim().toUpperCase() === "ACCEPTED";
+  const normalizeCollegeApprovalStatus = (status) => {
+    if (status === null || status === undefined || String(status).trim() === "") {
+      return "";
+    }
+
+    if (status === 0 || String(status).trim() === "0") return "WAITING LIST";
+    if (status === 1 || String(status).trim() === "1") return "ACCEPTED";
+    if (status === 2 || String(status).trim() === "2") return "REJECTED";
+
+    const normalized = String(status).trim().toUpperCase();
+    if (normalized === "ACCEPTED") return "ACCEPTED";
+    if (normalized === "REJECTED") return "REJECTED";
+    if (
+      normalized === "WAITING LIST" ||
+      normalized === "WAITING" ||
+      normalized === "ON PROCESS"
+    ) {
+      return "WAITING LIST";
+    }
+
+    return "";
+  };
 
   const fetchApplicantData = async (query) => {
     if (!query) return;
@@ -294,19 +313,24 @@ const ApplicantProfile = () => {
         console.error("Score API failed:", err);
       }
 
-      // 4️⃣ Get acceptance status
-      let isAccepted = false;
+      // 4️⃣ Get college approval status (waiting list / accepted / rejected)
+      let collegeApprovalStatus = "";
 
       try {
         const statusRes = await axios.get(
-          `${API_BASE_URL}/api/applicant-status/${query}`
+          `${API_BASE_URL}/api/interview_applicants/${query}`
         );
 
-        isAccepted =
-          statusRes.data?.found && isAcceptedStatus(statusRes.data.status);
+        collegeApprovalStatus = normalizeCollegeApprovalStatus(
+          statusRes.data?.status
+        );
       } catch (err) {
-        console.error("Status API failed:", err);
+        if (err.response?.status !== 404) {
+          console.error("College approval status API failed:", err);
+        }
       }
+
+      const isAccepted = collegeApprovalStatus === "ACCEPTED";
 
       // 5️⃣ Registrar (STEP 4)
       let isRegistrarApproved = false;
@@ -355,6 +379,7 @@ const ApplicantProfile = () => {
         interviewStatus: interview_status,
 
         step3: isAccepted,
+        step3Status: collegeApprovalStatus,
         step4: isRegistrarApproved,
         step5: isRegistrarApproved && hasStudentNumberLocal,
       };
@@ -396,10 +421,20 @@ const ApplicantProfile = () => {
         );
       }
 
-      if (isAccepted) {
+      if (collegeApprovalStatus === "ACCEPTED") {
         showSnackbar(
           "🏥 The applicant may now proceed with the Medical Examination as part of the admission requirements.",
           "success"
+        );
+      } else if (collegeApprovalStatus === "REJECTED") {
+        showSnackbar(
+          "❌ The applicant has been rejected by the college.",
+          "error"
+        );
+      } else if (collegeApprovalStatus === "WAITING LIST") {
+        showSnackbar(
+          "⏳ The applicant is on the waiting list for college approval.",
+          "info"
         );
       }
 

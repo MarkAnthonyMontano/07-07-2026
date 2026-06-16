@@ -713,6 +713,58 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
     }
   }
 
+  const FormattedContent = ({ text }) => {
+    if (!text) return null;
+    const lines = text.split("\n");
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+        {lines.map((line, i) => {
+          const trimmed = line.trim();
+          if (!trimmed) return <div key={i} style={{ height: "6px" }} />;
+
+          const bulletMatch = trimmed.match(/^([•\*\-–])\s+(.*)/);
+          if (bulletMatch) {
+            return (
+              <div key={i} style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+                <span style={{ color: "#fff", marginTop: "2px", flexShrink: 0, fontSize: "14px" }}>•</span>
+                <span style={{ color: "rgba(255,255,255,0.92)", fontSize: "13.5px", lineHeight: 1.55 }}>
+                  {bulletMatch[2]}
+                </span>
+              </div>
+            );
+          }
+
+          const subBulletMatch = line.match(/^[\s\t]+([•\*\-–])\s+(.*)/);
+          if (subBulletMatch) {
+            return (
+              <div key={i} style={{ display: "flex", gap: "8px", alignItems: "flex-start", paddingLeft: "18px" }}>
+                <span style={{ color: "rgba(255,255,255,0.55)", marginTop: "2px", flexShrink: 0, fontSize: "12px" }}>◦</span>
+                <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", lineHeight: 1.55 }}>
+                  {subBulletMatch[2]}
+                </span>
+              </div>
+            );
+          }
+
+          const isHeading = trimmed === trimmed.toUpperCase() && trimmed.length > 3 && /[A-Z]/.test(trimmed);
+          if (isHeading) {
+            return (
+              <p key={i} style={{ margin: "6px 0 2px", color: "#fff", fontWeight: 700, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase", opacity: 0.75 }}>
+                {trimmed}
+              </p>
+            );
+          }
+
+          return (
+            <p key={i} style={{ margin: 0, color: "rgba(255,255,255,0.9)", fontSize: "13.5px", lineHeight: 1.6 }}>
+              {trimmed}
+            </p>
+          );
+        })}
+      </div>
+    );
+  };
+
 
   const maroon = settings?.header_color || "#9b2f35";
   const darkMaroon = "#7d252b";
@@ -774,6 +826,26 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
     { label: "Student Profile", icon: <BadgeOutlined />, href: "/student_personal_data_form" },
     { label: "Account Balance", icon: <CreditCard />, href: "/student_account_balance" },
   ];
+
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   return (
     <Box
@@ -1176,16 +1248,16 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
                 <Grid container>
                   <Grid item xs={12} md={5.2} sx={{ p: 2.5, borderRight: { md: `1px solid ${softBorder}` } }}>
                     <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}><Box sx={iconBoxSx}><StarBorder /></Box><Typography sx={{ fontSize: 18, fontWeight: 700 }}>Honors Standing</Typography></Stack>
-                    <Box sx={{ border: `2px solid ${borderColor}`, borderRadius: "8px", p: 2.5, textAlign: "center" }}>   
+                    <Box sx={{ border: `2px solid ${borderColor}`, borderRadius: "8px", p: 2.5, textAlign: "center" }}>
                       <Typography sx={{ mt: 1.25, fontSize: 24, color: maroon, fontWeight: 800 }}>
                         {honorStanding.loading
                           ? "Loading..."
                           : honorStanding.title ||
-                            (honorStanding.standing === "disqualified"
-                              ? "Disqualified"
-                              : honorStanding.standing === "not_in_standing"
-                                ? "Not In Standing"
-                                : "No Current Standing")}
+                          (honorStanding.standing === "disqualified"
+                            ? "Disqualified"
+                            : honorStanding.standing === "not_in_standing"
+                              ? "Not In Standing"
+                              : "No Current Standing")}
                       </Typography>
                       {!honorStanding.loading && honorStanding.overallGwa && (
                         <Typography sx={{ mt: 0.75, color: maroon, fontSize: 14, fontWeight: 700 }}>
@@ -1481,15 +1553,183 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
 
       <AnimatePresence>
         {lightboxOpen && announcements[lightboxIndex] && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} onClick={closeLightbox} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.88)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
-            <IconButton onClick={(e) => { e.stopPropagation(); closeLightbox(); }} sx={{ position: "fixed", top: 18, right: 18, color: "#fff", bgcolor: "rgba(255,255,255,0.15)", "&:hover": { bgcolor: "rgba(255,255,255,0.3)" } }}><CloseIcon /></IconButton>
-            <IconButton onClick={(e) => { e.stopPropagation(); lightboxPrev(); }} sx={{ position: "fixed", left: { xs: 16, md: 48 }, color: "#fff", bgcolor: "rgba(255,255,255,0.15)", "&:hover": { bgcolor: "rgba(255,255,255,0.3)" } }}><ArrowBackIosNewIcon /></IconButton>
-            <Box onClick={(e) => e.stopPropagation()} sx={{ maxWidth: "86vw", maxHeight: "86vh", textAlign: "center", color: "#fff" }}>
-              <Box component="img" src={`${API_BASE_URL}/uploads/Announcement/${announcements[lightboxIndex].file_path}`} alt={announcements[lightboxIndex].title} sx={{ maxWidth: "86vw", maxHeight: "74vh", objectFit: "contain", borderRadius: "12px", transform: `scale(${lightboxZoom})`, transition: "transform 0.25s ease" }} draggable={false} />
-              <Typography sx={{ mt: 2, fontSize: 20, fontWeight: 700 }}>{announcements[lightboxIndex].title}</Typography>
-              <Typography sx={{ mt: 0.5, color: "rgba(255,255,255,0.72)", fontSize: 14 }}>{announcements[lightboxIndex].content}</Typography>
-            </Box>
-            <IconButton onClick={(e) => { e.stopPropagation(); lightboxNext(); }} sx={{ position: "fixed", right: { xs: 16, md: 48 }, color: "#fff", bgcolor: "rgba(255,255,255,0.15)", "&:hover": { bgcolor: "rgba(255,255,255,0.3)" } }}><ArrowForwardIosIcon /></IconButton>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            onClick={closeLightbox}
+            style={{
+              position: "fixed", inset: 0, zIndex: 9999,
+              background: "rgba(0,0,0,0.92)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            {/* Prev */}
+            <IconButton
+              onClick={e => { e.stopPropagation(); lightboxPrev(); }}
+              sx={{
+                position: "fixed", left: { xs: 4, sm: 16 }, top: "50%", transform: "translateY(-50%)",
+                zIndex: 10000, width: { xs: 44, sm: 60 }, height: { xs: 44, sm: 60 },
+                background: "rgba(255,255,255,0.15)", color: "#fff",
+                "&:hover": { background: "rgba(255,255,255,0.3)" },
+              }}
+            >
+              <ArrowBackIosNewIcon sx={{ fontSize: { xs: 18, sm: 24 } }} />
+            </IconButton>
+
+            {/* Next */}
+            <IconButton
+              onClick={e => { e.stopPropagation(); lightboxNext(); }}
+              sx={{
+                position: "fixed", right: { xs: 4, sm: 16 }, top: "50%", transform: "translateY(-50%)",
+                zIndex: 10000, width: { xs: 44, sm: 60 }, height: { xs: 44, sm: 60 },
+                background: "rgba(255,255,255,0.15)", color: "#fff",
+                "&:hover": { background: "rgba(255,255,255,0.3)" },
+              }}
+            >
+              <ArrowForwardIosIcon sx={{ fontSize: { xs: 18, sm: 24 } }} />
+            </IconButton>
+
+            {/* Main card */}
+            <motion.div
+              key={announcements[lightboxIndex].id}
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.2 }}
+              onClick={e => e.stopPropagation()}
+              style={{
+                display: "flex",
+                flexDirection: window.innerWidth <= 768 ? "column" : "row",
+                width: window.innerWidth <= 768 ? "92vw" : "80vw",
+                maxWidth: "1200px",
+                maxHeight: window.innerWidth <= 768 ? "88vh" : "82vh",
+                borderRadius: "16px",
+                overflow: "hidden",
+                background: "#111",
+              }}
+            >
+              {/* LEFT — image */}
+              {announcements[lightboxIndex].file_path && (
+                <div style={{
+                  flex: window.innerWidth <= 768 ? "0 0 auto" : "0 0 60%",
+                  width: window.innerWidth <= 768 ? "100%" : "60%",
+                  maxHeight: window.innerWidth <= 768 ? "45vh" : "82vh",
+                  background: "#000",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                }}>
+                  <AnimatePresence mode="wait">
+                    <motion.img
+                      key={announcements[lightboxIndex].id}
+                      src={`${API_BASE_URL}/uploads/Announcement/${announcements[lightboxIndex].file_path}`}
+                      alt={announcements[lightboxIndex].title}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "contain",
+                        display: "block",
+                        userSelect: "none",
+                      }}
+                      draggable={false}
+                    />
+                  </AnimatePresence>
+                </div>
+              )}
+
+              {/* RIGHT — details */}
+              <div style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                background: "linear-gradient(160deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%)",
+                padding: window.innerWidth <= 768 ? "20px 16px" : "32px 28px",
+                overflowY: "auto",
+                scrollbarWidth: "thin",
+                scrollbarColor: "rgba(255,255,255,0.2) transparent",
+              }}>
+                {/* Close button — top of details panel */}
+                <IconButton
+                  onClick={e => { e.stopPropagation(); closeLightbox(); }}
+                  sx={{
+                    position: "fixed", top: 25, left: 50, zIndex: 10000,
+                    width: 75, height: 75,
+                    background: "rgba(255,255,255,0.15)", color: "#fff",
+                    "&:hover": { background: "rgba(220,50,50,0.75)" },
+                  }}
+                >
+                  <CloseIcon sx={{ fontSize: 28 }} />
+                </IconButton>
+
+                {/* Title */}
+                <h2 style={{
+                  margin: "0 0 4px",
+                  color: "#fff",
+                  fontSize: window.innerWidth <= 768 ? "16px" : "20px",
+                  fontWeight: 700,
+                  lineHeight: 1.4,
+                }}>
+                  {announcements[lightboxIndex].title}
+                </h2>
+
+                {/* Divider */}
+                <div style={{
+                  width: "40px", height: "3px",
+                  background: "rgba(255,255,255,0.35)",
+                  borderRadius: "2px",
+                  margin: "10px 0 18px",
+                }} />
+
+                {/* Content */}
+                {/* Content */}
+                <div style={{ flex: 1 }}>
+                  <FormattedContent text={announcements[lightboxIndex].content} />
+                </div>
+                {/* Expiry */}
+                <p style={{
+                  margin: "12px 0 0",
+                  color: "rgba(255,255,255,0.45)",
+                  fontSize: "11px",
+                }}>
+                  Expires: {new Date(announcements[lightboxIndex].expires_at).toLocaleDateString("en-US")}
+                </p>
+
+                {/* Slide counter dots */}
+                {announcements.length > 1 && (
+                  <div style={{
+                    marginTop: "20px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}>
+                    {announcements.map((_, i) => (
+                      <div
+                        key={i}
+                        onClick={e => { e.stopPropagation(); setLightboxIndex(i); }}
+                        style={{
+                          width: i === lightboxIndex ? 18 : 6,
+                          height: 6,
+                          borderRadius: 3,
+                          background: i === lightboxIndex ? "#fff" : "rgba(255,255,255,0.3)",
+                          transition: "all 0.3s",
+                          cursor: "pointer",
+                        }}
+                      />
+                    ))}
+                    <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginLeft: "4px" }}>
+                      {lightboxIndex + 1} / {announcements.length}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

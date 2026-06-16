@@ -306,6 +306,22 @@ const ApplicantExamPermit = ({ personId, steps, printRef }) => {
         );
     };
 
+    const renderCollegeApprovalStatus = (status) => {
+        if (!status) return null;
+
+        const label = String(status).toUpperCase();
+        let color = "orange";
+
+        if (label === "ACCEPTED") color = "green";
+        else if (label === "REJECTED") color = "red";
+
+        return (
+            <span style={{ color, fontWeight: "bold" }}>
+                {label}
+            </span>
+        );
+    };
+
 
 
     if (!person) return <div>Loading Exam Permit...</div>;
@@ -1425,11 +1441,7 @@ const ApplicantExamPermit = ({ personId, steps, printRef }) => {
                                         fontSize: "18px",
                                     }}
                                 >
-                                    {steps.step3 && (
-                                        <span style={{ color: "green", fontWeight: "bold" }}>
-                                            ✔ DONE
-                                        </span>
-                                    )}
+                                    {steps?.step3Status && renderCollegeApprovalStatus(steps.step3Status)}
                                 </td>
                                 <td
                                     colSpan={5}
@@ -2634,11 +2646,7 @@ const ApplicantExamPermit = ({ personId, steps, printRef }) => {
                                         fontSize: "18px",
                                     }}
                                 >
-                                    {steps.step3 && (
-                                        <span style={{ color: "green", fontWeight: "bold" }}>
-                                            ✔ DONE
-                                        </span>
-                                    )}
+                                    {steps?.step3Status && renderCollegeApprovalStatus(steps.step3Status)}
                                 </td>
                                 <td
                                     colSpan={5}

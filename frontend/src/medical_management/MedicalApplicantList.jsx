@@ -521,16 +521,16 @@ const MedicalStudentList = () => {
     : "";
   const selectedDepartmentFilterValue =
     selectedDepartmentFilter === "" ||
-    department.some(
-      (dep) => String(dep.dprtmnt_name) === String(selectedDepartmentFilter),
-    )
+      department.some(
+        (dep) => String(dep.dprtmnt_name) === String(selectedDepartmentFilter),
+      )
       ? selectedDepartmentFilter
       : "";
   const selectedProgramFilterValue =
     selectedProgramFilter === "" ||
-    curriculumOptions.some(
-      (prog) => String(prog.program_code) === String(selectedProgramFilter),
-    )
+      curriculumOptions.some(
+        (prog) => String(prog.program_code) === String(selectedProgramFilter),
+      )
       ? selectedProgramFilter
       : "";
 
@@ -593,7 +593,7 @@ const MedicalStudentList = () => {
       const matchesApplicantStatus =
         selectedApplicantStatus === "" ||
         normalize(personData.document_status) ===
-          normalize(selectedApplicantStatus);
+        normalize(selectedApplicantStatus);
 
       // (keep your registrar filter; shown here with the earlier mapping)
 
@@ -929,22 +929,20 @@ const MedicalStudentList = () => {
                  <div style="font-size: 13px; font-family: Arial">Republic of the Philippines</div>
    
                  <!-- ✅ Dynamic company name -->
-                 ${
-                   name
-                     ? `
+                 ${name
+        ? `
                        <b style="letter-spacing: 1px; font-size: 20px; font-family: Arial, sans-serif;">
                          ${firstLine}
                        </b>
-                       ${
-                         secondLine
-                           ? `<div style="letter-spacing: 1px; font-size: 20px; font-family: Arial, sans-serif;">
+                       ${secondLine
+          ? `<div style="letter-spacing: 1px; font-size: 20px; font-family: Arial, sans-serif;">
                                <b>${secondLine}</b>
                              </div>`
-                           : ""
-                       }
+          : ""
+        }
                      `
-                     : ""
-                 }
+        : ""
+      }
    
                  <!-- ✅ Dynamic campus address -->
                  <div style="font-size: 13px; font-family: Arial">${resolvedCampusAddress}</div>
@@ -971,38 +969,36 @@ const MedicalStudentList = () => {
                </thead>
                <tbody>
                  ${filteredPersons
-                   .map(
-                     (person) => `
+        .map(
+          (person) => `
                        <tr>
                          <td style="width:10%">${person.student_number ?? "N/A"}</td>
                          <td style="width:30%">${person.last_name}, ${person.first_name} ${person.middle_name || ""} ${person.extension || ""}</td>
-                         <td style="width:15%">${
-                           allCurriculums.find(
-                             (item) =>
-                               item.curriculum_id?.toString() ===
-                               person.program?.toString(),
-                           )?.program_code ?? "N/A"
-                         }</td>
+                         <td style="width:15%">${allCurriculums.find(
+            (item) =>
+              item.curriculum_id?.toString() ===
+              person.program?.toString(),
+          )?.program_code ?? "N/A"
+            }</td>
                          <td style="width:10%">${person.generalAverage1 || ""}</td>
                          <td style="width:20%">${new Date(
-                           person.created_at.split("T")[0],
-                         ).toLocaleDateString("en-PH", {
-                           year: "numeric",
-                           month: "short",
-                           day: "2-digit",
-                         })}</td>
-                         <td style="width:15%">${
-                           person.submitted_medical === 1
-                             ? "On Process"
-                             : person.submitted_medical === 0
-                               ? "No Submitted Documents"
-                               : ""
-                         }</td>
+              person.created_at.split("T")[0],
+            ).toLocaleDateString("en-PH", {
+              year: "numeric",
+              month: "short",
+              day: "2-digit",
+            })}</td>
+                         <td style="width:15%">${person.submitted_medical === 1
+              ? "On Process"
+              : person.submitted_medical === 0
+                ? "No Submitted Documents"
+                : ""
+            }</td>
 
                        </tr>
                      `,
-                   )
-                   .join("")}
+        )
+        .join("")}
                </tbody>
              </table>
            </div>
@@ -1020,6 +1016,26 @@ const MedicalStudentList = () => {
   if (!hasAccess) {
     return <Unauthorized />;
   }
+
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   return (
     <Box
@@ -1046,7 +1062,7 @@ const MedicalStudentList = () => {
             fontSize: "36px",
           }}
         >
-         STUDENT LIST
+          STUDENT LIST
         </Typography>
 
         <TextField
@@ -1789,8 +1805,7 @@ const MedicalStudentList = () => {
                     onChange={(e) => {
                       const checked = e.target.checked;
                       setConfirmMessage(
-                        `Are you sure you want to mark this applicant’s Medical as ${
-                          checked ? "Submitted" : "Unsubmitted"
+                        `Are you sure you want to mark this applicant’s Medical as ${checked ? "Submitted" : "Unsubmitted"
                         }?`,
                       );
                       setConfirmAction(() => async () => {

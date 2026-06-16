@@ -329,6 +329,26 @@ const OfficeOfTheRegistrar = () => {
       (person?.program ?? "");
   }
 
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
+
   return (
     <Box
       sx={{
@@ -758,11 +778,11 @@ const OfficeOfTheRegistrar = () => {
                 >
                   {person.created_at
                     ? new Date(person.created_at).toLocaleDateString("en-US", {
-                        month: "short", // ✅ “Oct”
-                        day: "2-digit", // ✅ “18”
-                        year: "numeric", // ✅ “2025”
-                        timeZone: "Asia/Manila", // ✅ force PH time
-                      })
+                      month: "short", // ✅ “Oct”
+                      day: "2-digit", // ✅ “18”
+                      year: "numeric", // ✅ “2025”
+                      timeZone: "Asia/Manila", // ✅ force PH time
+                    })
                     : ""}
                 </td>
               </tr>
@@ -796,13 +816,13 @@ const OfficeOfTheRegistrar = () => {
                 >
                   {curriculumOptions.length > 0
                     ? curriculumOptions
-                        .find(
-                          (item) =>
-                            item?.curriculum_id?.toString() ===
-                            (person?.program ?? "").toString(),
-                        )
-                        ?.program_description?.toUpperCase() ||
-                      (person?.program?.toString()?.toUpperCase() ?? "")
+                      .find(
+                        (item) =>
+                          item?.curriculum_id?.toString() ===
+                          (person?.program ?? "").toString(),
+                      )
+                      ?.program_description?.toUpperCase() ||
+                    (person?.program?.toString()?.toUpperCase() ?? "")
                     : "LOADING..."}
                 </td>
 
@@ -1512,7 +1532,7 @@ const OfficeOfTheRegistrar = () => {
                     <span>
                       (
                       {person.citizenship &&
-                      person.citizenship.toLowerCase() !== "filipino"
+                        person.citizenship.toLowerCase() !== "filipino"
                         ? "✓"
                         : " "}
                       ) Foreign:

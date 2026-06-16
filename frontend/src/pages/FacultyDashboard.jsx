@@ -1,88 +1,157 @@
 import React, { useState, useEffect, useContext, useRef } from "react";
 import { SettingsContext } from "../App";
-import "../styles/TempStyles.css";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Grid,
   Card,
   CardContent,
   Typography,
-  Divider,
   Avatar,
   IconButton,
   Button,
+  Stack,
   Tooltip,
 } from "@mui/material";
-import { Dialog } from "@mui/material";
-import KeyboardBackspaceIcon from "@mui/icons-material/KeyboardBackspace";
-import PersonIcon from "@mui/icons-material/Person";
-import { Link } from "react-router-dom";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
-import API_BASE_URL from "../apiConfig";
-import { motion, AnimatePresence } from "framer-motion";
+import CampaignIcon from "@mui/icons-material/Campaign";
+import GradingIcon from "@mui/icons-material/Grading";
+import ListAltIcon from "@mui/icons-material/ListAlt";
+import WorkIcon from "@mui/icons-material/Work";
+import SchoolIcon from "@mui/icons-material/School";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
-import ZoomOutIcon from "@mui/icons-material/ZoomOut";
 import CloseIcon from "@mui/icons-material/Close";
+import { ArrowBackIos, ArrowForwardIos } from "@mui/icons-material";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
-import { ArrowBackIos, ArrowForwardIos } from "@mui/icons-material";
+import { motion, AnimatePresence } from "framer-motion";
+import API_BASE_URL from "../apiConfig";
+import LoadingOverlay from "../components/LoadingOverlay";
+
+const MAROON = "#8B1A1A";
+const CALENDAR_WEEKS = 6;
+const CALENDAR_DAY_ROW_HEIGHT = 32;
+
+const abbrevDay = (day) => {
+  const map = {
+    Monday: "Mon", Tuesday: "Tue", Wednesday: "Wed",
+    Thursday: "Thu", Friday: "Fri", Saturday: "Sat", Sunday: "Sun",
+  };
+  return map[day] || String(day || "").slice(0, 3);
+};
+
+const StatCardHeader = ({ title, subtitle, value, unit, valueColor = "#222" }) => (
+  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1 }}>
+    <Box sx={{ minWidth: 0, flex: 1 }}>
+      <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#222", lineHeight: 1.3 }}>
+        {title}
+      </Typography>
+      <Typography sx={{ fontSize: 11, color: "#999", mt: 0.35, lineHeight: 1.3 }}>
+        {subtitle}
+      </Typography>
+    </Box>
+    <Box sx={{ textAlign: "right", flexShrink: 0 }}>
+      <Typography sx={{ fontSize: { xs: 30, lg: 28, xl: 32 }, fontWeight: 800, color: valueColor, lineHeight: 1 }}>
+        {value}
+      </Typography>
+      <Typography sx={{ fontSize: 11, color: "#999", mt: 0.35, lineHeight: 1.3, whiteSpace: "nowrap" }}>
+        {unit}
+      </Typography>
+    </Box>
+  </Box>
+);
+
+const StatMetric = ({ label, value, dotColor }) => (
+  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", py: 0.35, gap: 0.75 }}>
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0 }}>
+      <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: dotColor, flexShrink: 0 }} />
+      <Typography sx={{ fontSize: 12, color: "#555", lineHeight: 1.3 }} noWrap>{label}</Typography>
+    </Box>
+    <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#222", lineHeight: 1.3, flexShrink: 0 }}>{value}</Typography>
+  </Box>
+);
+
+const StatCard = ({ title, subtitle, value, unit, valueColor, borderColor = "#000000", children }) => (
+  <Box sx={{
+    bgcolor: "#fff",
+    border: `2px solid ${borderColor}`,
+    borderRadius: "8px",
+    height: "100%",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+  }}>
+    <Box sx={{ px: 1.75, pt: 1.75, pb: 1.25, borderBottom: `2px solid ${borderColor}` }}>
+      <StatCardHeader
+        title={title}
+        subtitle={subtitle}
+        value={value}
+        unit={unit}
+        valueColor={valueColor}
+      />
+    </Box>
+    <Box sx={{ px: 1.75, py: 1.25, display: "flex", flexDirection: "column", gap: 0.35, flex: 1 }}>
+      {children}
+    </Box>
+  </Box>
+);
+
+const QuickAction = ({ icon: Icon, label, color, onClick }) => (
+  <Button
+    onClick={onClick}
+    fullWidth
+    sx={{
+      flexDirection: "column",
+      gap: 0.5,
+      py: 1.25,
+      px: 0.5,
+      borderRadius: 1.5,
+      border: "1px solid #e8e8e8",
+      bgcolor: "#fff",
+      color: "#444",
+      textTransform: "none",
+      minHeight: 76,
+      boxShadow: "none",
+      "&:hover": { bgcolor: "#fafafa", borderColor: color },
+    }}
+  >
+    <Box sx={{
+      width: 36, height: 36, borderRadius: 1,
+      bgcolor: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      <Icon sx={{ color, fontSize: 20 }} />
+    </Box>
+    <Typography sx={{ fontSize: 10, fontWeight: 600, textAlign: "center", lineHeight: 1.2 }}>
+      {label}
+    </Typography>
+  </Button>
+);
 
 const FacultyDashboard = ({ profileImage, setProfileImage }) => {
   const settings = useContext(SettingsContext);
+  const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+  const sidebarRef = useRef(null);
 
-  const [titleColor, setTitleColor] = useState("#000000");
-  const [subtitleColor, setSubtitleColor] = useState("#555555");
-  const [borderColor, setBorderColor] = useState("#000000");
-  const [mainButtonColor, setMainButtonColor] = useState("#1976d2");
-  const [subButtonColor, setSubButtonColor] = useState("#ffffff"); // ✅ NEW
-  const [stepperColor, setStepperColor] = useState("#000000"); // ✅ NEW
-
-  const [fetchedLogo, setFetchedLogo] = useState(null);
-  const [companyName, setCompanyName] = useState("");
-  const [shortTerm, setShortTerm] = useState("");
-  const [campusAddress, setCampusAddress] = useState("");
-
-  useEffect(() => {
-    if (!settings) return;
-
-    // 🎨 Colors
-    if (settings.title_color) setTitleColor(settings.title_color);
-    if (settings.subtitle_color) setSubtitleColor(settings.subtitle_color);
-    if (settings.border_color) setBorderColor(settings.border_color);
-    if (settings.main_button_color)
-      setMainButtonColor(settings.main_button_color);
-    if (settings.sub_button_color) setSubButtonColor(settings.sub_button_color); // ✅ NEW
-    if (settings.stepper_color) setStepperColor(settings.stepper_color); // ✅ NEW
-
-    // 🏫 Logo
-    if (settings.logo_url) {
-      setFetchedLogo(`${API_BASE_URL}${settings.logo_url}`);
-    } else {
-      setFetchedLogo(EaristLogo);
-    }
-
-    // 🏷️ School Information
-    if (settings.company_name) setCompanyName(settings.company_name);
-    if (settings.short_term) setShortTerm(settings.short_term);
-    if (settings.campus_address) setCampusAddress(settings.campus_address);
-  }, [settings]);
-
-  const [userID, setUserID] = useState("");
-  const [user, setUser] = useState("");
-  const [userRole, setUserRole] = useState("");
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
+  const [hovered, setHovered] = useState(false);
   const [personData, setPerson] = useState({
-    prof_id: "",
-    employee_id: "",
-    lname: "",
-    fname: "",
-    mname: "",
-    profile_image: "",
+    prof_id: "", employee_id: "", fname: "", mname: "", lname: "", profile_image: "",
   });
-  const [openImage, setOpenImage] = useState(null);
-  const [schedule, setSchedule] = useState([]);
+  const [dashboard, setDashboard] = useState(null);
+  const [announcements, setAnnouncements] = useState([]);
+  const [currentAnnIndex, setCurrentAnnIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxZoom, setLightboxZoom] = useState(1);
+  const [date, setDate] = useState(new Date());
+  const [holidays, setHolidays] = useState({});
+  const [sidebarHeight, setSidebarHeight] = useState(null);
+
+  const headerColor = settings?.header_color || MAROON;
+  const maroon = settings?.header_color || MAROON;
+  const borderColor = settings?.border_color || "#000000";
 
   useEffect(() => {
     const storedUser = localStorage.getItem("email");
@@ -91,20 +160,105 @@ const FacultyDashboard = ({ profileImage, setProfileImage }) => {
     const storedEmployeeID = localStorage.getItem("employee_id");
     const storedID = storedProfID || storedEmployeeID;
 
-    if (storedUser && storedRole && storedID) {
-      setUser(storedUser);
-      setUserRole(storedRole);
-      setUserID(storedID);
-
-      if (storedRole !== "faculty") {
-        window.location.href = "/dashboard";
-      } else {
-        fetchPersonData(storedID);
-      }
-    } else {
+    if (!storedUser || !storedRole || !storedID) {
       window.location.href = "/login";
+      return;
     }
+    if (storedRole !== "faculty") {
+      window.location.href = "/dashboard";
+      return;
+    }
+    fetchPersonData(storedID);
   }, []);
+
+  useEffect(() => {
+    if (personData.prof_id) fetchDashboard(personData.prof_id);
+  }, [personData.prof_id]);
+
+  useEffect(() => {
+    axios.get(`${API_BASE_URL}/api/announcements/faculty`)
+      .then((res) => {
+        const data = Array.isArray(res.data) ? res.data : res.data?.data;
+        setAnnouncements(data || []);
+      })
+      .catch(() => setAnnouncements([]));
+  }, []);
+
+  useEffect(() => {
+    if (announcements.length <= 1) return undefined;
+    const interval = setInterval(() => {
+      setCurrentAnnIndex((prev) => (prev + 1) % announcements.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [announcements.length]);
+
+  const currentAnnouncement = announcements[currentAnnIndex];
+
+  const openLightbox = (index) => {
+    setLightboxIndex(index);
+    setLightboxZoom(1);
+    setLightboxOpen(true);
+  };
+
+  const closeLightbox = () => {
+    setCurrentAnnIndex(lightboxIndex);
+    setLightboxOpen(false);
+    setLightboxZoom(1);
+  };
+
+  const lightboxNext = () => {
+    setLightboxIndex((prev) => (prev + 1) % announcements.length);
+    setLightboxZoom(1);
+  };
+
+  const lightboxPrev = () => {
+    setLightboxIndex((prev) => (prev - 1 + announcements.length) % announcements.length);
+    setLightboxZoom(1);
+  };
+
+  useEffect(() => {
+    if (!lightboxOpen) return undefined;
+    const handleKey = (e) => {
+      if (e.key === "Escape") closeLightbox();
+      if (e.key === "ArrowRight") lightboxNext();
+      if (e.key === "ArrowLeft") lightboxPrev();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [lightboxOpen, lightboxIndex, announcements.length]);
+
+  useEffect(() => {
+    const el = sidebarRef.current;
+    if (!el) return undefined;
+
+    const updateHeight = () => {
+      const nextHeight = Math.ceil(el.getBoundingClientRect().height);
+      if (nextHeight > 0) setSidebarHeight(nextHeight);
+    };
+
+    updateHeight();
+    const ro = new ResizeObserver(updateHeight);
+    ro.observe(el);
+    window.addEventListener("resize", updateHeight);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", updateHeight);
+    };
+  }, [loading, announcements.length, currentAnnIndex]);
+
+  const year = date.getFullYear();
+  const month = date.getMonth();
+
+  useEffect(() => {
+    axios.get(`https://date.nager.at/api/v3/PublicHolidays/${year}/PH`)
+      .then((res) => {
+        const lookup = {};
+        res.data.forEach((h) => { lookup[h.date] = h; });
+        setHolidays(lookup);
+      })
+      .catch(() => setHolidays({}));
+  }, [year]);
 
   const fetchPersonData = async (id) => {
     try {
@@ -119,135 +273,73 @@ const FacultyDashboard = ({ profileImage, setProfileImage }) => {
       const first = res.data[0];
       localStorage.setItem("prof_id", first.prof_id || "");
       localStorage.setItem("employee_id", first.employee_id || "");
-      const profInfo = {
+      setPerson({
         prof_id: first.prof_id,
         employee_id: first.employee_id,
         fname: first.fname,
         mname: first.mname,
         lname: first.lname,
         profile_image: first.profile_image,
-      };
-      setPerson(profInfo);
-    } catch (err) {
-      setMessage("Error Fetching Professor Personal Data");
+      });
+    } catch {
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (personData.prof_id) {
-      fetchSchedule(personData.prof_id);
-    }
-  }, [personData.prof_id]);
-
-  const fetchSchedule = async (prof_id) => {
+  const fetchDashboard = async (profId) => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/my_schedule/${prof_id}`);
-      setSchedule(res.data);
+      setLoading(true);
+      const res = await axios.get(`${API_BASE_URL}/api/faculty_dashboard_summary/${profId}`);
+      setDashboard(res.data);
     } catch (err) {
-      console.error("Failed to fetch schedule:", err);
+      console.error("Dashboard fetch failed:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const parseTime = (timeStr) => {
-    if (!timeStr) return 0;
-    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
-    if (!match) return 0;
-    let [_, h, m, mod] = match;
-    let hours = Number(h);
-    const minutes = Number(m);
-    if (mod?.toUpperCase() === "PM" && hours < 12) hours += 12;
-    if (mod?.toUpperCase() === "AM" && hours === 12) hours = 0;
-    return hours * 60 + minutes;
-  };
-
-  const getTotalWorkingHours = () => {
-    if (!schedule || !schedule.length) return 0;
-
-    const totalMinutes = schedule.reduce((total, entry) => {
-      const start = parseTime(entry.school_time_start);
-      const end = parseTime(entry.school_time_end);
-      return total + (end - start);
-    }, 0);
-
-    return totalMinutes / 60;
-  };
-
-  const [announcements, setAnnouncements] = useState([]);
-  const [hovered, setHovered] = useState(false);
-  const fileInputRef = useRef(null);
-
-  useEffect(() => {
-    const fetchAnnouncements = async () => {
-      try {
-        const res = await axios.get(
-          `${API_BASE_URL}/api/announcements/faculty`,
-        );
-        const data = Array.isArray(res.data) ? res.data : res.data?.data;
-        setAnnouncements(data || []);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchAnnouncements();
-  }, []);
-
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  useEffect(() => {
-    if (announcements.length > 1) {
-      const interval = setInterval(() => {
-        setCurrentIndex((prev) => (prev + 1) % announcements.length);
-      }, 5000);
-      return () => clearInterval(interval);
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const employee_id = localStorage.getItem("employee_id") || personData.employee_id;
+      const formData = new FormData();
+      formData.append("profile_picture", file);
+      formData.append("employee_id", employee_id);
+      await axios.post(`${API_BASE_URL}/api/update_faculty`, formData);
+      const updated = await axios.get(`${API_BASE_URL}/api/get_prof_data_by_employee/${employee_id}`);
+      const updatedFaculty = updated.data[0];
+      setPerson((prev) => ({ ...prev, profile_image: updatedFaculty.profile_image }));
+      setProfileImage(`${API_BASE_URL}/uploads/Faculty1by1/${updatedFaculty.profile_image}?t=${Date.now()}`);
+    } catch (err) {
+      console.error("Upload failed:", err);
+    } finally {
+      e.target.value = "";
     }
-  }, [announcements]);
+  };
 
-  // Lightbox state — add near your other useState declarations
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxIndex, setLightboxIndex] = useState(0);
-  const [lightboxZoom, setLightboxZoom] = useState(1);
+  const fullName = personData.lname
+    ? `${personData.lname}, ${personData.fname} ${personData.mname || ""}`.trim()
+    : "";
 
-
-  // Lightbox helpers
-  const openLightbox = (index) => { setLightboxIndex(index); setLightboxZoom(1); setLightboxOpen(true); };
-  const closeLightbox = () => { setLightboxOpen(false); setLightboxZoom(1); };
-  const lightboxNext = () => { setLightboxIndex(prev => (prev + 1) % announcements.length); setLightboxZoom(1); };
-  const lightboxPrev = () => { setLightboxIndex(prev => (prev - 1 + announcements.length) % announcements.length); setLightboxZoom(1); };
-  const zoomIn = () => setLightboxZoom(prev => Math.min(prev + 0.5, 3));
-  const zoomOut = () => setLightboxZoom(prev => Math.max(prev - 0.5, 1));
-
-  useEffect(() => {
-    if (!lightboxOpen) return;
-    const handleKey = (e) => {
-      if (e.key === "Escape") closeLightbox();
-      if (e.key === "ArrowRight") lightboxNext();
-      if (e.key === "ArrowLeft") lightboxPrev();
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [lightboxOpen, lightboxIndex, announcements.length]);
-
-  const [date, setDate] = useState(new Date());
-
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thur", "Fri", "Sat"];
-
-  const year = date.getFullYear();
-  const month = date.getMonth();
+  const avatarSrc = profileImage
+    || (personData.profile_image
+      ? `${API_BASE_URL}/uploads/Faculty1by1/${personData.profile_image}`
+      : null);
 
   const now = new Date();
-  const manilaDate = new Date(
-    now.toLocaleString("en-US", { timeZone: "Asia/Manila" }),
-  );
+  const manilaDate = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
   const today = manilaDate.getDate();
   const thisMonth = manilaDate.getMonth();
   const thisYear = manilaDate.getFullYear();
+
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thur", "Fri", "Sat"];
 
   const firstDay = new Date(year, month, 1).getDay();
   const totalDays = new Date(year, month + 1, 0).getDate();
 
   const weeks = [];
   let currentDay = 1 - firstDay;
-
   while (currentDay <= totalDays) {
     const week = [];
     for (let i = 0; i < 7; i++) {
@@ -261,813 +353,684 @@ const FacultyDashboard = ({ profileImage, setProfileImage }) => {
     weeks.push(week);
   }
 
+  while (weeks.length < CALENDAR_WEEKS) {
+    weeks.push(Array(7).fill(null));
+  }
+
   const handlePrevMonth = () => setDate(new Date(year, month - 1, 1));
   const handleNextMonth = () => setDate(new Date(year, month + 1, 1));
 
-  const [holidays, setHolidays] = useState({});
+  const FormattedContent = ({ text }) => {
+    if (!text) return null;
+    const lines = text.split("\n");
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+        {lines.map((line, i) => {
+          const trimmed = line.trim();
+          if (!trimmed) return <div key={i} style={{ height: "6px" }} />;
 
-  useEffect(() => {
-    const fetchHolidays = async () => {
-      try {
-        const res = await axios.get(
-          `https://date.nager.at/api/v3/PublicHolidays/${year}/PH`,
-        );
-        const lookup = {};
-        res.data.forEach((h) => {
-          lookup[h.date] = h;
-        });
-        setHolidays(lookup);
-      } catch (err) {
-        console.error("❌ Failed to fetch PH holidays:", err);
-        setHolidays({});
-      }
-    };
-    fetchHolidays();
-  }, [year]);
+          const bulletMatch = trimmed.match(/^([•\*\-–])\s+(.*)/);
+          if (bulletMatch) {
+            return (
+              <div key={i} style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+                <span style={{ color: "#fff", marginTop: "2px", flexShrink: 0, fontSize: "14px" }}>•</span>
+                <span style={{ color: "rgba(255,255,255,0.92)", fontSize: "13.5px", lineHeight: 1.55 }}>
+                  {bulletMatch[2]}
+                </span>
+              </div>
+            );
+          }
 
-  const formattedDate = new Date().toLocaleDateString("en-US", {
-    weekday: "short",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+          const subBulletMatch = line.match(/^[\s\t]+([•\*\-–])\s+(.*)/);
+          if (subBulletMatch) {
+            return (
+              <div key={i} style={{ display: "flex", gap: "8px", alignItems: "flex-start", paddingLeft: "18px" }}>
+                <span style={{ color: "rgba(255,255,255,0.55)", marginTop: "2px", flexShrink: 0, fontSize: "12px" }}>◦</span>
+                <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", lineHeight: 1.55 }}>
+                  {subBulletMatch[2]}
+                </span>
+              </div>
+            );
+          }
 
-  const [time, setTime] = useState(new Date());
+          const isHeading = trimmed === trimmed.toUpperCase() && trimmed.length > 3 && /[A-Z]/.test(trimmed);
+          if (isHeading) {
+            return (
+              <p key={i} style={{ margin: "6px 0 2px", color: "#fff", fontWeight: 700, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase", opacity: 0.75 }}>
+                {trimmed}
+              </p>
+            );
+          }
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const formattedTime = time.toLocaleTimeString("en-US", {
-    timeZone: "Asia/Manila",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-
-  const todayDay = new Date().toLocaleString("en-US", {
-    weekday: "short",
-    timeZone: "Asia/Manila",
-  });
-
-  const handleFileChange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    try {
-      const employee_id = localStorage.getItem("employee_id") || personData.employee_id;
-
-      const formData = new FormData();
-
-      formData.append("profile_picture", file);
-      formData.append("employee_id", employee_id);
-
-      // ✅ Upload image using same backend API
-      await axios.post(`${API_BASE_URL}/api/update_faculty`, formData);
-
-      // ✅ Refresh profile info to display the new image
-      const updated = await axios.get(
-        `${API_BASE_URL}/api/get_prof_data_by_employee/${employee_id}`,
-      );
-
-      const updatedFaculty = updated.data[0];
-      setPerson(updatedFaculty);
-      const baseUrl = `${API_BASE_URL}/uploads/Faculty1by1/${updatedFaculty.profile_image}`;
-      setProfileImage(`${baseUrl}?t=${Date.now()}`);
-    } catch (error) {
-      console.error("❌ Upload failed:", error);
-    }
+          return (
+            <p key={i} style={{ margin: 0, color: "rgba(255,255,255,0.9)", fontSize: "13.5px", lineHeight: 1.6 }}>
+              {trimmed}
+            </p>
+          );
+        })}
+      </div>
+    );
   };
 
-  const backgroundImage = settings?.bg_image
-    ? `url(${API_BASE_URL}${settings.bg_image})`
-    : "linear-gradient(to right, #e0e0e0, #bdbdbd)";
+  const dl = dashboard || {};
+  const tl = dl.teaching_load || {};
+  const ms = dl.my_students || {};
+  const ge = dl.grades_encoded || {};
+  const fe = dl.faculty_evaluation || {};
+  const wh = dl.working_hours || {};
+  const sy = dl.school_year || {};
+
+  const panelSx = {
+    bgcolor: "#fff",
+    border: `2px solid ${borderColor}`,
+    borderRadius: "8px",
+    overflow: "hidden",
+  };
+
+  const bottomPanelSx = {
+    ...panelSx,
+    display: "flex",
+    flexDirection: "column",
+    minHeight: 0,
+    overflow: "hidden",
+  };
+
+  const matchedPanelSx = {
+    ...bottomPanelSx,
+    height: { xs: "auto", lg: sidebarHeight ?? "auto" },
+    maxHeight: { xs: "none", lg: sidebarHeight ?? "none" },
+  };
+
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   return (
-    <Box
-      sx={{
-        height: "calc(100vh - 100px)", // fixed viewport height
-        width: "100%",
-        backgroundImage,
-        backgroundRepeat: "no-repeat",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        position: "relative",
-      }}
-    >
-      {/* Overlay */}
-      <Box
-        sx={{
-          position: "absolute",
-          inset: 0,
-          backgroundColor: "rgba(0, 0, 0, 0.1)",
-          backdropFilter: "blur(0.5px)",
-          WebkitBackdropFilter: "blur(0.5px)",
-          zIndex: 0,
-          pointerEvents: "none",
-        }}
-      />
+    <Box sx={{
+      bgcolor: "#f0f0f0",
+      p: { xs: 1.5, md: 2 },
+    }}>
+      <LoadingOverlay open={loading} message="Loading dashboard..." />
 
-      {/* Scrollable content */}
-      <Box
-        sx={{
-          position: "relative",
-          zIndex: 1,
-          height: "100%", // take full height of parent
-          overflowY: "auto", // ✅ THIS allows scrolling
-          padding: 2,
-        }}
-      >
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <Card
-              sx={{
-                borderRadius: 1,
-                boxShadow: 3,
-                p: 1.5, // reduced padding
-                border: `2px solid ${borderColor}`,
-                backgroundColor: "#fff9ec",
-                minHeight: 100, // smaller min height
-                height: "auto",
-                transition: "transform 0.3s ease, box-shadow 0.3s ease",
-                "&:hover": {
-                  transform: "scale(1.01)",
-                  boxShadow: 6,
-                },
-                mx: 1,
-              }}
+      {/* ── Header ── */}
+      <Box sx={{ borderRadius: "6px", overflow: "hidden", mb: 2, border: "1px solid #ddd" }}>
+        <Box sx={{
+          bgcolor: headerColor,
+          px: { xs: 2, md: 3 },
+          py: 2,
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+        }}>
+          <Box position="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+            <Avatar
+              src={avatarSrc}
+              sx={{ width: 64, height: 64, border: "2px solid #fff", cursor: "pointer" }}
+              onClick={() => fileInputRef.current?.click()}
             >
-              <CardContent>
-                <Grid container alignItems="center" spacing={2}>
-                  {/* LEFT SECTION — Avatar + Name Info */}
-                  <Grid item xs={12} sm={8} md={9}>
-                    <Box display="flex" alignItems="center" flexWrap="wrap">
-                      {/* Avatar */}
-                      <Box
-                        position="relative"
-                        display="inline-block"
-                        mr={2}
-                        onMouseEnter={() => setHovered(true)}
-                        onMouseLeave={() => setHovered(false)}
-                      >
-                        <Avatar
-                          src={
-                            profileImage ||
-                            `${API_BASE_URL}/uploads/Faculty1by1/${personData?.profile_image}`
-                          }
-                          alt={personData?.fname}
-                          sx={{
-                            width: { xs: 70, sm: 80, md: 90 }, // smaller
-                            height: { xs: 70, sm: 80, md: 90 },
-                            border: `2px solid ${borderColor}`,
-                            cursor: "pointer",
-                          }}
-                          onClick={() => fileInputRef.current.click()}
-                        >
-                          {personData?.fname?.[0]}
-                        </Avatar>
-
-                        {/* Add Icon Overlay */}
-                        {hovered && (
-                          <label
-                            onClick={() => fileInputRef.current.click()}
-                            style={{
-                              position: "absolute",
-                              bottom: "-5px",
-                              right: "0px",
-                              cursor: "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              borderRadius: "50%",
-                              backgroundColor: "#ffffff",
-                              border: `2px solid ${borderColor}`,
-                              width: "36px",
-                              height: "36px",
-                            }}
-                          >
-                            <AddCircleIcon
-                              sx={{
-                                color: settings?.header_color || "#1976d2",
-                                fontSize: 32,
-                              }}
-                            />
-                          </label>
-                        )}
-
-                        <input
-                          type="file"
-                          accept="image/*"
-                          ref={fileInputRef}
-                          style={{ display: "none" }}
-                          onChange={handleFileChange}
-                        />
-                      </Box>
-
-                      {/* Welcome Text */}
-                      <Box sx={{ color: titleColor }}>
-                        <Typography
-                          variant="h4"
-                          fontWeight="bold"
-                          sx={{
-                            fontSize: { xs: "24px", sm: "26px", md: "32px" }, // smaller
-                          }}
-                        >
-                          Welcome back!
-                          {personData
-                            ? `${personData.lname}, ${personData.fname} ${personData.mname || ""
-                            }`
-                            : ""}
-                        </Typography>
-
-                        <Box
-                          style={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            gap: "1rem",
-                            alignItems: "center",
-                          }}
-                        >
-                          <Typography
-                            variant="body1"
-                            sx={{
-                              fontSize: { xs: "16px", sm: "18px", md: "20px" }, // smaller
-                              color: "black",
-                            }}
-                          >
-                            <b>Employee ID:</b>{" "}
-                            {personData?.employee_id || "N/A"}
-                          </Typography>
-
-                          <Typography
-                            variant="body1"
-                            sx={{
-                              fontSize: { xs: "16px", sm: "18px", md: "20px" }, // smaller
-                              color: "black",
-                            }}
-                          >
-                            <b>Working Hours:</b> {getTotalWorkingHours()}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Box>
-                  </Grid>
-
-                  {/* RIGHT SECTION — Date */}
-                  <Grid
-                    item
-                    xs={12}
-                    sm={4}
-                    md={3}
-                    textAlign={{ xs: "left", sm: "right" }}
-                  >
-                    {/* 📅 Right Section - Date */}
-                    <Box textAlign="right" sx={{ color: "black" }}>
-                      <Typography
-                        variant="body1"
-                        fontSize="24px"
-                        fontWeight="bold"
-                      >
-                        {formattedDate}
-                      </Typography>
-                      <Typography
-                        variant="body1"
-                        fontSize="24px"
-                        sx={{ textAlign: "center" }}
-                      >
-                        {formattedTime}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        <Box
-          sx={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "1rem",
-            marginTop: "1rem",
-            justifyContent: "center",
-          }}
-        >
-          {/* Announcements */}
-          <Box
-            sx={{
-              flex: "0 0 100%", // large width
-              maxWidth: { xs: "100%", sm: "450px", md: "725px" }, // responsive scaling
-              height: "472px",
-            }}
-          >
-            <Card
-              sx={{
-                width: "100%",
-                height: "100%",
-                borderRadius: 3,
-                boxShadow: 3,
-                p: 2,
-                overflowY: "auto",
-                border: `2px solid ${borderColor}`,
-                transition: "transform 0.3s ease, boxShadow 0.3s ease",
-                "&:hover": { transform: "scale(1.02)", boxShadow: 6 },
-              }}
-            >
-              <CardContent sx={{ width: "100%", height: "100%" }}>
-                {/* ✅ Header same as top version */}
-                <Typography
-                  sx={{ textAlign: "center", marginTop: "-1rem" }}
-                  variant="h6"
-                  gutterBottom
-                >
-                  Announcements
-                </Typography>
-
-                <Divider sx={{ mb: 2 }} />
-
-                {/* ✅ No announcements */}
-                {announcements.length === 0 ? (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    align="center"
-                  >
-                    No active announcements.
-                  </Typography>
-                ) : (
-                  <Box
-                    sx={{
-                      position: "relative",
-                      maxHeight: "420px",
-                      height: "100%",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {/* Display current announcement */}
-                    {announcements.length > 0 && (
-                      <Box
-                        key={announcements[currentIndex].id}
-                        sx={{
-                          mb: 2,
-                          p: 1,
-                          transition: "opacity 0.6s ease",
-                          opacity: 1,
-                          border: `2px solid ${borderColor}`,
-                          backgroundColor: "#fff8f6",
-                          borderRadius: 2,
-                          position: "absolute",
-                          width: "100%",
-                        }}
-                      >
-                        <Typography
-                          variant="subtitle2"
-                          sx={{ color: "maroon", fontWeight: "bold" }}
-                        >
-                          {announcements[currentIndex].title}
-                        </Typography>
-
-                        <Typography variant="body2" sx={{ mb: 1 }}>
-                          {announcements[currentIndex].content}
-                        </Typography>
-
-                        <Divider sx={{ mb: 2 }} />
-
-                        <div
-                          style={{ position: "relative", cursor: "pointer" }}
-                          onClick={() => openLightbox(currentIndex)}
-                        >
-                          <img
-                            src={`${API_BASE_URL}/uploads/Announcement/${announcements[currentIndex].file_path}`}
-                            alt={announcements[currentIndex].title}
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              maxHeight: "16.4rem",
-                              objectFit: "cover",
-                              borderRadius: "6px",
-                              marginBottom: "6px",
-                            }}
-                          />
-                          <div style={{
-                            position: "absolute", top: 8, right: 8,
-                            background: "rgba(0,0,0,0.5)", borderRadius: "50%",
-                            padding: "5px", display: "flex",
-                            alignItems: "center", justifyContent: "center",
-                          }}>
-                            <ZoomInIcon sx={{ color: "#fff", fontSize: 18 }} />
-                          </div>
-                        </div>
-
-                        <Typography
-                          variant="caption"
-                          style={{ display: "flex" }}
-                          color="text.secondary"
-                        >
-                          Posted: {""}
-                          {new Date(
-                            announcements[currentIndex].created_at,
-                          ).toLocaleDateString("en-US")}
-                          <div style={{ width: "20px" }}></div>
-                          Expires:{" "}
-                          {new Date(
-                            announcements[currentIndex].expires_at,
-                          ).toLocaleDateString("en-US")}
-                        </Typography>
-                      </Box>
-                    )}
-
-                    {/* Navigation Buttons */}
-                    {announcements.length > 1 && (
-                      <>
-                        <IconButton
-                          onClick={() =>
-                            setCurrentIndex(
-                              (prev) =>
-                                (prev - 1 + announcements.length) %
-                                announcements.length,
-                            )
-                          }
-                          sx={{
-                            position: "absolute",
-                            top: "50%",
-                            left: 10,
-                            transform: "translateY(-50%)",
-                            backgroundColor: "rgba(255,255,255,0.8)",
-                            "&:hover": { backgroundColor: "#fff" },
-                          }}
-                        >
-                          <KeyboardBackspaceIcon
-                            sx={{ color: "maroon", fontSize: 24 }}
-                          />
-                        </IconButton>
-
-                        <IconButton
-                          onClick={() =>
-                            setCurrentIndex(
-                              (prev) => (prev + 1) % announcements.length,
-                            )
-                          }
-                          sx={{
-                            position: "absolute",
-                            top: "50%",
-                            right: 10,
-                            transform: "translateY(-50%) rotate(180deg)",
-                            backgroundColor: "rgba(255,255,255,0.8)",
-                            "&:hover": { backgroundColor: "#fff" },
-                          }}
-                        >
-                          <KeyboardBackspaceIcon
-                            sx={{ color: "maroon", fontSize: 24 }}
-                          />
-                        </IconButton>
-                      </>
-                    )}
-                  </Box>
-                )}
-
-                <Dialog
-                  open={Boolean(openImage)}
-                  onClose={() => setOpenImage(null)}
-                  fullScreen
-                  PaperProps={{
-                    style: {
-                      backgroundColor: "transparent",
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      position: "relative",
-                      boxShadow: "none",
-                      cursor: "pointer",
-                    },
-                  }}
-                >
-                  <Box
-                    onClick={() => setOpenImage(null)}
-                    sx={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      width: "100%",
-                      height: "100%",
-                      zIndex: 1,
-                    }}
-                  />
-                  {/* 🔙 Back Button on Top-Left */}
-                  <IconButton
-                    onClick={() => setOpenImage(null)}
-                    sx={{
-                      position: "absolute",
-                      top: 20,
-                      left: 20,
-                      backgroundColor: "white",
-                      width: 50,
-                      height: 50,
-                      padding: "5px",
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      zIndex: 2, // above clickable backdrop
-                      "&:hover": { backgroundColor: "#f5f5f5" },
-                    }}
-                  >
-                    <KeyboardBackspaceIcon
-                      sx={{ fontSize: 30, color: "black" }}
-                    />
-                  </IconButton>
-                  {/* Fullscreen Image */}
-                  <Box
-                    onClick={(e) => e.stopPropagation()} // prevent closing when clicking the image
-                    sx={{
-                      position: "relative",
-                      zIndex: 2,
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      maxWidth: "100%",
-                      maxHeight: "100%",
-                    }}
-                  >
-                    <img
-                      src={openImage}
-                      alt="Preview"
-                      style={{
-                        maxWidth: "100%",
-                        maxHeight: "90%",
-                        objectFit: "contain",
-                      }}
-                    />
-                  </Box>
-                </Dialog>
-              </CardContent>
-            </Card>
-          </Box>
-
-          <AnimatePresence>
-            {lightboxOpen && announcements[lightboxIndex] && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-                onClick={closeLightbox}
-                style={{
-                  position: "fixed", inset: 0, zIndex: 9999,
-                  background: "rgba(0,0,0,0.88)",
+              {personData.fname?.[0]}
+            </Avatar>
+            {hovered && (
+              <Box
+                onClick={() => fileInputRef.current?.click()}
+                sx={{
+                  position: "absolute", bottom: -2, right: -2,
+                  bgcolor: "#fff", borderRadius: "50%", cursor: "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}
               >
-                <div
-                  onClick={e => e.stopPropagation()}
-                  style={{ position: "relative", maxWidth: "90vw", maxHeight: "90vh" }}
-                >
-                  {/* Top-left controls */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: -10,
-                      left: -210,   // 👈 changed from right → left
-                      display: "flex",
-                      gap: "8px",
-                      alignItems: "center",
-                    }}
-                  >
-                    <IconButton
-                      onClick={closeLightbox}
-                      sx={{
-                        background: "rgba(255,255,255,0.15)",
-                        color: "#fff",
-                        width: 75,           // ✅ size
-                        height: 75,          // ✅ size
-                        "&:hover": { background: "rgba(220,50,50,0.75)" },
-                      }}
-                    >
-                      <CloseIcon sx={{ fontSize: 28 }} /> {/* ✅ bigger icon */}
-                    </IconButton>
-                  </div>
-
-                  {/* Image */}
-                  <div style={{
-                    overflow: "auto", maxWidth: "85vw", maxHeight: "80vh",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    borderRadius: "12px",
-                  }}>
-                    <AnimatePresence mode="wait">
-                      <motion.img
-                        key={announcements[lightboxIndex].id}
-                        src={`${API_BASE_URL}/uploads/Announcement/${announcements[lightboxIndex].file_path}`}
-                        alt={announcements[lightboxIndex].title}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
-                        style={{
-                          transform: `scale(${lightboxZoom})`,
-                          transformOrigin: "center center",
-                          transition: "transform 0.25s ease",
-                          maxWidth: "85vw", maxHeight: "80vh",
-                          objectFit: "contain", display: "block",
-                          borderRadius: "12px", userSelect: "none",
-                        }}
-                        draggable={false}
-                      />
-                    </AnimatePresence>
-                  </div>
-
-                  {/* Caption */}
-                  <div style={{ marginTop: "12px", color: "#fff", textAlign: "center" }}>
-                    <h3 style={{ margin: 0 }}>{announcements[lightboxIndex].title}</h3>
-                    <p style={{ marginTop: "4px", fontSize: "0.85rem", color: "rgba(255,255,255,0.65)" }}>
-                      {announcements[lightboxIndex].content}
-                    </p>
-                    <p style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.35)", marginTop: "4px" }}>
-                      {lightboxIndex + 1} / {announcements.length}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Left arrow */}
-                {/* Left arrow */}
-                <IconButton
-                  onClick={e => { e.stopPropagation(); lightboxPrev(); }}
-                  sx={{
-                    position: "fixed",
-                    left: 400,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    zIndex: 10000,
-                    width: 75,           // ✅ size
-                    height: 75,          // ✅ size
-                    background: "rgba(255,255,255,0.15)",
-                    color: "#fff",
-                    "&:hover": { background: "rgba(255,255,255,0.3)" },
-                  }}
-                >
-                  <ArrowBackIosNewIcon sx={{ fontSize: 28 }} /> {/* ✅ bigger icon */}
-                </IconButton>
-
-
-                {/* Right arrow */}
-                <IconButton
-                  onClick={e => { e.stopPropagation(); lightboxNext(); }}
-                  sx={{
-                    position: "fixed",
-                    right: 400,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    zIndex: 10000,
-                    width: 75,           // ✅ size
-                    height: 75,          // ✅ size
-                    background: "rgba(255,255,255,0.15)",
-                    color: "#fff",
-                    "&:hover": { background: "rgba(255,255,255,0.3)" },
-                  }}
-                >
-                  <ArrowForwardIosIcon sx={{ fontSize: 28 }} /> {/* ✅ bigger icon */}
-                </IconButton>
-              </motion.div>
+                <AddCircleIcon sx={{ color: headerColor, fontSize: 20 }} />
+              </Box>
             )}
-          </AnimatePresence>
+            <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleFileChange} />
+          </Box>
+          <Box>
+            <Typography sx={{ fontWeight: 700, color: "#fff", fontSize: { xs: "1rem", md: "1.25rem" }, lineHeight: 1.3 }}>
+              Welcome Back! Prof. {fullName}
+            </Typography>
+            <Typography sx={{ color: "rgba(255,255,255,0.9)", fontSize: 13, mt: 0.25 }}>
+              Faculty Portal Dashboard
+            </Typography>
+          </Box>
+        </Box>
 
-          {/* Calendar + Workload stacked */}
-          <Box
-            sx={{
-              flex: "0 0 300px",
-              maxWidth: { xs: "100%", sm: "250px", md: "300px" },
-              height: "472px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "1rem",
-            }}
-          >
-            {/* Calendar Card */}
-            <Card
+        {/* Info bar — 4 equal columns */}
+        <Box sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" },
+          bgcolor: "#e8e8e8",
+          borderTop: "1px solid #ccc",
+           border: `2px solid ${borderColor}`,
+        }}>
+          {[
+            ["EMPLOYEE ID", dl.employee_id || personData.employee_id || "N/A"],
+            ["DEPARTMENT", dl.department || "N/A"],
+            ["ACADEMIC YEAR", sy.year_description || "N/A"],
+            ["SEMESTER", sy.semester_description || "N/A"],
+          ].map(([label, value], i) => (
+            <Box
+              key={label}
               sx={{
-                width: "100%",
-                height: "360px",
-                border: `2px solid ${borderColor}`,
-                boxShadow: 3,
-                borderRadius: "10px",
-                p: 2,
-                overflowY: "hidden",
-                transition: "transform 0.2s ease",
-                "&:hover": { transform: "scale(1.02)" },
+                px: 2.5,
+                py: 1.25,
+                borderRight: `2px solid ${borderColor}`,
+            
               }}
             >
-              <CardContent sx={{ p: 0, width: "100%" }}>
-                {/* Header with month + year + arrows */}
-                <Grid
-                  container
-                  alignItems="center"
-                  justifyContent="space-between"
+              <Typography sx={{ fontSize: 10, fontWeight: 700, color: "#000", letterSpacing: 0.8,  }}>
+                {label}
+              </Typography>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#222", mt: 0.25, }}>
+                {value}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      </Box>
+
+      {/* ── 5 stat cards ── */}
+      <Box sx={{
+        display: "grid",
+        gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "repeat(5, 1fr)" },
+        gap: 1.5,
+        mb: 2,
+        alignItems: "stretch",
+      }}>
+        <StatCard
+          title="Teaching Load"
+          subtitle="Current Semester"
+          value={tl.total_units ?? 0}
+          unit="Units"
+          valueColor="#C62828"
+          borderColor={borderColor}
+        >
+          <StatMetric label="Lecture" value={`${tl.lecture_units ?? 0} units`} dotColor="#43A047" />
+          <StatMetric label="Lab" value={`${tl.lab_units ?? 0} units`} dotColor="#F9A825" />
+          <StatMetric label="Total Classes" value={tl.total_classes ?? 0} dotColor="#1565C0" />
+        </StatCard>
+
+        <StatCard
+          title="My Students"
+          subtitle="Total Enrolled"
+          value={ms.total_students ?? 0}
+          unit="Students"
+          valueColor="#1565C0"
+          borderColor={borderColor}
+        >
+          <StatMetric label="Active Students" value={ms.active_students ?? 0} dotColor="#1565C0" />
+          <StatMetric label="Irregular" value={ms.irregular_students ?? 0} dotColor="#F9A825" />
+          <StatMetric label="Dropped" value={ms.dropped_students ?? 0} dotColor="#C62828" />
+        </StatCard>
+
+        <StatCard
+          title="Grades Encoded"
+          subtitle="This Semester"
+          value={`${ge.completed_percent ?? 0}%`}
+          unit="Completed"
+          valueColor="#E65100"
+          borderColor={borderColor}
+        >
+          <StatMetric label="Encoded" value={`${ge.encoded ?? 0}/${ge.total ?? 0}`} dotColor="#1565C0" />
+          <StatMetric label="Pending" value={ge.pending ?? 0} dotColor="#43A047" />
+          <StatMetric label="Not Started" value={ge.not_started ?? 0} dotColor="#F9A825" />
+        </StatCard>
+
+        <StatCard
+          title="Faculty Evaluation"
+          subtitle="Overall Rating"
+          value={Number(fe.overall_rating || 0).toFixed(2)}
+          unit={`out of ${fe.rating_scale ?? 5}.00`}
+          valueColor="#6A1B9A"
+          borderColor={borderColor}
+        >
+          <StatMetric label="Total Evaluations" value={fe.total_evaluations ?? 0} dotColor="#1565C0" />
+          <StatMetric label="Response Rate" value={`${fe.response_rate_percent ?? 0}%`} dotColor="#1565C0" />
+          <StatMetric label="Status" value={fe.status || "N/A"} dotColor="#C62828" />
+        </StatCard>
+
+        <StatCard
+          title="Working Hours"
+          subtitle="This Semester"
+          value={wh.total_hours ?? 0}
+          unit="HRS"
+          valueColor="#222"
+          borderColor={borderColor}
+        >
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 0.75, rowGap: 0.35 }}>
+            {(wh.daily || []).map(({ day, hours }) => (
+              <StatMetric
+                key={day}
+                label={abbrevDay(day)}
+                value={`${hours} hrs`}
+                dotColor={hours > 0 ? "#1565C0" : "#ccc"}
+              />
+            ))}
+          </Box>
+          {dl.designation?.total_hours > 0 && (
+            <StatMetric
+              label="Designation"
+              value={`${dl.designation.total_hours} hrs`}
+              dotColor="#6A1B9A"
+            />
+          )}
+        </StatCard>
+      </Box>
+
+      {/* ── Bottom row — announcements & section match sidebar height ── */}
+      <Box sx={{
+        display: "flex",
+        flexDirection: { xs: "column", lg: "row" },
+        gap: 1.5,
+        alignItems: { xs: "stretch", lg: "flex-start" },
+      }}>
+        {/* Announcements — 2/5 width on lg */}
+        <Box sx={{
+          ...matchedPanelSx,
+          flex: { xs: "1 1 auto", lg: "2 1 0" },
+          minWidth: 0,
+        }}>
+          <Stack
+            direction="row"
+            spacing={1.25}
+            alignItems="center"
+            sx={{
+              px: 1.5,
+              py: 1,
+              backgroundColor: headerColor,
+              color: "#fff",
+              borderBottom: `2px solid ${borderColor}`,
+              flexShrink: 0,
+            }}
+          >
+            <Box
+              sx={{
+                width: 36,
+                height: 36,
+                borderRadius: "8px",
+                background: "rgba(255,255,255,0.18)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backdropFilter: "blur(6px)",
+              }}
+            >
+              <CampaignIcon sx={{ color: "#fff", fontSize: 20 }} />
+            </Box>
+            <Typography
+              sx={{
+                fontSize: 15,
+                fontWeight: 800,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+                color: "#fff",
+              }}
+            >
+              Announcements
+            </Typography>
+          </Stack>
+
+          <Box
+            sx={{
+              flex: 1,
+              p: 1.25,
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              minHeight: 0,
+            }}
+          >
+            {currentAnnouncement?.file_path ? (
+              <Box
+                sx={{
+                  flex: 1,
+                  borderRadius: "12px",
+                  overflow: "hidden",
+                  position: "relative",
+                  cursor: "pointer",
+                  border: `2px solid ${borderColor}`,
+                  background: "#fff",
+                  transition: "all 0.3s ease",
+                  minHeight: 0,
+                  "&:hover": {
+                    transform: "translateY(-2px)",
+                    boxShadow: 4,
+                  },
+                }}
+                onClick={() => openLightbox(currentAnnIndex)}
+              >
+                <Box
+                  component="img"
+                  src={`${API_BASE_URL}/uploads/Announcement/${currentAnnouncement.file_path}`}
+                  alt={currentAnnouncement.title}
                   sx={{
-                    backgroundColor: settings?.header_color || "#1976d2",
-                    color: "white",
-                    border: `2px solid ${borderColor}`,
-                    borderBottom: "none",
-                    borderRadius: "8px 8px 0 0",
-                    padding: "6px 4px",
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    transition: "transform 0.35s ease",
+                    "&:hover": { transform: "scale(1.05)" },
                   }}
-                >
-                  <Grid item>
-                    <IconButton
-                      size="small"
-                      onClick={handlePrevMonth}
-                      sx={{ color: "white", fontSize: "12px" }}
-                    >
-                      <ArrowBackIos fontSize="12px" />
-                    </IconButton>
-                  </Grid>
-                  <Grid item>
-                    <Typography
-                      variant="subtitle1"
-                      sx={{ fontWeight: "bold", fontSize: "12px" }}
-                    >
-                      {date.toLocaleString("default", { month: "long" })} {year}
-                    </Typography>
-                  </Grid>
+                />
 
-                  <Grid item>
-                    <IconButton
-                      size="small"
-                      onClick={handleNextMonth}
-                      sx={{ color: "white", fontSize: "12px" }}
-                    >
-                      <ArrowForwardIos fontSize="12px" />
-                    </IconButton>
-                  </Grid>
-                </Grid>
-
-                {/* ✅ Calendar Table */}
                 <Box
                   sx={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(7, 1fr)",
-                    borderLeft: `2px solid ${borderColor}`,
-                    borderRight: `2px solid ${borderColor}`,
-                    borderBottom: `2px solid ${borderColor}`,
-                    borderTop: `2px solid ${borderColor}`,
-                    borderRadius: "0 0 8px 8px",
-                    overflow: "hidden",
+                    position: "absolute",
+                    inset: 0,
+                    background: "linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0.08))",
+                  }}
+                />
+
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: 12,
+                    right: 12,
+                    background: "rgba(0,0,0,0.45)",
+                    borderRadius: "50%",
+                    p: 0.9,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backdropFilter: "blur(4px)",
                   }}
                 >
-                  {/* Days of the week */}
-                  {days.map((day, idx) => (
-                    <Box
-                      key={idx}
-                      sx={{
-                        backgroundColor: "#f3f3f3",
-                        textAlign: "center",
-                        py: 1,
-                        fontWeight: "bold",
-                        fontSize: "12px",
-                        borderBottom: `1px solid ${borderColor}`,
-                      }}
-                    >
-                      {day}
-                    </Box>
-                  ))}
-                  {/* Dates */}
-                  {weeks.map((week, i) =>
-                    week.map((day, j) => {
-                      if (!day) {
-                        return (
-                          <Box
-                            key={`${i}-${j}`}
-                            sx={{
-                              height: 27,
-                              backgroundColor: "#fff",
-                            }}
-                          />
-                        );
-                      }
+                  <ZoomInIcon sx={{ color: "#fff", fontSize: 18 }} />
+                </Box>
 
-                      const isToday =
-                        day === today &&
-                        month === thisMonth &&
-                        year === thisYear;
-                      const dateKey = `${year}-${String(month + 1).padStart(
-                        2,
-                        "0",
-                      )}-${String(day).padStart(2, "0")}`;
-                      const isHoliday = holidays[dateKey];
-                      const dayCell = (
+                <Box sx={{ position: "absolute", bottom: 0, left: 0, right: 0, p: 1.25 }}>
+                  <Typography sx={{ color: "#fff", fontWeight: 800, fontSize: 14, lineHeight: 1.2, mb: 0.25 }}>
+                    {currentAnnouncement.title}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      color: "rgba(255,255,255,0.88)",
+                      fontSize: 12,
+                      lineHeight: 1.4,
+                      display: "-webkit-box",
+                      WebkitLineClamp: 1,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {currentAnnouncement.content}
+                  </Typography>
+                  {currentAnnouncement.expires_at && (
+                    <Typography sx={{ mt: 0.5, color: "rgba(255,255,255,0.7)", fontSize: 10 }}>
+                      Expires: {new Date(currentAnnouncement.expires_at).toLocaleDateString("en-US")}
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+            ) : currentAnnouncement ? (
+              <Box
+                sx={{
+                  flex: 1,
+                  borderRadius: "12px",
+                  border: `2px solid ${borderColor}`,
+                  p: 1.5,
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  minHeight: 0,
+                  overflow: "auto",
+                }}
+              >
+                <Typography sx={{ fontWeight: 800, fontSize: 14, color: headerColor, mb: 0.5 }}>
+                  {currentAnnouncement.title}
+                </Typography>
+                <Typography sx={{ fontSize: 12, color: "#666", lineHeight: 1.45 }}>
+                  {currentAnnouncement.content}
+                </Typography>
+                {currentAnnouncement.expires_at && (
+                  <Typography sx={{ mt: 1, color: "#999", fontSize: 10 }}>
+                    Expires: {new Date(currentAnnouncement.expires_at).toLocaleDateString("en-US")}
+                  </Typography>
+                )}
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  flex: 1,
+                  borderRadius: "12px",
+                  border: `1px dashed ${borderColor}`,
+                  display: "grid",
+                  placeItems: "center",
+                  color: "text.secondary",
+                  fontSize: 13,
+                  minHeight: 0,
+                }}
+              >
+                No active announcements.
+              </Box>
+            )}
+
+            {announcements.length > 1 && (
+              <Stack direction="row" spacing={1} justifyContent="center" sx={{ pt: 1, flexShrink: 0 }}>
+                {announcements.slice(0, 6).map((item, index) => (
+                  <Box
+                    key={item.id || index}
+                    onClick={() => setCurrentAnnIndex(index)}
+                    sx={{
+                      width: index === currentAnnIndex ? 22 : 8,
+                      height: 8,
+                      borderRadius: "999px",
+                      bgcolor: index === currentAnnIndex ? headerColor : "#d1d1d1",
+                      transition: "all 0.3s ease",
+                      cursor: "pointer",
+                    }}
+                  />
+                ))}
+              </Stack>
+            )}
+          </Box>
+        </Box>
+
+        {/* Section / Schedule / Room — 2/5 width on lg */}
+        <Box sx={{
+          ...matchedPanelSx,
+          flex: { xs: "1 1 auto", lg: "2 1 0" },
+          minWidth: 0,
+        }}>
+          <Box sx={{ flex: 1, overflow: "auto", minHeight: 0 }}>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 0.8fr)",
+                bgcolor: "#f5f5f5",
+                borderBottom: `2px solid ${borderColor}`,
+                px: 2,
+                py: 1,
+              }}
+            >
+              <Typography sx={{ fontWeight: 700, fontSize: 13, textAlign: "left" }}>
+                Section
+              </Typography>
+              <Typography sx={{ fontWeight: 700, fontSize: 13, textAlign: "left" }}>
+                Schedule
+              </Typography>
+              <Typography sx={{ fontWeight: 700, fontSize: 13, textAlign: "left" }}>
+                Room
+              </Typography>
+            </Box>
+
+            {(dl.my_classes || []).length === 0 ? (
+              <Box sx={{ py: 3, textAlign: "center", color: "#aaa", fontSize: 13 }}>
+                No classes this semester.
+              </Box>
+            ) : (
+              dl.my_classes.map((cls, idx) => (
+                <Box
+                  key={`${cls.course_id}-${cls.department_section_id}-${idx}`}
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 0.8fr)",
+                    alignItems: "center",
+                    px: 2,
+                    py: 1.25,
+                    borderBottom: `1px solid ${borderColor}`,
+                    "&:hover": { bgcolor: "#fafafa" },
+                  }}
+                >
+                  <Typography sx={{ fontSize: 13, textAlign: "left", pr: 1 }}>
+                    {cls.section}
+                  </Typography>
+                  <Typography sx={{ fontSize: 13, textAlign: "left", whiteSpace: "nowrap", pr: 1 }}>
+                    {cls.schedule}
+                  </Typography>
+                  <Typography sx={{ fontSize: 13, textAlign: "left", whiteSpace: "nowrap" }}>
+                    {cls.room || "TBA"}
+                  </Typography>
+                </Box>
+              ))
+            )}
+          </Box>
+          {(dl.my_classes || []).length > 0 && (
+            <Box sx={{ px: 2, py: 1, borderTop: `2px solid ${borderColor}`, textAlign: "right" }}>
+              <Button
+                size="small"
+                onClick={() => navigate("/faculty_masterlist")}
+                sx={{ textTransform: "none", fontSize: 12, color: headerColor }}
+              >
+                View All Classes →
+              </Button>
+            </Box>
+          )}
+        </Box>
+
+        {/* Right sidebar — height source for left panels */}
+        <Box
+          ref={sidebarRef}
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            flex: { xs: "1 1 auto", lg: "1 1 0" },
+            minWidth: 0,
+            alignSelf: "flex-start",
+          }}
+        >
+          {/* Calendar */}
+          <Card
+            sx={{
+              ...panelSx,
+              p: 1,
+              width: "100%",
+              flexShrink: 0,
+            }}
+          >
+            <CardContent sx={{ p: "0 !important" }}>
+              <Grid
+                container
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{
+                  backgroundColor: maroon,
+                  color: "white",
+                  border: `2px solid ${borderColor}`,
+                  borderBottom: "none",
+                  borderRadius: "8px 8px 0 0",
+                  padding: "10px 8px",
+                }}
+              >
+                <Grid item>
+                  <IconButton size="small" onClick={handlePrevMonth} sx={{ color: "white" }}>
+                    <ArrowBackIos fontSize="small" />
+                  </IconButton>
+                </Grid>
+                <Grid item>
+                  <Typography variant="subtitle1" sx={{ fontWeight: "bold", fontSize: "14px" }}>
+                    {date.toLocaleString("default", { month: "long" })} {year}
+                  </Typography>
+                </Grid>
+                <Grid item>
+                  <IconButton size="small" onClick={handleNextMonth} sx={{ color: "white" }}>
+                    <ArrowForwardIos fontSize="small" />
+                  </IconButton>
+                </Grid>
+              </Grid>
+
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(7, 1fr)",
+                  gridTemplateRows: `auto repeat(${CALENDAR_WEEKS}, ${CALENDAR_DAY_ROW_HEIGHT}px)`,
+                  borderLeft: `2px solid ${borderColor}`,
+                  borderRight: `2px solid ${borderColor}`,
+                  borderBottom: `2px solid ${borderColor}`,
+                  borderTop: `2px solid ${borderColor}`,
+                  borderRadius: "0 0 8px 8px",
+                  overflow: "hidden",
+                }}
+              >
+                {days.map((day, idx) => (
+                  <Box
+                    key={idx}
+                    sx={{
+                      backgroundColor: "#f3f3f3",
+                      textAlign: "center",
+                      py: 0.5,
+                      fontWeight: "bold",
+                      fontSize: 14,
+                      borderBottom: `2px solid ${borderColor}`,
+                    }}
+                  >
+                    {day}
+                  </Box>
+                ))}
+
+                {weeks.map((week, i) =>
+                  week.map((day, j) => {
+                    if (!day) {
+                      return (
+                        <Box
+                          key={`${i}-${j}`}
+                          sx={{ height: CALENDAR_DAY_ROW_HEIGHT, backgroundColor: "#fff" }}
+                        />
+                      );
+                    }
+
+                    const isToday =
+                      day === today &&
+                      month === thisMonth &&
+                      year === thisYear;
+
+                    const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                    const isHoliday = holidays[dateKey];
+
+                    const dayCell = (
+                      <Box
+                        sx={{
+                          height: CALENDAR_DAY_ROW_HEIGHT,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
                         <Box
                           sx={{
-                            height: 27,
+                            width: 26,
+                            height: 26,
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            fontSize: "12px",
                             borderRadius: "50%",
+                            fontSize: 12,
                             backgroundColor: isToday
-                              ? settings?.header_color || "#1976d2"
+                              ? maroon
                               : isHoliday
                                 ? "#E8C999"
                                 : "#fff",
@@ -1082,215 +1045,229 @@ const FacultyDashboard = ({ profileImage, setProfileImage }) => {
                         >
                           {day}
                         </Box>
-                      );
+                      </Box>
+                    );
 
-                      return isHoliday ? (
-                        <Tooltip
-                          key={`${i}-${j}`}
-                          title={
-                            <>
-                              <Typography fontWeight="bold">
-                                {isHoliday.localName}
-                              </Typography>
-                              <Typography variant="caption">
-                                {isHoliday.date}
-                              </Typography>
-                            </>
-                          }
-                          arrow
-                          placement="top"
-                        >
-                          {dayCell}
-                        </Tooltip>
-                      ) : (
-                        <React.Fragment key={`${i}-${j}`}>
-                          {dayCell}
-                        </React.Fragment>
-                      );
-                    }),
-                  )}
-                </Box>
-              </CardContent>
-            </Card>
+                    return isHoliday ? (
+                      <Tooltip
+                        key={`${i}-${j}`}
+                        title={(
+                          <>
+                            <Typography fontWeight="bold">{isHoliday.localName}</Typography>
+                            <Typography variant="caption">{isHoliday.date}</Typography>
+                          </>
+                        )}
+                        arrow
+                        placement="top"
+                      >
+                        {dayCell}
+                      </Tooltip>
+                    ) : (
+                      <React.Fragment key={`${i}-${j}`}>{dayCell}</React.Fragment>
+                    );
+                  })
+                )}
+              </Box>
+            </CardContent>
+          </Card>
 
-            {/* Workload Card */}
-            <Card
-              sx={{
-                width: "100%",
-                height: "252px",
-                border: `2px solid ${borderColor}`,
-                boxShadow: 3,
-                borderRadius: "10px",
-                p: 2,
-                overflowY: "auto",
-                transition: "transform 0.2s ease",
-                "&:hover": { transform: "scale(1.02)" },
-              }}
-            >
-              <CardContent sx={{ p: 0, width: "100%", height: "100%" }}>
-                <Box
-                  sx={{
-                    textAlign: "center",
-                    backgroundColor: settings?.header_color || "#1976d2",
-                    color: "white",
-                    borderRadius: "6px 6px 0 0",
-                    padding: "4px 8px",
-                    fontWeight: "bold",
-                    fontSize: "12px",
-                    border: `2px solid ${borderColor}`,
-                  }}
-                >
-                  Workload
-                </Box>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    borderWidth: "0px 2px 2px 2px",
-                    borderColor: "black",
-                    borderStyle: "solid",
-                    borderRadius: "2px",
-                    height: "130px",
-                  }}
-                >
-                  <Link to={"/faculty_workload"}>
-                    <Button
-                      style={{
-                        backgroundColor: mainButtonColor,
-                        color: "white",
-                        padding: "15px 20px",
-                      }}
-                    >
-                      Open My Workload
-                    </Button>
-                  </Link>
-                </Box>
-              </CardContent>
-            </Card>
-          </Box>
-
-          {/* My Schedule */}
-          <Box
-            sx={{
-              flex: "0 0 300px",
-              maxWidth: { xs: "100%", sm: "250px", md: "300px" },
-              height: "472px",
-            }}
-          >
-            <Card
-              sx={{
-                width: "100%",
-                height: "100%",
-                border: `2px solid ${borderColor}`,
-                boxShadow: 3,
-                borderRadius: "10px",
-                p: 2,
-                overflowY: "auto",
-                transition: "transform 0.2s ease",
-                "&:hover": { transform: "scale(1.02)" },
-              }}
-            >
-              <CardContent sx={{ p: 0, width: "100%", height: "100%" }}>
-                <Box
-                  sx={{
-                    textAlign: "center",
-                    backgroundColor: settings?.header_color || "#1976d2",
-                    color: "white",
-                    borderRadius: "6px 6px 0 0",
-                    padding: "4px 8px",
-                    fontWeight: "bold",
-                    fontSize: "12px",
-                    border: `2px solid ${borderColor}`,
-                  }}
-                >
-                  My Schedule
-                </Box>
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    borderWidth: "0px 2px 2px 2px",
-                    borderColor: "black",
-                    borderStyle: "solid",
-                    borderRadius: "2px",
-                    height: "412px",
-                    overflowY: "auto",
-                    padding: "10px",
-                  }}
-                >
-                  {schedule.filter(
-                    (item) => item.description === todayDay.toUpperCase(),
-                  ).length === 0 ? (
-                    <Typography
-                      sx={{
-                        fontSize: "13px",
-                        textAlign: "center",
-                        marginTop: "20px",
-                        color: "#666",
-                      }}
-                    >
-                      No schedule for today.
-                    </Typography>
-                  ) : (
-                    schedule
-                      .filter(
-                        (item) => item.description === todayDay.toUpperCase(),
-                      )
-                      .map((item, index) => (
-                        <Box
-                          key={index}
-                          sx={{
-                            background: "white",
-                            mb: 1.5,
-                            p: 1.5,
-                            borderRadius: "8px",
-                            boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
-                            border: "1px solid #e0e0e0",
-                            transition: "0.25s ease-in-out",
-                            cursor: "pointer",
-                            "&:hover": {
-                              boxShadow: "0 3px 8px rgba(0,0,0,0.18)",
-                              transform: "scale(1.02)",
-                              borderColor:
-                                settings?.main_button_color || "#1976d2",
-                              backgroundColor: "#f0f8ff",
-                            },
-                          }}
-                        >
-                          <Typography
-                            sx={{
-                              fontSize: "13px",
-                              fontWeight: "bold",
-                              color: "#333",
-                            }}
-                          >
-                            {item.course_code} - {item.program_code} -{" "}
-                            {item.section}
-                          </Typography>
-
-                          <Typography sx={{ fontSize: "12px", color: "#444" }}>
-                            {item.school_time_start} — {item.school_time_end}
-                          </Typography>
-
-                          <Typography
-                            sx={{
-                              fontSize: "11px",
-                              color: "#777",
-                              textTransform: "uppercase",
-                            }}
-                          >
-                            {item.room_description}
-                          </Typography>
-                        </Box>
-                      ))
-                  )}
-                </Box>
-              </CardContent>
-            </Card>
+          {/* Quick Actions */}
+          <Box sx={{ ...panelSx, p: 1.5, width: "100%", mt: "1rem", flexShrink: 0 }}>
+            <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#444", mb: 1, pb: 1, borderBottom: `2px solid ${borderColor}` }}>
+              Quick Actions
+            </Typography>
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0.75 }}>
+              <QuickAction icon={WorkIcon} label="View Workload" color="#E65100" onClick={() => navigate("/faculty_workload")} />
+              <QuickAction icon={ListAltIcon} label="View Class List" color="#1565C0" onClick={() => navigate("/faculty_masterlist")} />
+              <QuickAction icon={GradingIcon} label="Encode Grades" color="#43A047" onClick={() => navigate("/grading_sheet")} />
+              <QuickAction icon={SchoolIcon} label="My Evaluation" color="#6A1B9A" onClick={() => navigate("/faculty_evaluation")} />
+            </Box>
           </Box>
         </Box>
       </Box>
+
+      <AnimatePresence>
+        {lightboxOpen && announcements[lightboxIndex] && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            onClick={closeLightbox}
+            style={{
+              position: "fixed", inset: 0, zIndex: 9999,
+              background: "rgba(0,0,0,0.92)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            {/* Prev */}
+            <IconButton
+              onClick={e => { e.stopPropagation(); lightboxPrev(); }}
+              sx={{
+                position: "fixed", left: { xs: 4, sm: 16 }, top: "50%", transform: "translateY(-50%)",
+                zIndex: 10000, width: { xs: 44, sm: 60 }, height: { xs: 44, sm: 60 },
+                background: "rgba(255,255,255,0.15)", color: "#fff",
+                "&:hover": { background: "rgba(255,255,255,0.3)" },
+              }}
+            >
+              <ArrowBackIosNewIcon sx={{ fontSize: { xs: 18, sm: 24 } }} />
+            </IconButton>
+
+            {/* Next */}
+            <IconButton
+              onClick={e => { e.stopPropagation(); lightboxNext(); }}
+              sx={{
+                position: "fixed", right: { xs: 4, sm: 16 }, top: "50%", transform: "translateY(-50%)",
+                zIndex: 10000, width: { xs: 44, sm: 60 }, height: { xs: 44, sm: 60 },
+                background: "rgba(255,255,255,0.15)", color: "#fff",
+                "&:hover": { background: "rgba(255,255,255,0.3)" },
+              }}
+            >
+              <ArrowForwardIosIcon sx={{ fontSize: { xs: 18, sm: 24 } }} />
+            </IconButton>
+
+            {/* Main card */}
+            <motion.div
+              key={announcements[lightboxIndex].id}
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.2 }}
+              onClick={e => e.stopPropagation()}
+              style={{
+                display: "flex",
+                flexDirection: window.innerWidth <= 768 ? "column" : "row",
+                width: window.innerWidth <= 768 ? "92vw" : "80vw",
+                maxWidth: "1200px",
+                maxHeight: window.innerWidth <= 768 ? "88vh" : "82vh",
+                borderRadius: "16px",
+                overflow: "hidden",
+                background: "#111",
+              }}
+            >
+              {/* LEFT — image */}
+              {announcements[lightboxIndex].file_path && (
+                <div style={{
+                  flex: window.innerWidth <= 768 ? "0 0 auto" : "0 0 60%",
+                  width: window.innerWidth <= 768 ? "100%" : "60%",
+                  maxHeight: window.innerWidth <= 768 ? "45vh" : "82vh",
+                  background: "#000",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                }}>
+                  <AnimatePresence mode="wait">
+                    <motion.img
+                      key={announcements[lightboxIndex].id}
+                      src={`${API_BASE_URL}/uploads/Announcement/${announcements[lightboxIndex].file_path}`}
+                      alt={announcements[lightboxIndex].title}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "contain",
+                        display: "block",
+                        userSelect: "none",
+                      }}
+                      draggable={false}
+                    />
+                  </AnimatePresence>
+                </div>
+              )}
+
+              {/* RIGHT — details */}
+              <div style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                background: "linear-gradient(160deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%)",
+                padding: window.innerWidth <= 768 ? "20px 16px" : "32px 28px",
+                overflowY: "auto",
+                scrollbarWidth: "thin",
+                scrollbarColor: "rgba(255,255,255,0.2) transparent",
+              }}>
+                {/* Close button — top of details panel */}
+                <IconButton
+                  onClick={e => { e.stopPropagation(); closeLightbox(); }}
+                  sx={{
+                    position: "fixed", top: 25, left: 50, zIndex: 10000,
+                    width: 75, height: 75,
+                    background: "rgba(255,255,255,0.15)", color: "#fff",
+                    "&:hover": { background: "rgba(220,50,50,0.75)" },
+                  }}
+                >
+                  <CloseIcon sx={{ fontSize: 28 }} />
+                </IconButton>
+
+                {/* Title */}
+                <h2 style={{
+                  margin: "0 0 4px",
+                  color: "#fff",
+                  fontSize: window.innerWidth <= 768 ? "16px" : "20px",
+                  fontWeight: 700,
+                  lineHeight: 1.4,
+                }}>
+                  {announcements[lightboxIndex].title}
+                </h2>
+
+                {/* Divider */}
+                <div style={{
+                  width: "40px", height: "3px",
+                  background: "rgba(255,255,255,0.35)",
+                  borderRadius: "2px",
+                  margin: "10px 0 18px",
+                }} />
+
+                {/* Content */}
+                {/* Content */}
+                <div style={{ flex: 1 }}>
+                  <FormattedContent text={announcements[lightboxIndex].content} />
+                </div>
+                {/* Expiry */}
+                <p style={{
+                  margin: "12px 0 0",
+                  color: "rgba(255,255,255,0.45)",
+                  fontSize: "11px",
+                }}>
+                  Expires: {new Date(announcements[lightboxIndex].expires_at).toLocaleDateString("en-US")}
+                </p>
+
+                {/* Slide counter dots */}
+                {announcements.length > 1 && (
+                  <div style={{
+                    marginTop: "20px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}>
+                    {announcements.map((_, i) => (
+                      <div
+                        key={i}
+                        onClick={e => { e.stopPropagation(); setLightboxIndex(i); }}
+                        style={{
+                          width: i === lightboxIndex ? 18 : 6,
+                          height: 6,
+                          borderRadius: 3,
+                          background: i === lightboxIndex ? "#fff" : "rgba(255,255,255,0.3)",
+                          transition: "all 0.3s",
+                          cursor: "pointer",
+                        }}
+                      />
+                    ))}
+                    <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginLeft: "4px" }}>
+                      {lightboxIndex + 1} / {announcements.length}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Box>
   );
 };

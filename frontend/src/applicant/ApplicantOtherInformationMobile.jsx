@@ -398,7 +398,7 @@ const ApplicantOtherInformationMobile = (props) => {
   const keys = JSON.parse(localStorage.getItem("dashboardKeys") || "{}");
 
   const stepsWithPaths = [
-{ label: "Personal Information", icon: <PersonIcon />, path: `/applicant_personal_information/${keys.step1}` },
+    { label: "Personal Information", icon: <PersonIcon />, path: `/applicant_personal_information/${keys.step1}` },
     { label: "Family Background", icon: <FamilyRestroomIcon />, path: `/applicant_family_background/${keys.step2}` },
     { label: "Educational Attainment", icon: <SchoolIcon />, path: `/applicant_educational_attainment/${keys.step3}` },
     { label: "Health Medical Records", icon: <HealthAndSafetyIcon />, path: `/applicant_health_medical_records/${keys.step4}` },
@@ -446,6 +446,26 @@ const ApplicantOtherInformationMobile = (props) => {
   const shortName = shortTerm
     ? shortTerm.toUpperCase()
     : companyName || "the University";
+
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -827,6 +847,7 @@ const ApplicantOtherInformationMobile = (props) => {
           <Button
             variant="contained"
             onClick={() => {
+              handleUpdate(person);  // ADD THIS
               showSnackbar("Your record has been saved successfully!", "success");
               setTimeout(() => navigate(`/applicant_health_medical_records/${keys.step4}`), 1000);
             }}

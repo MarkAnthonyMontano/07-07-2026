@@ -38,6 +38,26 @@ const ApplicantTable = ({ data }) => {
     currentPage * pageSize
   );
 
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
+
   return (
     <>
       {/* PAGINATION HEADER */}
@@ -226,16 +246,16 @@ const ApplicantTable = ({ data }) => {
           </TableHead>
 
           <TableBody
-                         sx={{
-                           border: `1px solid ${borderColor}`,
-                           "& .MuiTableRow-root:nth-of-type(odd)": {
-                             backgroundColor: "#ffffff",
-                           },
-                           "& .MuiTableRow-root:nth-of-type(even)": {
-                             backgroundColor: "lightgray",
-                           },
-                         }}
-                       >
+            sx={{
+              border: `1px solid ${borderColor}`,
+              "& .MuiTableRow-root:nth-of-type(odd)": {
+                backgroundColor: "#ffffff",
+              },
+              "& .MuiTableRow-root:nth-of-type(even)": {
+                backgroundColor: "lightgray",
+              },
+            }}
+          >
             {paginatedData.map((row, i) => (
               <TableRow key={row.applicant_id || i}>
                 <TableCell>{row.applicant_id}</TableCell>

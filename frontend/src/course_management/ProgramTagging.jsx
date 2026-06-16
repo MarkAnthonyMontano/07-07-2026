@@ -714,21 +714,21 @@ const ProgramTagging = () => {
     return branch?.branch || "�";
   };
 
- const filteredCurriculumList = Array.from(
-  new Map(
-    curriculumList
-      .filter((item) => {
-        if (selectedCampus !== "") {
-          if (Number(item.components) !== Number(selectedCampus)) return false;
-        }
-        if (selectedAcademicProgram !== "") {
-          if (Number(item.academic_program) !== Number(selectedAcademicProgram)) return false;
-        }
-        return true;
-      })
-      .map((item) => [item.curriculum_id, item]),
-  ).values(),
-).sort((a, b) => Number(a.year_description) - Number(b.year_description)); // ← add this
+  const filteredCurriculumList = Array.from(
+    new Map(
+      curriculumList
+        .filter((item) => {
+          if (selectedCampus !== "") {
+            if (Number(item.components) !== Number(selectedCampus)) return false;
+          }
+          if (selectedAcademicProgram !== "") {
+            if (Number(item.academic_program) !== Number(selectedAcademicProgram)) return false;
+          }
+          return true;
+        })
+        .map((item) => [item.curriculum_id, item]),
+    ).values(),
+  ).sort((a, b) => Number(a.year_description) - Number(b.year_description)); // ← add this
 
   const formatSchoolYear = (yearDesc) => {
     if (!yearDesc) return "";
@@ -744,6 +744,27 @@ const ProgramTagging = () => {
   if (!hasAccess) {
     return <Unauthorized />;
   }
+
+
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   return (
     <Box

@@ -819,4 +819,450 @@ router.post("/send_faculty_password_reminder", async (req, res) => {
   }
 });
 
+const timeToMinutes = (timeStr) => {
+  if (!timeStr) return 0;
+  const parts = String(timeStr).trim().split(" ");
+  let [hours, minutes] = parts[0].split(":").map(Number);
+  const modifier = parts[1] ? parts[1].toUpperCase() : null;
+  if (modifier) {
+    if (modifier === "PM" && hours !== 12) hours += 12;
+    if (modifier === "AM" && hours === 12) hours = 0;
+  }
+  return hours * 60 + (minutes || 0);
+};
+
+const minutesToHours = (mins) => Math.round((mins / 60) * 10) / 10;
+
+const DAY_LABELS = {
+  MON: "Monday",
+  TUE: "Tuesday",
+  WED: "Wednesday",
+  THU: "Thursday",
+  THUR: "Thursday",
+  FRI: "Friday",
+  SAT: "Saturday",
+  SUN: "Sunday",
+};
+
+const normalizeDayLabel = (day) => {
+  const key = String(day || "").trim().toUpperCase();
+  return DAY_LABELS[key] || day || "Unknown";
+};
+
+const formatScheduleRange = (day, start, end) => {
+  const shortDay = String(day || "").trim().slice(0, 3);
+  const capDay = shortDay.charAt(0) + shortDay.slice(1).toLowerCase();
+  return `${capDay} ${start}-${end}`;
+};
+
+const getEvaluationStatus = (avg) => {
+  if (avg >= 4.5) return "Excellent";
+  if (avg >= 3.5) return "Good";
+  if (avg >= 2.5) return "Needs Improvement";
+  if (avg > 0) return "Critical";
+  return "No responses";
+};
+
+const sumScheduleHours = (rows) =>
+  rows.reduce((sum, row) => {
+    const start = timeToMinutes(row.school_time_start);
+    const end = timeToMinutes(row.school_time_end);
+    return sum + Math.max(0, end - start);
+  }, 0);
+
+const buildDailyHours = (rows) => {
+  const buckets = {};
+  rows.forEach((row) => {
+    const label = normalizeDayLabel(row.day);
+    const start = timeToMinutes(row.school_time_start);
+    const end = timeToMinutes(row.school_time_end);
+    buckets[label] = (buckets[label] || 0) + Math.max(0, end - start);
+  });
+
+  const order = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+  ];
+
+  return order.map((day) => ({
+    day,
+    hours: minutesToHours(buckets[day] || 0),
+  }));
+};
+
+router.get("/faculty_dashboard_summary/:prof_id", async (req, res) => {
+  const { prof_id } = req.params;
+  const schoolYearId = req.query.school_year_id || null;
+
+  try {
+    const [[profRow]] = await db3.query(
+      `
+      SELECT
+        pt.prof_id,
+        pt.employee_id,
+        pt.fname,
+        pt.mname,
+        pt.lname,
+        dt.dprtmnt_name,
+        dt.dprtmnt_code
+      FROM prof_table AS pt
+      LEFT JOIN dprtmnt_profs_table AS dpt ON dpt.prof_id = pt.prof_id
+      LEFT JOIN dprtmnt_table AS dt ON dt.dprtmnt_id = dpt.dprtmnt_id
+      WHERE pt.prof_id = ?
+      LIMIT 1
+      `,
+      [prof_id],
+    );
+
+    if (!profRow) {
+      return res.status(404).json({ success: false, message: "Professor not found" });
+    }
+
+    const [[activeYear]] = schoolYearId
+      ? await db3.query(
+        `
+        SELECT
+          sy.id AS school_year_id,
+          sy.year_id,
+          sy.semester_id,
+          yt.year_description,
+          smt.semester_description
+        FROM active_school_year_table AS sy
+        LEFT JOIN year_table AS yt ON sy.year_id = yt.year_id
+        LEFT JOIN semester_table AS smt ON sy.semester_id = smt.semester_id
+        WHERE sy.id = ?
+        LIMIT 1
+        `,
+        [schoolYearId],
+      )
+      : await db3.query(
+        `
+        SELECT
+          sy.id AS school_year_id,
+          sy.year_id,
+          sy.semester_id,
+          yt.year_description,
+          smt.semester_description
+        FROM active_school_year_table AS sy
+        LEFT JOIN year_table AS yt ON sy.year_id = yt.year_id
+        LEFT JOIN semester_table AS smt ON sy.semester_id = smt.semester_id
+        WHERE sy.astatus = 1
+        LIMIT 1
+        `,
+      );
+
+    if (!activeYear) {
+      return res.json({
+        success: true,
+        prof_id: Number(prof_id),
+        employee_id: profRow.employee_id,
+        faculty_name: {
+          fname: profRow.fname,
+          mname: profRow.mname,
+          lname: profRow.lname,
+        },
+        department: profRow.dprtmnt_name || profRow.dprtmnt_code || "N/A",
+        school_year: null,
+        designation: { total_hours: 0 },
+        teaching_load: {
+          total_units: 0,
+          lecture_units: 0,
+          lab_units: 0,
+          total_classes: 0,
+        },
+        my_students: {
+          total_students: 0,
+          active_students: 0,
+          irregular_students: 0,
+          dropped_students: 0,
+        },
+        grades_encoded: {
+          completed_percent: 0,
+          encoded: 0,
+          total: 0,
+          pending: 0,
+          not_started: 0,
+        },
+        faculty_evaluation: {
+          overall_rating: 0,
+          rating_scale: 5,
+          total_evaluations: 0,
+          response_rate_percent: 0,
+          status: "No responses",
+        },
+        working_hours: { total_hours: 0, daily: [] },
+        my_classes: [],
+      });
+    }
+
+    const syId = activeYear.school_year_id;
+
+    const [
+      [designationSlots],
+      [teachingClasses],
+      [studentSummary],
+      [gradesSummary],
+      [evaluationSummary],
+      [classRows],
+      [teachingSlots],
+    ] = await Promise.all([
+      db3.query(
+        `
+        SELECT tt.school_time_start, tt.school_time_end
+        FROM time_table AS tt
+        INNER JOIN course_table AS ct ON tt.course_id = ct.course_id
+        WHERE tt.professor_id = ?
+          AND tt.school_year_id = ?
+          AND ct.office_duty = 1
+        `,
+        [prof_id, syId],
+      ),
+      db3.query(
+        `
+        SELECT DISTINCT
+          tt.course_id,
+          tt.department_section_id,
+          ct.course_unit,
+          ct.lab_unit
+        FROM time_table AS tt
+        INNER JOIN course_table AS ct ON tt.course_id = ct.course_id
+        WHERE tt.professor_id = ?
+          AND tt.school_year_id = ?
+          AND ct.office_duty = 0
+        `,
+        [prof_id, syId],
+      ),
+      db3.query(
+        `
+        SELECT
+          COUNT(DISTINCT es.student_number) AS total_students,
+          COUNT(DISTINCT CASE WHEN es.en_remarks = 0 THEN es.student_number END) AS active_students,
+          COUNT(DISTINCT CASE WHEN es.is_regular = 0 THEN es.student_number END) AS irregular_students,
+          COUNT(DISTINCT CASE WHEN es.en_remarks = 4 THEN es.student_number END) AS dropped_students
+        FROM enrolled_subject AS es
+        INNER JOIN time_table AS tt
+          ON es.course_id = tt.course_id
+         AND es.department_section_id = tt.department_section_id
+         AND es.active_school_year_id = tt.school_year_id
+        WHERE tt.professor_id = ?
+          AND es.active_school_year_id = ?
+        `,
+        [prof_id, syId],
+      ),
+      db3.query(
+        `
+        SELECT
+          COUNT(*) AS total,
+          SUM(
+            CASE
+              WHEN es.final_grade IS NOT NULL
+               AND es.final_grade <> 0
+               AND es.final_grade <> '' THEN 1
+              ELSE 0
+            END
+          ) AS encoded,
+          SUM(
+            CASE
+              WHEN (es.final_grade IS NULL OR es.final_grade = 0 OR es.final_grade = '')
+               AND (es.midterm IS NOT NULL OR es.finals IS NOT NULL) THEN 1
+              ELSE 0
+            END
+          ) AS pending,
+          SUM(
+            CASE
+              WHEN (es.final_grade IS NULL OR es.final_grade = 0 OR es.final_grade = '')
+               AND es.midterm IS NULL
+               AND es.finals IS NULL THEN 1
+              ELSE 0
+            END
+          ) AS not_started
+        FROM enrolled_subject AS es
+        INNER JOIN time_table AS tt
+          ON es.course_id = tt.course_id
+         AND es.department_section_id = tt.department_section_id
+         AND es.active_school_year_id = tt.school_year_id
+        WHERE tt.professor_id = ?
+          AND es.active_school_year_id = ?
+        `,
+        [prof_id, syId],
+      ),
+      db3.query(
+        `
+        SELECT
+          AVG(se.question_answer) AS overall_rating,
+          COUNT(DISTINCT se.student_number) AS total_evaluations
+        FROM student_evaluation_table AS se
+        WHERE se.prof_id = ?
+          AND se.school_year_id = ?
+        `,
+        [prof_id, syId],
+      ),
+      db3.query(
+        `
+        SELECT
+          ct.course_id,
+          ct.course_code AS code,
+          ct.course_description AS subject,
+          CONCAT(pgt.program_code, ' ', st.description) AS section,
+          rdt.description AS day,
+          tt.school_time_start AS time_start,
+          tt.school_time_end AS time_end,
+          COALESCE(rt.room_description, 'TBA') AS room,
+          tt.department_section_id,
+          (
+            SELECT COUNT(DISTINCT es.student_number)
+            FROM enrolled_subject AS es
+            WHERE es.course_id = tt.course_id
+              AND es.department_section_id = tt.department_section_id
+              AND es.active_school_year_id = tt.school_year_id
+          ) AS enrolled
+        FROM time_table AS tt
+        INNER JOIN course_table AS ct ON tt.course_id = ct.course_id
+        LEFT JOIN dprtmnt_section_table AS dst ON tt.department_section_id = dst.id
+        LEFT JOIN section_table AS st ON dst.section_id = st.id
+        LEFT JOIN curriculum_table AS cct ON dst.curriculum_id = cct.curriculum_id
+        LEFT JOIN program_table AS pgt ON cct.program_id = pgt.program_id
+        LEFT JOIN room_day_table AS rdt ON tt.room_day = rdt.id
+        LEFT JOIN room_table AS rt ON tt.department_room_id = rt.room_id
+        WHERE tt.professor_id = ?
+          AND tt.school_year_id = ?
+          AND ct.office_duty = 0
+        ORDER BY
+          FIELD(rdt.description, 'MON', 'TUE', 'WED', 'THU', 'THUR', 'FRI', 'SAT', 'SUN'),
+          tt.school_time_start
+        `,
+        [prof_id, syId],
+      ),
+      db3.query(
+        `
+        SELECT
+          rdt.description AS day,
+          tt.school_time_start,
+          tt.school_time_end
+        FROM time_table AS tt
+        INNER JOIN course_table AS ct ON tt.course_id = ct.course_id
+        LEFT JOIN room_day_table AS rdt ON tt.room_day = rdt.id
+        WHERE tt.professor_id = ?
+          AND tt.school_year_id = ?
+          AND ct.office_duty = 0
+        `,
+        [prof_id, syId],
+      ),
+    ]);
+
+    const lectureUnits = teachingClasses.reduce(
+      (sum, row) => sum + (Number(row.course_unit) || 0),
+      0,
+    );
+    const labUnits = teachingClasses.reduce(
+      (sum, row) => sum + (Number(row.lab_unit) || 0),
+      0,
+    );
+
+    const grades = gradesSummary[0] || {};
+    const totalGrades = Number(grades.total) || 0;
+    const encodedGrades = Number(grades.encoded) || 0;
+    const pendingGrades = Number(grades.pending) || 0;
+    const notStartedGrades = Number(grades.not_started) || 0;
+
+    const students = studentSummary[0] || {};
+    const totalStudents = Number(students.total_students) || 0;
+    const totalEvaluations = Number(evaluationSummary[0]?.total_evaluations) || 0;
+    const overallRating = Number(evaluationSummary[0]?.overall_rating) || 0;
+    const responseRate = totalStudents
+      ? Math.round((totalEvaluations / totalStudents) * 100)
+      : 0;
+
+    const designationMinutes = sumScheduleHours(designationSlots);
+    const teachingMinutes = sumScheduleHours(teachingSlots);
+    const dailyHours = buildDailyHours(teachingSlots);
+
+    const classMap = new Map();
+    classRows.forEach((row) => {
+      const key = `${row.course_id}-${row.department_section_id}-${row.day}-${row.time_start}`;
+      if (classMap.has(key)) return;
+      classMap.set(key, {
+        course_id: row.course_id,
+        code: row.code,
+        subject: row.subject,
+        section: row.section,
+        schedule: formatScheduleRange(row.day, row.time_start, row.time_end),
+        day: row.day,
+        time_start: row.time_start,
+        time_end: row.time_end,
+        room: row.room,
+        enrolled: Number(row.enrolled) || 0,
+        department_section_id: row.department_section_id,
+      });
+    });
+
+    res.json({
+      success: true,
+      prof_id: Number(prof_id),
+      employee_id: profRow.employee_id,
+      faculty_name: {
+        fname: profRow.fname,
+        mname: profRow.mname,
+        lname: profRow.lname,
+      },
+      department: profRow.dprtmnt_name || profRow.dprtmnt_code || "N/A",
+      school_year: {
+        school_year_id: activeYear.school_year_id,
+        year_id: activeYear.year_id,
+        semester_id: activeYear.semester_id,
+        year_description: activeYear.year_description,
+        semester_description: activeYear.semester_description,
+      },
+      designation: {
+        total_hours: minutesToHours(designationMinutes),
+      },
+      teaching_load: {
+        total_units: lectureUnits + labUnits,
+        lecture_units: lectureUnits,
+        lab_units: labUnits,
+        total_classes: teachingClasses.length,
+      },
+      my_students: {
+        total_students: totalStudents,
+        active_students: Number(students.active_students) || 0,
+        irregular_students: Number(students.irregular_students) || 0,
+        dropped_students: Number(students.dropped_students) || 0,
+      },
+      grades_encoded: {
+        completed_percent: totalGrades
+          ? Math.round((encodedGrades / totalGrades) * 100)
+          : 0,
+        encoded: encodedGrades,
+        total: totalGrades,
+        pending: pendingGrades,
+        not_started: notStartedGrades,
+      },
+      faculty_evaluation: {
+        overall_rating: Math.round(overallRating * 100) / 100,
+        rating_scale: 5,
+        total_evaluations: totalEvaluations,
+        response_rate_percent: responseRate,
+        status: getEvaluationStatus(overallRating),
+      },
+      working_hours: {
+        total_hours: minutesToHours(teachingMinutes),
+        daily: dailyHours,
+      },
+      my_classes: Array.from(classMap.values()),
+    });
+  } catch (err) {
+    console.error("Faculty dashboard summary error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to load faculty dashboard summary",
+      error: err.message,
+    });
+  }
+});
+
 module.exports = router;

@@ -241,15 +241,21 @@ const StudentFacultyEvaluation = () => {
     return groups;
   }, {});
 
-  // Disable right-click & dev tools
+  // 🔒 Disable right-click
   document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
   document.addEventListener("keydown", (e) => {
-    if (
+    const isBlockedKey =
       e.key === "F12" ||
       e.key === "F11" ||
-      (e.ctrlKey && e.shiftKey && ["I", "J"].includes(e.key)) ||
-      (e.ctrlKey && e.key === "U")
-    ) {
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
       e.preventDefault();
       e.stopPropagation();
     }

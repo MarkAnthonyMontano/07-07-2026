@@ -368,6 +368,26 @@ const FacultyWorkload = () => {
     window.print();
   };
 
+  // // 🔒 Disable right-click
+  // document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  // document.addEventListener("keydown", (e) => {
+  //   const isBlockedKey =
+  //     e.key === "F12" ||
+  //     e.key === "F11" ||
+  //     (e.ctrlKey &&
+  //       e.shiftKey &&
+  //       (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+  //     (e.ctrlKey && e.key.toLowerCase() === "u") ||
+  //     (e.ctrlKey && e.key.toLowerCase() === "p");
+
+  //   if (isBlockedKey) {
+  //     e.preventDefault();
+  //     e.stopPropagation();
+  //   }
+  // });
+
   return (
     <Box
       sx={{
@@ -728,13 +748,12 @@ const FacultyWorkload = () => {
                     (day, i) => (
                       <td
                         key={day}
-                        className={`m-0 p-0 ${
-                          day === "WED"
+                        className={`m-0 p-0 ${day === "WED"
                             ? "min-w-[7rem]"
                             : day === "THU"
                               ? "min-w-[6.9rem]"
                               : "min-w-[6.8rem]"
-                        }`}
+                          }`}
                       >
                         <div className="h-[2.5rem] p-0 m-0">
                           <div
@@ -745,40 +764,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("7:00 AM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "7:00 AM",
-                                                "7:30 AM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "7:00 AM",
-                                                "7:30 AM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "7:00 AM",
-                                                "7:30 AM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "7:00 AM",
-                                                "7:30 AM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "7:00 AM",
+                              "7:30 AM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "7:00 AM",
+                                  "7:30 AM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "7:00 AM",
+                                "7:30 AM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "7:00 AM",
+                                  "7:30 AM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("7:00 AM", day)}
@@ -793,40 +810,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("7:30 AM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "7:30 AM",
-                                                "8:00 AM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "7:30 AM",
-                                                "8:00 AM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "7:30 AM",
-                                                "8:00 AM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "7:30 AM",
-                                                "8:00 AM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "7:30 AM",
+                              "8:00 AM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "7:30 AM",
+                                  "8:00 AM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "7:30 AM",
+                                "8:00 AM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "7:30 AM",
+                                  "8:00 AM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("7:30 AM", day)}
@@ -848,13 +863,12 @@ const FacultyWorkload = () => {
                     (day, i) => (
                       <td
                         key={day}
-                        className={`m-0 p-0 ${
-                          day === "WED"
+                        className={`m-0 p-0 ${day === "WED"
                             ? "min-w-[7rem]"
                             : day === "THU"
                               ? "min-w-[6.9rem]"
                               : "min-w-[6.8rem]"
-                        }`}
+                          }`}
                       >
                         <div className="h-[2.5rem] p-0 m-0">
                           <div
@@ -865,40 +879,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("8:00 AM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "8:00 AM",
-                                                "8:30 AM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "8:00 AM",
-                                                "8:30 AM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "8:00 AM",
-                                                "8:30 AM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "8:00 AM",
-                                                "8:30 AM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "8:00 AM",
+                              "8:30 AM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "8:00 AM",
+                                  "8:30 AM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "8:00 AM",
+                                "8:30 AM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "8:00 AM",
+                                  "8:30 AM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("8:00 AM", day)}
@@ -912,40 +924,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("8:30 AM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "8:30 AM",
-                                                "9:00 AM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "8:30 AM",
-                                                "9:00 AM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "8:30 AM",
-                                                "9:00 AM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "8:30 AM",
-                                                "9:00 AM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "8:30 AM",
+                              "9:00 AM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "8:30 AM",
+                                  "9:00 AM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "8:30 AM",
+                                "9:00 AM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "8:30 AM",
+                                  "9:00 AM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("8:30 AM", day)}
@@ -967,13 +977,12 @@ const FacultyWorkload = () => {
                     (day, i) => (
                       <td
                         key={day}
-                        className={`m-0 p-0 ${
-                          day === "WED"
+                        className={`m-0 p-0 ${day === "WED"
                             ? "min-w-[7rem]"
                             : day === "THU"
                               ? "min-w-[6.9rem]"
                               : "min-w-[6.8rem]"
-                        }`}
+                          }`}
                       >
                         <div className="h-[2.5rem] p-0 m-0">
                           <div
@@ -984,40 +993,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("9:00 AM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "9:00 AM",
-                                                "9:30 AM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "9:00 AM",
-                                                "9:30 AM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "9:00 AM",
-                                                "9:30 AM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "9:00 AM",
-                                                "9:30 AM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "9:00 AM",
+                              "9:30 AM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "9:00 AM",
+                                  "9:30 AM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "9:00 AM",
+                                "9:30 AM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "9:00 AM",
+                                  "9:30 AM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("9:00 AM", day)}
@@ -1032,40 +1039,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("9:30 AM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "9:30 AM",
-                                                "10:00 AM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "9:30 AM",
-                                                "10:00 AM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "9:30 AM",
-                                                "10:00 AM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "9:30 AM",
-                                                "10:00 AM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "9:30 AM",
+                              "10:00 AM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "9:30 AM",
+                                  "10:00 AM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "9:30 AM",
+                                "10:00 AM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "9:30 AM",
+                                  "10:00 AM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("9:30 AM", day)}
@@ -1087,13 +1092,12 @@ const FacultyWorkload = () => {
                     (day, i) => (
                       <td
                         key={day}
-                        className={`m-0 p-0 ${
-                          day === "WED"
+                        className={`m-0 p-0 ${day === "WED"
                             ? "min-w-[7rem]"
                             : day === "THU"
                               ? "min-w-[6.9rem]"
                               : "min-w-[6.8rem]"
-                        }`}
+                          }`}
                       >
                         <div className="h-[2.5rem] p-0 m-0">
                           <div
@@ -1104,40 +1108,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("10:00 AM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "10:00 AM",
-                                                "10:30 AM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "10:00 AM",
-                                                "10:30 AM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "10:00 AM",
-                                                "10:30 AM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "10:00 AM",
-                                                "10:30 AM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "10:00 AM",
+                              "10:30 AM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "10:00 AM",
+                                  "10:30 AM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "10:00 AM",
+                                "10:30 AM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "10:00 AM",
+                                  "10:30 AM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("10:00 AM", day)}
@@ -1152,40 +1154,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("10:30 AM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "10:30 AM",
-                                                "11:00 AM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "10:30 AM",
-                                                "11:00 AM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "10:30 AM",
-                                                "11:00 AM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "10:30 AM",
-                                                "11:00 AM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "10:30 AM",
+                              "11:00 AM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "10:30 AM",
+                                  "11:00 AM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "10:30 AM",
+                                "11:00 AM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "10:30 AM",
+                                  "11:00 AM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("10:30 AM", day)}
@@ -1207,13 +1207,12 @@ const FacultyWorkload = () => {
                     (day, i) => (
                       <td
                         key={day}
-                        className={`m-0 p-0 ${
-                          day === "WED"
+                        className={`m-0 p-0 ${day === "WED"
                             ? "min-w-[7rem]"
                             : day === "THU"
                               ? "min-w-[6.9rem]"
                               : "min-w-[6.8rem]"
-                        }`}
+                          }`}
                       >
                         <div className="h-[2.5rem] p-0 m-0">
                           <div
@@ -1224,40 +1223,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("11:00 AM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "11:00 AM",
-                                                "11:30 AM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "11:00 AM",
-                                                "11:30 AM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "11:00 AM",
-                                                "11:30 AM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "11:00 AM",
-                                                "11:30 AM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "11:00 AM",
+                              "11:30 AM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "11:00 AM",
+                                  "11:30 AM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "11:00 AM",
+                                "11:30 AM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "11:00 AM",
+                                  "11:30 AM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("11:00 AM", day)}
@@ -1271,40 +1268,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("11:30 AM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "11:30 AM",
-                                                "12:00 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "11:30 AM",
-                                                "12:00 PM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "11:30 AM",
-                                                "12:00 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "11:30 AM",
-                                                "12:00 PM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "11:30 AM",
+                              "12:00 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "11:30 AM",
+                                  "12:00 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "11:30 AM",
+                                "12:00 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "11:30 AM",
+                                  "12:00 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("11:30 AM", day)}
@@ -1326,13 +1321,12 @@ const FacultyWorkload = () => {
                     (day, i) => (
                       <td
                         key={day}
-                        className={`m-0 p-0 ${
-                          day === "WED"
+                        className={`m-0 p-0 ${day === "WED"
                             ? "min-w-[7rem]"
                             : day === "THU"
                               ? "min-w-[6.9rem]"
                               : "min-w-[6.8rem]"
-                        }`}
+                          }`}
                       >
                         <div className="h-[2.5rem] p-0 m-0">
                           <div
@@ -1343,40 +1337,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("12:00 PM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "12:00 PM",
-                                                "12:30 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "12:00 PM",
-                                                "12:30 PM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "12:00 PM",
-                                                "12:30 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "12:00 PM",
-                                                "12:30 PM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "12:00 PM",
+                              "12:30 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "12:00 PM",
+                                  "12:30 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "12:00 PM",
+                                "12:30 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "12:00 PM",
+                                  "12:30 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("12:00 PM", day)}
@@ -1391,40 +1383,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("12:30 PM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "12:30 PM",
-                                                "1:00 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "12:30 PM",
-                                                "1:00 PM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "12:30 PM",
-                                                "1:00 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "12:30 PM",
-                                                "1:00 PM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "12:30 PM",
+                              "1:00 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "12:30 PM",
+                                  "1:00 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "12:30 PM",
+                                "1:00 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "12:30 PM",
+                                  "1:00 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("12:30 PM", day)}
@@ -1446,13 +1436,12 @@ const FacultyWorkload = () => {
                     (day, i) => (
                       <td
                         key={day}
-                        className={`m-0 p-0 ${
-                          day === "WED"
+                        className={`m-0 p-0 ${day === "WED"
                             ? "min-w-[7rem]"
                             : day === "THU"
                               ? "min-w-[6.9rem]"
                               : "min-w-[6.8rem]"
-                        }`}
+                          }`}
                       >
                         <div className="h-[2.5rem] p-0 m-0">
                           <div
@@ -1463,40 +1452,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("1:00 PM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "1:00 PM",
-                                                "1:30 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "1:00 PM",
-                                                "1:30 PM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "1:00 PM",
-                                                "1:30 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "1:00 PM",
-                                                "1:30 PM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "1:00 PM",
+                              "1:30 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "1:00 PM",
+                                  "1:30 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "1:00 PM",
+                                "1:30 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "1:00 PM",
+                                  "1:30 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("1:00 PM", day)}
@@ -1511,40 +1498,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("1:30 PM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "1:30 PM",
-                                                "2:00 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "1:30 PM",
-                                                "2:00 PM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "1:30 PM",
-                                                "2:00 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "1:30 PM",
-                                                "2:00 PM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "1:30 PM",
+                              "2:00 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "1:30 PM",
+                                  "2:00 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "1:30 PM",
+                                "2:00 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "1:30 PM",
+                                  "2:00 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("1:30 PM", day)}
@@ -1566,13 +1551,12 @@ const FacultyWorkload = () => {
                     (day, i) => (
                       <td
                         key={day}
-                        className={`m-0 p-0 ${
-                          day === "WED"
+                        className={`m-0 p-0 ${day === "WED"
                             ? "min-w-[7rem]"
                             : day === "THU"
                               ? "min-w-[6.9rem]"
                               : "min-w-[6.8rem]"
-                        }`}
+                          }`}
                       >
                         <div className="h-[2.5rem] p-0 m-0">
                           <div
@@ -1583,40 +1567,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("2:00 PM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "2:00 PM",
-                                                "2:30 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "2:00 PM",
-                                                "2:30 PM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "2:00 PM",
-                                                "2:30 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "2:00 PM",
-                                                "2:30 PM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "2:00 PM",
+                              "2:30 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "2:00 PM",
+                                  "2:30 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "2:00 PM",
+                                "2:30 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "2:00 PM",
+                                  "2:30 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("2:00 PM", day)}
@@ -1631,40 +1613,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("2:30 PM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "2:30 PM",
-                                                "3:00 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "2:30 PM",
-                                                "3:00 PM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "2:30 PM",
-                                                "3:00 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "2:30 PM",
-                                                "3:00 PM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "2:30 PM",
+                              "3:00 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "2:30 PM",
+                                  "3:00 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "2:30 PM",
+                                "3:00 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "2:30 PM",
+                                  "3:00 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("2:30 PM", day)}
@@ -1686,13 +1666,12 @@ const FacultyWorkload = () => {
                     (day, i) => (
                       <td
                         key={day}
-                        className={`m-0 p-0 ${
-                          day === "WED"
+                        className={`m-0 p-0 ${day === "WED"
                             ? "min-w-[7rem]"
                             : day === "THU"
                               ? "min-w-[6.9rem]"
                               : "min-w-[6.8rem]"
-                        }`}
+                          }`}
                       >
                         <div className="h-[2.5rem] p-0 m-0">
                           <div
@@ -1703,40 +1682,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("3:00 PM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "3:00 PM",
-                                                "3:30 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "3:00 PM",
-                                                "3:30 PM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "3:00 PM",
-                                                "3:30 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "3:00 PM",
-                                                "3:30 PM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "3:00 PM",
+                              "3:30 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "3:00 PM",
+                                  "3:30 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "3:00 PM",
+                                "3:30 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "3:00 PM",
+                                  "3:30 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("3:00 PM", day)}
@@ -1751,40 +1728,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("3:30 PM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "3:30 PM",
-                                                "4:00 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "3:30 PM",
-                                                "4:00 PM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "3:30 PM",
-                                                "4:00 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "3:30 PM",
-                                                "4:00 PM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "3:30 PM",
+                              "4:00 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "3:30 PM",
+                                  "4:00 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "3:30 PM",
+                                "4:00 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "3:30 PM",
+                                  "4:00 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("3:30 PM", day)}
@@ -1806,13 +1781,12 @@ const FacultyWorkload = () => {
                     (day, i) => (
                       <td
                         key={day}
-                        className={`m-0 p-0 ${
-                          day === "WED"
+                        className={`m-0 p-0 ${day === "WED"
                             ? "min-w-[7rem]"
                             : day === "THU"
                               ? "min-w-[6.9rem]"
                               : "min-w-[6.8rem]"
-                        }`}
+                          }`}
                       >
                         <div className="h-[2.5rem] p-0 m-0">
                           <div
@@ -1823,40 +1797,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("4:00 PM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "4:00 PM",
-                                                "4:30 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "4:00 PM",
-                                                "4:30 PM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "4:00 PM",
-                                                "4:30 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "4:00 PM",
-                                                "4:30 PM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "4:00 PM",
+                              "4:30 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "4:00 PM",
+                                  "4:30 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "4:00 PM",
+                                "4:30 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "4:00 PM",
+                                  "4:30 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("4:00 PM", day)}
@@ -1871,40 +1843,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("4:30 PM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "4:30 PM",
-                                                "5:00 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "4:30 PM",
-                                                "5:00 PM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "4:30 PM",
-                                                "5:00 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "4:30 PM",
-                                                "5:00 PM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "4:30 PM",
+                              "5:00 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "4:30 PM",
+                                  "5:00 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "4:30 PM",
+                                "5:00 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "4:30 PM",
+                                  "5:00 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("4:30 PM", day)}
@@ -1926,13 +1896,12 @@ const FacultyWorkload = () => {
                     (day, i) => (
                       <td
                         key={day}
-                        className={`m-0 p-0 ${
-                          day === "WED"
+                        className={`m-0 p-0 ${day === "WED"
                             ? "min-w-[7rem]"
                             : day === "THU"
                               ? "min-w-[6.9rem]"
                               : "min-w-[6.8rem]"
-                        }`}
+                          }`}
                       >
                         <div className="h-[2.5rem] p-0 m-0">
                           <div
@@ -1943,40 +1912,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("5:00 PM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "5:00 PM",
-                                                "5:30 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "5:00 PM",
-                                                "5:30 PM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "5:00 PM",
-                                                "5:30 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "5:00 PM",
-                                                "5:30 PM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "5:00 PM",
+                              "5:30 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "5:00 PM",
+                                  "5:30 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "5:00 PM",
+                                "5:30 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "5:00 PM",
+                                  "5:30 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("5:00 PM", day)}
@@ -1991,40 +1958,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("5:30 PM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "5:30 PM",
-                                                "6:00 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "5:30 PM",
-                                                "6:00 PM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "5:30 PM",
-                                                "6:00 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "5:30 PM",
-                                                "6:00 PM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "5:30 PM",
+                              "6:00 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "5:30 PM",
+                                  "6:00 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "5:30 PM",
+                                "6:00 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "5:30 PM",
+                                  "6:00 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("5:30 PM", day)}
@@ -2046,13 +2011,12 @@ const FacultyWorkload = () => {
                     (day, i) => (
                       <td
                         key={day}
-                        className={`m-0 p-0 ${
-                          day === "WED"
+                        className={`m-0 p-0 ${day === "WED"
                             ? "min-w-[7rem]"
                             : day === "THU"
                               ? "min-w-[6.9rem]"
                               : "min-w-[6.8rem]"
-                        }`}
+                          }`}
                       >
                         <div className="h-[2.5rem] p-0 m-0">
                           <div
@@ -2063,40 +2027,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("6:00 PM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "6:00 PM",
-                                                "6:30 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "6:00 PM",
-                                                "6:30 PM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "6:00 PM",
-                                                "6:30 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "6:00 PM",
-                                                "6:30 PM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "6:00 PM",
+                              "6:30 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "6:00 PM",
+                                  "6:30 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "6:00 PM",
+                                "6:30 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "6:00 PM",
+                                  "6:30 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("6:00 PM", day)}
@@ -2111,40 +2073,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("6:30 PM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "6:30 PM",
-                                                "7:00 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "6:30 PM",
-                                                "7:00 PM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "6:30 PM",
-                                                "7:00 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "6:30 PM",
-                                                "7:00 PM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "6:30 PM",
+                              "7:00 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "6:30 PM",
+                                  "7:00 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "6:30 PM",
+                                "7:00 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "6:30 PM",
+                                  "7:00 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("6:30 PM", day)}
@@ -2166,13 +2126,12 @@ const FacultyWorkload = () => {
                     (day, i) => (
                       <td
                         key={day}
-                        className={`m-0 p-0 ${
-                          day === "WED"
+                        className={`m-0 p-0 ${day === "WED"
                             ? "min-w-[7rem]"
                             : day === "THU"
                               ? "min-w-[6.9rem]"
                               : "min-w-[6.8rem]"
-                        }`}
+                          }`}
                       >
                         <div className="h-[2.5rem] p-0 m-0">
                           <div
@@ -2183,40 +2142,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("7:00 PM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "7:00 PM",
-                                                "7:30 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "7:00 PM",
-                                                "7:30 PM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "7:00 PM",
-                                                "7:30 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "7:00 PM",
-                                                "7:30 PM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "7:00 PM",
+                              "7:30 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "7:00 PM",
+                                  "7:30 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "7:00 PM",
+                                "7:30 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "7:00 PM",
+                                  "7:30 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("7:00 PM", day)}
@@ -2231,40 +2188,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("7:30 PM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                            ${
-                                              isTimeInSchedule(
-                                                "7:30 PM",
-                                                "8:00 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "7:30 PM",
-                                                "8:00 PM",
-                                                day,
-                                                "top",
-                                              ) === "same"
-                                                ? "border-t-0"
-                                                : ""
-                                            }
-                                            ${
-                                              isTimeInSchedule(
-                                                "7:30 PM",
-                                                "8:00 PM",
-                                                day,
-                                              ) &&
-                                              hasAdjacentSchedule(
-                                                "7:30 PM",
-                                                "8:00 PM",
-                                                day,
-                                                "bottom",
-                                              ) === "same"
-                                                ? "border-b-0"
-                                                : ""
-                                            }
+                                            ${isTimeInSchedule(
+                              "7:30 PM",
+                              "8:00 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "7:30 PM",
+                                  "8:00 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                            ${isTimeInSchedule(
+                                "7:30 PM",
+                                "8:00 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "7:30 PM",
+                                  "8:00 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                             `}
                           >
                             {getCenterText("7:30 PM", day)}
@@ -2286,13 +2241,12 @@ const FacultyWorkload = () => {
                     (day, i) => (
                       <td
                         key={day}
-                        className={`m-0 p-0 ${
-                          day === "WED"
+                        className={`m-0 p-0 ${day === "WED"
                             ? "min-w-[7rem]"
                             : day === "THU"
                               ? "min-w-[6.9rem]"
                               : "min-w-[6.8rem]"
-                        }`}
+                          }`}
                       >
                         <div className="h-[2.5rem] p-0 m-0">
                           <div
@@ -2303,40 +2257,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("8:00 PM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                                ${
-                                                  isTimeInSchedule(
-                                                    "8:00 PM",
-                                                    "8:30 PM",
-                                                    day,
-                                                  ) &&
-                                                  hasAdjacentSchedule(
-                                                    "8:00 PM",
-                                                    "8:30 PM",
-                                                    day,
-                                                    "top",
-                                                  ) === "same"
-                                                    ? "border-t-0"
-                                                    : ""
-                                                }
-                                                ${
-                                                  isTimeInSchedule(
-                                                    "8:00 PM",
-                                                    "8:30 PM",
-                                                    day,
-                                                  ) &&
-                                                  hasAdjacentSchedule(
-                                                    "8:00 PM",
-                                                    "8:30 PM",
-                                                    day,
-                                                    "bottom",
-                                                  ) === "same"
-                                                    ? "border-b-0"
-                                                    : ""
-                                                }
+                                                ${isTimeInSchedule(
+                              "8:00 PM",
+                              "8:30 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "8:00 PM",
+                                  "8:30 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                                ${isTimeInSchedule(
+                                "8:00 PM",
+                                "8:30 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "8:00 PM",
+                                  "8:30 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                                 `}
                           >
                             {getCenterText("8:00 PM", day)}
@@ -2351,40 +2303,38 @@ const FacultyWorkload = () => {
                                 day,
                               )
                                 ? getDutyColor("8:30 PM", day) ||
-                                  "rgb(253 224 71)"
+                                "rgb(253 224 71)"
                                 : undefined,
                             }}
                             className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                                ${
-                                                  isTimeInSchedule(
-                                                    "8:30 PM",
-                                                    "9:00 PM",
-                                                    day,
-                                                  ) &&
-                                                  hasAdjacentSchedule(
-                                                    "8:30 PM",
-                                                    "9:00 PM",
-                                                    day,
-                                                    "top",
-                                                  ) === "same"
-                                                    ? "border-t-0"
-                                                    : ""
-                                                }
-                                                ${
-                                                  isTimeInSchedule(
-                                                    "8:30 PM",
-                                                    "9:00 PM",
-                                                    day,
-                                                  ) &&
-                                                  hasAdjacentSchedule(
-                                                    "8:30 PM",
-                                                    "9:00 PM",
-                                                    day,
-                                                    "bottom",
-                                                  ) === "same"
-                                                    ? "border-b-0"
-                                                    : ""
-                                                }
+                                                ${isTimeInSchedule(
+                              "8:30 PM",
+                              "9:00 PM",
+                              day,
+                            ) &&
+                                hasAdjacentSchedule(
+                                  "8:30 PM",
+                                  "9:00 PM",
+                                  day,
+                                  "top",
+                                ) === "same"
+                                ? "border-t-0"
+                                : ""
+                              }
+                                                ${isTimeInSchedule(
+                                "8:30 PM",
+                                "9:00 PM",
+                                day,
+                              ) &&
+                                hasAdjacentSchedule(
+                                  "8:30 PM",
+                                  "9:00 PM",
+                                  day,
+                                  "bottom",
+                                ) === "same"
+                                ? "border-b-0"
+                                : ""
+                              }
                                                 `}
                           >
                             {getCenterText("8:30 PM", day)}

@@ -43,11 +43,11 @@ const SECTIONS = [
     title: "Father — Basic Info",
     icon: <PersonIcon />,
     fields: [
-      { id: "father_family_name", label: "Father Last Name",   system: true },
-      { id: "father_given_name",  label: "Father First Name",  system: true },
+      { id: "father_family_name", label: "Father Last Name", system: true },
+      { id: "father_given_name", label: "Father First Name", system: true },
       { id: "father_middle_name", label: "Father Middle Name", system: true },
-      { id: "father_ext",         label: "Father Extension",   system: false, defaultOn: true },
-      { id: "father_nickname",    label: "Father Nickname",    system: false, defaultOn: true },
+      { id: "father_ext", label: "Father Extension", system: false, defaultOn: true },
+      { id: "father_nickname", label: "Father Nickname", system: false, defaultOn: true },
     ],
   },
   {
@@ -55,11 +55,11 @@ const SECTIONS = [
     title: "Father — Educational Background",
     icon: <SchoolIcon />,
     fields: [
-      { id: "father_education_level",  label: "Father Education Level",   system: false, defaultOn: true },
-      { id: "father_last_school",      label: "Father Last School",       system: false, defaultOn: true },
-      { id: "father_course",           label: "Father Course",            system: false, defaultOn: true },
-      { id: "father_year_graduated",   label: "Father Year Graduated",    system: false, defaultOn: true },
-      { id: "father_school_address",   label: "Father School Address",    system: false, defaultOn: true },
+      { id: "father_education_level", label: "Father Education Level", system: false, defaultOn: true },
+      { id: "father_last_school", label: "Father Last School", system: false, defaultOn: true },
+      { id: "father_course", label: "Father Course", system: false, defaultOn: true },
+      { id: "father_year_graduated", label: "Father Year Graduated", system: false, defaultOn: true },
+      { id: "father_school_address", label: "Father School Address", system: false, defaultOn: true },
     ],
   },
   {
@@ -67,11 +67,11 @@ const SECTIONS = [
     title: "Father — Contact Information",
     icon: <PhoneIcon />,
     fields: [
-      { id: "father_contact",    label: "Father Contact Number", system: false, defaultOn: true },
-      { id: "father_occupation", label: "Father Occupation",     system: false, defaultOn: true },
-      { id: "father_employer",   label: "Father Employer",       system: false, defaultOn: true },
-      { id: "father_income",     label: "Father Income",         system: false, defaultOn: true },
-      { id: "father_email",      label: "Father Email",          system: false, defaultOn: true },
+      { id: "father_contact", label: "Father Contact Number", system: false, defaultOn: true },
+      { id: "father_occupation", label: "Father Occupation", system: false, defaultOn: true },
+      { id: "father_employer", label: "Father Employer", system: false, defaultOn: true },
+      { id: "father_income", label: "Father Income", system: false, defaultOn: true },
+      { id: "father_email", label: "Father Email", system: false, defaultOn: true },
     ],
   },
   {
@@ -79,11 +79,11 @@ const SECTIONS = [
     title: "Mother — Basic Info",
     icon: <PersonIcon />,
     fields: [
-      { id: "mother_family_name", label: "Mother Last Name",   system: true },
-      { id: "mother_given_name",  label: "Mother First Name",  system: true },
+      { id: "mother_family_name", label: "Mother Last Name", system: true },
+      { id: "mother_given_name", label: "Mother First Name", system: true },
       { id: "mother_middle_name", label: "Mother Middle Name", system: true },
-      { id: "mother_ext",         label: "Mother Extension",   system: false, defaultOn: true },
-      { id: "mother_nickname",    label: "Mother Nickname",    system: false, defaultOn: true },
+      { id: "mother_ext", label: "Mother Extension", system: false, defaultOn: true },
+      { id: "mother_nickname", label: "Mother Nickname", system: false, defaultOn: true },
     ],
   },
   {
@@ -91,11 +91,11 @@ const SECTIONS = [
     title: "Mother — Educational Background",
     icon: <SchoolIcon />,
     fields: [
-      { id: "mother_education_level", label: "Mother Education Level",  system: false, defaultOn: true },
-      { id: "mother_last_school",     label: "Mother Last School",      system: false, defaultOn: true },
-      { id: "mother_course",          label: "Mother Course",           system: false, defaultOn: true },
-      { id: "mother_year_graduated",  label: "Mother Year Graduated",   system: false, defaultOn: true },
-      { id: "mother_school_address",  label: "Mother School Address",   system: false, defaultOn: true },
+      { id: "mother_education_level", label: "Mother Education Level", system: false, defaultOn: true },
+      { id: "mother_last_school", label: "Mother Last School", system: false, defaultOn: true },
+      { id: "mother_course", label: "Mother Course", system: false, defaultOn: true },
+      { id: "mother_year_graduated", label: "Mother Year Graduated", system: false, defaultOn: true },
+      { id: "mother_school_address", label: "Mother School Address", system: false, defaultOn: true },
     ],
   },
   {
@@ -103,11 +103,11 @@ const SECTIONS = [
     title: "Mother — Contact Information",
     icon: <PhoneIcon />,
     fields: [
-      { id: "mother_contact",    label: "Mother Contact Number", system: false, defaultOn: true },
-      { id: "mother_occupation", label: "Mother Occupation",     system: false, defaultOn: true },
-      { id: "mother_employer",   label: "Mother Employer",       system: false, defaultOn: true },
-      { id: "mother_income",     label: "Mother Income",         system: false, defaultOn: true },
-      { id: "mother_email",      label: "Mother Email",          system: false, defaultOn: true },
+      { id: "mother_contact", label: "Mother Contact Number", system: false, defaultOn: true },
+      { id: "mother_occupation", label: "Mother Occupation", system: false, defaultOn: true },
+      { id: "mother_employer", label: "Mother Employer", system: false, defaultOn: true },
+      { id: "mother_income", label: "Mother Income", system: false, defaultOn: true },
+      { id: "mother_email", label: "Mother Email", system: false, defaultOn: true },
     ],
   },
   {
@@ -115,15 +115,15 @@ const SECTIONS = [
     title: "Guardian / Emergency Contact",
     icon: <PeopleIcon />,
     fields: [
-      { id: "guardian",             label: "Guardian Relationship", system: false, defaultOn: true },
-      { id: "guardian_family_name", label: "Guardian Last Name",    system: true },
-      { id: "guardian_given_name",  label: "Guardian First Name",   system: true },
-      { id: "guardian_middle_name", label: "Guardian Middle Name",  system: true },
-      { id: "guardian_ext",         label: "Guardian Extension",    system: false, defaultOn: true },
-      { id: "guardian_nickname",    label: "Guardian Nickname",     system: false, defaultOn: true },
-      { id: "guardian_address",     label: "Guardian Address",      system: false, defaultOn: true },
-      { id: "guardian_contact",     label: "Guardian Contact",      system: false, defaultOn: true },
-      { id: "guardian_email",       label: "Guardian Email",        system: false, defaultOn: true },
+      { id: "guardian", label: "Guardian Relationship", system: false, defaultOn: true },
+      { id: "guardian_family_name", label: "Guardian Last Name", system: true },
+      { id: "guardian_given_name", label: "Guardian First Name", system: true },
+      { id: "guardian_middle_name", label: "Guardian Middle Name", system: true },
+      { id: "guardian_ext", label: "Guardian Extension", system: false, defaultOn: true },
+      { id: "guardian_nickname", label: "Guardian Nickname", system: false, defaultOn: true },
+      { id: "guardian_address", label: "Guardian Address", system: false, defaultOn: true },
+      { id: "guardian_contact", label: "Guardian Contact", system: false, defaultOn: true },
+      { id: "guardian_email", label: "Guardian Email", system: false, defaultOn: true },
     ],
   },
   {
@@ -152,18 +152,18 @@ const StudentEditPermissions2 = () => {
   const settings = useContext(SettingsContext);
 
   const [mainButtonColor, setMainButtonColor] = useState("#6D2323");
-  const [borderColor, setBorderColor]         = useState("#000");
-  const [titleColor, setTitleColor]           = useState("#000");
+  const [borderColor, setBorderColor] = useState("#000");
+  const [titleColor, setTitleColor] = useState("#000");
 
-  const [permissions, setPermissions]         = useState(buildDefaultState());
+  const [permissions, setPermissions] = useState(buildDefaultState());
   const [expandedSections, setExpandedSections] = useState(
     SECTIONS.reduce((acc, s) => ({ ...acc, [s.id]: true }), {})
   );
-  const [loading, setLoading]     = useState(false);
-  const [saving, setSaving]       = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [hasAccess, setHasAccess] = useState(null);
-  const [userRole, setUserRole]   = useState("");
-  const [snackbar, setSnackbar]   = useState({ open: false, message: "", severity: "success" });
+  const [userRole, setUserRole] = useState("");
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
   // NOTE: Uses the SAME API endpoint as StudentEditPermissions (Dashboard 1).
   // Both admin panels read/write to the same key-value store, so a single
@@ -174,13 +174,13 @@ const StudentEditPermissions2 = () => {
   useEffect(() => {
     if (!settings) return;
     if (settings.main_button_color) setMainButtonColor(settings.main_button_color);
-    if (settings.border_color)      setBorderColor(settings.border_color);
-    if (settings.title_color)       setTitleColor(settings.title_color);
+    if (settings.border_color) setBorderColor(settings.border_color);
+    if (settings.title_color) setTitleColor(settings.title_color);
   }, [settings]);
 
   // ── Auth + access check ────────────────────────────────────────────────────
   useEffect(() => {
-    const role       = localStorage.getItem("role");
+    const role = localStorage.getItem("role");
     const employeeId = localStorage.getItem("employee_id");
     if (!role || !employeeId) { window.location.href = "/login"; return; }
     setUserRole(role);
@@ -258,61 +258,81 @@ const StudentEditPermissions2 = () => {
     if (editableFields.length === 0) return null;
     const onCount = editableFields.filter((f) => permissions[f.id]).length;
     if (onCount === editableFields.length) return { label: "All editable", color: "success" };
-    if (onCount === 0)                     return { label: "All locked",   color: "error" };
+    if (onCount === 0) return { label: "All locked", color: "error" };
     return { label: `${onCount}/${editableFields.length} editable`, color: "warning" };
   };
 
   // ── Global stats ───────────────────────────────────────────────────────────
-  const allFields    = SECTIONS.flatMap((s) => s.fields);
-  const systemCount  = allFields.filter((f) => f.system).length;
-  const editableAll  = allFields.filter((f) => !f.system);
+  const allFields = SECTIONS.flatMap((s) => s.fields);
+  const systemCount = allFields.filter((f) => f.system).length;
+  const editableAll = allFields.filter((f) => !f.system);
   const enabledCount = editableAll.filter((f) => permissions[f.id]).length;
-  const lockedCount  = editableAll.length - enabledCount;
+  const lockedCount = editableAll.length - enabledCount;
 
   // ── Guards ─────────────────────────────────────────────────────────────────
   if (loading || hasAccess === null) return <LoadingOverlay open message="Loading permissions..." />;
   if (!hasAccess) return <Unauthorized />;
 
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
+
   return (
     <Box sx={{ height: "calc(100vh - 150px)", overflowY: "auto", p: 2, backgroundColor: "transparent" }}>
 
-          {/* ── Page Header ── */}
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2, mb: 2 }}>
-              <Box>
-                <Typography
-                  variant="h4"
-                  sx={{ fontWeight: "bold", color: titleColor, fontSize: "30px", display: "flex", alignItems: "center", gap: 1 }}
-                >
-                  <SecurityIcon sx={{ fontSize: 32 }} />
-                  STUDENT EDIT PERMISSIONS — FAMILY BACKGROUND
-                </Typography>
-                <Typography variant="body2" sx={{ color: "#666", mt: 0.5 }}>
-                  Control which fields students can modify in their{" "}
-                  <strong>Family Background</strong> form (Step 2). Toggle a field
-                  OFF to make it read-only for students; the admin can still edit it at
-                  any time.
-                </Typography>
-              </Box>
-              <Box sx={{ display: "flex", gap: 1 }}>
-                <Button
-                  variant="outlined"
-                  startIcon={<RestoreIcon />}
-                  onClick={handleReset}
-                  sx={{ borderColor, color: mainButtonColor, "&:hover": { backgroundColor: "#f5f5f5", borderColor } }}
-                >
-                  Reset Defaults
-                </Button>
-                <Button
-                  variant="contained"
-                  startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
-                  onClick={handleSave}
-                  disabled={saving}
-                  sx={{ backgroundColor: mainButtonColor, color: "#fff", "&:hover": { backgroundColor: "#4a1414" } }}
-                >
-                  {saving ? "Saving…" : "Save Changes"}
-                </Button>
-              </Box>
-            </Box>
+      {/* ── Page Header ── */}
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2, mb: 2 }}>
+        <Box>
+          <Typography
+            variant="h4"
+            sx={{ fontWeight: "bold", color: titleColor, fontSize: "30px", display: "flex", alignItems: "center", gap: 1 }}
+          >
+            <SecurityIcon sx={{ fontSize: 32 }} />
+            STUDENT EDIT PERMISSIONS — FAMILY BACKGROUND
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#666", mt: 0.5 }}>
+            Control which fields students can modify in their{" "}
+            <strong>Family Background</strong> form (Step 2). Toggle a field
+            OFF to make it read-only for students; the admin can still edit it at
+            any time.
+          </Typography>
+        </Box>
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Button
+            variant="outlined"
+            startIcon={<RestoreIcon />}
+            onClick={handleReset}
+            sx={{ borderColor, color: mainButtonColor, "&:hover": { backgroundColor: "#f5f5f5", borderColor } }}
+          >
+            Reset Defaults
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+            onClick={handleSave}
+            disabled={saving}
+            sx={{ backgroundColor: mainButtonColor, color: "#fff", "&:hover": { backgroundColor: "#4a1414" } }}
+          >
+            {saving ? "Saving…" : "Save Changes"}
+          </Button>
+        </Box>
+      </Box>
 
       <Divider sx={{ mb: 2 }} />
 
@@ -340,10 +360,10 @@ const StudentEditPermissions2 = () => {
 
       {/* ── Sections ── */}
       {SECTIONS.map((sec) => {
-        const badge    = getSectionBadge(sec);
-        const isOpen   = expandedSections[sec.id];
+        const badge = getSectionBadge(sec);
+        const isOpen = expandedSections[sec.id];
         const editable = sec.fields.filter((f) => !f.system);
-        const allOn    = editable.length > 0 && editable.every((f) => permissions[f.id]);
+        const allOn = editable.length > 0 && editable.every((f) => permissions[f.id]);
 
         return (
           <Paper key={sec.id} variant="outlined" sx={{ mb: 2, borderColor, borderRadius: 2, overflow: "hidden" }}>

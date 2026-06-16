@@ -42,54 +42,54 @@ const toggleStyles = `
 `;
 
 const passwordRules = [
-  { label: "Minimum of 8 characters",                    test: (pw) => pw.length >= 8 },
-  { label: "At least one lowercase letter (e.g. abc)",   test: (pw) => /[a-z]/.test(pw) },
-  { label: "At least one uppercase letter (e.g. ABC)",   test: (pw) => /[A-Z]/.test(pw) },
-  { label: "At least one number (e.g. 123)",             test: (pw) => /\d/.test(pw) },
+  { label: "Minimum of 8 characters", test: (pw) => pw.length >= 8 },
+  { label: "At least one lowercase letter (e.g. abc)", test: (pw) => /[a-z]/.test(pw) },
+  { label: "At least one uppercase letter (e.g. ABC)", test: (pw) => /[A-Z]/.test(pw) },
+  { label: "At least one number (e.g. 123)", test: (pw) => /\d/.test(pw) },
   { label: "At least one special character (! # $ ^ * @ - . < > _ & % + = ?)", test: (pw) => /[!#$^*@\-.<>_&%+=?]/.test(pw) },
 ];
 
 const RegistrarResetPassword = () => {
   const settings = useContext(SettingsContext);
 
-  const [titleColor,      setTitleColor]      = useState("#000000");
-  const [subtitleColor,   setSubtitleColor]   = useState("#555555");
-  const [borderColor,     setBorderColor]     = useState("#000000");
+  const [titleColor, setTitleColor] = useState("#000000");
+  const [subtitleColor, setSubtitleColor] = useState("#555555");
+  const [borderColor, setBorderColor] = useState("#000000");
   const [mainButtonColor, setMainButtonColor] = useState("#1976d2");
 
-  const [fetchedLogo,    setFetchedLogo]    = useState(null);
-  const [companyName,    setCompanyName]    = useState("");
-  const [shortTerm,      setShortTerm]      = useState("");
-  const [campusAddress,  setCampusAddress]  = useState("");
+  const [fetchedLogo, setFetchedLogo] = useState(null);
+  const [companyName, setCompanyName] = useState("");
+  const [shortTerm, setShortTerm] = useState("");
+  const [campusAddress, setCampusAddress] = useState("");
 
   useEffect(() => {
     if (!settings) return;
-    if (settings.title_color)       setTitleColor(settings.title_color);
-    if (settings.subtitle_color)    setSubtitleColor(settings.subtitle_color);
-    if (settings.border_color)      setBorderColor(settings.border_color);
+    if (settings.title_color) setTitleColor(settings.title_color);
+    if (settings.subtitle_color) setSubtitleColor(settings.subtitle_color);
+    if (settings.border_color) setBorderColor(settings.border_color);
     if (settings.main_button_color) setMainButtonColor(settings.main_button_color);
-    if (settings.logo_url)          setFetchedLogo(`${API_BASE_URL}${settings.logo_url}`);
-    if (settings.company_name)      setCompanyName(settings.company_name);
-    if (settings.short_term)        setShortTerm(settings.short_term);
-    if (settings.campus_address)    setCampusAddress(settings.campus_address);
+    if (settings.logo_url) setFetchedLogo(`${API_BASE_URL}${settings.logo_url}`);
+    if (settings.company_name) setCompanyName(settings.company_name);
+    if (settings.short_term) setShortTerm(settings.short_term);
+    if (settings.campus_address) setCampusAddress(settings.campus_address);
   }, [settings]);
 
-  const [userID,      setUserID]      = useState("");
-  const [user,        setUser]        = useState("");
-  const [userRole,    setUserRole]    = useState("");
-  const [hasAccess,   setHasAccess]   = useState(null);
-  const [loading,     setLoading]     = useState(false);
-  const [employeeID,  setEmployeeID]  = useState("");
+  const [userID, setUserID] = useState("");
+  const [user, setUser] = useState("");
+  const [userRole, setUserRole] = useState("");
+  const [hasAccess, setHasAccess] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [employeeID, setEmployeeID] = useState("");
 
-  const [currentPassword,  setCurrentPassword]  = useState("");
-  const [newPassword,      setNewPassword]      = useState("");
-  const [confirmPassword,  setConfirmPassword]  = useState("");
-  const [validations,      setValidations]      = useState([]);
-  const [showPassword,     setShowPassword]     = useState({ current: false, new: false, confirm: false });
-  const [snack,            setSnack]            = useState({ open: false, message: "", severity: "success" });
-  const [totpEnabled,      setTotpEnabled]      = useState(true);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [validations, setValidations] = useState([]);
+  const [showPassword, setShowPassword] = useState({ current: false, new: false, confirm: false });
+  const [snack, setSnack] = useState({ open: false, message: "", severity: "success" });
+  const [totpEnabled, setTotpEnabled] = useState(true);
   // Tracks whether a toggle request is in-flight to prevent double-taps
-  const [totpUpdating,     setTotpUpdating]     = useState(false);
+  const [totpUpdating, setTotpUpdating] = useState(false);
 
   const pageId = 73;
 
@@ -140,9 +140,9 @@ const RegistrarResetPassword = () => {
   };
 
   useEffect(() => {
-    const storedUser       = localStorage.getItem("email");
-    const storedRole       = localStorage.getItem("role");
-    const storedID         = localStorage.getItem("person_id");
+    const storedUser = localStorage.getItem("email");
+    const storedRole = localStorage.getItem("role");
+    const storedID = localStorage.getItem("person_id");
     const storedEmployeeID = localStorage.getItem("employee_id");
 
     if (storedUser && storedRole && storedID) {
@@ -211,6 +211,26 @@ const RegistrarResetPassword = () => {
   if (!hasAccess)
     return <Unauthorized />;
 
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
+
   return (
     <Box sx={{
       height: "calc(100vh - 150px)", overflowY: "auto",
@@ -275,7 +295,7 @@ const RegistrarResetPassword = () => {
                 }}>
                   {totpEnabled
                     ? <PhoneAndroidIcon sx={{ color: "#fff", fontSize: { xs: 20, sm: 22 } }} />
-                    : <LockOpenIcon    sx={{ color: "#fff", fontSize: { xs: 20, sm: 22 } }} />
+                    : <LockOpenIcon sx={{ color: "#fff", fontSize: { xs: 20, sm: 22 } }} />
                   }
                 </Box>
                 <Box>
@@ -296,8 +316,8 @@ const RegistrarResetPassword = () => {
                   sx={{
                     fontWeight: 700, fontSize: "11px",
                     bgcolor: totpEnabled ? "#e3f2fd" : "#f5f5f5",
-                    color:   totpEnabled ? "#1565c0" : "#757575",
-                    border:  totpEnabled ? "1px solid #90caf9" : "1px solid #e0e0e0",
+                    color: totpEnabled ? "#1565c0" : "#757575",
+                    border: totpEnabled ? "1px solid #90caf9" : "1px solid #e0e0e0",
                   }}
                 />
                 {/* Custom large toggle — reliable onChange */}
@@ -349,7 +369,7 @@ const RegistrarResetPassword = () => {
           <form onSubmit={handleUpdate}>
             {[
               { label: "Current Password", field: "current", value: currentPassword, setter: setCurrentPassword },
-              { label: "New Password",     field: "new",     value: newPassword,     setter: setNewPassword },
+              { label: "New Password", field: "new", value: newPassword, setter: setNewPassword },
               { label: "Confirm Password", field: "confirm", value: confirmPassword, setter: setConfirmPassword },
             ].map(({ label, field, value, setter }) => (
               <Box mb={2} key={field}>
@@ -388,7 +408,7 @@ const RegistrarResetPassword = () => {
                   <ListItemIcon sx={{ minWidth: 32 }}>
                     {validations[i]
                       ? <CheckCircle sx={{ color: "green", fontSize: 18 }} />
-                      : <Cancel      sx={{ color: "red",   fontSize: 18 }} />
+                      : <Cancel sx={{ color: "red", fontSize: 18 }} />
                     }
                   </ListItemIcon>
                   <ListItemText primary={rule.label} primaryTypographyProps={{ fontSize: 13 }} />

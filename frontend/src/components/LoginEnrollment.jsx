@@ -50,7 +50,7 @@ function getRegistrarDashboard(accessSet) {
   if (accessSet.has(101)) return "/registrar_dashboard";
   if (accessSet.has(102)) return "/enrollment_officer_dashboard";
   if (accessSet.has(103)) return "/admission_officer_dashboard";
-  return "/registrar_dashboard";
+
 }
 function getUserDashboard(role, accessList = []) {
   const accessSet = accessToSet(accessList);
@@ -707,6 +707,26 @@ const LoginEnrollment = ({ setIsAuthenticated }) => {
     if (reason === "clickaway") return;
     setSnack((prev) => ({ ...prev, open: false }));
   };
+
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   return (
     <>

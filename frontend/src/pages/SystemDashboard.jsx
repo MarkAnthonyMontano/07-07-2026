@@ -131,58 +131,88 @@ const SystemDashboardPanel = () => {
   };
 
   const groupedMenu = [
-    { key: "roomManagement", label: "Room Management", icon: MeetingRoom,
-      items: [{ title: "Room Registration", link: "/room_registration", icon: MeetingRoom, page_id: 52 }] },
-    { key: "requirementsManagement", label: "Requirements Management", icon: Assignment,
-      items: [{ title: "Requirements Panel", link: "/requirements_form", icon: Assignment, page_id: 51 }] },
-    { key: "profileSettings", label: "Profile & Settings", icon: Settings,
+    {
+      key: "roomManagement", label: "Room Management", icon: MeetingRoom,
+      items: [{ title: "Room Registration", link: "/room_registration", icon: MeetingRoom, page_id: 52 }]
+    },
+    {
+      key: "requirementsManagement", label: "Requirements Management", icon: Assignment,
+      items: [{ title: "Requirements Panel", link: "/requirements_form", icon: Assignment, page_id: 51 }]
+    },
+    {
+      key: "profileSettings", label: "Profile & Settings", icon: Settings,
       items: [
         { title: `${shortTerm} Profile`, link: "/settings", icon: Settings, page_id: 74 },
         { title: "Signature Upload", link: "/signature_upload", icon: Settings, page_id: 114 },
-      ]},
-    { key: "academicConfiguration", label: "Academic Configuration", icon: School,
+      ]
+    },
+    {
+      key: "academicConfiguration", label: "Academic Configuration", icon: School,
       items: [
         { title: "Grade Conversion Management", link: "/grade_conversion_admin", icon: Settings, page_id: 144 },
         { title: "Change Grading Period", link: "/change_grade_period", icon: ChangeCircle, page_id: 14 },
         { title: "Student Grade File", link: "/student_grade_file", icon: Grade, page_id: 126 },
         { title: "Academic Achiever Awardee's", link: "/honors_report", icon: EmojiEvents, page_id: 146 },
-      ]},
-    { key: "branchAdministration", label: "Branch Administration", icon: AccountTree,
-      items: [{ title: "Branch Management", link: "/admin_branches", icon: AccountTree, page_id: 138 }] },
-    { key: "communicationManagement", label: "Communication", icon: Campaign,
+      ]
+    },
+    {
+      key: "branchAdministration", label: "Branch Administration", icon: AccountTree,
+      items: [{ title: "Branch Management", link: "/admin_branches", icon: AccountTree, page_id: 138 }]
+    },
+    {
+      key: "communicationManagement", label: "Communication", icon: Campaign,
       items: [
         { title: "Email Sender", link: "/email_template_manager", icon: Email, page_id: 67 },
         { title: "Announcement", link: "/announcement", icon: Campaign, page_id: 66 },
-      ]},
-    { key: "slotConfiguration", label: "Slot Configuration", icon: School,
-      items: [{ title: "Program Slot Remaining", link: "/program_slot_limit", icon: People, page_id: 110 }] },
-    { key: "sectionManagement", label: "Section Management", icon: Class,
-      items: [{ title: "Section Panel Form", link: "/section_panel", icon: Class, page_id: 57 },{ title: "Section Slot Management", link: "/section_slot_management", icon: MeetingRoom, page_id: 167 }] },
-    { key: "semesterManagement", label: "Semester Management", icon: Timeline,
-      items: [{ title: "Semester Panel Form", link: "/semester_panel", icon: Timeline, page_id: 58 }] },
-    { key: "yearManagement", label: "Year Management", icon: CalendarToday,
+      ]
+    },
+    {
+      key: "slotConfiguration", label: "Slot Configuration", icon: School,
+      items: [{ title: "Program Slot Remaining", link: "/program_slot_limit", icon: People, page_id: 110 }]
+    },
+    {
+      key: "sectionManagement", label: "Section Management", icon: Class,
+      items: [{ title: "Section Panel Form", link: "/section_panel", icon: Class, page_id: 57 }, { title: "Section Slot Management", link: "/section_slot_management", icon: MeetingRoom, page_id: 167 }]
+    },
+    {
+      key: "semesterManagement", label: "Semester Management", icon: Timeline,
+      items: [{ title: "Semester Panel Form", link: "/semester_panel", icon: Timeline, page_id: 58 }]
+    },
+    {
+      key: "yearManagement", label: "Year Management", icon: CalendarToday,
       items: [
         { title: "Year Level Panel Form", link: "/year_level_panel", icon: Layers, page_id: 63 },
         { title: "Year Panel Form", link: "/year_panel", icon: CalendarToday, page_id: 64 },
         { title: "School Year Panel", link: "/school_year_panel", icon: DateRange, page_id: 55 },
-      ]},
-    { key: "evaluationManagement", label: "Evaluation Management", icon: Assessment,
+      ]
+    },
+    {
+      key: "evaluationManagement", label: "Evaluation Management", icon: Assessment,
       items: [
         { title: "Evaluation Management", link: "/evaluation_crud", icon: HelpOutline, page_id: 23 },
         { title: "TOSF CRUD", link: "/tosf_crud", icon: HelpOutline, page_id: 99 },
-      ]},
-    { key: "paymentManagement", label: "Payment Management", icon: Payments,
+      ]
+    },
+    {
+      key: "paymentManagement", label: "Payment Management", icon: Payments,
       items: [
         { title: "Payment Exporting Module", link: "/payment_exporting_module", icon: HelpOutline, page_id: 116 },
         { title: "Receipt Counter Assignment", link: "/assign_receipt_counter", icon: HelpOutline, page_id: 122 },
         { title: "Matriculation Payment", link: "/matriculation_payment", icon: HelpOutline, page_id: 121 },
-      ]},
-    { key: "scholarshipManagement", label: "Scholarship Management", icon: School,
-      items: [{ title: "Student Scholarship List", link: "/student_scholarship_list", icon: HelpOutline, page_id: 116 }] },
-    { key: "systemLogs", label: "System Logs", icon: HistoryEdu,
-      items: [{ title: "Audit Logs", link: "/audit_logs", icon: HistoryEdu, page_id: 154 }] },
-    { key: "registrarResetPasswords", label: "Reset Password", icon: Settings,
-      items: [{ title: "Registrar Reset Password", link: "/registrar_reset_password", icon: Settings, page_id: 73 }] },
+      ]
+    },
+    {
+      key: "scholarshipManagement", label: "Scholarship Management", icon: School,
+      items: [{ title: "Student Scholarship List", link: "/student_scholarship_list", icon: HelpOutline, page_id: 116 }]
+    },
+    {
+      key: "systemLogs", label: "System Logs", icon: HistoryEdu,
+      items: [{ title: "Audit Logs", link: "/audit_logs", icon: HistoryEdu, page_id: 154 }]
+    },
+    {
+      key: "registrarResetPasswords", label: "Reset Password", icon: Settings,
+      items: [{ title: "Registrar Reset Password", link: "/registrar_reset_password", icon: Settings, page_id: 73 }]
+    },
   ];
 
   if (loading || hasAccess === null)
@@ -193,6 +223,27 @@ const SystemDashboardPanel = () => {
   const backgroundImage = settings?.bg_image
     ? `url(${API_BASE_URL}${settings.bg_image})`
     : "linear-gradient(to right, #e0e0e0, #bdbdbd)";
+
+
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   return (
     <Box

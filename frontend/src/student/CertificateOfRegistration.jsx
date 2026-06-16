@@ -176,8 +176,8 @@ const CertificateOfRegistration = forwardRef(
       : "";
     const showApprovedBySignature = Boolean(
       effectiveStudentNumber &&
-        approvedBySignatureUrl &&
-        !approvedBySignatureMissing,
+      approvedBySignatureUrl &&
+      !approvedBySignatureMissing,
     );
 
     useEffect(() => {
@@ -401,10 +401,10 @@ const CertificateOfRegistration = forwardRef(
         onReadyChange(
           Boolean(
             effectiveStudentNumber &&
-              data[0]?.student_number &&
-              userId &&
-              currId &&
-              isEnrolledLoaded,
+            data[0]?.student_number &&
+            userId &&
+            currId &&
+            isEnrolledLoaded,
           ),
         );
       }
@@ -782,6 +782,27 @@ const CertificateOfRegistration = forwardRef(
       )?.program_description ||
         (person?.program ?? "");
     }
+
+    // 🔒 Disable right-click
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    // 🔒 Block DevTools shortcuts + Ctrl+P silently
+    document.addEventListener("keydown", (e) => {
+      const isBlockedKey =
+        e.key === "F12" ||
+        e.key === "F11" ||
+        (e.ctrlKey &&
+          e.shiftKey &&
+          (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+        (e.ctrlKey && e.key.toLowerCase() === "u") ||
+        (e.ctrlKey && e.key.toLowerCase() === "p");
+
+      if (isBlockedKey) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    });
+
 
     return (
       <Container
@@ -2390,9 +2411,8 @@ const CertificateOfRegistration = forwardRef(
                             }}
                           >
                             <span>
-                              {`${item.day_description || ""} ${
-                                item.school_time_start || ""
-                              }-${item.school_time_end || ""}`.trim()}
+                              {`${item.day_description || ""} ${item.school_time_start || ""
+                                }-${item.school_time_end || ""}`.trim()}
                             </span>
                           </div>
                         </td>
@@ -2615,7 +2635,7 @@ const CertificateOfRegistration = forwardRef(
                               </div>
 
                               <div className="cor-registrar-signature">
-                                <div className="cor-registrar-signature-slot" style={{height: "60px"}}>
+                                <div className="cor-registrar-signature-slot" style={{ height: "60px" }}>
                                   {showApprovedBySignature && (
                                     <img
                                       src={approvedBySignatureUrl}

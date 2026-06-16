@@ -281,7 +281,7 @@ const StudentRequirements = () => {
     if (settings.logo_url) {
       setFetchedLogo(`${API_BASE_URL}/${settings.logo_url}`);
     } else {
-      setFetchedLogo(EaristLogo);
+      setFetchedLogo(NPCLogo);
     }
 
     // 🏷️ School Information
@@ -292,9 +292,6 @@ const StudentRequirements = () => {
   }, [settings]);
 
   const [hasAccess, setHasAccess] = useState(null);
-  const [canCreate, setCanCreate] = useState(false);
-  const [canEdit, setCanEdit] = useState(false);
-  const [canDelete, setCanDelete] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const pageId = 61;
@@ -329,26 +326,12 @@ const StudentRequirements = () => {
       const response = await axios.get(`${API_BASE_URL}/api/page_access/${employeeID}/${pageId}`);
       if (response.data && response.data.page_privilege === 1) {
         setHasAccess(true);
-        setCanCreate(response.data?.can_create === 1);
-        setCanEdit(response.data?.can_edit === 1);
-        setCanDelete(response.data?.can_delete === 1);
       } else {
         setHasAccess(false);
-        setCanCreate(false);
-        setCanEdit(false);
-        setCanDelete(false);
       }
     } catch (error) {
       console.error('Error checking access:', error);
       setHasAccess(false);
-      setCanCreate(false);
-      setCanEdit(false);
-      setCanDelete(false);
-      if (error.response && error.response.data.message) {
-        console.log(error.response.data.message);
-      } else {
-        console.log("An unexpected error occurred.");
-      }
       setLoading(false);
     }
   };
@@ -504,10 +487,6 @@ const StudentRequirements = () => {
 
   // When clicking delete
   const handleConfirmDelete = (doc) => {
-    if (!canDelete) {
-      showSnackbar("You do not have permission to delete documents.", "warning");
-      return;
-    }
     setTargetDoc(doc);
     setConfirmAction("delete");
     setConfirmOpen(true);
@@ -681,10 +660,6 @@ const StudentRequirements = () => {
   };
 
   const performStatusChange = async (uploadId, remarkValue) => {
-    if (!canEdit) {
-      showSnackbar("You do not have permission to update document status.", "warning");
-      return;
-    }
 
     try {
       await axios.put(`${API_BASE_URL}/api/uploads/status/${uploadId}`, {
@@ -724,10 +699,6 @@ const StudentRequirements = () => {
   };
 
   const performDocumentStatusChange = async (newStatus) => {
-    if (!canEdit) {
-      showSnackbar("You do not have permission to update document status.", "warning");
-      return;
-    }
 
     const applicantNumber =
       person?.applicant_number || selectedPerson?.applicant_number || "";
@@ -913,10 +884,6 @@ const StudentRequirements = () => {
   };
 
   const handleDelete = async (uploadId) => {
-    if (!canDelete) {
-      showSnackbar("You do not have permission to delete documents.", "warning");
-      return;
-    }
 
     try {
       await axios.delete(`${API_BASE_URL}/api/admin/uploads/${uploadId}`, {
@@ -936,6 +903,25 @@ const StudentRequirements = () => {
   };
 
 
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   const renderRow = (doc) => {
     const uploaded = uploads.find((u) => u.description === doc.label);
@@ -1149,23 +1135,6 @@ const StudentRequirements = () => {
                 >
                   Preview
                 </Button>
-
-
-
-                {/* <Button
-                  disabled
-                  onClick={() => handleConfirmDelete(uploaded)}
-                  sx={{
-                    backgroundColor: uploaded.canDelete ? 'maroon' : 'lightgray',
-                    color: uploaded.canDelete ? 'white' : '#888',
-                    cursor: uploaded.canDelete ? 'pointer' : 'not-allowed',
-                    '&:hover': {
-                      backgroundColor: uploaded.canDelete ? '#600000' : 'lightgray',
-                    },
-                  }}
-                >
-                  Delete
-                </Button> */}
 
               </>
             ) : null}

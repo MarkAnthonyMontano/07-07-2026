@@ -299,7 +299,7 @@ export default function StudentAccounts() {
           message: res.data.message || "Failed to save student account",
           severity: "error",
         });
-        
+
         return false;
       }
 
@@ -313,12 +313,12 @@ export default function StudentAccounts() {
         prev.map((person) =>
           person.person_id === selectedPerson.person_id
             ? {
-                ...person,
-                first_name: payload.first_name,
-                middle_name: payload.middle_name,
-                last_name: payload.last_name,
-                emailAddress: trimmedEmail,
-              }
+              ...person,
+              first_name: payload.first_name,
+              middle_name: payload.middle_name,
+              last_name: payload.last_name,
+              emailAddress: trimmedEmail,
+            }
             : person,
         ),
       );
@@ -477,11 +477,10 @@ export default function StudentAccounts() {
                   ${firstLine}
                 </div>
 
-                ${
-                  secondLine
-                    ? `<div class="school-name">${secondLine}</div>`
-                    : ""
-                }
+                ${secondLine
+        ? `<div class="school-name">${secondLine}</div>`
+        : ""
+      }
 
                 <div style="font-size: 11px;">
                   ${resolvedCampusAddress}
@@ -760,6 +759,26 @@ export default function StudentAccounts() {
   if (!hasAccess) {
     return <Unauthorized />;
   }
+
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   return (
     <Box

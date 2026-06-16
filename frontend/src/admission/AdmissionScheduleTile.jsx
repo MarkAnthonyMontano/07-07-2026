@@ -57,43 +57,43 @@ const ScheduleHoverTile = () => {
     });
 
 
-     const tabs = [
-     
-          {
-              label: "Verify Documents Room Assignment",
-              to: "/verify_document_schedule",
-              icon: <MeetingRoomIcon fontSize="large" />,
-          },
-  
-          {
-              label: "Evaluator's Applicant List",
-              to: "/evaluator_schedule_room_list",
-              icon: <PeopleIcon fontSize="large" />,
-          },
-          {
-              label: "Entrance Exam Room Assignment",
-              to: "/assign_entrance_exam",
-              icon: <MeetingRoomIcon fontSize="large" />,
-          },
-  
-          {
-              label: "Proctor's Applicant List",
-              to: "/admission_schedule_room_list",
-              icon: <PeopleIcon fontSize="large" />,
-          },
-  
-          {
-              label: "Subject Management",
-              to: "/applicant_exam_subjects",
-              icon: <SchoolIcon fontSize="large" />,
-          },
-  
-          {
-              label: "Announcement",
-              to: "/announcement_for_admission",
-              icon: <CampaignIcon fontSize="large" />,
-          },
-      ];
+    const tabs = [
+
+        {
+            label: "Verify Documents Room Assignment",
+            to: "/verify_document_schedule",
+            icon: <MeetingRoomIcon fontSize="large" />,
+        },
+
+        {
+            label: "Evaluator's Applicant List",
+            to: "/evaluator_schedule_room_list",
+            icon: <PeopleIcon fontSize="large" />,
+        },
+        {
+            label: "Entrance Exam Room Assignment",
+            to: "/assign_entrance_exam",
+            icon: <MeetingRoomIcon fontSize="large" />,
+        },
+
+        {
+            label: "Proctor's Applicant List",
+            to: "/admission_schedule_room_list",
+            icon: <PeopleIcon fontSize="large" />,
+        },
+
+        {
+            label: "Subject Management",
+            to: "/applicant_exam_subjects",
+            icon: <SchoolIcon fontSize="large" />,
+        },
+
+        {
+            label: "Announcement",
+            to: "/announcement_for_admission",
+            icon: <CampaignIcon fontSize="large" />,
+        },
+    ];
 
 
     const [activeStep, setActiveStep] = useState(3);
@@ -282,6 +282,26 @@ const ScheduleHoverTile = () => {
         if (ratio >= 0.7) return "#f57c00";
         return "#388e3c";
     };
+
+    // 🔒 Disable right-click
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    // 🔒 Block DevTools shortcuts + Ctrl+P silently
+    document.addEventListener("keydown", (e) => {
+        const isBlockedKey =
+            e.key === "F12" ||
+            e.key === "F11" ||
+            (e.ctrlKey &&
+                e.shiftKey &&
+                (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+            (e.ctrlKey && e.key.toLowerCase() === "u") ||
+            (e.ctrlKey && e.key.toLowerCase() === "p");
+
+        if (isBlockedKey) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    });
 
     return (
         <Box

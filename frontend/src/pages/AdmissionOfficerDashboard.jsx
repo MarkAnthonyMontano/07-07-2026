@@ -398,7 +398,7 @@ const AdmissionOfficerDashboard = ({ profileImage, setProfileImage }) => {
     if (!allApplicants.length) return;
     const filtered = applyFilters();
     setPieData([
-      { name: "Applied",   value: filtered.length },
+      { name: "Applied", value: filtered.length },
       {
         name: "Scheduled",
         value: filtered.filter(
@@ -492,8 +492,8 @@ const AdmissionOfficerDashboard = ({ profileImage, setProfileImage }) => {
   });
 
   const MONTH_SHORT = [
-    "Jan","Feb","Mar","Apr","May","Jun",
-    "Jul","Aug","Sep","Oct","Nov","Dec",
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
   ];
 
   const backgroundImage = settings?.bg_image
@@ -503,6 +503,26 @@ const AdmissionOfficerDashboard = ({ profileImage, setProfileImage }) => {
   if (loading || hasAccess === null)
     return <LoadingOverlay open={loading} message="Loading..." />;
   if (!hasAccess) return <Unauthorized />;
+
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   return (
     <Box
@@ -628,9 +648,8 @@ const AdmissionOfficerDashboard = ({ profileImage, setProfileImage }) => {
                   >
                     Welcome back!{" "}
                     {personData
-                      ? `${personData.lname}, ${personData.fname} ${
-                          personData.mname || ""
-                        }`
+                      ? `${personData.lname}, ${personData.fname} ${personData.mname || ""
+                      }`
                       : ""}
                   </Typography>
                   <Typography
@@ -736,7 +755,7 @@ const AdmissionOfficerDashboard = ({ profileImage, setProfileImage }) => {
                             <Cell
                               key={i}
                               fill={
-                                ["#0088FE","#00C49F","#FFBB28","#FF8042"][i]
+                                ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"][i]
                               }
                             />
                           ))}
@@ -912,8 +931,8 @@ const AdmissionOfficerDashboard = ({ profileImage, setProfileImage }) => {
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 {[
                   { label: "Total Applicants", value: totalApplicants },
-                  { label: "This Week",        value: weekApplicants  },
-                  { label: "This Month",       value: monthApplicants },
+                  { label: "This Week", value: weekApplicants },
+                  { label: "This Month", value: monthApplicants },
                 ].map((item) => (
                   <Grid item xs={4} key={item.label}>
                     <Box
@@ -1129,8 +1148,8 @@ const AdmissionOfficerDashboard = ({ profileImage, setProfileImage }) => {
                               backgroundColor: isToday
                                 ? settings?.header_color || "#1976d2"
                                 : isHoliday
-                                ? "#E8C999"
-                                : "#fff",
+                                  ? "#E8C999"
+                                  : "#fff",
                               color: isToday ? "white" : "black",
                               fontWeight: isHoliday ? "bold" : "500",
                               cursor: isHoliday ? "pointer" : "default",
@@ -1247,8 +1266,8 @@ const AdmissionOfficerDashboard = ({ profileImage, setProfileImage }) => {
                 <Grid container spacing={1}>
                   {[
                     { label: "Total Applicants", value: totalApplicants },
-                    { label: "This Week",        value: weekApplicants  },
-                    { label: "This Month",       value: monthApplicants },
+                    { label: "This Week", value: weekApplicants },
+                    { label: "This Month", value: monthApplicants },
                   ].map((item) => (
                     <Grid item xs={4} key={item.label}>
                       <Box

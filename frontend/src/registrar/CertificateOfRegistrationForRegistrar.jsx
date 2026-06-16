@@ -950,15 +950,15 @@ const CertificateOfRegistration = forwardRef(
       };
     };
 
-  const insertPaymentAuditLog = async (paymentTarget) => {
-    try {
+    const insertPaymentAuditLog = async (paymentTarget) => {
+      try {
         await postAuditEvent("payment_saved", {
           student_number: requestedData.student_number,
           payment_target: paymentTarget,
         });
-    } catch (err) {
-      console.error("Error inserting audit log");
-    }
+      } catch (err) {
+        console.error("Error inserting audit log");
+      }
     };
 
     const handleSaveToUnifast = async () => {
@@ -1070,6 +1070,26 @@ const CertificateOfRegistration = forwardRef(
       return <Unauthorized />;
     }
 
+    // 🔒 Disable right-click
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    // 🔒 Block DevTools shortcuts + Ctrl+P silently
+    document.addEventListener("keydown", (e) => {
+      const isBlockedKey =
+        e.key === "F12" ||
+        e.key === "F11" ||
+        (e.ctrlKey &&
+          e.shiftKey &&
+          (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+        (e.ctrlKey && e.key.toLowerCase() === "u") ||
+        (e.ctrlKey && e.key.toLowerCase() === "p");
+
+      if (isBlockedKey) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    });
+
     return (
       <Container className="mb-[4rem]">
         {/* SAVE TO UNIFAST BUTTON */}
@@ -1150,8 +1170,8 @@ const CertificateOfRegistration = forwardRef(
           </DialogContent>
           <DialogActions>
             <Button
-             color="error"
-            variant="outlined"
+              color="error"
+              variant="outlined"
               onClick={closeConfirm}
             >
               Cancel
@@ -1187,8 +1207,8 @@ const CertificateOfRegistration = forwardRef(
           </DialogContent>
           <DialogActions>
             <Button
-            color="error"
-            variant="outlined"
+              color="error"
+              variant="outlined"
 
 
               onClick={closeScholarshipModal}>
@@ -1496,7 +1516,7 @@ const CertificateOfRegistration = forwardRef(
                             color: "black",
                           }}
                         >
-                             Academic Year/Term :{" "}
+                          Academic Year/Term :{" "}
                           <span style={{ color: "red" }}>{activeSchoolYear[0]?.semester_description}{" "} AY {" "}
                             {activeSchoolYear[0]?.year_description || " "}-{activeSchoolYear[0]?.year_description + 1 || " "}</span>
                         </b>

@@ -1699,135 +1699,7 @@ const GradingSheet = () => {
                       Last
                     </Button>
 
-                    <Button
-                      onClick={handleSort}
-                      variant="outlined"
-                      size="small"
-                      sx={{
-                        minWidth: 100,
-                        color: "white",
-                        borderColor: "white",
-                        backgroundColor: "transparent",
-                        "&:hover": {
-                          borderColor: "white",
-                          backgroundColor: "rgba(65, 64, 64, 0.1)",
-                        },
-                      }}
-                    >
-                      Sort: {sortOrder === "asc" ? "A–Z" : "Z–A"}
-                    </Button>
 
-                    <FormControl size="small" sx={{ minWidth: 140 }}>
-                      <Select
-                        value={selectedSchoolYearValue}
-                        onChange={(e) => setSelectedSchoolYear(e.target.value)}
-                        displayEmpty
-                        sx={{
-                          fontSize: "12px",
-                          height: 36,
-                          color: "white",
-                          border: "1px solid white",
-                          backgroundColor: "transparent",
-                          ".MuiOutlinedInput-notchedOutline": {
-                            borderColor: "white",
-                          },
-                          "&:hover .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "white",
-                          },
-                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "white",
-                          },
-                          "& svg": { color: "white" },
-                        }}
-                        MenuProps={{
-                          PaperProps: {
-                            sx: {
-                              maxHeight: 200,
-                              backgroundColor: "#fff",
-                            },
-                          },
-                        }}
-                      >
-                        <MenuItem value="" disabled>
-                          Select School Year
-                        </MenuItem>
-
-                        {schoolYears.map((yearObj) => (
-                          <MenuItem
-                            key={yearObj.year_id}
-                            value={yearObj.year_id}
-                          >
-                            {yearObj.current_year} - {yearObj.next_year}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-
-                    <FormControl size="small" sx={{ minWidth: 140 }}>
-                      <Select
-                        value={selectedSchoolSemesterValue}
-                        onChange={(e) =>
-                          setSelectedSchoolSemester(e.target.value)
-                        }
-                        displayEmpty
-                        sx={{
-                          fontSize: "12px",
-                          height: 36,
-                          color: "white",
-                          border: "1px solid white",
-                          backgroundColor: "transparent",
-                          ".MuiOutlinedInput-notchedOutline": {
-                            borderColor: "white",
-                          },
-                          "&:hover .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "white",
-                          },
-                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "white",
-                          },
-                          "& svg": { color: "white" },
-                        }}
-                        MenuProps={{
-                          PaperProps: {
-                            sx: {
-                              maxHeight: 200,
-                              backgroundColor: "#fff",
-                            },
-                          },
-                        }}
-                      >
-                        <MenuItem value="" disabled>
-                          Select Semester
-                        </MenuItem>
-
-                        {schoolSemester.map((sem) => (
-                          <MenuItem
-                            key={sem.semester_id}
-                            value={sem.semester_id}
-                          >
-                            {sem.semester_description}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-
-                    <Button
-                      onClick={findPastClass}
-                      variant="outlined"
-                      size="small"
-                      sx={{
-                        minWidth: 100,
-                        color: "white",
-                        borderColor: "white",
-                        backgroundColor: "transparent",
-                        "&:hover": {
-                          borderColor: "white",
-                          backgroundColor: "rgba(255,255,255,0.1)",
-                        },
-                      }}
-                    >
-                      FIND LAST GRADE
-                    </Button>
                   </Box>
                 </Box>
               </TableCell>
@@ -1842,29 +1714,25 @@ const GradingSheet = () => {
           width: "100%",
           border: `1px solid ${borderColor}`,
           p: 2,
-          marginRight: "4rem",
         }}
       >
         <Box
           sx={{
             display: "flex",
-            flexWrap: "wrap",
-            gap: "2rem",
-            alignItems: "center",
             justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: 2,
           }}
         >
-          <Box>
-            <Box
-              display="flex"
-              alignItems="center"
-              gap={1}
-              sx={{ minWidth: 500 }}
-            >
-              <Typography fontSize={13} sx={{ minWidth: "100px" }}>
-                Course:{" "}
-              </Typography>
-              <FormControl fullWidth>
+          {/* ── LEFT: Course / Section / Sort + School Year + Semester + Find ── */}
+          <Box display="flex" flexDirection="column" gap={2}>
+
+            
+
+            {/* Course */}
+            <Box display="flex" alignItems="center" gap={1}>
+              <Typography fontSize={13} sx={{ minWidth: "100px" }}>Course:</Typography>
+              <FormControl sx={{ width: "510px" }}>
                 <InputLabel id="demo-simple-select-label">Course</InputLabel>
                 <Select
                   labelId="demo-simple-select-label"
@@ -1880,18 +1748,16 @@ const GradingSheet = () => {
                       </MenuItem>
                     ))
                   ) : (
-                    <MenuItem value="" disabled>
-                      No courses assigned
-                    </MenuItem>
+                    <MenuItem value="" disabled>No courses assigned</MenuItem>
                   )}
                 </Select>
               </FormControl>
             </Box>
-            <Box display="flex" alignItems="center">
-              <Typography fontSize={13} sx={{ minWidth: "109px" }}>
-                Section:{" "}
-              </Typography>
-              <FormControl fullWidth sx={{ mt: 1, minWidth: 320 }}>
+
+            {/* Section */}
+            <Box display="flex" alignItems="center" gap={1}>
+              <Typography fontSize={13} sx={{ minWidth: "100px" }}>Section:</Typography>
+              <FormControl sx={{ width: "510px" }}>
                 <InputLabel id="section-select-label">Section</InputLabel>
                 <Select
                   labelId="section-select-label"
@@ -1901,153 +1767,229 @@ const GradingSheet = () => {
                   disabled={!selectedCourse || sectionsHandle.length === 0}
                 >
                   {!selectedCourse ? (
-                    <MenuItem value="" disabled>
-                      Please select a course first
-                    </MenuItem>
+                    <MenuItem value="" disabled>Please select a course first</MenuItem>
                   ) : sectionsHandle.length > 0 ? (
                     sectionsHandle.map((section) => (
-                      <MenuItem
-                        key={section.department_section_id}
-                        value={section.department_section_id}
-                      >
+                      <MenuItem key={section.department_section_id} value={section.department_section_id}>
                         {section.program_code}-{section.section_description}
                       </MenuItem>
                     ))
                   ) : (
-                    <MenuItem value="" disabled>
-                      No sections available for this course
-                    </MenuItem>
+                    <MenuItem value="" disabled>No sections available for this course</MenuItem>
                   )}
                 </Select>
               </FormControl>
+
+              {/* Sort — beside Section */}
+              <Button
+                onClick={handleSort}
+                variant="outlined"
+                size="small"
+                sx={{
+                  minWidth: 100,
+                  color: "white",
+                  borderColor: "white",
+                  backgroundColor: "transparent",
+                  "&:hover": { borderColor: "white", backgroundColor: "rgba(65,64,64,0.1)" },
+                }}
+              >
+                Sort: {sortOrder === "asc" ? "A–Z" : "Z–A"}
+              </Button>
+            </Box>
+
+            {/* School Year + Semester + Find Last Grade — all in one row */}
+            <Box display="flex" alignItems="center" gap={2}>
+              <Typography fontSize={13} sx={{ minWidth: "90px" }}>School Year:</Typography>
+              <FormControl sx={{ width: "210px" }}>
+                <InputLabel id="school-year-label">School Year</InputLabel>
+                <Select
+                  labelId="school-year-label"
+                  label="School Year"
+                  value={selectedSchoolYearValue}
+                  onChange={(e) => setSelectedSchoolYear(e.target.value)}
+                  sx={{
+                    fontSize: "13px",
+                    color: "inherit",
+                    ".MuiOutlinedInput-notchedOutline": { borderColor: "rgba(0,0,0,0.23)" },
+                    "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(0,0,0,0.87)" },
+                    "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "primary.main" },
+                    "& svg": { color: "inherit" },
+                  }}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 200, backgroundColor: "#fff" } } }}
+                >
+                  <MenuItem value="" disabled>Select School Year</MenuItem>
+                  {schoolYears.map((yearObj) => (
+                    <MenuItem key={yearObj.year_id} value={yearObj.year_id}>
+                      {yearObj.current_year} - {yearObj.next_year}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <Typography fontSize={13} sx={{ minWidth: "90px" }}>Semester:</Typography>
+              <FormControl sx={{ width: "180px" }}>
+                <InputLabel id="semester-label">Semester</InputLabel>
+                <Select
+                  labelId="semester-label"
+                  label="Semester"
+                  value={selectedSchoolSemesterValue}
+                  onChange={(e) => setSelectedSchoolSemester(e.target.value)}
+                  sx={{
+                    fontSize: "13px",
+                    color: "inherit",
+                    ".MuiOutlinedInput-notchedOutline": { borderColor: "rgba(0,0,0,0.23)" },
+                    "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(0,0,0,0.87)" },
+                    "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "primary.main" },
+                    "& svg": { color: "inherit" },
+                  }}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 200, backgroundColor: "#fff" } } }}
+                >
+                  <MenuItem value="" disabled>Select Semester</MenuItem>
+                  {schoolSemester.map((sem) => (
+                    <MenuItem key={sem.semester_id} value={sem.semester_id}>
+                      {sem.semester_description}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <Button
+                onClick={findPastClass}
+                variant="outlined"
+                size="small"
+                sx={{
+                  minWidth: 130,
+                  color: "white",
+                  borderColor: "white",
+                  backgroundColor: "transparent",
+                  "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" },
+                }}
+              >
+                Find Last Grade
+              </Button>
             </Box>
           </Box>
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              flexWrap: "wrap",
-              gap: "1rem",
-            }}
-          >
-            <Typography
-              fontSize={13}
-              sx={{
-                minWidth: "100%",
-                border: "maroon 1px solid",
-                padding: "3px",
-                color: "maroon",
-                textAlign: "center",
-              }}
-            >
-              {selectedFile
-                ? `SELECTED FILE: ${selectedFile.name}`
-                : "Choose Excel File to Upload"}
-            </Typography>
-            <Box
-              sx={{
+
+          {/* ── RIGHT: File upload + actions ── */}
+          <Box display="flex" flexDirection="column" gap={1.5} alignItems="flex-end" sx={{ minWidth: 260 }}>
+
+            {/* Import Excel button */}
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleFileChange}
+              style={{ display: "none" }}
+              id="excel-upload"
+            />
+            <button
+              onClick={() => document.getElementById("excel-upload").click()}
+              style={{
+                border: "2px solid green",
+                backgroundColor: "#f0fdf4",
+                color: "green",
+                borderRadius: "5px",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "bold",
+                height: "50px",
                 display: "flex",
-                flexWrap: "wrap",
-                gap: "1rem",
-                marginBottom: "0.5rem",
+                alignItems: "center",
+                gap: "8px",
+                justifyContent: "center",
+                userSelect: "none",
+                width: "100%",
               }}
+              type="button"
             >
+              <FaFileExcel size={20} />
+              Import Excel
+            </button>
+
+            {/* File preview */}
+            {selectedFile && (
               <Box
-                display="flex"
-                alignItems="center"
-                gap={1}
-                sx={{ minWidth: 200 }}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                  border: "1px solid #bbf7d0",
+                  backgroundColor: "#f0fdf4",
+                  borderRadius: "8px",
+                  padding: "8px 12px",
+                  width: "100%",
+                }}
               >
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={handleFileChange}
-                  style={{ display: "none" }}
-                  id="excel-upload"
-                />
-                <button
-                  onClick={() =>
-                    document.getElementById("excel-upload").click()
-                  }
-                  style={{
-                    border: "2px solid green",
-                    backgroundColor: "#f0fdf4",
-                    color: "green",
-                    borderRadius: "5px",
-                    cursor: "pointer",
-                    fontSize: "14px",
-                    fontWeight: "bold",
-                    height: "50px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    justifyContent: "center",
-                    userSelect: "none",
-                    width: "230px",
-                  }}
-                  type="button"
-                >
-                  <FaFileExcel size={20} />
-                  Import Excel
-                </button>
-              </Box>
-              <Box
-                display="flex"
-                alignItems="center"
-                gap={1}
-                sx={{ minWidth: 200 }}
-              >
+                <FaFileExcel size={24} color="#16a34a" />
+                <Box flex={1} minWidth={0}>
+                  <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#14532d", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {selectedFile.name}
+                  </Typography>
+                  <Typography sx={{ fontSize: 11, color: "#15803d" }}>
+                    {(selectedFile.size / 1024).toFixed(1)} KB
+                  </Typography>
+                </Box>
                 <Button
-                  variant="contained"
-                  fullWidth
-                  sx={{ height: "50px", backgroundColor: mainButtonColor }}
-                  onClick={handleImport}
+                  size="small"
+                  onClick={() => { setSelectedFile(null); document.getElementById("excel-upload").value = ""; }}
+                  sx={{ fontSize: 11, color: "#15803d", border: "1px solid #86efac", borderRadius: "6px", textTransform: "none", minWidth: "unset", px: 1.5, flexShrink: 0 }}
                 >
-                  Upload
+                  Remove
                 </Button>
               </Box>
-            </Box>
-            <Box
+            )}
+
+            {/* Upload button */}
+            <Button
+              variant="contained"
+              disabled={!selectedFile}
+              onClick={handleImport}
               sx={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "1rem",
-                alignItems: "center",
+                height: "50px",
+                width: "100%",
+                backgroundColor: selectedFile ? "green" : undefined,
+                "&:hover": { backgroundColor: "#166534" },
+                fontWeight: "bold",
               }}
             >
-              <button
-                onClick={handleSaveAll}
-                style={{
-                  width: "230px",
-                  padding: "10px",
-                  background: "maroon",
-                  color: "white",
-                  borderRadius: "5px",
-                  cursor: "pointer",
-                  fontSize: "16px",
-                  fontWeight: "bold",
-                  border: "none",
-                }}
-              >
-                Save All
-              </button>
-              <button
-                onClick={exportToExcel}
-                style={{
-                  width: "200px",
-                  padding: "10px",
-                  background: "#4CAF50",
-                  color: "white",
-                  borderRadius: "5px",
-                  cursor: "pointer",
-                  fontSize: "16px",
-                  fontWeight: "bold",
-                  border: "none",
-                }}
-              >
-                {hasGrades ? "Export File" : "Download Template"}
-              </button>
-            </Box>
+              Upload
+            </Button>
+
+            {/* Divider */}
+            <Box sx={{ width: "100%", borderTop: "1px solid #e0e0e0", my: 0.5 }} />
+
+            {/* Save All */}
+            <Button
+              onClick={handleSaveAll}
+              variant="contained"
+              color="primary"
+              sx={{ width: "100%", height: "50px", fontSize: "15px", fontWeight: "bold", borderRadius: "5px" }}
+            >
+              Save All
+            </Button>
+
+            {/* Download Template */}
+            <button
+              onClick={exportToExcel}
+              style={{
+                padding: "5px 20px",
+                border: "2px solid black",
+                backgroundColor: "#f0f0f0",
+                color: "black",
+                borderRadius: "5px",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "bold",
+                height: "50px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                width: "100%",
+                justifyContent: "center",
+              }}
+            >
+              📥 Download Template
+            </button>
+
           </Box>
         </Box>
       </TableContainer>
@@ -2176,17 +2118,17 @@ const GradingSheet = () => {
           </TableHead>
 
           {/* Body */}
-      <TableBody
-                  sx={{
-                    border: `1px solid ${borderColor}`,
-                    "& .MuiTableRow-root:nth-of-type(odd)": {
-                      backgroundColor: "#ffffff",
-                    },
-                    "& .MuiTableRow-root:nth-of-type(even)": {
-                      backgroundColor: "lightgray",
-                    },
-                  }}
-                >
+          <TableBody
+            sx={{
+              border: `1px solid ${borderColor}`,
+              "& .MuiTableRow-root:nth-of-type(odd)": {
+                backgroundColor: "#ffffff",
+              },
+              "& .MuiTableRow-root:nth-of-type(even)": {
+                backgroundColor: "lightgray",
+              },
+            }}
+          >
             {message ? (
               <TableRow>
                 <TableCell

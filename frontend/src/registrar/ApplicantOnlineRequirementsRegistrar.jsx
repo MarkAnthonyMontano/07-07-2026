@@ -50,7 +50,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 const RegistrarRequirements = () => {
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(2);
-  
+
   // ------------------------------------
   const [requirements, setRequirements] = useState([]);
   const [selectedPerson, setSelectedPerson] = useState(null);
@@ -719,6 +719,26 @@ const RegistrarRequirements = () => {
     }
   };
 
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
+
   const renderRow = (doc) => {
     const uploaded = uploads.find((u) => u.description === doc.label);
     const uploadId = uploaded?.upload_id;
@@ -1021,7 +1041,7 @@ const RegistrarRequirements = () => {
             fontSize: '36px',
           }}
         >
-       APPLICANT ONLINE REQUIREMENTS
+          APPLICANT ONLINE REQUIREMENTS
         </Typography>
 
 

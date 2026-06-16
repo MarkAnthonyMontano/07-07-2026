@@ -19,10 +19,10 @@ const ProgramPayment = () => {
   const navigate = useNavigate();
 
   const [assessmentData, setAssessmentData] = useState([]);
-  const [student,        setStudent]        = useState(null);
-  const [titleColor,     setTitleColor]     = useState("#000");
-  const [borderColor,    setBorderColor]    = useState("#000");
-  const [isMobile,       setIsMobile]       = useState(window.innerWidth < 768);
+  const [student, setStudent] = useState(null);
+  const [titleColor, setTitleColor] = useState("#000");
+  const [borderColor, setBorderColor] = useState("#000");
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -32,7 +32,7 @@ const ProgramPayment = () => {
 
   useEffect(() => {
     if (!settings) return;
-    if (settings.title_color)  setTitleColor(settings.title_color);
+    if (settings.title_color) setTitleColor(settings.title_color);
     if (settings.border_color) setBorderColor(settings.border_color);
   }, [settings]);
 
@@ -47,15 +47,15 @@ const ProgramPayment = () => {
         setAssessmentData(
           (response.data.rows || []).map((row) => ({
             ...row,
-            school_year:    row.school_year    || "",
-            semester:       row.semester       || "",
-            year_level:     row.year_level     || "",
-            scholarship:    row.scholarship    || "",
-            payment_type:   row.payment_type   || "",
+            school_year: row.school_year || "",
+            semester: row.semester || "",
+            year_level: row.year_level || "",
+            scholarship: row.scholarship || "",
+            payment_type: row.payment_type || "",
             payment_status: row.payment_status || "",
             assessment: Number(row.assessment ?? row.fees?.grandTotal ?? 0),
-            payment:    Number(row.payment    ?? 0),
-            balance:    Number(row.balance    ?? row.fees?.grandTotal ?? 0),
+            payment: Number(row.payment ?? 0),
+            balance: Number(row.balance ?? row.fees?.grandTotal ?? 0),
           }))
         );
       } catch (error) {
@@ -69,8 +69,8 @@ const ProgramPayment = () => {
 
   const handleRowClick = (row) => {
     const params = new URLSearchParams({
-      school_year:           String(row.school_year           || ""),
-      semester:              String(row.semester              || ""),
+      school_year: String(row.school_year || ""),
+      semester: String(row.semester || ""),
       active_school_year_id: String(row.active_school_year_id || ""),
     });
     navigate(`/student_account_balance/info?${params.toString()}`, {
@@ -79,6 +79,26 @@ const ProgramPayment = () => {
   };
 
   const headerColor = settings?.header_color || "#990000";
+
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   return (
     <Box sx={{ minHeight: "calc(100vh - 150px)", overflowY: "auto", backgroundColor: "transparent", mt: 1, p: { xs: 1, sm: 2 } }}>
@@ -202,7 +222,7 @@ const ProgramPayment = () => {
             <Table>
               <TableHead>
                 <TableRow sx={{ backgroundColor: "#990000" }}>
-                  {["School Year","Semester","Year Level","Scholarship","Payment Description","O.R. Date","O.R. No.","Assessment","Payment","Balance"].map((h) => (
+                  {["School Year", "Semester", "Year Level", "Scholarship", "Payment Description", "O.R. Date", "O.R. No.", "Assessment", "Payment", "Balance"].map((h) => (
                     <TableCell key={h} sx={{ color: "white", fontWeight: "bold", border: `1px solid ${borderColor}`, textAlign: "center", padding: "6px" }}>
                       {h}
                     </TableCell>
@@ -210,16 +230,16 @@ const ProgramPayment = () => {
                 </TableRow>
               </TableHead>
               <TableBody
-                          sx={{
-                            border: `1px solid ${borderColor}`,
-                            "& .MuiTableRow-root:nth-of-type(odd)": {
-                              backgroundColor: "#ffffff",
-                            },
-                            "& .MuiTableRow-root:nth-of-type(even)": {
-                              backgroundColor: "lightgray",
-                            },
-                          }}
-                        >
+                sx={{
+                  border: `1px solid ${borderColor}`,
+                  "& .MuiTableRow-root:nth-of-type(odd)": {
+                    backgroundColor: "#ffffff",
+                  },
+                  "& .MuiTableRow-root:nth-of-type(even)": {
+                    backgroundColor: "lightgray",
+                  },
+                }}
+              >
                 {assessmentData.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={10} align="center" sx={{ border: `1px solid ${borderColor}`, py: 4 }}>

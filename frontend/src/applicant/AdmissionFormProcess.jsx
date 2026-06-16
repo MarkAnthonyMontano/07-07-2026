@@ -216,6 +216,7 @@ const AdmissionFormProcess = () => {
 
   const divToPrintRef = useRef();
 
+
   const printDiv = () => {
     const divToPrint = divToPrintRef.current;
     if (divToPrint) {
@@ -352,13 +353,13 @@ const AdmissionFormProcess = () => {
   // 🔒 Block DevTools shortcuts + Ctrl+P silently
   document.addEventListener("keydown", (e) => {
     const isBlockedKey =
-      e.key === "F12" || // DevTools
-      e.key === "F11" || // Fullscreen
+      e.key === "F12" ||
+      e.key === "F11" ||
       (e.ctrlKey &&
         e.shiftKey &&
-        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) || // Ctrl+Shift+I/J
-      (e.ctrlKey && e.key.toLowerCase() === "u") || // Ctrl+U (View Source)
-      (e.ctrlKey && e.key.toLowerCase() === "p"); // Ctrl+P (Print)
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
 
     if (isBlockedKey) {
       e.preventDefault();
@@ -965,7 +966,7 @@ const AdmissionFormProcess = () => {
                   <div
                     style={{
                       display: "flex",
-                      alignItems: "center",
+                      alignItems: "flex-start",
                       width: "100%",
                     }}
                   >
@@ -978,15 +979,19 @@ const AdmissionFormProcess = () => {
                     >
                       Place of Birth:
                     </label>
+
                     <span
                       style={{
-                        flexGrow: 1,
+                        flex: 1,
                         borderBottom: "1px solid black",
-                        height: "1.3em",
                         fontSize: "12px",
+                        minWidth: 0, // important for flex items
+                        whiteSpace: "normal",
+                        overflowWrap: "break-word",
+                        wordBreak: "break-word",
                       }}
                     >
-                      <div style={{ marginTop: "-3px" }} className="dataField">
+                      <div className="dataField">
                         {person.birthPlace}
                       </div>
                     </span>
@@ -2146,7 +2151,7 @@ const AdmissionFormProcess = () => {
                   <div
                     style={{
                       display: "flex",
-                      alignItems: "center",
+                      alignItems: "flex-start",
                       width: "100%",
                     }}
                   >
@@ -2159,15 +2164,19 @@ const AdmissionFormProcess = () => {
                     >
                       Place of Birth:
                     </label>
+
                     <span
                       style={{
-                        flexGrow: 1,
+                        flex: 1,
                         borderBottom: "1px solid black",
-                        height: "1.3em",
                         fontSize: "12px",
+                        minWidth: 0, // important for flex items
+                        whiteSpace: "normal",
+                        overflowWrap: "break-word",
+                        wordBreak: "break-word",
                       }}
                     >
-                      <div style={{ marginTop: "-3px" }} className="dataField">
+                      <div className="dataField">
                         {person.birthPlace}
                       </div>
                     </span>
@@ -2409,11 +2418,13 @@ const AdmissionFormProcess = () => {
                     </label>
                     <div
                       style={{
-                        flexGrow: 1,
+                        flex: 1,
+                        minWidth: 0, // IMPORTANT
                         borderBottom: "1px solid black",
                         minHeight: "1.2em",
-                        whiteSpace: "normal", // allow text wrapping
-                        wordWrap: "break-word", // break long words
+                        whiteSpace: "normal",
+                        overflowWrap: "break-word",
+                        wordBreak: "break-word",
                         lineHeight: "1.4em",
                         paddingBottom: "2px",
                       }}
@@ -2423,8 +2434,7 @@ const AdmissionFormProcess = () => {
                           (item) =>
                             item?.curriculum_id?.toString() ===
                             (person?.program ?? "").toString(),
-                        )?.program_description ||
-                        (person?.program ?? "")
+                        )?.program_description || (person?.program ?? "")
                         : "Loading..."}
                     </div>
                   </div>
@@ -2433,39 +2443,25 @@ const AdmissionFormProcess = () => {
                 <td colSpan={15} style={{ verticalAlign: "top" }}>
                   <div
                     style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      width: "100%",
+                      flex: 1,
+                      minWidth: 0, // IMPORTANT
+                      borderBottom: "1px solid black",
+                      minHeight: "1.2em",
+                      whiteSpace: "normal",
+                      overflowWrap: "break-word",
+                      wordBreak: "break-word",
+                      lineHeight: "1.4em",
+                      paddingBottom: "2px",
                     }}
                   >
-                    <label
-                      style={{
-                        fontWeight: "bold",
-                        whiteSpace: "nowrap",
-                        marginRight: "10px",
-                      }}
-                    >
-                      MAJOR:
-                    </label>
-                    <div
-                      style={{
-                        flexGrow: 1,
-                        borderBottom: "1px solid black",
-                        minHeight: "1.2em",
-                        whiteSpace: "normal",
-                        wordWrap: "break-word",
-                        lineHeight: "1.4em",
-                        paddingBottom: "2px",
-                      }}
-                    >
-                      {curriculumOptions.length > 0
-                        ? curriculumOptions.find(
-                          (item) =>
-                            item?.curriculum_id?.toString() ===
-                            (person?.program ?? "").toString(),
-                        )?.major || ""
-                        : "Loading..."}
-                    </div>
+                    {curriculumOptions.length > 0
+                      ? curriculumOptions.find(
+                        (item) =>
+                          item?.curriculum_id?.toString() ===
+                          (person?.program ?? "").toString(),
+                      )?.major || ""
+                      : "Loading..."}
+
                   </div>
                 </td>
               </tr>
@@ -2789,7 +2785,7 @@ const AdmissionFormProcess = () => {
           </table>
         </div>
       </Container>
-    </Box>
+    </Box >
   );
 };
 

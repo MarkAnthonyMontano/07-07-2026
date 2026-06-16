@@ -331,7 +331,7 @@ const MobileAnnouncementBanner = ({ slides }) => {
   const [index, setIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [bannerVisible, setBannerVisible] = useState(true);
-  const [expandedContent, setExpandedContent] = useState(false);
+  const [expandedContent, setExpandedContent] = useState(true);
 
   useEffect(() => {
     if (slides.length <= 1) return;
@@ -339,7 +339,7 @@ const MobileAnnouncementBanner = ({ slides }) => {
     return () => clearTimeout(t);
   }, [index, slides.length]);
 
-  useEffect(() => { setExpandedContent(false); }, [index]);
+  useEffect(() => { setExpandedContent(true); }, [index]);
 
   if (!slides.length) return null;
   const current = slides[index];
@@ -1319,6 +1319,26 @@ const Register = () => {
     : "url(/default-bg.jpg)";
 
   if (redirectLoading) return <RedirectLoading message="Account created! Redirecting to login..." />;
+
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   const inputH = isMobile ? "44px" : "45px";
 

@@ -655,34 +655,34 @@ const CORExportingModule = () => {
 
         const element =
           document.getElementById(targetId) || document.getElementById(rootId);
-        
+
         if (!element) {
           console.warn(`COR element not found for student ${studentNumber}`);
           continue;
         }
-        
+
         // Wait for content to be actually rendered
         const waitForContent = async () => {
           const maxWait = 5000; // 5 seconds max
           const startTime = Date.now();
-          
+
           while (Date.now() - startTime < maxWait) {
             const inputs = element.querySelectorAll('input[value]');
             const filledInputs = Array.from(inputs).filter(inp => inp.value && inp.value.trim() !== '');
-            
+
             // Check if we have enough content (at least 10 filled inputs)
             if (filledInputs.length >= 10) {
               console.log(`Content ready for ${studentNumber}: ${filledInputs.length} filled inputs`);
               return true;
             }
-            
+
             await new Promise((r) => setTimeout(r, 200));
           }
-          
+
           console.warn(`Timeout waiting for content for ${studentNumber}`);
           return true; // Proceed anyway
         };
-        
+
         updateExportProgress(i, 0.3, `Checking COR content for ${studentNumber}...`);
         await waitForContent();
         if (!element) {
@@ -695,7 +695,7 @@ const CORExportingModule = () => {
         try {
           updateExportProgress(i, 0.45, `Capturing COR image for ${studentNumber}...`);
           element.offsetHeight;
-          
+
           const studentInputs = element.querySelectorAll('input[value]');
           const filledCount = Array.from(studentInputs).filter(inp => inp.value && inp.value.trim()).length;
           console.log('Capturing student:', studentNumber, 'Filled inputs:', filledCount);
@@ -703,7 +703,7 @@ const CORExportingModule = () => {
           const rect = element.getBoundingClientRect();
           const elementWidth = element.scrollWidth || rect.width || 794; // 210mm in px
           const elementHeight = element.scrollHeight || rect.height || 1123; // 297mm in px
-          
+
           canvas = await html2canvas(element, {
             scale: 1.5,
             useCORS: true,
@@ -788,7 +788,7 @@ const CORExportingModule = () => {
                 });
 
               root.style.backgroundColor = "#ffffff";
-              
+
               // Replace readonly inputs/textarea/select with text spans that won't introduce extra top margin
               root.querySelectorAll('input[readonly], textarea[readonly], select').forEach((input) => {
                 const value = input.value || input.getAttribute('value') || '';
@@ -829,7 +829,7 @@ const CORExportingModule = () => {
                 el.style.color = "#000000";
                 el.style.setProperty("-webkit-text-fill-color", "#000000", "important");
               });
-              
+
               // Ensure tables render properly
               root.querySelectorAll("table").forEach((table) => {
                 table.style.borderCollapse = "collapse";
@@ -843,7 +843,7 @@ const CORExportingModule = () => {
                 cell.style.opacity = "1";
                 cell.style.color = "#000000";
               });
-              
+
               // Force all images to be visible and loaded
               root.querySelectorAll("img").forEach((img) => {
                 img.style.visibility = "visible";
@@ -854,7 +854,7 @@ const CORExportingModule = () => {
           });
         } finally {
           restoreCaptureStyles(element, orig);
-        } 
+        }
 
         if (!canvas) {
           console.warn(`Canvas not generated for student ${studentNumber}`);
@@ -875,20 +875,20 @@ const CORExportingModule = () => {
         // Calculate dimensions to fit the entire content
         const imgWidth = canvas.width;
         const imgHeight = canvas.height;
-        
+
         // Scale to fit page width
         let pdfWidth = pageWidth;
         let pdfHeight = (imgHeight / imgWidth) * pdfWidth;
-        
+
         // If height exceeds page, scale by height instead
         if (pdfHeight > pageHeight) {
           pdfHeight = pageHeight;
           pdfWidth = (imgWidth / imgHeight) * pdfHeight;
         }
-        
+
         const imgX = (pageWidth - pdfWidth) / 2; // Center horizontally
         const imgY = 0;
-        
+
         pdfDoc.addImage(imgData, "JPEG", imgX, imgY, pdfWidth, pdfHeight, undefined, "FAST");
         const pdfBlob = pdfDoc.output("blob");
 
@@ -951,6 +951,26 @@ const CORExportingModule = () => {
   if (!hasAccess) {
     return <Unauthorized />;
   }
+
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   return (
     <Box

@@ -530,6 +530,59 @@ const ApplicantDashboard = (props) => {
     }
   };
 
+
+  const FormattedContent = ({ text }) => {
+    if (!text) return null;
+    const lines = text.split("\n");
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+        {lines.map((line, i) => {
+          const trimmed = line.trim();
+          if (!trimmed) return <div key={i} style={{ height: "6px" }} />;
+
+          const bulletMatch = trimmed.match(/^([•\*\-–])\s+(.*)/);
+          if (bulletMatch) {
+            return (
+              <div key={i} style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+                <span style={{ color: "#fff", marginTop: "2px", flexShrink: 0, fontSize: "14px" }}>•</span>
+                <span style={{ color: "rgba(255,255,255,0.92)", fontSize: "13.5px", lineHeight: 1.55 }}>
+                  {bulletMatch[2]}
+                </span>
+              </div>
+            );
+          }
+
+          const subBulletMatch = line.match(/^[\s\t]+([•\*\-–])\s+(.*)/);
+          if (subBulletMatch) {
+            return (
+              <div key={i} style={{ display: "flex", gap: "8px", alignItems: "flex-start", paddingLeft: "18px" }}>
+                <span style={{ color: "rgba(255,255,255,0.55)", marginTop: "2px", flexShrink: 0, fontSize: "12px" }}>◦</span>
+                <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", lineHeight: 1.55 }}>
+                  {subBulletMatch[2]}
+                </span>
+              </div>
+            );
+          }
+
+          const isHeading = trimmed === trimmed.toUpperCase() && trimmed.length > 3 && /[A-Z]/.test(trimmed);
+          if (isHeading) {
+            return (
+              <p key={i} style={{ margin: "6px 0 2px", color: "#fff", fontWeight: 700, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase", opacity: 0.75 }}>
+                {trimmed}
+              </p>
+            );
+          }
+
+          return (
+            <p key={i} style={{ margin: 0, color: "rgba(255,255,255,0.9)", fontSize: "13.5px", lineHeight: 1.6 }}>
+              {trimmed}
+            </p>
+          );
+        })}
+      </div>
+    );
+  };
+
   const [hasStudentNumber, setHasStudentNumber] = useState(false);
   const [studentNumber, setStudentNumber] = useState(null);
 
@@ -666,24 +719,40 @@ const ApplicantDashboard = (props) => {
   // Mobile accordion state
   const [expandedStep, setExpandedStep] = useState(activeStep);
 
+     // 🔒 Disable right-click
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    // 🔒 Block DevTools shortcuts + Ctrl+P silently
+    document.addEventListener("keydown", (e) => {
+        const isBlockedKey =
+            e.key === "F12" ||
+            e.key === "F11" ||
+            (e.ctrlKey &&
+                e.shiftKey &&
+                (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+            (e.ctrlKey && e.key.toLowerCase() === "u") ||
+            (e.ctrlKey && e.key.toLowerCase() === "p");
+
+        if (isBlockedKey) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    });
+
   return (
     <Box
       sx={{
-        height: "calc(100vh - 150px)",
-        overflowY: "auto",
-        paddingRight: 1,
+        minHeight: "calc(100vh - 100px)",
+        width: "100%",
         backgroundColor: "transparent",
-        mt: 1,
-        padding: { xs: 1, sm: 2 },
+        overflowY: "auto",
+        fontFamily: "Poppins, sans-serif",
       }}
     >
       <Box
         sx={{
-          position: "relative",
-          zIndex: 1,
-          height: "100%",
-          overflowY: "auto",
-          padding: { xs: 1, sm: 2 },
+          mx: { xs: 1.5, md: 3 },
+          mt: { xs: 1.5, md: 2.5 },
         }}
       >
         <Grid container spacing={{ xs: 2, sm: 3 }}>
@@ -899,7 +968,7 @@ const ApplicantDashboard = (props) => {
                     </Stack>
 
                     {/* DATE/TIME */}
-                   
+
                   </Box>
                 </Box>
               </Box>
@@ -976,244 +1045,244 @@ const ApplicantDashboard = (props) => {
               </Grid>
 
               {/* Desktop: Announcements */}
-          <Grid item xs="auto">
-  <Card
-    sx={{
-      borderRadius: "14px",
-      marginLeft: "10px",
-      boxShadow: 3,
-      width: "510px",
-      height: "405px",
-      display: "flex",
-      border: `2px solid ${borderColor}`,
-      flexDirection: "column",
-      overflow: "hidden",
-      transition: "all 0.3s ease",
-      background: "#fff",
-      "&:hover": {
-        transform: "scale(1.02)",
-        boxShadow: 6,
-      },
-    }}
-  >
-    <CardContent
-      sx={{
-        p: 0,
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-      }}
-    >
-      {/* HEADER */}
-      <Stack
-        direction="row"
-        spacing={1.5}
-        alignItems="center"
-        sx={{
-          px: 2,
-          py: 1.5,
-          backgroundColor: settings?.header_color || "#1976d2",
-          color: "#fff",
-          borderBottom: `2px solid ${borderColor}`,
-        }}
-      >
-        <Box
-          sx={{
-            width: 42,
-            height: 42,
-            borderRadius: "10px",
-            background: "rgba(255,255,255,0.18)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backdropFilter: "blur(6px)",
-          }}
-        >
-          <Campaign sx={{ color: "#fff", fontSize: 24 }} />
-        </Box>
-
-        <Typography
-          sx={{
-            fontSize: 18,
-            fontWeight: 800,
-            textTransform: "uppercase",
-            letterSpacing: 0.5,
-            color: "#fff",
-          }}
-        >
-          Announcements
-        </Typography>
-      </Stack>
-
-      {/* CONTENT */}
-      <Box
-        sx={{
-          flex: 1,
-          overflowY: "auto",
-          px: 2,
-          py: 2,
-        }}
-      >
-        {announcements.length === 0 ? (
-          <Box
-            sx={{
-              height: "100%",
-              borderRadius: "12px",
-              border: `1px dashed ${borderColor}`,
-              display: "grid",
-              placeItems: "center",
-              color: "text.secondary",
-            }}
-          >
-            No active announcements.
-          </Box>
-        ) : (
-          <Stack spacing={2}>
-            {Array.isArray(announcements) &&
-              announcements.map((a) => (
-                <Box
-                  key={a.id}
+              <Grid item xs="auto">
+                <Card
                   sx={{
                     borderRadius: "14px",
-                    overflow: "hidden",
+                    marginLeft: "10px",
+                    boxShadow: 3,
+                    width: "510px",
+                    height: "405px",
+                    display: "flex",
                     border: `2px solid ${borderColor}`,
-                    background: "#fff",
+                    flexDirection: "column",
+                    overflow: "hidden",
                     transition: "all 0.3s ease",
-                    cursor: "pointer",
+                    background: "#fff",
                     "&:hover": {
-                      transform: "translateY(-2px)",
-                      boxShadow: 4,
+                      transform: "scale(1.02)",
+                      boxShadow: 6,
                     },
                   }}
                 >
-                  {/* IMAGE */}
-                  {a.file_path && (
-                    <Box
+                  <CardContent
+                    sx={{
+                      p: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                      height: "100%",
+                    }}
+                  >
+                    {/* HEADER */}
+                    <Stack
+                      direction="row"
+                      spacing={1.5}
+                      alignItems="center"
                       sx={{
-                        width: "100%",
-                        height: 190,
-                        overflow: "hidden",
-                        position: "relative",
+                        px: 2,
+                        py: 1.5,
+                        backgroundColor: settings?.header_color || "#1976d2",
+                        color: "#fff",
+                        borderBottom: `2px solid ${borderColor}`,
                       }}
-                      onClick={() =>
-                        openLightbox(announcements.indexOf(a))
-                      }
                     >
                       <Box
-                        component="img"
-                        src={`${API_BASE_URL}/uploads/announcement/${a.file_path}`}
-                        alt={a.title}
                         sx={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                          transition: "transform 0.35s ease",
-                          "&:hover": {
-                            transform: "scale(1.05)",
-                          },
-                        }}
-                      />
-
-                      {/* OVERLAY */}
-                      <Box
-                        sx={{
-                          position: "absolute",
-                          inset: 0,
-                          background:
-                            "linear-gradient(to top, rgba(0,0,0,0.65), rgba(0,0,0,0.05))",
-                        }}
-                      />
-
-                      {/* ZOOM ICON */}
-                      <Box
-                        sx={{
-                          position: "absolute",
-                          top: 10,
-                          right: 10,
-                          background: "rgba(0,0,0,0.45)",
-                          borderRadius: "50%",
-                          p: 0.8,
+                          width: 42,
+                          height: 42,
+                          borderRadius: "10px",
+                          background: "rgba(255,255,255,0.18)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          backdropFilter: "blur(4px)",
+                          backdropFilter: "blur(6px)",
                         }}
                       >
-                        <ZoomInIcon
-                          sx={{
-                            color: "#fff",
-                            fontSize: 18,
-                          }}
-                        />
+                        <Campaign sx={{ color: "#fff", fontSize: 24 }} />
                       </Box>
 
-                      {/* TITLE OVERLAY */}
-                      <Box
+                      <Typography
                         sx={{
-                          position: "absolute",
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          p: 1.5,
+                          fontSize: 18,
+                          fontWeight: 800,
+                          textTransform: "uppercase",
+                          letterSpacing: 0.5,
+                          color: "#fff",
                         }}
                       >
-                        <Typography
+                        Announcements
+                      </Typography>
+                    </Stack>
+
+                    {/* CONTENT */}
+                    <Box
+                      sx={{
+                        flex: 1,
+                        overflowY: "auto",
+                        px: 2,
+                        py: 2,
+                      }}
+                    >
+                      {announcements.length === 0 ? (
+                        <Box
                           sx={{
-                            color: "#fff",
-                            fontWeight: 700,
-                            fontSize: 15,
-                            lineHeight: 1.3,
+                            height: "100%",
+                            borderRadius: "12px",
+                            border: `1px dashed ${borderColor}`,
+                            display: "grid",
+                            placeItems: "center",
+                            color: "text.secondary",
                           }}
                         >
-                          {a.title}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  )}
+                          No active announcements.
+                        </Box>
+                      ) : (
+                        <Stack spacing={2}>
+                          {Array.isArray(announcements) &&
+                            announcements.map((a) => (
+                              <Box
+                                key={a.id}
+                                sx={{
+                                  borderRadius: "14px",
+                                  overflow: "hidden",
+                                  border: `2px solid ${borderColor}`,
+                                  background: "#fff",
+                                  transition: "all 0.3s ease",
+                                  cursor: "pointer",
+                                  "&:hover": {
+                                    transform: "translateY(-2px)",
+                                    boxShadow: 4,
+                                  },
+                                }}
+                              >
+                                {/* IMAGE */}
+                                {a.file_path && (
+                                  <Box
+                                    sx={{
+                                      width: "100%",
+                                      height: 190,
+                                      overflow: "hidden",
+                                      position: "relative",
+                                    }}
+                                    onClick={() =>
+                                      openLightbox(announcements.indexOf(a))
+                                    }
+                                  >
+                                    <Box
+                                      component="img"
+                                      src={`${API_BASE_URL}/uploads/announcement/${a.file_path}`}
+                                      alt={a.title}
+                                      sx={{
+                                        width: "100%",
+                                        height: "100%",
+                                        objectFit: "cover",
+                                        transition: "transform 0.35s ease",
+                                        "&:hover": {
+                                          transform: "scale(1.05)",
+                                        },
+                                      }}
+                                    />
 
-                  {/* DETAILS */}
-                  <Box
-                    sx={{
-                      p: 1.8,
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontSize: 13,
-                        color: "#555",
-                        lineHeight: 1.6,
-                        display: "-webkit-box",
-                        WebkitLineClamp: 3,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {a.content}
-                    </Typography>
+                                    {/* OVERLAY */}
+                                    <Box
+                                      sx={{
+                                        position: "absolute",
+                                        inset: 0,
+                                        background:
+                                          "linear-gradient(to top, rgba(0,0,0,0.65), rgba(0,0,0,0.05))",
+                                      }}
+                                    />
 
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        display: "block",
-                        mt: 1.2,
-                        color: "#999",
-                        fontSize: 11,
-                      }}
-                    >
-                      Expires:{" "}
-                      {new Date(a.expires_at).toLocaleDateString(
-                        "en-US"
+                                    {/* ZOOM ICON */}
+                                    <Box
+                                      sx={{
+                                        position: "absolute",
+                                        top: 10,
+                                        right: 10,
+                                        background: "rgba(0,0,0,0.45)",
+                                        borderRadius: "50%",
+                                        p: 0.8,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        backdropFilter: "blur(4px)",
+                                      }}
+                                    >
+                                      <ZoomInIcon
+                                        sx={{
+                                          color: "#fff",
+                                          fontSize: 18,
+                                        }}
+                                      />
+                                    </Box>
+
+                                    {/* TITLE OVERLAY */}
+                                    <Box
+                                      sx={{
+                                        position: "absolute",
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                        p: 1.5,
+                                      }}
+                                    >
+                                      <Typography
+                                        sx={{
+                                          color: "#fff",
+                                          fontWeight: 700,
+                                          fontSize: 15,
+                                          lineHeight: 1.3,
+                                        }}
+                                      >
+                                        {a.title}
+                                      </Typography>
+                                    </Box>
+                                  </Box>
+                                )}
+
+                                {/* DETAILS */}
+                                <Box
+                                  sx={{
+                                    p: 1.8,
+                                  }}
+                                >
+                                  <Typography
+                                    sx={{
+                                      fontSize: 13,
+                                      color: "#555",
+                                      lineHeight: 1.6,
+                                      display: "-webkit-box",
+                                      WebkitLineClamp: 3,
+                                      WebkitBoxOrient: "vertical",
+                                      overflow: "hidden",
+                                    }}
+                                  >
+                                    {a.content}
+                                  </Typography>
+
+                                  <Typography
+                                    variant="caption"
+                                    sx={{
+                                      display: "block",
+                                      mt: 1.2,
+                                      color: "#999",
+                                      fontSize: 11,
+                                    }}
+                                  >
+                                    Expires:{" "}
+                                    {new Date(a.expires_at).toLocaleDateString(
+                                      "en-US"
+                                    )}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            ))}
+                        </Stack>
                       )}
-                    </Typography>
-                  </Box>
-                </Box>
-              ))}
-          </Stack>
-        )}
-      </Box>
-    </CardContent>
-  </Card>
-</Grid>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
 
               {/* Desktop: Calendar */}
               <Grid item xs="auto">
@@ -1748,49 +1817,186 @@ const ApplicantDashboard = (props) => {
           )}
 
           {/* ── LIGHTBOX (shared) ─────────────────────────────────────────── */}
+          {/* ── LIGHTBOX (shared) ─────────────────────────────────────────── */}
           <AnimatePresence>
             {lightboxOpen && announcements[lightboxIndex] && (
               <motion.div
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
                 onClick={closeLightbox}
-                style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.88)", display: "flex", alignItems: "center", justifyContent: "center" }}
+                style={{
+                  position: "fixed", inset: 0, zIndex: 9999,
+                  background: "rgba(0,0,0,0.92)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
               >
-                <div onClick={e => e.stopPropagation()} style={{ position: "relative", maxWidth: "95vw", maxHeight: "90vh" }}>
-                  <IconButton
-                    onClick={closeLightbox}
-                    sx={{ position: "absolute", top: isMobile ? 8 : -14, right: isMobile ? 8 : -14, zIndex: 10001, background: "#000", color: "#fff", width: { xs: 48, sm: 75 }, height: { xs: 48, sm: 75 }, "&:hover": { background: "#000" } }}
-                  >
-                    <CloseIcon sx={{ fontSize: { xs: 20, sm: 28 } }} />
-                  </IconButton>
-
-                  <div style={{ overflow: "auto", maxWidth: "90vw", maxHeight: "75vh", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "12px" }}>
-                    <AnimatePresence mode="wait">
-                      <motion.img
-                        key={announcements[lightboxIndex].id}
-                        src={`${API_BASE_URL}/uploads/announcement/${announcements[lightboxIndex].file_path}`}
-                        alt={announcements[lightboxIndex].title}
-                        initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2 }}
-                        style={{ transform: `scale(${lightboxZoom})`, transformOrigin: "center center", transition: "transform 0.25s ease", maxWidth: "90vw", maxHeight: "72vh", objectFit: "contain", display: "block", borderRadius: "12px", userSelect: "none" }}
-                        draggable={false}
-                      />
-                    </AnimatePresence>
-                  </div>
-
-                  <div style={{ marginTop: "10px", color: "#fff", textAlign: "center" }}>
-                    <h3 style={{ margin: 0, fontSize: isMobile ? "15px" : "18px" }}>{announcements[lightboxIndex].title}</h3>
-                    <p style={{ marginTop: "4px", fontSize: "0.8rem", color: "rgba(255,255,255,0.65)" }}>{announcements[lightboxIndex].content}</p>
-                    <p style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.35)", marginTop: "2px" }}>{lightboxIndex + 1} / {announcements.length}</p>
-                  </div>
-                </div>
-
-                <IconButton onClick={e => { e.stopPropagation(); lightboxPrev(); }}
-                  sx={{ position: "fixed", left: { xs: 4, sm: 16, md: 40 }, top: "50%", transform: "translateY(-50%)", zIndex: 10000, width: { xs: 44, sm: 60, md: 75 }, height: { xs: 44, sm: 60, md: 75 }, background: "rgba(255,255,255,0.15)", color: "#fff", "&:hover": { background: "rgba(255,255,255,0.3)" } }}>
-                  <ArrowBackIosNewIcon sx={{ fontSize: { xs: 18, sm: 24, md: 28 } }} />
+                {/* Prev */}
+                <IconButton
+                  onClick={e => { e.stopPropagation(); lightboxPrev(); }}
+                  sx={{
+                    position: "fixed", left: { xs: 4, sm: 16 }, top: "50%", transform: "translateY(-50%)",
+                    zIndex: 10000, width: { xs: 44, sm: 60 }, height: { xs: 44, sm: 60 },
+                    background: "rgba(255,255,255,0.15)", color: "#fff",
+                    "&:hover": { background: "rgba(255,255,255,0.3)" },
+                  }}
+                >
+                  <ArrowBackIosNewIcon sx={{ fontSize: { xs: 18, sm: 24 } }} />
                 </IconButton>
-                <IconButton onClick={e => { e.stopPropagation(); lightboxNext(); }}
-                  sx={{ position: "fixed", right: { xs: 4, sm: 16, md: 40 }, top: "50%", transform: "translateY(-50%)", zIndex: 10000, width: { xs: 44, sm: 60, md: 75 }, height: { xs: 44, sm: 60, md: 75 }, background: "rgba(255,255,255,0.15)", color: "#fff", "&:hover": { background: "rgba(255,255,255,0.3)" } }}>
-                  <ArrowForwardIosIcon sx={{ fontSize: { xs: 18, sm: 24, md: 28 } }} />
+
+                {/* Next */}
+                <IconButton
+                  onClick={e => { e.stopPropagation(); lightboxNext(); }}
+                  sx={{
+                    position: "fixed", right: { xs: 4, sm: 16 }, top: "50%", transform: "translateY(-50%)",
+                    zIndex: 10000, width: { xs: 44, sm: 60 }, height: { xs: 44, sm: 60 },
+                    background: "rgba(255,255,255,0.15)", color: "#fff",
+                    "&:hover": { background: "rgba(255,255,255,0.3)" },
+                  }}
+                >
+                  <ArrowForwardIosIcon sx={{ fontSize: { xs: 18, sm: 24 } }} />
                 </IconButton>
+
+                {/* Main card */}
+                <motion.div
+                  key={announcements[lightboxIndex].id}
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.2 }}
+                  onClick={e => e.stopPropagation()}
+                  style={{
+                    display: "flex",
+                    flexDirection: window.innerWidth <= 768 ? "column" : "row",
+                    width: window.innerWidth <= 768 ? "92vw" : "80vw",
+                    maxWidth: "1200px",
+                    maxHeight: window.innerWidth <= 768 ? "88vh" : "82vh",
+                    borderRadius: "16px",
+                    overflow: "hidden",
+                    background: "#111",
+                  }}
+                >
+                  {/* LEFT — image */}
+                  {announcements[lightboxIndex].file_path && (
+                    <div style={{
+                      flex: window.innerWidth <= 768 ? "0 0 auto" : "0 0 60%",
+                      width: window.innerWidth <= 768 ? "100%" : "60%",
+                      maxHeight: window.innerWidth <= 768 ? "45vh" : "82vh",
+                      background: "#000",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      overflow: "hidden",
+                    }}>
+                      <AnimatePresence mode="wait">
+                        <motion.img
+                          key={announcements[lightboxIndex].id}
+                          src={`${API_BASE_URL}/uploads/announcement/${announcements[lightboxIndex].file_path}`}
+                          alt={announcements[lightboxIndex].title}
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ duration: 0.2 }}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "contain",
+                            display: "block",
+                            userSelect: "none",
+                          }}
+                          draggable={false}
+                        />
+                      </AnimatePresence>
+                    </div>
+                  )}
+
+                  {/* RIGHT — details */}
+                  <div style={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    background: "linear-gradient(160deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%)",
+                    padding: window.innerWidth <= 768 ? "20px 16px" : "32px 28px",
+                    overflowY: "auto",
+                    scrollbarWidth: "thin",
+                    scrollbarColor: "rgba(255,255,255,0.2) transparent",
+                  }}>
+                    {/* Close button — top left */}
+                    <IconButton
+                      onClick={e => { e.stopPropagation(); closeLightbox(); }}
+                      sx={{
+                        position: "fixed", top: 25, left: 50, zIndex: 10001,
+                        width: 75, height: 75,
+                        background: "rgba(255,255,255,0.15)", color: "#fff",
+                        "&:hover": { background: "rgba(220,50,50,0.75)" },
+                      }}
+                    >
+                      <CloseIcon sx={{ fontSize: 28 }} />
+                    </IconButton>
+
+                    {/* Title */}
+                    <h2 style={{
+                      margin: "0 0 4px",
+                      color: "#fff",
+                      fontSize: window.innerWidth <= 768 ? "16px" : "20px",
+                      fontWeight: 700,
+                      lineHeight: 1.4,
+                    }}>
+                      {announcements[lightboxIndex].title}
+                    </h2>
+
+                    {/* Divider */}
+                    <div style={{
+                      width: "40px", height: "3px",
+                      background: "rgba(255,255,255,0.35)",
+                      borderRadius: "2px",
+                      margin: "10px 0 18px",
+                    }} />
+
+                    {/* Content */}
+                    <div style={{ flex: 1 }}>
+                      <FormattedContent text={announcements[lightboxIndex].content} />
+                    </div>
+
+                    {/* Expiry */}
+                    <p style={{
+                      margin: "12px 0 0",
+                      color: "rgba(255,255,255,0.45)",
+                      fontSize: "11px",
+                    }}>
+                      Expires: {new Date(announcements[lightboxIndex].expires_at).toLocaleDateString("en-US")}
+                    </p>
+
+                    {/* Slide counter dots */}
+                    {announcements.length > 1 && (
+                      <div style={{
+                        marginTop: "20px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}>
+                        {announcements.map((_, i) => (
+                          <div
+                            key={i}
+                            onClick={e => { e.stopPropagation(); setLightboxIndex(i); }}
+                            style={{
+                              width: i === lightboxIndex ? 18 : 6,
+                              height: 6,
+                              borderRadius: 3,
+                              background: i === lightboxIndex ? "#fff" : "rgba(255,255,255,0.3)",
+                              transition: "all 0.3s",
+                              cursor: "pointer",
+                            }}
+                          />
+                        ))}
+                        <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginLeft: "4px" }}>
+                          {lightboxIndex + 1} / {announcements.length}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -1878,17 +2084,184 @@ const ApplicantDashboard = (props) => {
                         </Box>
 
                         <AnimatePresence>
-                          {isExpanded && (
+                          {lightboxOpen && announcements[lightboxIndex] && (
                             <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.2 }}
-                              style={{ overflow: "hidden" }}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              transition={{ duration: 0.25 }}
+                              onClick={closeLightbox}
+                              style={{
+                                position: "fixed", inset: 0, zIndex: 9999,
+                                background: "rgba(0,0,0,0.92)",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                              }}
                             >
-                              <Box sx={{ border: `2px solid ${borderColor}`, borderTop: "none", borderRadius: "0 0 8px 8px", p: 1.5, backgroundColor: "#fff9ec" }}>
-                                {renderStepDetail(index)}
-                              </Box>
+                              {/* Prev */}
+                              <IconButton
+                                onClick={e => { e.stopPropagation(); lightboxPrev(); }}
+                                sx={{
+                                  position: "fixed", left: { xs: 4, sm: 16 }, top: "50%", transform: "translateY(-50%)",
+                                  zIndex: 10000, width: { xs: 44, sm: 60 }, height: { xs: 44, sm: 60 },
+                                  background: "rgba(255,255,255,0.15)", color: "#fff",
+                                  "&:hover": { background: "rgba(255,255,255,0.3)" },
+                                }}
+                              >
+                                <ArrowBackIosNewIcon sx={{ fontSize: { xs: 18, sm: 24 } }} />
+                              </IconButton>
+
+                              {/* Next */}
+                              <IconButton
+                                onClick={e => { e.stopPropagation(); lightboxNext(); }}
+                                sx={{
+                                  position: "fixed", right: { xs: 4, sm: 16 }, top: "50%", transform: "translateY(-50%)",
+                                  zIndex: 10000, width: { xs: 44, sm: 60 }, height: { xs: 44, sm: 60 },
+                                  background: "rgba(255,255,255,0.15)", color: "#fff",
+                                  "&:hover": { background: "rgba(255,255,255,0.3)" },
+                                }}
+                              >
+                                <ArrowForwardIosIcon sx={{ fontSize: { xs: 18, sm: 24 } }} />
+                              </IconButton>
+
+                              {/* Main card */}
+                              <motion.div
+                                key={announcements[lightboxIndex].id}
+                                initial={{ opacity: 0, scale: 0.96 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.96 }}
+                                transition={{ duration: 0.2 }}
+                                onClick={e => e.stopPropagation()}
+                                style={{
+                                  display: "flex",
+                                  flexDirection: window.innerWidth <= 768 ? "column" : "row",
+                                  width: window.innerWidth <= 768 ? "92vw" : "80vw",
+                                  maxWidth: "1200px",
+                                  maxHeight: window.innerWidth <= 768 ? "88vh" : "82vh",
+                                  borderRadius: "16px",
+                                  overflow: "hidden",
+                                  background: "#111",
+                                }}
+                              >
+                                {/* LEFT — image */}
+                                {announcements[lightboxIndex].file_path && (
+                                  <div style={{
+                                    flex: window.innerWidth <= 768 ? "0 0 auto" : "0 0 60%",
+                                    width: window.innerWidth <= 768 ? "100%" : "60%",
+                                    maxHeight: window.innerWidth <= 768 ? "45vh" : "82vh",
+                                    background: "#000",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    overflow: "hidden",
+                                  }}>
+                                    <AnimatePresence mode="wait">
+                                      <motion.img
+                                        key={announcements[lightboxIndex].id}
+                                        src={`${API_BASE_URL}/uploads/Announcement/${announcements[lightboxIndex].file_path}`}
+                                        alt={announcements[lightboxIndex].title}
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        transition={{ duration: 0.2 }}
+                                        style={{
+                                          width: "100%",
+                                          height: "100%",
+                                          objectFit: "contain",
+                                          display: "block",
+                                          userSelect: "none",
+                                        }}
+                                        draggable={false}
+                                      />
+                                    </AnimatePresence>
+                                  </div>
+                                )}
+
+                                {/* RIGHT — details */}
+                                <div style={{
+                                  flex: 1,
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  background: "linear-gradient(160deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%)",
+                                  padding: window.innerWidth <= 768 ? "20px 16px" : "32px 28px",
+                                  overflowY: "auto",
+                                  scrollbarWidth: "thin",
+                                  scrollbarColor: "rgba(255,255,255,0.2) transparent",
+                                }}>
+                                  {/* Close button — top of details panel */}
+                                  <IconButton
+                                    onClick={e => { e.stopPropagation(); closeLightbox(); }}
+                                    sx={{
+                                      position: "fixed", top: 25, left: 50, zIndex: 10001,
+                                      width: 75, height: 75,
+                                      background: "rgba(255,255,255,0.15)", color: "#fff",
+                                      "&:hover": { background: "rgba(220,50,50,0.75)" },
+                                    }}
+                                  >
+                                    <CloseIcon sx={{ fontSize: 28 }} />
+                                  </IconButton>
+
+                                  {/* Title */}
+                                  <h2 style={{
+                                    margin: "0 0 4px",
+                                    color: "#fff",
+                                    fontSize: window.innerWidth <= 768 ? "16px" : "20px",
+                                    fontWeight: 700,
+                                    lineHeight: 1.4,
+                                  }}>
+                                    {announcements[lightboxIndex].title}
+                                  </h2>
+
+                                  {/* Divider */}
+                                  <div style={{
+                                    width: "40px", height: "3px",
+                                    background: "rgba(255,255,255,0.35)",
+                                    borderRadius: "2px",
+                                    margin: "10px 0 18px",
+                                  }} />
+
+                                  {/* Content */}
+                                  {/* Content */}
+                                  <div style={{ flex: 1 }}>
+                                    <FormattedContent text={announcements[lightboxIndex].content} />
+                                  </div>
+                                  {/* Expiry */}
+                                  <p style={{
+                                    margin: "12px 0 0",
+                                    color: "rgba(255,255,255,0.45)",
+                                    fontSize: "11px",
+                                  }}>
+                                    Expires: {new Date(announcements[lightboxIndex].expires_at).toLocaleDateString("en-US")}
+                                  </p>
+
+                                  {/* Slide counter dots */}
+                                  {announcements.length > 1 && (
+                                    <div style={{
+                                      marginTop: "20px",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: "6px",
+                                    }}>
+                                      {announcements.map((_, i) => (
+                                        <div
+                                          key={i}
+                                          onClick={e => { e.stopPropagation(); setLightboxIndex(i); }}
+                                          style={{
+                                            width: i === lightboxIndex ? 18 : 6,
+                                            height: 6,
+                                            borderRadius: 3,
+                                            background: i === lightboxIndex ? "#fff" : "rgba(255,255,255,0.3)",
+                                            transition: "all 0.3s",
+                                            cursor: "pointer",
+                                          }}
+                                        />
+                                      ))}
+                                      <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginLeft: "4px" }}>
+                                        {lightboxIndex + 1} / {announcements.length}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </motion.div>
                             </motion.div>
                           )}
                         </AnimatePresence>

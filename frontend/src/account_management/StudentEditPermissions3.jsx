@@ -39,10 +39,10 @@ const SECTIONS = [
     title: "Junior High School — Basic Info",
     icon: <SchoolIcon />,
     fields: [
-      { id: "schoolLevel",        label: "Educational Attainment (JHS)", system: false, defaultOn: true },
-      { id: "schoolLastAttended", label: "School Last Attended (JHS)",   system: false, defaultOn: true },
-      { id: "schoolAddress",      label: "School Full Address (JHS)",    system: false, defaultOn: true },
-      { id: "courseProgram",      label: "Course Program (JHS)",         system: false, defaultOn: true },
+      { id: "schoolLevel", label: "Educational Attainment (JHS)", system: false, defaultOn: true },
+      { id: "schoolLastAttended", label: "School Last Attended (JHS)", system: false, defaultOn: true },
+      { id: "schoolAddress", label: "School Full Address (JHS)", system: false, defaultOn: true },
+      { id: "courseProgram", label: "Course Program (JHS)", system: false, defaultOn: true },
     ],
   },
   {
@@ -50,9 +50,9 @@ const SECTIONS = [
     title: "Junior High School — Academic Results",
     icon: <StarIcon />,
     fields: [
-      { id: "honor",          label: "Recognition / Awards (JHS)", system: false, defaultOn: true },
-      { id: "generalAverage", label: "General Average (JHS)",      system: false, defaultOn: true },
-      { id: "yearGraduated",  label: "Year Graduated (JHS)",       system: false, defaultOn: true },
+      { id: "honor", label: "Recognition / Awards (JHS)", system: false, defaultOn: true },
+      { id: "generalAverage", label: "General Average (JHS)", system: false, defaultOn: true },
+      { id: "yearGraduated", label: "Year Graduated (JHS)", system: false, defaultOn: true },
     ],
   },
   {
@@ -60,10 +60,10 @@ const SECTIONS = [
     title: "Senior High School — Basic Info",
     icon: <AccountBalanceIcon />,
     fields: [
-      { id: "schoolLevel1",        label: "Educational Attainment (SHS)", system: false, defaultOn: true },
-      { id: "schoolLastAttended1", label: "School Last Attended (SHS)",   system: false, defaultOn: true },
-      { id: "schoolAddress1",      label: "School Full Address (SHS)",    system: false, defaultOn: true },
-      { id: "courseProgram1",      label: "Course Program (SHS)",         system: false, defaultOn: true },
+      { id: "schoolLevel1", label: "Educational Attainment (SHS)", system: false, defaultOn: true },
+      { id: "schoolLastAttended1", label: "School Last Attended (SHS)", system: false, defaultOn: true },
+      { id: "schoolAddress1", label: "School Full Address (SHS)", system: false, defaultOn: true },
+      { id: "courseProgram1", label: "Course Program (SHS)", system: false, defaultOn: true },
     ],
   },
   {
@@ -71,9 +71,9 @@ const SECTIONS = [
     title: "Senior High School — Academic Results",
     icon: <StarIcon />,
     fields: [
-      { id: "honor1",          label: "Recognition / Awards (SHS)", system: false, defaultOn: true },
-      { id: "generalAverage1", label: "General Average (SHS)",      system: false, defaultOn: true },
-      { id: "yearGraduated1",  label: "Year Graduated (SHS)",       system: false, defaultOn: true },
+      { id: "honor1", label: "Recognition / Awards (SHS)", system: false, defaultOn: true },
+      { id: "generalAverage1", label: "General Average (SHS)", system: false, defaultOn: true },
+      { id: "yearGraduated1", label: "Year Graduated (SHS)", system: false, defaultOn: true },
     ],
   },
   {
@@ -102,18 +102,18 @@ const StudentEditPermissions3 = () => {
   const settings = useContext(SettingsContext);
 
   const [mainButtonColor, setMainButtonColor] = useState("#6D2323");
-  const [borderColor, setBorderColor]         = useState("#000");
-  const [titleColor, setTitleColor]           = useState("#000");
+  const [borderColor, setBorderColor] = useState("#000");
+  const [titleColor, setTitleColor] = useState("#000");
 
-  const [permissions, setPermissions]           = useState(buildDefaultState());
+  const [permissions, setPermissions] = useState(buildDefaultState());
   const [expandedSections, setExpandedSections] = useState(
     SECTIONS.reduce((acc, s) => ({ ...acc, [s.id]: true }), {})
   );
-  const [loading, setLoading]     = useState(false);
-  const [saving, setSaving]       = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [hasAccess, setHasAccess] = useState(null);
-  const [userRole, setUserRole]   = useState("");
-  const [snackbar, setSnackbar]   = useState({ open: false, message: "", severity: "success" });
+  const [userRole, setUserRole] = useState("");
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
   // Uses the same shared /api/student_edit_permissions endpoint as the other
   // permission panels so all dashboard field locks live in one store.
@@ -123,13 +123,13 @@ const StudentEditPermissions3 = () => {
   useEffect(() => {
     if (!settings) return;
     if (settings.main_button_color) setMainButtonColor(settings.main_button_color);
-    if (settings.border_color)      setBorderColor(settings.border_color);
-    if (settings.title_color)       setTitleColor(settings.title_color);
+    if (settings.border_color) setBorderColor(settings.border_color);
+    if (settings.title_color) setTitleColor(settings.title_color);
   }, [settings]);
 
   // ── Auth + access check ───────────────────────────────────────────────────
   useEffect(() => {
-    const role       = localStorage.getItem("role");
+    const role = localStorage.getItem("role");
     const employeeId = localStorage.getItem("employee_id");
     if (!role || !employeeId) { window.location.href = "/login"; return; }
     setUserRole(role);
@@ -215,26 +215,46 @@ const StudentEditPermissions3 = () => {
     if (editable.length === 0) return null;
     const onCount = editable.filter((f) => permissions[f.id]).length;
     if (onCount === editable.length) return { label: "All editable", color: "success" };
-    if (onCount === 0)               return { label: "All locked",   color: "error" };
+    if (onCount === 0) return { label: "All locked", color: "error" };
     return { label: `${onCount}/${editable.length} editable`, color: "warning" };
   };
 
   // ── Global stats ──────────────────────────────────────────────────────────
-  const allFields    = SECTIONS.flatMap((s) => s.fields);
-  const systemCount  = allFields.filter((f) => f.system).length;
-  const editableAll  = allFields.filter((f) => !f.system);
+  const allFields = SECTIONS.flatMap((s) => s.fields);
+  const systemCount = allFields.filter((f) => f.system).length;
+  const editableAll = allFields.filter((f) => !f.system);
   const enabledCount = editableAll.filter((f) => permissions[f.id]).length;
-  const lockedCount  = editableAll.length - enabledCount;
+  const lockedCount = editableAll.length - enabledCount;
 
   // ── Guards ────────────────────────────────────────────────────────────────
   if (loading || hasAccess === null) return <LoadingOverlay open message="Loading permissions..." />;
   if (!hasAccess) return <Unauthorized />;
 
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
+
   return (
     <Box sx={{ height: "calc(100vh - 150px)", overflowY: "auto", p: 2, backgroundColor: "transparent" }}>
 
       {/* ── Page Header ── */}
-       {/* ── Page Header ── */}
+      {/* ── Page Header ── */}
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2, mb: 2 }}>
         <Box>
           <Typography
@@ -307,10 +327,10 @@ const StudentEditPermissions3 = () => {
 
       {/* ── Sections ── */}
       {SECTIONS.map((sec) => {
-        const badge    = getSectionBadge(sec);
-        const isOpen   = expandedSections[sec.id];
+        const badge = getSectionBadge(sec);
+        const isOpen = expandedSections[sec.id];
         const editable = sec.fields.filter((f) => !f.system);
-        const allOn    = editable.length > 0 && editable.every((f) => permissions[f.id]);
+        const allOn = editable.length > 0 && editable.every((f) => permissions[f.id]);
 
         return (
           <Paper key={sec.id} variant="outlined" sx={{ mb: 2, borderColor, borderRadius: 2, overflow: "hidden" }}>

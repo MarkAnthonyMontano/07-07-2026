@@ -180,11 +180,11 @@ const SuperAdminApplicantDashboard5 = () => {
     const [clickedSteps, setClickedSteps] = useState([]);
 
     const steps = [
-              { label: "Personal Information", icon: <PersonIcon />, path: "/applicant_admin_personal_information" },
-              { label: "Family Background", icon: <FamilyRestroomIcon />, path: "/applicant_admin_family_background" },
-              { label: "Educational Attainment", icon: <SchoolIcon />, path: "/applicant_admin_educational_attainment" },
-              { label: "Health Medical Records", icon: <HealthAndSafetyIcon />, path: "/applicant_admin_health_medical_records" },
-              { label: "Other Information", icon: <InfoIcon />, path: "/applicant_admin_other_information" },
+        { label: "Personal Information", icon: <PersonIcon />, path: "/applicant_admin_personal_information" },
+        { label: "Family Background", icon: <FamilyRestroomIcon />, path: "/applicant_admin_family_background" },
+        { label: "Educational Attainment", icon: <SchoolIcon />, path: "/applicant_admin_educational_attainment" },
+        { label: "Health Medical Records", icon: <HealthAndSafetyIcon />, path: "/applicant_admin_health_medical_records" },
+        { label: "Other Information", icon: <InfoIcon />, path: "/applicant_admin_other_information" },
     ];
 
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
@@ -505,7 +505,25 @@ const SuperAdminApplicantDashboard5 = () => {
     }
 
 
+    // 🔒 Disable right-click
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
 
+    // 🔒 Block DevTools shortcuts + Ctrl+P silently
+    document.addEventListener("keydown", (e) => {
+        const isBlockedKey =
+            e.key === "F12" ||
+            e.key === "F11" ||
+            (e.ctrlKey &&
+                e.shiftKey &&
+                (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+            (e.ctrlKey && e.key.toLowerCase() === "u") ||
+            (e.ctrlKey && e.key.toLowerCase() === "p");
+
+        if (isBlockedKey) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    });
 
     // dot not alter
     return (

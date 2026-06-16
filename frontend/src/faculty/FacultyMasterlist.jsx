@@ -699,25 +699,25 @@ const FacultyMasterList = () => {
     document.body.removeChild(iframe);
   };
 
-  // // 🔒 Disable right-click
-  // document.addEventListener("contextmenu", (e) => e.preventDefault());
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  // // 🔒 Block DevTools shortcuts + Ctrl+P silently
-  // document.addEventListener("keydown", (e) => {
-  //   const isBlockedKey =
-  //     e.key === "F12" || // DevTools
-  //     e.key === "F11" || // Fullscreen
-  //     (e.ctrlKey &&
-  //       e.shiftKey &&
-  //       (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) || // Ctrl+Shift+I/J
-  //     (e.ctrlKey && e.key.toLowerCase() === "u") || // Ctrl+U (View Source)
-  //     (e.ctrlKey && e.key.toLowerCase() === "p"); // Ctrl+P (Print)
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" || // DevTools
+      e.key === "F11" || // Fullscreen
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) || // Ctrl+Shift+I/J
+      (e.ctrlKey && e.key.toLowerCase() === "u") || // Ctrl+U (View Source)
+      (e.ctrlKey && e.key.toLowerCase() === "p"); // Ctrl+P (Print)
 
-  //   if (isBlockedKey) {
-  //     e.preventDefault();
-  //     e.stopPropagation();
-  //   }
-  // });
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   return (
     <Box
@@ -983,143 +983,7 @@ const FacultyMasterList = () => {
                       Last
                     </Button>
 
-                    <Button
-                      onClick={() =>
-                        setSortOrder((prev) =>
-                          prev === "asc" ? "desc" : "asc",
-                        )
-                      }
-                      variant="outlined"
-                      size="small"
-                      sx={{
-                        minWidth: 100,
-                        color: "white",
-                        borderColor: "white",
-                        backgroundColor: "transparent",
-                        "&:hover": {
-                          borderColor: "white",
-                          backgroundColor: "rgba(255,255,255,0.1)",
-                        },
-                      }}
-                    >
-                      Sort: {sortOrder === "asc" ? "A–Z" : "Z–A"}
-                    </Button>
 
-                    <FormControl size="small" sx={{ minWidth: 140 }}>
-                      <Select
-                        value={selectedSchoolYearValue}
-                        onChange={(e) => setSelectedSchoolYear(e.target.value)}
-                        displayEmpty
-                        sx={{
-                          fontSize: "12px",
-                          height: 36,
-                          color: "white",
-                          border: "1px solid white",
-                          backgroundColor: "transparent",
-                          ".MuiOutlinedInput-notchedOutline": {
-                            borderColor: "white",
-                          },
-                          "&:hover .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "white",
-                          },
-                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "white",
-                          },
-                          "& svg": { color: "white" },
-                        }}
-                        MenuProps={{
-                          PaperProps: {
-                            sx: {
-                              maxHeight: 200,
-                              backgroundColor: "#fff",
-                            },
-                          },
-                        }}
-                      >
-                        {/* Placeholder */}
-                        <MenuItem value="" disabled>
-                          Select School Year
-                        </MenuItem>
-
-                        {/* Loop through school years */}
-                        {schoolYears.map((yearObj) => (
-                          <MenuItem
-                            key={yearObj.year_id}
-                            value={yearObj.year_id}
-                          >
-                            {yearObj.current_year} - {yearObj.next_year}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-
-                    <FormControl size="small" sx={{ minWidth: 140 }}>
-                      <Select
-                        value={selectedSchoolSemesterValue}
-                        onChange={(e) =>
-                          setSelectedSchoolSemester(e.target.value)
-                        }
-                        displayEmpty
-                        sx={{
-                          fontSize: "12px",
-                          height: 36,
-                          color: "white",
-                          border: "1px solid white",
-                          backgroundColor: "transparent",
-                          ".MuiOutlinedInput-notchedOutline": {
-                            borderColor: "white",
-                          },
-                          "&:hover .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "white",
-                          },
-                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "white",
-                          },
-                          "& svg": { color: "white" },
-                        }}
-                        MenuProps={{
-                          PaperProps: {
-                            sx: {
-                              maxHeight: 200,
-                              backgroundColor: "#fff",
-                            },
-                          },
-                        }}
-                      >
-                        {/* Placeholder */}
-                        <MenuItem value="" disabled>
-                          Select Semester
-                        </MenuItem>
-
-                        {/* Loop through semester list */}
-                        {schoolSemester.map((sem) => (
-                          <MenuItem
-                            key={sem.semester_id}
-                            value={sem.semester_id}
-                          >
-                            {sem.semester_description}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-
-                    <Button
-                      onClick={findPastClass}
-                      variant="outlined"
-                      size="small"
-                      sx={{
-                        minWidth: 100,
-                        color: "white",
-                        borderColor: "white",
-                        backgroundColor: "transparent",
-                        "&:hover": {
-                          borderColor: "white",
-                          backgroundColor: "rgba(255,255,255,0.1)",
-                        },
-                      }}
-                    >
-                      FIND LAST GRADE
-                    </Button>
                   </Box>
                 </Box>
               </TableCell>
@@ -1134,36 +998,31 @@ const FacultyMasterList = () => {
         <Box
           sx={{
             display: "flex",
-            alignItems: "center",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
             margin: "1rem 0",
             padding: "0 1rem",
           }}
-          gap={5}
         >
-          <Box display="flex" flexDirection="column">
-            <Box
-              display="flex"
-              alignItems="center"
-              gap={1}
-              sx={{ minWidth: 400 }}
-            >
-              <Typography fontSize={13} sx={{ minWidth: "100px" }}>
-                Course:{" "}
+          {/* LEFT SIDE: Course, Section, Student Status + Sort */}
+          <Box display="flex" flexDirection="column" gap={2}>
+
+            {/* Course */}
+            <Box display="flex" alignItems="center" gap={1}>
+              <Typography fontSize={13} sx={{ minWidth: "110px" }}>
+                Course:
               </Typography>
-              <FormControl fullWidth>
+              <FormControl sx={{ width: "550px" }}>
                 <InputLabel id="demo-simple-select-label">Course</InputLabel>
                 <Select
                   labelId="demo-simple-select-label"
                   id="demo-simple-select"
                   value={selectedCourseValue}
-                  style={{ width: "620px" }}
                   label="Course"
                   onChange={handleSelectCourseChange}
                 >
                   {!courseAssignedTo || courseAssignedTo.length === 0 ? (
-                    <MenuItem disabled>
-                      No Course Assigned this Academic Year
-                    </MenuItem>
+                    <MenuItem disabled>No Course Assigned this Academic Year</MenuItem>
                   ) : filteredCourses.length > 0 ? (
                     filteredCourses.map((course) => (
                       <MenuItem key={course.course_id} value={course.course_id}>
@@ -1171,108 +1030,153 @@ const FacultyMasterList = () => {
                       </MenuItem>
                     ))
                   ) : (
+                    <MenuItem disabled>No Course Assigned this Academic Year</MenuItem>
+                  )}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Section */}
+            <Box display="flex" alignItems="center" gap={1}>
+              <Typography fontSize={13} sx={{ minWidth: "110px" }}>
+                Section:
+              </Typography>
+              <FormControl sx={{ width: "550px" }}>
+                <InputLabel id="section-select-label">Section</InputLabel>
+                <Select
+                  labelId="section-select-label"
+                  id="section-select"
+                  label="Section"
+                  value={selectedSectionValue}
+                  onChange={(e) => setSelectedSection(e.target.value)}
+                >
+                  {!selectedCourse ? (
                     <MenuItem disabled>
-                      No Course Assigned this Academic Year
+                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
+                        Please select a course first
+                      </Typography>
+                    </MenuItem>
+                  ) : sectionAssignedTo.length > 0 ? (
+                    sectionAssignedTo.map((section) => (
+                      <MenuItem key={section.department_section_id} value={section.department_section_id}>
+                        {section.program_code}-{section.section_description}
+                      </MenuItem>
+                    ))
+                  ) : (
+                    <MenuItem disabled>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
+                        No sections available for this course
+                      </Typography>
                     </MenuItem>
                   )}
                 </Select>
               </FormControl>
             </Box>
-            <Box display="flex" gap={2} sx={{ marginTop: "1rem" }}>
-              <Box
-                display="flex"
-                alignItems="center"
-                gap={1}
-                sx={{ minWidth: 400 }}
-              >
-                <Typography fontSize={13} sx={{ minWidth: "100px" }}>
-                  Section
-                </Typography>
-                <FormControl fullWidth style={{ width: "300px" }}>
-                  <InputLabel id="section-select-label">Section</InputLabel>
-                  <Select
-                    labelId="section-select-label"
-                    id="section-select"
-                    label="Section"
-                    value={selectedSectionValue}
-                    onChange={(e) => {
-                      setSelectedSection(e.target.value);
-                    }}
-                  >
-                    {!selectedCourse ? (
-                      <MenuItem disabled>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{
-                            fontStyle: "italic",
-                            textAlign: "center",
-                            width: "100%",
-                          }}
-                        >
-                          Please select a course first
-                        </Typography>
-                      </MenuItem>
-                    ) : sectionAssignedTo.length > 0 ? (
-                      sectionAssignedTo.map((section) => (
-                        <MenuItem
-                          key={section.department_section_id}
-                          value={section.department_section_id}
-                        >
-                          {section.program_code}-{section.section_description}
-                        </MenuItem>
-                      ))
-                    ) : (
-                      <MenuItem disabled>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ fontStyle: "italic", textAlign: "center" }}
-                        >
-                          No sections available for this course
-                        </Typography>
-                      </MenuItem>
-                    )}
-                  </Select>
-                </FormControl>
-              </Box>
-              <Box
-                display="flex"
-                alignItems="center"
-                gap={1}
-                sx={{ minWidth: 200, marginRight: "1rem" }}
-              >
-                <Typography fontSize={13} sx={{ minWidth: "100px" }}>
-                  Student Status:
-                </Typography>
-                <FormControl fullWidth>
-                  <Select
-                    value={selectedStatusFilter}
-                    style={{ width: "200px" }}
-                    onChange={(e) => setSelectedStatusFilter(e.target.value)}
-                    displayEmpty
-                  >
-                    <MenuItem value="">All</MenuItem>
-                    <MenuItem value="Regular">Regular</MenuItem>
-                    <MenuItem value="Irregular">Irregular</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
+
+            {/* Student Status + Sort beside it */}
+            <Box display="flex" alignItems="center" gap={2}>
+              <Typography fontSize={13} sx={{ minWidth: "110px" }}>
+                Student Status:
+              </Typography>
+              <FormControl sx={{ width: "150px" }}>
+                <Select
+                  value={selectedStatusFilter}
+                  onChange={(e) => setSelectedStatusFilter(e.target.value)}
+                  displayEmpty
+                >
+                  <MenuItem value="">All</MenuItem>
+                  <MenuItem value="Regular">Regular</MenuItem>
+                  <MenuItem value="Irregular">Irregular</MenuItem>
+                </Select>
+              </FormControl>
+
+              <Typography fontSize={13}>Sort:</Typography>
+              <FormControl sx={{ width: "120px" }}>
+                <InputLabel id="sort-label">Sort</InputLabel>
+                <Select
+                  labelId="sort-label"
+                  label="Sort"
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                >
+                  <MenuItem value="asc">A – Z</MenuItem>
+                  <MenuItem value="desc">Z – A</MenuItem>
+                </Select>
+              </FormControl>
             </Box>
+
           </Box>
-          <Box
-            display="flex"
-            flexDirection="column"
-            gap={2}
-            sx={{ minWidth: "350px" }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                gap: 2,
-                minWidth: "100px",
-              }}
-            ></Box>
+
+          {/* RIGHT SIDE: School Year, Semester, Find Last Grade */}
+          <Box display="flex" flexDirection="column" gap={2} alignItems="flex-end">
+
+            {/* School Year */}
+            <Box display="flex" alignItems="center" gap={1}>
+              <Typography fontSize={13} sx={{ minWidth: "100px" }} textAlign="right">
+                School Year:
+              </Typography>
+              <FormControl sx={{ width: "180px" }}>
+                <InputLabel id="school-year-label">School Year</InputLabel>
+                <Select
+                  labelId="school-year-label"
+                  label="School Year"
+                  value={selectedSchoolYearValue}
+                  onChange={(e) => setSelectedSchoolYear(e.target.value)}
+                >
+                  <MenuItem value="" disabled>Select School Year</MenuItem>
+                  {schoolYears.map((yearObj) => (
+                    <MenuItem key={yearObj.year_id} value={yearObj.year_id}>
+                      {yearObj.current_year} - {yearObj.next_year}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Semester */}
+            <Box display="flex" alignItems="center" gap={1}>
+              <Typography fontSize={13} sx={{ minWidth: "100px" }} textAlign="right">
+                Semester:
+              </Typography>
+              <FormControl sx={{ width: "180px" }}>
+                <InputLabel id="semester-label">Semester</InputLabel>
+                <Select
+                  labelId="semester-label"
+                  label="Semester"
+                  value={selectedSchoolSemesterValue}
+                  onChange={(e) => setSelectedSchoolSemester(e.target.value)}
+                >
+                  <MenuItem value="" disabled>Select Semester</MenuItem>
+                  {schoolSemester.map((sem) => (
+                    <MenuItem key={sem.semester_id} value={sem.semester_id}>
+                      {sem.semester_description}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Find Last Grade */}
+            <Box display="flex" alignItems="center" gap={1}>
+              <Typography fontSize={13} sx={{ minWidth: "100px" }} textAlign="right">
+                Find Last Grade:
+              </Typography>
+              <FormControl sx={{ width: "150px" }}>
+                <InputLabel id="find-grade-label">Action</InputLabel>
+                <Select
+                  labelId="find-grade-label"
+                  label="Action"
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value === "find") findPastClass();
+                  }}
+                  displayEmpty
+                >
+                  <MenuItem value="find">Run Search</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+
           </Box>
         </Box>
       </TableContainer>

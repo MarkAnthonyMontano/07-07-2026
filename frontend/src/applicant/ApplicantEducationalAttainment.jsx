@@ -407,7 +407,25 @@ const ApplicantEducationalAttainment = (props) => {
   }, [userID]);
 
 
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
 
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
 
   return (
@@ -1174,25 +1192,15 @@ const ApplicantEducationalAttainment = (props) => {
                 variant="contained"
                 onClick={async () => {
                   await handleUpdate(person);
-
-                  if (isFormValid()) {
-                    setSnackbar({
-                      open: true,
-                      message: "Your record has been saved successfully!",
-                      severity: "success",
-                    });
-
-                    setTimeout(() => {
-                      navigate(`/applicant_family_background/${keys.step2}`);
-                    }, 1000);
-                  } else {
-                    setSnackbar({
-                      open: true,
-                      message:
-                        "Please complete all required fields before proceeding.",
-                      severity: "error",
-                    });
-                  }
+                  // Remove isFormValid() check — just save and go back
+                  setSnackbar({
+                    open: true,
+                    message: "Your record has been saved successfully!",
+                    severity: "success",
+                  });
+                  setTimeout(() => {
+                    navigate(`/applicant_family_background/${keys.step2}`);
+                  }, 1000);
                 }}
                 startIcon={
                   <ArrowBackIcon

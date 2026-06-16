@@ -820,6 +820,26 @@ const DepartmentSectionTagging = () => {
 
   const canManageStudents = Boolean(filterCurriculum && insertSection && activeSYID);
 
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
+
   return (
     <Box
       sx={{
@@ -1206,96 +1226,96 @@ const DepartmentSectionTagging = () => {
 
                       {virtualCurriculumStudents.items.map((s, idx) => {
                         const rowIndex = virtualCurriculumStudents.startIndex + idx;
-                      const studentNumber = String(s.student_number);
-                      const currentSectionId = getStudentSectionId(s);
-                      const isTagged = enrolledNumbers.has(studentNumber);
-                      const isTaggedInOtherSection =
-                        currentSectionId && String(currentSectionId) !== String(insertSection);
-                      const isToggling = togglingNumbers.has(studentNumber);
+                        const studentNumber = String(s.student_number);
+                        const currentSectionId = getStudentSectionId(s);
+                        const isTagged = enrolledNumbers.has(studentNumber);
+                        const isTaggedInOtherSection =
+                          currentSectionId && String(currentSectionId) !== String(insertSection);
+                        const isToggling = togglingNumbers.has(studentNumber);
 
-                      return (
-                        <TableRow
-                          key={s.student_number}
-                          onClick={() => {
-                            if (!actionLoading && !isToggling) handleCheckboxToggle(s);
-                          }}
-                          sx={{
-                            backgroundColor: isTagged
-                              ? "#e8f5e9"
-                              : isTaggedInOtherSection
-                                ? "#fff8e1"
-                              : rowIndex % 2 === 0 ? "#ffffff" : "lightgray",
-                            cursor: actionLoading || isToggling ? "wait" : "pointer",
-                            transition: "background-color 0.15s ease",
-                            height: `${VIRTUAL_ROW_HEIGHT}px`,
-                          }}
-                        >
-                          {/* 25×25 checkbox */}
-                          <TableCell
-                            sx={{ ...tdStyle, textAlign: "center", width: "52px", border: `1px solid ${borderColor}` }}
-                            onClick={(e) => e.stopPropagation()}
+                        return (
+                          <TableRow
+                            key={s.student_number}
+                            onClick={() => {
+                              if (!actionLoading && !isToggling) handleCheckboxToggle(s);
+                            }}
+                            sx={{
+                              backgroundColor: isTagged
+                                ? "#e8f5e9"
+                                : isTaggedInOtherSection
+                                  ? "#fff8e1"
+                                  : rowIndex % 2 === 0 ? "#ffffff" : "lightgray",
+                              cursor: actionLoading || isToggling ? "wait" : "pointer",
+                              transition: "background-color 0.15s ease",
+                              height: `${VIRTUAL_ROW_HEIGHT}px`,
+                            }}
                           >
-                            {isToggling ? (
-                              <CircularProgress
-                                size={18}
-                                sx={{ color: mainButtonColor, display: "block", mx: "auto" }}
-                              />
-                            ) : (
-                              <Tooltip
-                                title={
-                                  isTaggedInOtherSection
-                                    ? `Already tagged in ${getStudentSectionLabel(s)}. Click to move with confirmation.`
-                                    : ""
-                                }
-                              >
-                                <Checkbox
-                                  checked={isTagged}
-                                  indeterminate={Boolean(isTaggedInOtherSection)}
-                                  disabled={actionLoading || !insertSection}
-                                  onChange={() => handleCheckboxToggle(s)}
+                            {/* 25×25 checkbox */}
+                            <TableCell
+                              sx={{ ...tdStyle, textAlign: "center", width: "52px", border: `1px solid ${borderColor}` }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {isToggling ? (
+                                <CircularProgress
+                                  size={18}
+                                  sx={{ color: mainButtonColor, display: "block", mx: "auto" }}
+                                />
+                              ) : (
+                                <Tooltip
+                                  title={
+                                    isTaggedInOtherSection
+                                      ? `Already tagged in ${getStudentSectionLabel(s)}. Click to move with confirmation.`
+                                      : ""
+                                  }
+                                >
+                                  <Checkbox
+                                    checked={isTagged}
+                                    indeterminate={Boolean(isTaggedInOtherSection)}
+                                    disabled={actionLoading || !insertSection}
+                                    onChange={() => handleCheckboxToggle(s)}
+                                    sx={{
+                                      p: 0,
+                                      width: "35px",
+                                      height: "35px",
+                                      "& .MuiSvgIcon-root": { fontSize: "25px" },
+                                      color: isTaggedInOtherSection ? "#f57c00" : "#000",
+                                      "&.Mui-checked": { color: mainButtonColor },
+                                      "&.MuiCheckbox-indeterminate": { color: "#f57c00" },
+                                    }}
+                                  />
+                                </Tooltip>
+                              )}
+                            </TableCell>
+
+                            <TableCell sx={{ ...tdStyle, color: "#888", border: `1px solid ${borderColor}` }}>{rowIndex + 1}</TableCell>
+                            <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>{s.student_number}</TableCell>
+                            <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>
+                              {s.last_name}, {s.first_name} {s.middle_name || ""}
+                            </TableCell>
+                            <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>{s.program_code}</TableCell>
+                            <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>
+                              {s.year_level_description || s.year_level}
+                            </TableCell>
+                            <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>
+                              {currentSectionId ? (
+                                <Chip
+                                  label={getStudentSectionLabel(s)}
+                                  size="small"
                                   sx={{
-                                    p: 0,
-                                    width: "35px",
-                                    height: "35px",
-                                    "& .MuiSvgIcon-root": { fontSize: "25px" },
-                                    color: isTaggedInOtherSection ? "#f57c00" : "#000",
-                                    "&.Mui-checked": { color: mainButtonColor },
-                                    "&.MuiCheckbox-indeterminate": { color: "#f57c00" },
+                                    backgroundColor: isTagged ? "#e8f5e9" : "#fff3e0",
+                                    color: isTagged ? "#2e7d32" : "#e65100",
+                                    fontWeight: 600,
+                                    fontSize: "11px",
+                                    height: "22px",
+                                    border: `1px solid ${isTagged ? "#2e7d32" : "#e65100"}`,
                                   }}
                                 />
-                              </Tooltip>
-                            )}
-                          </TableCell>
-
-                          <TableCell sx={{ ...tdStyle, color: "#888", border: `1px solid ${borderColor}` }}>{rowIndex + 1}</TableCell>
-                          <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>{s.student_number}</TableCell>
-                          <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>
-                            {s.last_name}, {s.first_name} {s.middle_name || ""}
-                          </TableCell>
-                          <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>{s.program_code}</TableCell>
-                          <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>
-                            {s.year_level_description || s.year_level}
-                          </TableCell>
-                          <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>
-                            {currentSectionId ? (
-                              <Chip
-                                label={getStudentSectionLabel(s)}
-                                size="small"
-                                sx={{
-                                  backgroundColor: isTagged ? "#e8f5e9" : "#fff3e0",
-                                  color: isTagged ? "#2e7d32" : "#e65100",
-                                  fontWeight: 600,
-                                  fontSize: "11px",
-                                  height: "22px",
-                                  border: `1px solid ${isTagged ? "#2e7d32" : "#e65100"}`,
-                                }}
-                              />
-                            ) : (
-                              "Not tagged"
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
+                              ) : (
+                                "Not tagged"
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
                       })}
 
                       {virtualCurriculumStudents.bottomSpacerHeight > 0 && (
@@ -1389,61 +1409,61 @@ const DepartmentSectionTagging = () => {
                         const rowIndex = virtualEnrolledStudents.startIndex + idx;
 
                         return (
-                      <TableRow
-                        key={s.student_number}
-                        sx={{ height: `${VIRTUAL_ROW_HEIGHT}px`, "&:hover": { backgroundColor: "#fff8e1" } }}
-                      >
-                        <TableCell sx={{ ...tdStyle, color: "#888", width: "36px", border: `1px solid ${borderColor}` }}>
-                          {rowIndex + 1}
-                        </TableCell>
-                        <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>{s.student_number}</TableCell>
-                        <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>
-                          {s.last_name}, {s.first_name} {s.middle_name || ""}
-                        </TableCell>
-                        <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>{s.program_code}</TableCell>
-                        <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>
-                          {s.year_level_description || s.year_level}
-                        </TableCell>
-                        <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>
-                          <Chip
-                            label={s.section_description || s.section || "—"}
-                            size="small"
-                            sx={{
-                              backgroundColor: "#e3f2fd",
-                              color: "#1565c0",
-                              fontWeight: 600,
-                              fontSize: "11px",
-                              height: "22px",
-                              border: "1px solid #1565c0",
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={<UnenrollIcon sx={{ fontSize: "14px !important" }} />}
-                            onClick={() => handleUnenrollSingle(s.student_number)}
-                            sx={{
-                              fontSize: "11px",
-                              fontWeight: 600,
-                              height: "28px",
-                              px: 1.5,
-                              borderRadius: "6px",
-                              textTransform: "none",
-                              minWidth: "unset",
-                              border: "1.5px solid #c62828",
-                              color: "#c62828",
-                              "&:hover": {
-                                backgroundColor: "#ffebee",
-                                border: "1.5px solid #c62828",
-                              },
-                            }}
+                          <TableRow
+                            key={s.student_number}
+                            sx={{ height: `${VIRTUAL_ROW_HEIGHT}px`, "&:hover": { backgroundColor: "#fff8e1" } }}
                           >
-                            Untag
-                          </Button>
-                        </TableCell>
-                      </TableRow>
+                            <TableCell sx={{ ...tdStyle, color: "#888", width: "36px", border: `1px solid ${borderColor}` }}>
+                              {rowIndex + 1}
+                            </TableCell>
+                            <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>{s.student_number}</TableCell>
+                            <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>
+                              {s.last_name}, {s.first_name} {s.middle_name || ""}
+                            </TableCell>
+                            <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>{s.program_code}</TableCell>
+                            <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>
+                              {s.year_level_description || s.year_level}
+                            </TableCell>
+                            <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>
+                              <Chip
+                                label={s.section_description || s.section || "—"}
+                                size="small"
+                                sx={{
+                                  backgroundColor: "#e3f2fd",
+                                  color: "#1565c0",
+                                  fontWeight: 600,
+                                  fontSize: "11px",
+                                  height: "22px",
+                                  border: "1px solid #1565c0",
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell sx={{ ...tdStyle, border: `1px solid ${borderColor}` }}>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<UnenrollIcon sx={{ fontSize: "14px !important" }} />}
+                                onClick={() => handleUnenrollSingle(s.student_number)}
+                                sx={{
+                                  fontSize: "11px",
+                                  fontWeight: 600,
+                                  height: "28px",
+                                  px: 1.5,
+                                  borderRadius: "6px",
+                                  textTransform: "none",
+                                  minWidth: "unset",
+                                  border: "1.5px solid #c62828",
+                                  color: "#c62828",
+                                  "&:hover": {
+                                    backgroundColor: "#ffebee",
+                                    border: "1.5px solid #c62828",
+                                  },
+                                }}
+                              >
+                                Untag
+                              </Button>
+                            </TableCell>
+                          </TableRow>
                         );
                       })}
 

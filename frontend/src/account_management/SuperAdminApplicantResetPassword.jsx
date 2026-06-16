@@ -198,7 +198,7 @@ const SuperAdminApplicantResetPassword = () => {
         ...auditFields(),
       });
       // ✅ Store pending flag keyed to the target user's email
- 
+
       setSnackbar({ open: true, message: res.data.message, severity: "success" });
     } catch (err) {
       setSnackbar({
@@ -309,6 +309,26 @@ const SuperAdminApplicantResetPassword = () => {
   if (accessLoading) return <LoadingOverlay open message="Checking Access..." />;
   if (!hasAccess) return <Unauthorized />;
 
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
+
   const PaginationControls = () => (
     <Box display="flex" alignItems="center" gap={1}>
       <Button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} variant="outlined" size="small" sx={paginationButtonStyle}>First</Button>
@@ -336,6 +356,8 @@ const SuperAdminApplicantResetPassword = () => {
       </TableCell>
     </TableRow>
   );
+
+
 
   return (
     <Box sx={{ height: "calc(100vh - 150px)", overflowY: "auto", paddingRight: 1, backgroundColor: "transparent", mt: 1, padding: 2 }}>

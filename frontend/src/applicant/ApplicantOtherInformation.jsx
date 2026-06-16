@@ -137,10 +137,10 @@ const ApplicantOtherInformation = (props) => {
 
   const steps = [
     { label: "Personal Information", icon: <PersonIcon />, path: `/applicant_personal_information/${keys.step1}` },
-       { label: "Family Background", icon: <FamilyRestroomIcon />, path: `/applicant_family_background/${keys.step2}` },
-       { label: "Educational Attainment", icon: <SchoolIcon />, path: `/applicant_educational_attainment/${keys.step3}` },
-       { label: "Health Medical Records", icon: <HealthAndSafetyIcon />, path: `/applicant_health_medical_records/${keys.step4}` },
-       { label: "Other Information", icon: <InfoIcon />, path: `/applicant_other_information/${keys.step5}` },
+    { label: "Family Background", icon: <FamilyRestroomIcon />, path: `/applicant_family_background/${keys.step2}` },
+    { label: "Educational Attainment", icon: <SchoolIcon />, path: `/applicant_educational_attainment/${keys.step3}` },
+    { label: "Health Medical Records", icon: <HealthAndSafetyIcon />, path: `/applicant_health_medical_records/${keys.step4}` },
+    { label: "Other Information", icon: <InfoIcon />, path: `/applicant_other_information/${keys.step5}` },
   ];
 
   const [activeStep, setActiveStep] = useState(4);
@@ -402,6 +402,26 @@ const ApplicantOtherInformation = (props) => {
         setCanPrintPermit(verified);
       });
   }, [userID]);
+
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   // dot not alter
   return (
@@ -913,13 +933,11 @@ const ApplicantOtherInformation = (props) => {
                 variant="contained"
                 onClick={async () => {
                   await handleUpdate(person);
-
                   setSnackbar({
                     open: true,
                     message: "Your record has been saved successfully!",
                     severity: "success",
                   });
-
                   setTimeout(() => {
                     navigate(`/applicant_health_medical_records/${keys.step4}`);
                   }, 1000);
