@@ -462,7 +462,7 @@ const StudentAdmissionFormProcess = () => {
                       fontWeight: "bold",
                       fontFamily: "Arial",
                       fontSize: "16px",
-                      textTransform: "Uppercase",
+                      textTransform: "Uppercase"
                     }}
                   >
                     {firstLine}
@@ -473,7 +473,7 @@ const StudentAdmissionFormProcess = () => {
                         fontWeight: "bold",
                         fontFamily: "Arial",
                         fontSize: "16px",
-                        textTransform: "Uppercase",
+                        textTransform: "Uppercase"
                       }}
                     >
                       {secondLine}
@@ -935,7 +935,7 @@ const StudentAdmissionFormProcess = () => {
                   <div
                     style={{
                       display: "flex",
-                      alignItems: "center",
+                      alignItems: "flex-start",
                       width: "100%",
                     }}
                   >
@@ -948,15 +948,19 @@ const StudentAdmissionFormProcess = () => {
                     >
                       Place of Birth:
                     </label>
+
                     <span
                       style={{
-                        flexGrow: 1,
+                        flex: 1,
                         borderBottom: "1px solid black",
-                        height: "1.3em",
                         fontSize: "12px",
+                        minWidth: 0, // important for flex items
+                        whiteSpace: "normal",
+                        overflowWrap: "break-word",
+                        wordBreak: "break-word",
                       }}
                     >
-                      <div style={{ marginTop: "-3px" }} className="dataField">
+                      <div className="dataField">
                         {person.birthPlace}
                       </div>
                     </span>
@@ -1209,11 +1213,11 @@ const StudentAdmissionFormProcess = () => {
                     >
                       {curriculumOptions.length > 0
                         ? curriculumOptions.find(
-                            (item) =>
-                              item?.curriculum_id?.toString() ===
-                              (person?.program ?? "").toString(),
-                          )?.program_description ||
-                          (person?.program ?? "")
+                          (item) =>
+                            item?.curriculum_id?.toString() ===
+                            (person?.program ?? "").toString(),
+                        )?.program_description ||
+                        (person?.program ?? "")
                         : "Loading..."}
                     </div>
                   </div>
@@ -1249,10 +1253,10 @@ const StudentAdmissionFormProcess = () => {
                     >
                       {curriculumOptions.length > 0
                         ? curriculumOptions.find(
-                            (item) =>
-                              item?.curriculum_id?.toString() ===
-                              (person?.program ?? "").toString(),
-                          )?.major || ""
+                          (item) =>
+                            item?.curriculum_id?.toString() ===
+                            (person?.program ?? "").toString(),
+                        )?.major || ""
                         : "Loading..."}
                     </div>
                   </div>
@@ -1642,7 +1646,8 @@ const StudentAdmissionFormProcess = () => {
                       fontWeight: "bold",
                       fontFamily: "Arial",
                       fontSize: "16px",
-                      textTransform: "Uppercase",
+                      textTransform: "Uppercase"
+
                     }}
                   >
                     {firstLine}
@@ -1653,7 +1658,8 @@ const StudentAdmissionFormProcess = () => {
                         fontWeight: "bold",
                         fontFamily: "Arial",
                         fontSize: "16px",
-                        textTransform: "Uppercase",
+                        textTransform: "Uppercase"
+
                       }}
                     >
                       {secondLine}
@@ -2114,7 +2120,7 @@ const StudentAdmissionFormProcess = () => {
                   <div
                     style={{
                       display: "flex",
-                      alignItems: "center",
+                      alignItems: "flex-start",
                       width: "100%",
                     }}
                   >
@@ -2127,15 +2133,19 @@ const StudentAdmissionFormProcess = () => {
                     >
                       Place of Birth:
                     </label>
+
                     <span
                       style={{
-                        flexGrow: 1,
+                        flex: 1,
                         borderBottom: "1px solid black",
-                        height: "1.3em",
                         fontSize: "12px",
+                        minWidth: 0, // important for flex items
+                        whiteSpace: "normal",
+                        overflowWrap: "break-word",
+                        wordBreak: "break-word",
                       }}
                     >
-                      <div style={{ marginTop: "-3px" }} className="dataField">
+                      <div className="dataField">
                         {person.birthPlace}
                       </div>
                     </span>
@@ -2377,22 +2387,23 @@ const StudentAdmissionFormProcess = () => {
                     </label>
                     <div
                       style={{
-                        flexGrow: 1,
+                        flex: 1,
+                        minWidth: 0, // IMPORTANT
                         borderBottom: "1px solid black",
                         minHeight: "1.2em",
-                        whiteSpace: "normal", // allow text wrapping
-                        wordWrap: "break-word", // break long words
+                        whiteSpace: "normal",
+                        overflowWrap: "break-word",
+                        wordBreak: "break-word",
                         lineHeight: "1.4em",
                         paddingBottom: "2px",
                       }}
                     >
                       {curriculumOptions.length > 0
                         ? curriculumOptions.find(
-                            (item) =>
-                              item?.curriculum_id?.toString() ===
-                              (person?.program ?? "").toString(),
-                          )?.program_description ||
-                          (person?.program ?? "")
+                          (item) =>
+                            item?.curriculum_id?.toString() ===
+                            (person?.program ?? "").toString(),
+                        )?.program_description || (person?.program ?? "")
                         : "Loading..."}
                     </div>
                   </div>
@@ -2401,39 +2412,25 @@ const StudentAdmissionFormProcess = () => {
                 <td colSpan={15} style={{ verticalAlign: "top" }}>
                   <div
                     style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      width: "100%",
+                      flex: 1,
+                      minWidth: 0, // IMPORTANT
+                      borderBottom: "1px solid black",
+                      minHeight: "1.2em",
+                      whiteSpace: "normal",
+                      overflowWrap: "break-word",
+                      wordBreak: "break-word",
+                      lineHeight: "1.4em",
+                      paddingBottom: "2px",
                     }}
                   >
-                    <label
-                      style={{
-                        fontWeight: "bold",
-                        whiteSpace: "nowrap",
-                        marginRight: "10px",
-                      }}
-                    >
-                      MAJOR:
-                    </label>
-                    <div
-                      style={{
-                        flexGrow: 1,
-                        borderBottom: "1px solid black",
-                        minHeight: "1.2em",
-                        whiteSpace: "normal",
-                        wordWrap: "break-word",
-                        lineHeight: "1.4em",
-                        paddingBottom: "2px",
-                      }}
-                    >
-                      {curriculumOptions.length > 0
-                        ? curriculumOptions.find(
-                            (item) =>
-                              item?.curriculum_id?.toString() ===
-                              (person?.program ?? "").toString(),
-                          )?.major || ""
-                        : "Loading..."}
-                    </div>
+                    {curriculumOptions.length > 0
+                      ? curriculumOptions.find(
+                        (item) =>
+                          item?.curriculum_id?.toString() ===
+                          (person?.program ?? "").toString(),
+                      )?.major || ""
+                      : "Loading..."}
+
                   </div>
                 </td>
               </tr>
@@ -2751,11 +2748,13 @@ const StudentAdmissionFormProcess = () => {
                   </div>
                 </td>
               </tr>
+
+
             </tbody>
           </table>
         </div>
       </Container>
-    </Box>
+    </Box >
   );
 };
 
