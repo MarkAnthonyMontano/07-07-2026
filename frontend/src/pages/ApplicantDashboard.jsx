@@ -1017,7 +1017,7 @@ const ApplicantDashboard = (props) => {
                               {title === "Upload Requirements" && (
                                 <button
                                   style={{ padding: "10px 20px", backgroundColor: mainButtonColor, border: `2px solid ${borderColor}`, color: "white", fontSize: "15px", borderRadius: "8px", cursor: "pointer", marginTop: "10px" }}
-                                  onClick={() => { window.location.href = "/requirements_uploader"; }}
+                                  onClick={() => { window.location.href = "/applicant_online_requirements"; }}
                                 >
                                   Upload Now
                                 </button>
@@ -1356,7 +1356,7 @@ const ApplicantDashboard = (props) => {
                       <Typography variant="body1" fontWeight="bold" gutterBottom fontSize={13}>Upload Requirements</Typography>
                       <button
                         style={{ padding: "10px 20px", width: "100px", backgroundColor: mainButtonColor, border: `2px solid ${borderColor}`, color: "white", fontSize: "15px", borderRadius: "8px", cursor: "pointer", marginTop: "8px" }}
-                        onClick={() => { window.location.href = "/requirements_uploader"; }}
+                        onClick={() => { window.location.href = "/applicant_online_requirements"; }}
                       >
                         Upload
                       </button>

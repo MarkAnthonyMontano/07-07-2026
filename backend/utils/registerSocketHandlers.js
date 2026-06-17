@@ -1391,6 +1391,7 @@ WHERE proctor LIKE ?
         p.emailAddress,
         p.program,
         p.campus,
+        p.generalAverage1,
         p.created_at,
 
         a.applicant_number,
@@ -7453,14 +7454,7 @@ WHERE proctor LIKE ?
         ru.registrar_status,
         ru.created_at,
         rt.description,
-        CASE
-          WHEN LOWER(rt.description) LIKE '%form 138%' THEN 'Form138'
-          WHEN LOWER(rt.description) LIKE '%good moral%' THEN 'GoodMoralCharacter'
-          WHEN LOWER(rt.description) LIKE '%birth certificate%' THEN 'BirthCertificate'
-          WHEN LOWER(rt.description) LIKE '%graduating class%' THEN 'CertificateOfGraduatingClass'
-          WHEN LOWER(rt.description) LIKE '%vaccine card%' THEN 'VaccineCard'
-          ELSE 'Unknown'
-        END AS short_label,
+        rt.short_label,
         ua.email AS evaluator_email,
         ua.role  AS evaluator_role,
         pr.lname AS evaluator_lname,

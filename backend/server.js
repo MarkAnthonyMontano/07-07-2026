@@ -567,7 +567,7 @@ app.delete("/api/admin/uploads/:uploadId", async (req, res) => {
 
       try {
         await fs.promises.unlink(fullPath);
-        console.log("—‘¸ File deleted:", fullPath);
+        console.log("—¸ File deleted:", fullPath);
       } catch (err) {
         if (err.code === "ENOENT") {
           console.warn(" ¸ File already missing:", fullPath);
@@ -1210,33 +1210,21 @@ app.get("/api/uploads/by-applicant/:applicant_number", async (req, res) => {
         ru.original_name,
         ru.remarks,
         ru.status,
-
         CASE
           WHEN ru.status = 1 THEN 'Approved'
           WHEN ru.status = 2 THEN 'Rejected'
           ELSE 'Pending'
         END AS status_label,
-
         ru.document_status,
         ru.registrar_status,
         ru.created_at,
         rt.description,
-
-        CASE
-          WHEN LOWER(rt.description) LIKE '%form 138%' THEN 'Form138'
-          WHEN LOWER(rt.description) LIKE '%good moral%' THEN 'GoodMoralCharacter'
-          WHEN LOWER(rt.description) LIKE '%birth certificate%' THEN 'BirthCertificate'
-          WHEN LOWER(rt.description) LIKE '%graduating class%' THEN 'CertificateOfGraduatingClass'
-          WHEN LOWER(rt.description) LIKE '%vaccine card%' THEN 'VaccineCard'
-          ELSE 'Unknown'
-        END AS short_label,
-
+        rt.short_label,
         ua.email AS evaluator_email,
         ua.role  AS evaluator_role,
         pr.lname AS evaluator_lname,
         pr.fname AS evaluator_fname,
         pr.mname AS evaluator_mname
-
       FROM requirement_uploads ru
       JOIN requirements_table rt
         ON ru.requirements_id = rt.id
@@ -1261,7 +1249,7 @@ app.put("/api/uploads/document-status/:uploadId", (req, res) => {
   const { document_status } = req.body;
   const { uploadId } = req.params;
 
-  // ‘‡ Example: take user_id from authenticated user
+  //  Example: take user_id from authenticated user
   const registrarPersonId = req.user.person_id; // middleware should set this from JWT
 
   if (!document_status || !registrarPersonId) {
@@ -3201,7 +3189,7 @@ app.get("/api/student_edit_permissions", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch permissions" });
   }
 });
- 
+
 // POST /api/student_edit_permissions
 // Body: { fieldId: true/false, ... }  — upserts all entries
 app.post("/api/student_edit_permissions", async (req, res) => {
@@ -3209,7 +3197,7 @@ app.post("/api/student_edit_permissions", async (req, res) => {
     const permissions = req.body; // { classifiedAs: true, height: false, ... }
     const entries = Object.entries(permissions);
     if (entries.length === 0) return res.json({ success: true });
- 
+
     // Build bulk upsert
     const values = entries.map(([fieldId, val]) => [fieldId, val ? 1 : 0]);
     await db3.query(

@@ -1010,6 +1010,15 @@ router.put("/student/update_person/:person_id", async (req, res) => {
       }
     }
 
+    const nextEmailRaw =
+      Object.prototype.hasOwnProperty.call(cleanPayload, "emailAddress")
+        ? cleanPayload.emailAddress
+        : undefined;
+    const nextEmail =
+      nextEmailRaw === undefined || nextEmailRaw === null
+        ? null
+        : String(nextEmailRaw).trim().toLowerCase();
+
     const [result] = await db3.query(
       "UPDATE person_table SET ? WHERE person_id = ?",
       [cleanPayload, person_id],
@@ -1019,6 +1028,32 @@ router.put("/student/update_person/:person_id", async (req, res) => {
       return res
         .status(404)
         .json({ message: "Person not found in ENROLLMENT DB" });
+    }
+
+    // Keep student account email in sync when it changes.
+    if (nextEmailRaw !== undefined) {
+      if (!nextEmail) {
+        return res.status(400).json({ message: "emailAddress cannot be empty." });
+      }
+
+      const [conflicts] = await db3.query(
+        `SELECT person_id
+         FROM user_accounts
+         WHERE LOWER(TRIM(email)) = ?
+           AND person_id <> ?
+         LIMIT 1`,
+        [nextEmail, person_id],
+      );
+      if (conflicts.length > 0) {
+        return res.status(409).json({ message: "Email is already used by another account." });
+      }
+
+      await db3.query(
+        `UPDATE user_accounts
+         SET email = ?
+         WHERE person_id = ? AND role = 'student'`,
+        [nextEmail, person_id],
+      );
     }
 
     res.json({
@@ -1249,7 +1284,7 @@ router.post("/student/upload", upload.single("file"), async (req, res) => {
   }
 
   try {
-    // ðŸ”¹ Applicant info
+    //  Applicant info
     const [[appInfo]] = await db3.query(
       `
       SELECT snt.student_number, pt.last_name, pt.first_name, pt.middle_name
@@ -1263,7 +1298,7 @@ router.post("/student/upload", upload.single("file"), async (req, res) => {
     const student_number = appInfo?.student_number || "Unknown";
     const fullName = `${appInfo?.last_name || ""}, ${appInfo?.first_name || ""} ${appInfo?.middle_name?.charAt(0) || ""}.`;
 
-    // ðŸ”¹ Requirement description + short label
+    //  Requirement description + short label
     const [descRows] = await db3.query(
       "SELECT description, short_label FROM requirements_table WHERE id = ?",
       [requirements_id],
@@ -1274,20 +1309,20 @@ router.post("/student/upload", upload.single("file"), async (req, res) => {
 
     const { description, short_label } = descRows[0];
 
-    // âœ… Use the short_label directly from DB
+    //  Use the short_label directly from DB
     const shortLabel = short_label || "Unknown";
 
     const year = new Date().getFullYear();
     const ext = path.extname(req.file.originalname).toLowerCase();
 
-    // âœ… Construct filename
+    //  Construct filename
     const filename = `${applicant_number}_${shortLabel}_${year}${ext}`;
     const uploadDir = path.join(__dirname, "uploads");
     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
     const finalPath = path.join(uploadDir, filename);
 
-    // ðŸ”¹ Delete any existing file for the same applicant + requirement
+    //  Delete any existing file for the same applicant + requirement
     const [existingFiles] = await db3.query(
       `SELECT upload_id, file_path FROM requirement_uploads
        WHERE person_id = ? AND requirements_id = ?`,
@@ -1309,7 +1344,7 @@ router.post("/student/upload", upload.single("file"), async (req, res) => {
       ]);
     }
 
-    // ðŸ”¹ Save new file
+    //  Save new file
     await fs.promises.writeFile(finalPath, req.file.buffer);
 
     await db3.query(
@@ -1325,7 +1360,7 @@ router.post("/student/upload", upload.single("file"), async (req, res) => {
       ],
     );
 
-    res.status(201).json({ message: "âœ… Upload successful" });
+    res.status(201).json({ message: " Upload successful" });
   } catch (err) {
     console.error("Upload error:", err);
     res

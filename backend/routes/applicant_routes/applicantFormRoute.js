@@ -194,6 +194,13 @@ router.put("/person/:id", async (req, res) => {
       return res.status(400).json({ error: "No valid fields to update" });
     }
 
+    const emailEntry = cleanedEntries.find(([key]) => key === "emailAddress");
+    const nextEmailRaw = emailEntry?.[1] ?? null;
+    const nextEmail =
+      nextEmailRaw == null
+        ? null
+        : String(nextEmailRaw).trim().toLowerCase();
+
     const courseUpdateFields = cleanedEntries
       .filter(([key]) => courseFields.includes(key))
       .map(([key]) => key);
@@ -222,6 +229,33 @@ router.put("/person/:id", async (req, res) => {
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: "Person not found or no changes made" });
+    }
+
+    // Keep user_accounts email in sync when applicant email changes.
+    // We only update applicant role accounts to avoid touching staff emails.
+    if (emailEntry) {
+      if (!nextEmail) {
+        return res.status(400).json({ error: "emailAddress cannot be empty." });
+      }
+
+      const [conflictRows] = await db.query(
+        `SELECT person_id
+         FROM user_accounts
+         WHERE LOWER(TRIM(email)) = ?
+           AND person_id <> ?
+         LIMIT 1`,
+        [nextEmail, id],
+      );
+      if (conflictRows.length > 0) {
+        return res.status(409).json({ error: "Email is already used by another account." });
+      }
+
+      await db.query(
+        `UPDATE user_accounts
+         SET email = ?
+         WHERE person_id = ? AND role = 'applicant'`,
+        [nextEmail, id],
+      );
     }
 
     if (applicantBefore && courseUpdateFields.length > 0) {

@@ -2078,7 +2078,7 @@ const ApplicantScoring = () => {
                             color="maroon"
                             sx={{ mb: 1, fontWeight: "bold" }}
                         >
-                            Applicant Score Filters:
+                            Entrance Exam Total Score:
                         </Typography>
 
                         <Box display="flex" gap={2} flexWrap="wrap" alignItems="center">

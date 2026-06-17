@@ -2031,7 +2031,7 @@ const ApplicationProcessAdmin = () => {
 
                     if (hasSubmitted) return "#A5D6A7";  // green     — submitted documents
                     if (isAnyDuplicate) return "#FFCC80";  // medium salmon orange — duplicate / suspicious
-                    if (hasExamSent) return "#EF9A9A";  // sky blue  — exam schedule sent
+                    if (hasExamSent) return "#90CAF9";  // sky blue  — exam schedule sent
 
                     return index % 2 === 0 ? "#ffffff" : "lightgray";
                   })(),

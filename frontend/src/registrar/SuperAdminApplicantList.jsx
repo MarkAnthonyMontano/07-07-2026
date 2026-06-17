@@ -1725,7 +1725,7 @@ const SuperAdminApplicantList = () => {
               <Typography fontSize={12}>Submitted Documents</Typography>
             </Box>
             <Box display="flex" alignItems="center" gap={0.5}>
-              <Box sx={{ width: 16, height: 16, backgroundColor: "#EF9A9A", border: "1px solid #ccc", borderRadius: 0.5 }} />
+              <Box sx={{ width: 16, height: 16, backgroundColor: "#90CAF9", border: "1px solid #ccc", borderRadius: 0.5 }} />
               <Typography fontSize={12}>Exam Schedule Sent</Typography>
             </Box>
             <Box display="flex" alignItems="center" gap={0.5}>
@@ -1965,7 +1965,7 @@ const SuperAdminApplicantList = () => {
 
                     if (hasSubmitted) return "#A5D6A7";  // green     — submitted documents
                     if (isAnyDuplicate) return "#FFCC80";  // medium salmon orange — duplicate / suspicious
-                    if (hasExamSent) return "#EF9A9A";  // sky blue  — exam schedule sent
+                    if (hasExamSent) return "#90CAF9";  // sky blue  — exam schedule sent
 
                     return index % 2 === 0 ? "#ffffff" : "lightgray";
                   })(),

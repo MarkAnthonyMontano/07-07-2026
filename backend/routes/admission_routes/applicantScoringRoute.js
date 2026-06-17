@@ -98,6 +98,7 @@ router.get("/api-applicant-scoring", async (req, res) => {
         a.applicant_number,
         SUBSTRING(a.applicant_number, 5, 1) AS middle_code,
         p.program,
+        p.generalAverage1,
         p.created_at,
 
         er.id AS exam_result_id,

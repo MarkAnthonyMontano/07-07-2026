@@ -120,6 +120,19 @@ const ensureActiveCurriculum = async (curriculumId) => {
   return Boolean(row);
 };
 
+const dedupeProgramIds = (program_ids = []) => {
+  const seen = new Set();
+  const out = [];
+  for (const item of program_ids) {
+    const curriculumId = String(item.curriculum_id ?? item);
+    if (!seen.has(curriculumId)) {
+      seen.add(curriculumId);
+      out.push({ curriculum_id: curriculumId, dprtmnt_id: item.dprtmnt_id ?? null });
+    }
+  }
+  return out;
+};
+
 // ─── GET all templates ────────────────────────────────────────────────────────
 // Programs now carry dprtmnt_id from email_template_programs
 router.get("/email-templates", async (req, res) => {
@@ -211,12 +224,13 @@ router.post("/email-templates", CanCreate, async (req, res) => {
   try {
     const {
       sender_name,
-      program_ids = [],   // array of { curriculum_id, dprtmnt_id }
+      program_ids: rawProgramIds = [],   // array of { curriculum_id, dprtmnt_id }
       employee_ids = [],
       is_active = 1,
     } = req.body;
 
     const senderEmail = normalizeSenderEmail(sender_name);
+    const program_ids = dedupeProgramIds(rawProgramIds);
 
     if (!senderEmail || !program_ids.length) {
       return res.status(400).json({
@@ -248,7 +262,7 @@ router.post("/email-templates", CanCreate, async (req, res) => {
     );
     const templateId = result.insertId;
 
-    // Insert programs WITH dprtmnt_id
+    // Insert programs WITH dprtmnt_id (deduped)
     const programRows = program_ids.map((item) => [
       templateId,
       item.curriculum_id ?? item,
@@ -287,13 +301,17 @@ router.put("/email-templates/:id", CanEdit, async (req, res) => {
   try {
     const {
       sender_name,
-      program_ids,    // array of { curriculum_id, dprtmnt_id } (optional)
+      program_ids: rawProgramIds,    // array of { curriculum_id, dprtmnt_id } (optional)
       employee_ids,
       is_active,
     } = req.body;
 
     const senderEmail =
       sender_name === undefined ? undefined : normalizeSenderEmail(sender_name);
+
+    const program_ids = Array.isArray(rawProgramIds)
+      ? dedupeProgramIds(rawProgramIds)
+      : rawProgramIds;
 
     if (senderEmail !== undefined && !senderEmail) {
       return res.status(400).json({ error: "Gmail account is required" });
@@ -329,7 +347,7 @@ router.put("/email-templates/:id", CanEdit, async (req, res) => {
       return res.status(404).json({ error: "Not found" });
     }
 
-    // Replace programs if provided
+    // Replace programs if provided (deduped)
     if (Array.isArray(program_ids) && program_ids.length > 0) {
       await db.query(
         "DELETE FROM email_template_programs WHERE template_id = ?",

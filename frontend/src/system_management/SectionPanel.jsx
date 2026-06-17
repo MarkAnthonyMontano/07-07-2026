@@ -477,7 +477,7 @@ const SectionPanel = () => {
                         }
                       }}
                     >
-                      + Add Schedule
+                      + Add Section
                     </Button>
                   </Box>
                 </Box>

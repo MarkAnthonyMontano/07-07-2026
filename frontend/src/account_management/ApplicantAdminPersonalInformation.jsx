@@ -162,6 +162,10 @@ const SuperAdminApplicantDashboard1 = () => {
     permanentDswdHouseholdNumber: "",
   });
 
+  const [originalEmailAddress, setOriginalEmailAddress] = useState("");
+  const [emailConfirmOpen, setEmailConfirmOpen] = useState(false);
+  const [pendingEmailAddress, setPendingEmailAddress] = useState("");
+
   const [yearLevelOptions, setYearLevelOptions] = useState([]);
 
   useEffect(() => {
@@ -328,6 +332,7 @@ const SuperAdminApplicantDashboard1 = () => {
       );
       setPerson(res.data);
       setSelectedPerson(res.data);
+      setOriginalEmailAddress(String(res.data?.emailAddress || "").trim());
       if (res.data?.applicant_number) {
       }
     } catch (err) {
@@ -638,7 +643,40 @@ const SuperAdminApplicantDashboard1 = () => {
     }
 
     setPerson(updatedPerson);
+    // Email is sensitive: confirm on blur before saving.
+    if (name === "emailAddress") {
+      return;
+    }
     handleUpdate(updatedPerson); // real-time save
+  };
+
+  const openEmailConfirm = () => {
+    const nextEmail = String(person?.emailAddress || "").trim();
+    const prevEmail = String(originalEmailAddress || "").trim();
+    if (!nextEmail || nextEmail === prevEmail) return;
+    setPendingEmailAddress(nextEmail);
+    setEmailConfirmOpen(true);
+  };
+
+  const cancelEmailConfirm = () => {
+    setEmailConfirmOpen(false);
+    setPendingEmailAddress("");
+    setPerson((prev) => ({
+      ...prev,
+      emailAddress: originalEmailAddress,
+    }));
+  };
+
+  const confirmEmailChange = async () => {
+    try {
+      setEmailConfirmOpen(false);
+      const nextEmail = String(pendingEmailAddress || "").trim();
+      if (!nextEmail) return;
+      await handleUpdate({ ...person, emailAddress: nextEmail });
+      setOriginalEmailAddress(nextEmail);
+    } finally {
+      setPendingEmailAddress("");
+    }
   };
 
   // ✅ Safe handleBlur for SuperAdmin — updates correct applicant only
@@ -2548,7 +2586,7 @@ const SuperAdminApplicantDashboard1 = () => {
               mb={2}
             >
               {/* LRN Label */}
-              <Typography fontWeight="medium" minWidth="180px">
+              <Typography fontWeight="medium" minWidth="100px">
                 Learning Reference Number:
               </Typography>
 
@@ -3157,7 +3195,7 @@ const SuperAdminApplicantDashboard1 = () => {
 
             <Box display="flex" gap={2} mb={2}>
               <Box flex={1} display="flex" alignItems="center" gap={2}>
-                <Typography sx={{ width: 180 }} fontWeight="medium">
+                <Typography sx={{ width: 100 }} fontWeight="medium">
                   Contact Number:
                 </Typography>
 
@@ -3192,39 +3230,111 @@ const SuperAdminApplicantDashboard1 = () => {
               </Box>
 
               <Box flex={1} display="flex" alignItems="center" gap={2}>
-                <Typography sx={{ width: 180 }} fontWeight="medium">
+                <Typography sx={{ width: 100 }} fontWeight="medium">
                   Email Address:
                 </Typography>
 
-                <TextField
-                  fullWidth
-                  size="small"
-                  name="emailAddress"
-                  required
-                  value={person.emailAddress || ""}
-                  placeholder="Enter your Gmail address"
-                  onBlur={() => handleUpdate(person)}
-                  error={!!errors.emailAddress}
-                  helperText={
-                    errors.emailAddress ? "This field is required." : ""
-                  }
-                  onChange={(e) => {
-                    let value = e.target.value.replace(/\s/g, "");
-
-                    value = value.replace(/@.*/, "");
-
-                    const finalValue = value === "" ? "" : value + "@gmail.com";
-
-                    handleChange({
-                      target: {
-                        name: "emailAddress",
-                        value: finalValue,
-                      },
-                    });
-                  }}
-                />
+                <Box flex={1} display="flex" alignItems="flex-start" gap={1}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    name="emailAddress"
+                    required
+                    value={person.emailAddress || ""}
+                    placeholder="Enter email address"
+                    error={!!errors.emailAddress}
+                    helperText={
+                      errors.emailAddress ? "This field is required." : ""
+                    }
+                    onChange={(e) => {
+                      handleChange({
+                        target: {
+                          name: "emailAddress",
+                          value: e.target.value.replace(/\s/g, ""),
+                        },
+                      });
+                    }}
+                  />
+                  <Button
+                    variant="contained"
+                    size="small"
+                    onClick={openEmailConfirm}
+                    disabled={
+                      !String(person.emailAddress || "").trim() ||
+                      String(person.emailAddress || "").trim() ===
+                        String(originalEmailAddress || "").trim()
+                    }
+                    sx={{
+                      minWidth: 72,
+                      height: 40,
+                      flexShrink: 0,
+                      backgroundColor: mainButtonColor,
+                    }}
+                  >
+                    Save
+                  </Button>
+                </Box>
               </Box>
             </Box>
+
+            <Modal open={emailConfirmOpen} onClose={cancelEmailConfirm}>
+              <Box
+                sx={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  width: 520,
+                  bgcolor: "background.paper",
+                  borderRadius: 2,
+                  boxShadow: 24,
+                  p: 3,
+                }}
+              >
+                <Box display="flex" alignItems="center" gap={1} mb={1}>
+                  <WarningAmberIcon sx={{ color: "#FF9800" }} />
+                  <Typography fontWeight="bold">
+                    Confirm email address change
+                  </Typography>
+                </Box>
+
+                <Typography sx={{ mb: 2 }}>
+                  Changing the applicant&apos;s email will also update the email used for signing in.
+                  Continue?
+                </Typography>
+
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Current
+                  </Typography>
+                  <Typography sx={{ fontWeight: 600 }}>
+                    {originalEmailAddress || "—"}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    New
+                  </Typography>
+                  <Typography sx={{ fontWeight: 600 }}>
+                    {pendingEmailAddress || person.emailAddress || "—"}
+                  </Typography>
+                </Box>
+
+                <Box display="flex" justifyContent="flex-end" gap={1}>
+                  <Button variant="outlined" onClick={cancelEmailConfirm}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={confirmEmailChange}
+                    sx={{ backgroundColor: mainButtonColor }}
+                  >
+                    Continue
+                  </Button>
+                </Box>
+              </Box>
+            </Modal>
 
             <Typography
               style={{

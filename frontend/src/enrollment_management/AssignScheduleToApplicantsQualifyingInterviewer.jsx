@@ -343,6 +343,7 @@ const AssignScheduleToApplicantsInterviewer = () => {
     program: "",
     middle_Code: "",
     created_at: "",
+    generalAverage1: "",
   });
   const [selectedApplicantStatus, setSelectedApplicantStatus] = useState("");
   const [curriculumOptions, setCurriculumOptions] = useState([]);
@@ -1744,25 +1745,25 @@ ${requirementsSection}
     return <Unauthorized />;
   }
 
-     // 🔒 Disable right-click
-    document.addEventListener("contextmenu", (e) => e.preventDefault());
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-    // 🔒 Block DevTools shortcuts + Ctrl+P silently
-    document.addEventListener("keydown", (e) => {
-        const isBlockedKey =
-            e.key === "F12" ||
-            e.key === "F11" ||
-            (e.ctrlKey &&
-                e.shiftKey &&
-                (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-            (e.ctrlKey && e.key.toLowerCase() === "u") ||
-            (e.ctrlKey && e.key.toLowerCase() === "p");
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
 
-        if (isBlockedKey) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-    });
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   return (
     <Box
@@ -2534,6 +2535,17 @@ ${requirementsSection}
               </TableCell>
               <TableCell
                 sx={{
+                  color: "white",
+                  textAlign: "center",
+                  fontSize: "12px",
+                  color: "black",
+                  border: `1px solid ${borderColor}`,
+                }}
+              >
+                SHS GWA
+              </TableCell>
+              <TableCell
+                sx={{
                   color: "black",
                   textAlign: "center",
                   width: "6%",
@@ -2678,6 +2690,16 @@ ${requirementsSection}
                       }}
                     >
                       {person.emailAddress ?? "N/A"}
+                    </TableCell>
+
+                    <TableCell
+                      sx={{
+                        border: `1px solid ${borderColor}`,
+                        textAlign: "center",
+                        fontSize: "12px",
+                      }}
+                    >
+                      {person.generalAverage1 ?? "N/A"}
                     </TableCell>
 
                     <TableCell
