@@ -1,4 +1,4 @@
-﻿require("dotenv").config();
+require("dotenv").config();
 
 const express = require("express");
 const mysql = require("mysql2/promise");
@@ -35,9 +35,9 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://192.168.50.211:5173",
   "http://136.239.248.62:5173",
-  "http://192.168.50.55:5173",
+  "http://192.168.50.60:5173",
   "http://192.168.1.9:5173",
-  "http://192.168.50.55:5173",
+  "http://192.168.50.60:5173",
 ];
 
 app.use(
@@ -2210,6 +2210,7 @@ app.get("/api/person_with_applicant/:id", async (req, res) => {
         COALESCE(ps.qualifying_result, 0) AS qualifying_exam_score,
         COALESCE(ps.interview_result, 0) AS qualifying_interview_score,
         ea.schedule_id AS exam_schedule_id,
+        COALESCE(ea.email_sent, 0) AS exam_email_sent,
         ees.day_description AS exam_day,
         ees.building_description AS exam_building,
         ees.room_description AS exam_room,
@@ -2222,7 +2223,9 @@ app.get("/api/person_with_applicant/:id", async (req, res) => {
       LEFT JOIN interview_applicants ia ON ia.applicant_id = ant.applicant_number
       LEFT JOIN person_status_table ps ON ps.person_id = pt.person_id
       LEFT JOIN exam_applicants ea ON ant.applicant_number = ea.applicant_id
-      LEFT JOIN entrance_exam_schedule ees ON ea.schedule_id = ees.schedule_id
+      LEFT JOIN entrance_exam_schedule ees
+        ON ea.schedule_id = ees.schedule_id
+        AND COALESCE(ea.email_sent, 0) = 1
       WHERE pt.person_id = ? OR ant.applicant_number = ?
       LIMIT 1
     `,

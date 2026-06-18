@@ -154,6 +154,10 @@ const ApplicantDashboard = (props) => {
     try {
       const { data } = await axios.get(`${API_BASE_URL}/api/applicant-schedule/${applicantNumber}`);
       console.log("proctor data:", data);
+      if (Number(data?.email_sent ?? 0) !== 1) {
+        setProctor(null);
+        return;
+      }
       setProctor(normalizeSchedule(data));
     } catch (err) {
       console.error("Error fetching schedule:", err);
@@ -162,7 +166,7 @@ const ApplicantDashboard = (props) => {
         setProctor(normalizeSchedule(data));
       } catch (fallbackErr) {
         console.error("Fallback schedule fetch failed:", fallbackErr);
-        setProctor((previousSchedule) => previousSchedule);
+        setProctor(null);
       }
     }
   };
@@ -195,8 +199,14 @@ const ApplicantDashboard = (props) => {
       setPerson(res.data || {});
 
       const profileSchedule = normalizeSchedule(res.data);
-      if (profileSchedule?.schedule_id || profileSchedule?.day_description) {
+      const examEmailSent = Number(res.data?.exam_email_sent ?? res.data?.email_sent ?? 0) === 1;
+      if (
+        examEmailSent &&
+        (profileSchedule?.schedule_id || profileSchedule?.day_description)
+      ) {
         setProctor(profileSchedule);
+      } else {
+        setProctor(null);
       }
 
       let qExam = res.data?.qualifying_exam_score ?? res.data?.qualifying_result ?? res.data?.exam_score ?? null;
@@ -322,6 +332,10 @@ const ApplicantDashboard = (props) => {
     try {
       const res = await axios.get(`${API_BASE_URL}/api/applicant-interview-schedule/${applicantNumber}`);
       console.info("Interview schedule + scores:", res.data);
+      if (Number(res.data?.email_sent ?? 0) !== 1) {
+        setInterviewSchedule(null);
+        return;
+      }
       setInterviewSchedule(res.data);
       const qExam = res.data.qualifying_result ?? null;
       const qInterview = res.data.interview_result ?? null;

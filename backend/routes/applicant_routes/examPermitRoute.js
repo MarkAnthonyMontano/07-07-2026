@@ -158,6 +158,7 @@ router.get("/exam-schedule/:applicant_number", async (req, res) => {
       JOIN entrance_exam_schedule s 
         ON ea.schedule_id = s.schedule_id
       WHERE ea.applicant_id = ?
+        AND COALESCE(ea.email_sent, 0) = 1
       LIMIT 1
     `, [applicant_number]);
 

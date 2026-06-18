@@ -38,6 +38,7 @@ const CoursePanelMap = () => {
     });
 
     const [hasAccess, setHasAccess] = useState(null);
+    const [canEdit, setCanEdit] = useState(false);
     const [loading, setLoading] = useState(false);
     const getAuditConfig = () => ({
         headers: {
@@ -91,9 +92,12 @@ const CoursePanelMap = () => {
             const res = await axios.get(
                 `${API_BASE_URL}/api/page_access/${employeeID}/${pageId}`
             );
-            setHasAccess(res.data?.page_privilege === 1);
+            const allowed = res.data?.page_privilege === 1;
+            setHasAccess(allowed);
+            setCanEdit(allowed && Number(res.data?.can_edit) === 1);
         } catch {
             setHasAccess(false);
+            setCanEdit(false);
         }
     };
 
@@ -140,6 +144,14 @@ const CoursePanelMap = () => {
 
     /* ===================== HANDLERS ===================== */
     const handleReqChange = (id, field, value) => {
+        if (!canEdit) {
+            setSnackbar({
+                open: true,
+                message: "You do not have permission to edit prerequisites",
+                severity: "error",
+            });
+            return;
+        }
         setEditedCourseReqs(prev => ({
             ...prev,
             [id]: {
@@ -150,6 +162,14 @@ const CoursePanelMap = () => {
     };
 
     const handleSaveSemester = async (courses) => {
+        if (!canEdit) {
+            setSnackbar({
+                open: true,
+                message: "You do not have permission to edit prerequisites",
+                severity: "error",
+            });
+            return;
+        }
         try {
             for (const course of courses) {
                 const edited = editedCourseReqs[course.program_tagging_id];
@@ -555,6 +575,7 @@ const CoursePanelMap = () => {
                                                                     <td style={cellStyle}>
                                                                         <input
                                                                             type="text"
+                                                                            readOnly={!canEdit}
                                                                             value={
                                                                                 editedCourseReqs[course.program_tagging_id]?.prereq ?? course.prereq ?? ""
                                                                             }
@@ -574,6 +595,7 @@ const CoursePanelMap = () => {
                                                                     <td style={cellStyle}>
                                                                         <input
                                                                             type="text"
+                                                                            readOnly={!canEdit}
                                                                             value={
                                                                                 editedCourseReqs[course.program_tagging_id]?.corequisite ?? course.corequisite ?? ""
                                                                             }
@@ -647,6 +669,7 @@ const CoursePanelMap = () => {
                                                 </Box>
 
                                                 {/* SAVE BUTTON */}
+                                                {canEdit && (
                                                 <button
                                                     onClick={() =>
                                                         handleSaveSemester(semesterCourses)
@@ -664,6 +687,7 @@ const CoursePanelMap = () => {
                                                 >
                                                     Save
                                                 </button>
+                                                )}
                                             </Box>
                                         );
                                     })}

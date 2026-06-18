@@ -330,6 +330,7 @@ router.get("/exam_schedules_with_count/:yearId/:semesterId", async (req, res) =>
       JOIN enrollment.active_school_year_table sy ON ees.active_school_year_id = sy.id
       LEFT JOIN admission.exam_applicants ea
         ON ees.schedule_id = ea.schedule_id
+        AND COALESCE(ea.email_sent, 0) = 1
       WHERE sy.year_id = ? AND sy.semester_id = ?${branchClause}
       GROUP BY ees.schedule_id
       ORDER BY ees.day_description, ees.start_time;

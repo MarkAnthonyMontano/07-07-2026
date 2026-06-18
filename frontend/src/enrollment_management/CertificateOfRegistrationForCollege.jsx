@@ -33,10 +33,13 @@ import { IoMdSchool } from "react-icons/io";
 import API_BASE_URL from "../apiConfig";
 import { postAuditEvent } from "../utils/auditEvents";
 import {
-  isRegistrarCurriculumMatch,
+  getDepartmentIdsFromAdminData,
+  getScopedProgramIdsForDepartment,
+  isRegistrarStudentScopeMatch,
+  normalizeDepartmentId,
   restrictToRegistrarCurriculum,
+  syncRegistrarScopeFromAdminData,
 } from "../utils/registrarCurriculumRestriction";
-import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 
 const CertificateOfRegistrationForCollege = forwardRef(
 
@@ -381,7 +384,11 @@ const CertificateOfRegistrationForCollege = forwardRef(
     const [selectedSection, setSelectedSection] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [departments, setDepartments] = useState([]);
+    const [adminData, setAdminData] = useState({
+      dprtmnt_id: "",
+      dprtmnt_ids: [],
+      scopes: [],
+    });
     const [selectedDepartment, setSelectedDepartment] = useState(null);
 
     const [subjectCounts, setSubjectCounts] = useState({});
@@ -442,20 +449,28 @@ const CertificateOfRegistrationForCollege = forwardRef(
         .catch((err) => console.error(err));
     }, []);
 
-    // Fetch department sections when component mounts
     useEffect(() => {
-      fetchDepartmentSections();
-    }, []);
+      if (!user) return;
 
-    // Fetch sections whenever selectedDepartment changes
+      axios
+        .get(`${API_BASE_URL}/api/admin_data/${user}`)
+        .then((res) => {
+          setAdminData(res.data);
+          syncRegistrarScopeFromAdminData(res.data);
+        })
+        .catch((err) => console.error("Error fetching admin data:", err));
+    }, [user]);
+
     useEffect(() => {
-      if (selectedDepartment) {
-        fetchDepartmentSections();
-      }
-    }, [selectedDepartment]);
+      if (!dprtmnt_id) return;
+      const nextDepartment = normalizeDepartmentId(dprtmnt_id);
+      setSelectedDepartment((current) =>
+        current === nextDepartment ? current : nextDepartment,
+      );
+    }, [dprtmnt_id]);
 
-    // Fetch department sections based on selected department
     const fetchDepartmentSections = async () => {
+      if (!selectedDepartment) return;
       try {
         const response = await axios.get(
           `${API_BASE_URL}/api/department-sections`,
@@ -463,12 +478,33 @@ const CertificateOfRegistrationForCollege = forwardRef(
             params: { departmentId: selectedDepartment },
           },
         );
-        setSections(response.data);
+
+        const scopedProgramIds = getScopedProgramIdsForDepartment(
+          selectedDepartment,
+        );
+        let nextSections = response.data || [];
+        if (scopedProgramIds) {
+          nextSections = nextSections.filter((section) =>
+            scopedProgramIds.has(String(section.program_id)),
+          );
+        } else {
+          nextSections = restrictToRegistrarCurriculum(nextSections);
+        }
+
+        setSections(nextSections);
       } catch (err) {
         console.error("Error fetching department sections:", err);
         setError("Failed to load department sections");
       }
     };
+
+    useEffect(() => {
+      if (selectedDepartment) {
+        fetchDepartmentSections();
+      } else {
+        setSections([]);
+      }
+    }, [selectedDepartment]);
 
     const [gender, setGender] = useState(null);
     const [age, setAge] = useState(null);
@@ -516,6 +552,7 @@ const CertificateOfRegistrationForCollege = forwardRef(
             person_id2,
             studentNumber: studentNum,
             activeCurriculum: active_curriculum,
+            program_id,
             major,
             yearLevel,
             yearLevelDescription: yearLevelDescription,
@@ -530,7 +567,18 @@ const CertificateOfRegistrationForCollege = forwardRef(
             lastName: last_name,
           } = tagged;
 
-          if (!isRegistrarCurriculumMatch(active_curriculum)) {
+          if (
+            !isRegistrarStudentScopeMatch({
+              curriculum_id: active_curriculum,
+              program_id,
+              dprtmnt_id,
+            })
+          ) {
+            setData([]);
+            showSnackbar(
+              "Student is outside your assigned programs.",
+              "error",
+            );
             return;
           }
 
@@ -562,7 +610,6 @@ const CertificateOfRegistrationForCollege = forwardRef(
           setUserLastName(last_name);
           setCurr(active_curriculum);
           setMajor(major || "");
-          setDepartments(dprtmnt_name);
           setCourseCode(course_code);
           setCourseDescription(course_desc);
           setCourseUnit(course_unit);
@@ -636,20 +683,6 @@ const CertificateOfRegistrationForCollege = forwardRef(
       fetchPaymentStatus();
     }, [student_number]);
 
-    // Fetch all departments when component mounts
-    useEffect(() => {
-      const fetchDepartments = async () => {
-        try {
-          const res = await axios.get(`${API_BASE_URL}/api/departments`);
-          setDepartments(res.data);
-        } catch (err) {
-          console.error("Error fetching departments:", err);
-        }
-      };
-
-      fetchDepartments();
-    }, []);
-
     const toWholeUnit = (value) => {
       const num = Number(value);
       return Number.isFinite(num) ? Math.round(num) : 0;
@@ -670,22 +703,27 @@ const CertificateOfRegistrationForCollege = forwardRef(
     const [tosf, setTosfData] = useState([]);
     const [scholarshipTypes, setScholarshipTypes] = useState([]);
     const [curriculumOptions, setCurriculumOptions] = useState([]);
-    const scopeRevision = useRegistrarScopeRevision();
 
     useEffect(() => {
+      const departmentIds = getDepartmentIdsFromAdminData(adminData);
+      if (!departmentIds.length) return;
+
       const fetchCurriculums = async () => {
         try {
-          const response = await axios.get(
-            `${API_BASE_URL}/api/applied_program`,
+          const responses = await Promise.all(
+            departmentIds.map((departmentId) =>
+              axios.get(`${API_BASE_URL}/api/applied_program/${departmentId}`),
+            ),
           );
-          setCurriculumOptions(restrictToRegistrarCurriculum(response.data));
+          const merged = responses.flatMap((response) => response.data || []);
+          setCurriculumOptions(restrictToRegistrarCurriculum(merged));
         } catch (error) {
           console.error("Error fetching curriculum options:", error);
         }
       };
 
       fetchCurriculums();
-    }, [scopeRevision]);
+    }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, adminData.scopes]);
 
     {
       curriculumOptions.find(

@@ -82,6 +82,7 @@ const ProgramUnit = () => {
     const [user, setUser] = useState("");
     const [userRole, setUserRole] = useState("");
     const [hasAccess, setHasAccess] = useState(null);
+    const [canEdit, setCanEdit] = useState(false);
     const [loading, setLoading] = useState(false);
 
     const [employeeID, setEmployeeID] = useState("");
@@ -112,14 +113,13 @@ const ProgramUnit = () => {
     const checkAccess = async (employeeID) => {
         try {
             const response = await axios.get(`${API_BASE_URL}/api/page_access/${employeeID}/${pageId}`);
-            if (response.data && response.data.page_privilege === 1) {
-                setHasAccess(true);
-            } else {
-                setHasAccess(false);
-            }
+            const allowed = response.data?.page_privilege === 1;
+            setHasAccess(allowed);
+            setCanEdit(allowed && Number(response.data?.can_edit) === 1);
         } catch (error) {
             console.error('Error checking access:', error);
             setHasAccess(false);
+            setCanEdit(false);
             if (error.response && error.response.data.message) {
                 console.log(error.response.data.message);
             } else {
@@ -174,6 +174,14 @@ const ProgramUnit = () => {
 
     /* ===================== EDIT HANDLERS ===================== */
     const handleReqChange = (id, field, value) => {
+        if (!canEdit) {
+            setSnackbar({
+                open: true,
+                message: "You do not have permission to edit program units",
+                severity: "error",
+            });
+            return;
+        }
         setEditedCourseReqs(prev => ({
             ...prev,
             [id]: {
@@ -184,6 +192,14 @@ const ProgramUnit = () => {
     };
 
     const handleSaveSemester = async (courses) => {
+        if (!canEdit) {
+            setSnackbar({
+                open: true,
+                message: "You do not have permission to edit program units",
+                severity: "error",
+            });
+            return;
+        }
         try {
             const updates = {};
 
@@ -615,6 +631,7 @@ const ProgramUnit = () => {
                                                                     <td style={{ ...cellStyle, textAlign: "center" }}>
                                                                         <input
                                                                             type="number"
+                                                                            readOnly={!canEdit}
                                                                             value={
                                                                                 editedCourseReqs[c.program_tagging_id]?.lec_unit ?? c.lec_unit ?? 0
                                                                             }
@@ -634,6 +651,7 @@ const ProgramUnit = () => {
                                                                     <td style={{ ...cellStyle, textAlign: "center" }}>
                                                                         <input
                                                                             type="number"
+                                                                            readOnly={!canEdit}
                                                                             value={
                                                                                 editedCourseReqs[c.program_tagging_id]?.lab_unit ?? c.lab_unit ?? 0
                                                                             }
@@ -653,6 +671,7 @@ const ProgramUnit = () => {
                                                                     <td style={{ ...cellStyle, textAlign: "center" }}>
                                                                         <input
                                                                             type="number"
+                                                                            readOnly={!canEdit}
                                                                             value={
                                                                                 editedCourseReqs[c.program_tagging_id]?.course_unit ?? c.course_unit ?? 0
                                                                             }
@@ -737,6 +756,7 @@ const ProgramUnit = () => {
                                                 </Box>
 
                                                 {/* SAVE BUTTON */}
+                                                {canEdit && (
                                                 <button
                                                     onClick={() => handleSaveSemester(courses)}
                                                     style={{
@@ -752,6 +772,7 @@ const ProgramUnit = () => {
                                                 >
                                                     Save
                                                 </button>
+                                                )}
                                             </Box>
                                         );
                                     })}

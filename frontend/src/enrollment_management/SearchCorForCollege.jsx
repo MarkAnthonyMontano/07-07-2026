@@ -324,10 +324,12 @@ const SearchCorForCollege = () => {
         }
 
         const fetchStudent = async () => {
+            if (departmentLoading) {
+                return;
+            }
+
             try {
-                setCorPreload(null);
                 setCorPreloadLoading(true);
-                setDepartmentID("");
 
                 const [evalRes, scopeResult] = await Promise.all([
                     fetch(`${API_BASE_URL}/api/program_evaluation/${debouncedStudentNumber}`),
@@ -344,7 +346,9 @@ const SearchCorForCollege = () => {
                 }
 
                 const preloadData = scopeResult.preload;
-                setDepartmentID(scopeResult.dprtmntId);
+                if (scopeResult.dprtmntId) {
+                    setDepartmentID(String(scopeResult.dprtmntId));
+                }
                 setCorPreload(preloadData);
 
                 if (!evalRes.ok) {
@@ -739,11 +743,7 @@ const SearchCorForCollege = () => {
                 }}
             >
                 <CertificateOfRegistrationForCollege
-                    student_number={
-                        corPreload || !corPreloadLoading
-                            ? debouncedStudentNumber
-                            : ""
-                    }
+                    student_number={debouncedStudentNumber}
                     dprtmnt_id={dprtmntID}
                     preload={corPreload}
                     onNotify={({ message, severity }) => showSnackbar(message, severity)}

@@ -184,35 +184,6 @@ const AssignScheduleToApplicants = () => {
 
 
 
-    useEffect(() => {
-        const queryParams = new URLSearchParams(location.search);
-        const personIdFromUrl = queryParams.get("person_id");
-
-        if (!personIdFromUrl) return;
-
-        // fetch info of that person
-        axios
-            .get(`${API_BASE_URL}/api/person_with_applicant/${personIdFromUrl}`)
-            .then((res) => {
-                if (res.data?.applicant_number) {
-
-                    // AUTO-INSERT applicant_number into search bar
-                    setSearchQuery(res.data.applicant_number);
-
-                    // If you have a fetchUploads() or fetchExamScore() — call it
-                    if (typeof fetchUploadsByApplicantNumber === "function") {
-                        fetchUploadsByApplicantNumber(res.data.applicant_number);
-                    }
-
-                    if (typeof fetchApplicants === "function") {
-                        fetchApplicants();
-                    }
-                }
-            })
-            .catch((err) => console.error("Auto search failed:", err));
-    }, [location.search]);
-
-
     const queryParams = new URLSearchParams(location.search);
     const queryPersonId = queryParams.get("person_id")?.trim() || "";
 
@@ -983,28 +954,6 @@ ${officeName}`;
     const [itemsPerPage, setItemsPerPage] = useState(100);
 
     const [searchQuery, setSearchQuery] = useState("");
-    const [searchError, setSearchError] = useState("");
-    const [searchResults, setSearchResults] = useState([]);
-
-
-    useEffect(() => {
-        const delayDebounce = setTimeout(async () => {
-            if (searchQuery.trim() === "") return;
-
-            try {
-                const res = await axios.get(`${API_BASE_URL}/api/search-person`, {
-                    params: { query: searchQuery }
-                });
-
-                setSearchError("");
-                setSearchResults(res.data);
-
-            } catch (err) {
-                setSearchError("Applicant not found");
-            }
-        }, 500);
-        return () => clearTimeout(delayDebounce);
-    }, [searchQuery]);
 
     const [sortBy, setSortBy] = useState("name");
     const [sortOrder, setSortOrder] = useState("asc");

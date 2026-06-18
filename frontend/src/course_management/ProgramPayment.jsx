@@ -69,6 +69,7 @@ const CurriculumCourseMap = () => {
   const [user, setUser] = useState("");
   const [userRole, setUserRole] = useState("");
   const [hasAccess, setHasAccess] = useState(null);
+  const [canEdit, setCanEdit] = useState(false);
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -118,14 +119,13 @@ const CurriculumCourseMap = () => {
   const checkAccess = async (employeeID) => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/page_access/${employeeID}/${pageId}`);
-      if (response.data && response.data.page_privilege === 1) {
-        setHasAccess(true);
-      } else {
-        setHasAccess(false);
-      }
+      const allowed = response.data?.page_privilege === 1;
+      setHasAccess(allowed);
+      setCanEdit(allowed && Number(response.data?.can_edit) === 1);
     } catch (error) {
       console.error('Error checking access:', error);
       setHasAccess(false);
+      setCanEdit(false);
       if (error.response && error.response.data.message) {
         console.log(error.response.data.message);
       } else {
@@ -339,6 +339,14 @@ const CurriculumCourseMap = () => {
 
   // 🖊 handle input change
   const handleFeeChange = (id, field, value) => {
+    if (!canEdit) {
+      setSnackbar({
+        open: true,
+        message: "You do not have permission to edit program payments",
+        severity: "error",
+      });
+      return;
+    }
     setEditedFees(prev => ({
       ...prev,
       [id]: {
@@ -349,6 +357,14 @@ const CurriculumCourseMap = () => {
   };
 
   const handleSaveSemester = async (courses) => {
+    if (!canEdit) {
+      setSnackbar({
+        open: true,
+        message: "You do not have permission to edit program payments",
+        severity: "error",
+      });
+      return;
+    }
     try {
       // ✅ MISC ONLY (1790)
       const miscFeeValue = computeMiscFee(courses);
@@ -929,6 +945,7 @@ const CurriculumCourseMap = () => {
                                       <input
                                         type="number"
                                         value={lecFee}
+                                        readOnly={!canEdit}
                                         onChange={(e) =>
                                           handleFeeChange(course.program_tagging_id, "lec_fee", e.target.value)
                                         }
@@ -946,6 +963,7 @@ const CurriculumCourseMap = () => {
                                       <input
                                         type="number"
                                         value={labFee}
+                                        readOnly={!canEdit}
                                         onChange={(e) =>
                                           handleFeeChange(course.program_tagging_id, "lab_fee", e.target.value)
                                         }
@@ -968,6 +986,7 @@ const CurriculumCourseMap = () => {
                                       <FormControl size="small" fullWidth>
                                         <Select
                                           value={edit.is_nstp ?? course.is_nstp ?? 0}
+                                          disabled={!canEdit}
                                           onChange={(e) =>
                                             handleFeeChange(
                                               course.program_tagging_id,
@@ -987,6 +1006,7 @@ const CurriculumCourseMap = () => {
                                       <FormControl size="small" fullWidth>
                                         <Select
                                           value={edit.iscomputer_lab ?? course.iscomputer_lab ?? 0}
+                                          disabled={!canEdit}
                                           onChange={(e) =>
                                             handleFeeChange(
                                               course.program_tagging_id,
@@ -1006,6 +1026,7 @@ const CurriculumCourseMap = () => {
                                       <FormControl size="small" fullWidth>
                                         <Select
                                           value={edit.islaboratory_fee ?? course.islaboratory_fee ?? 0}
+                                          disabled={!canEdit}
                                           onChange={(e) =>
                                             handleFeeChange(
                                               course.program_tagging_id,
@@ -1264,6 +1285,7 @@ const CurriculumCourseMap = () => {
 
                           </table>
                           {/* SAVE BUTTON */}
+                          {canEdit && (
                           <button
                             onClick={() => handleSaveSemester(semesterCourses)}
                             style={{
@@ -1279,6 +1301,7 @@ const CurriculumCourseMap = () => {
                           >
                             Save
                           </button>
+                          )}
                         </Box>
                       </Box>
                     );

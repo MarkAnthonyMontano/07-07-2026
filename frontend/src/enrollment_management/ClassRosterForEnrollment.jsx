@@ -34,10 +34,13 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import PersonIcon from "@mui/icons-material/Person";
 import {
+  departmentIdsMatch,
   getDepartmentIdsFromAdminData,
-  getRegistrarCurriculumId,
+  getDepartmentsFromAdminScopes,
   isRegistrarCurriculumMatch,
   isRegistrarProgramSelectionLocked,
+  isRegistrarStudentScopeMatch,
+  normalizeDepartmentId,
   restrictToRegistrarCurriculum,
   syncRegistrarScopeFromAdminData,
 } from "../utils/registrarCurriculumRestriction";
@@ -187,14 +190,10 @@ const ClassRoster = () => {
 
     const fetchStudents = async () => {
       try {
-        const curriculumId = getRegistrarCurriculumId();
         const responses = await Promise.all(
           departmentIdsToFetch.map(async (departmentId) => {
             const params = new URLSearchParams();
             params.set("department_id", departmentId);
-            if (curriculumId) {
-              params.set("curriculum_id", curriculumId);
-            }
             const url = `${API_BASE_URL}/api/student_number?${params.toString()}`;
             const res = await axios.get(url);
             return Array.isArray(res.data) ? res.data : [];
@@ -205,6 +204,7 @@ const ClassRoster = () => {
           ...new Map(
             responses
               .flat()
+              .filter((student) => isRegistrarStudentScopeMatch(student))
               .map((student) => [
                 `${student.student_number}-${student.year_id}-${student.semester_id}-${student.curriculum_id}`,
                 student,
@@ -245,6 +245,10 @@ const ClassRoster = () => {
 
   useEffect(() => {
     const departmentIds = getDepartmentIdsFromAdminData(adminData);
+    const seededDepartments = getDepartmentsFromAdminScopes(adminData);
+    if (seededDepartments.length) {
+      setDepartment(seededDepartments);
+    }
     if (!departmentIds.length) return;
 
     const fetchDepartments = async () => {
@@ -259,17 +263,26 @@ const ClassRoster = () => {
         );
         const uniqueDepartments = [
           ...new Map(
-            mergedDepartments.map((dep) => [String(dep.dprtmnt_id), dep]),
+            mergedDepartments.map((dep) => [
+              normalizeDepartmentId(dep.dprtmnt_id),
+              {
+                ...dep,
+                dprtmnt_id: normalizeDepartmentId(dep.dprtmnt_id),
+              },
+            ]),
           ).values(),
         ];
         setDepartment(uniqueDepartments);
       } catch (error) {
         console.error("Error fetching departments:", error);
+        if (seededDepartments.length) {
+          setDepartment(seededDepartments);
+        }
       }
     };
 
     fetchDepartments();
-  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, adminData.scopes, scopeRevision]);
 
   useEffect(() => {
     const departmentIds = getDepartmentIdsFromAdminData(adminData);
@@ -292,24 +305,7 @@ const ClassRoster = () => {
     };
 
     fetchCurriculums();
-  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
-
-  useEffect(() => {
-    const departmentIds = getDepartmentIdsFromAdminData(adminData);
-    if (departmentIds.length) return;
-
-    axios.get(`${API_BASE_URL}/api/departments`)
-      .then(res => setDepartment(res.data))
-      .catch(console.error);
-
-    axios.get(`${API_BASE_URL}/api/applied_program`)
-      .then(res => {
-        const restrictedCurriculums = restrictToRegistrarCurriculum(res.data);
-        setAllCurriculums(restrictedCurriculums);
-        setCurriculumOptions(restrictedCurriculums);
-      })
-      .catch(console.error);
-  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, adminData.scopes, scopeRevision]);
 
   useEffect(() => {
     if (department.length === 0 || selectedDepartmentFilter) return;
@@ -317,10 +313,24 @@ const ClassRoster = () => {
     if (departmentIds.length !== 1) return;
     if (allCurriculums.length === 0) return;
 
-    const firstDeptId = department[0].dprtmnt_id;
+    const firstDeptId = normalizeDepartmentId(department[0].dprtmnt_id);
     setSelectedDepartmentFilter(firstDeptId);
     handleDepartmentChange(firstDeptId);
   }, [department, allCurriculums, selectedDepartmentFilter, adminData]);
+
+  const handleDepartmentChange = (selectedDept) => {
+    const normalizedDept = normalizeDepartmentId(selectedDept);
+    setSelectedDepartmentFilter(normalizedDept);
+    setCurriculumOptions(
+      normalizedDept
+        ? allCurriculums.filter((option) =>
+            departmentIdsMatch(option.dprtmnt_id, normalizedDept),
+          )
+        : allCurriculums,
+    );
+    if (!isProgramLocked) setSelectedProgramFilter("");
+    setCurrentPage(1);
+  };
 
   // ─────────────────────────────────────────────────────────────────────────────
   // STEP 6 — Apply UI restrictions based on the user's department
@@ -364,23 +374,16 @@ const ClassRoster = () => {
   const handleSchoolYearChange = e => { setSelectedSchoolYear(e.target.value); setCurrentPage(1); };
   const handleSchoolSemesterChange = e => { setSelectedSchoolSemester(e.target.value); setCurrentPage(1); };
 
-  const handleDepartmentChange = (selectedDept) => {
-    setSelectedDepartmentFilter(selectedDept);
-    setCurriculumOptions(
-      selectedDept ? allCurriculums.filter(o => o.dprtmnt_id === selectedDept) : allCurriculums
-    );
-    if (!isProgramLocked) setSelectedProgramFilter("");
-    setCurrentPage(1);
-  };
-
   // ─────────────────────────────────────────────────────────────────────────────
   // STEP 7 — Frontend filtering
   // ─────────────────────────────────────────────────────────────────────────────
   const filteredStudents = students
     .filter(s => {
-      const matchDept = selectedDepartmentFilter === "" || s.dprtmnt_id === selectedDepartmentFilter;
+      const matchDept =
+        selectedDepartmentFilter === "" ||
+        departmentIdsMatch(s.dprtmnt_id, selectedDepartmentFilter);
       const matchProgram = selectedProgramFilter === "" || String(s.curriculum_id) === String(selectedProgramFilter);
-      const matchRegistrarCurriculum = isRegistrarCurriculumMatch(s.curriculum_id);
+      const matchRegistrarScope = isRegistrarStudentScopeMatch(s);
       const matchYear = selectedSchoolYear === "" || String(s.year_id) === String(selectedSchoolYear);
       const matchSemester = selectedSchoolSemester === "" || String(s.semester_id) === String(selectedSchoolSemester);
       const matchStatus = selectedStatusFilter === ""
@@ -388,7 +391,7 @@ const ClassRoster = () => {
         || (selectedStatusFilter === "Irregular" && getStudentRegularStatus(s) !== 1);
       const matchRemark = selectedRemarkFilter === "" || remarksMap[s.en_remarks] === selectedRemarkFilter;
 
-      return matchDept && matchProgram && matchRegistrarCurriculum && matchYear && matchSemester && matchStatus && matchRemark;
+      return matchDept && matchProgram && matchRegistrarScope && matchYear && matchSemester && matchStatus && matchRemark;
     })
     .sort((a, b) => {
       const nameA = `${a.last_name} ${a.first_name}`.toLowerCase();
@@ -486,8 +489,8 @@ const ClassRoster = () => {
   const showAllDepartmentsOption = scopedDepartmentIds.length !== 1;
   const selectedDepartmentFilterValue =
     selectedDepartmentFilter === "" ||
-    department.some(
-      (dep) => String(dep.dprtmnt_id) === String(selectedDepartmentFilter),
+    department.some((dep) =>
+      departmentIdsMatch(dep.dprtmnt_id, selectedDepartmentFilter),
     )
       ? selectedDepartmentFilter
       : "";
@@ -778,7 +781,7 @@ const ClassRoster = () => {
                           <MenuItem value="">All Departments</MenuItem>
                         )}
                         {department.map(dep => (
-                          <MenuItem key={dep.dprtmnt_id} value={dep.dprtmnt_id}>
+                          <MenuItem key={dep.dprtmnt_id} value={normalizeDepartmentId(dep.dprtmnt_id)}>
                             {dep.dprtmnt_name} ({dep.dprtmnt_code})
                           </MenuItem>
                         ))}

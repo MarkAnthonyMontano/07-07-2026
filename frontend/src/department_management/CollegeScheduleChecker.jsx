@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
+import React, { useState, useEffect, useContext, useRef, useMemo } from "react";
 import { SettingsContext } from "../App";
-import { useParams } from "react-router-dom";
 import axios from "axios";
 import {
   Typography,
@@ -29,8 +28,22 @@ import Unauthorized from "../components/Unauthorized";
 import LoadingOverlay from "../components/LoadingOverlay";
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import API_BASE_URL from "../apiConfig";
-import SearchIcon from "@mui/icons-material/Search";
 import { postAuditEvent } from "../utils/auditEvents";
+import {
+  getDepartmentIdsFromAdminData,
+  isRegistrarProgramScopeMatch,
+  restrictToRegistrarCurriculum,
+  syncRegistrarScopeFromAdminData,
+} from "../utils/registrarCurriculumRestriction";
+import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
+import {
+  isValidScheduleTimeSlot,
+  getScheduleTimeValidationMessage,
+  validateScheduleTimePair,
+  SCHEDULE_TIME_MIN,
+  SCHEDULE_TIME_MAX,
+  SCHEDULE_TIME_STEP_SECONDS,
+} from "../utils/scheduleTimeValidation";
 
 const CollegeScheduleChecker = () => {
   const settings = useContext(SettingsContext);
@@ -77,7 +90,7 @@ const CollegeScheduleChecker = () => {
   const [user, setUser] = useState("");
   const [userRole, setUserRole] = useState("");
   const [employeeID, setEmployeeID] = useState("");
-  const [adminData, setAdminData] = useState({ dprtmnt_id: "" });
+  const [selectedDepartment, setSelectedDepartment] = useState("");
   const [hasAccess, setHasAccess] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -137,7 +150,7 @@ const CollegeScheduleChecker = () => {
   const [selectedRoom, setSelectedRoom] = useState("");
   const [selectedProf, setSelectedProf] = useState("");
   const [selectedProgram, setSelectedProgram] = useState("");
-  const [value, setValue] = useState("");
+  const [registrarScopes, setRegistrarScopes] = useState([]);
   const [message, setMessage] = useState("");
   const [roomList, setRoomList] = useState([]);
   const [courseList, setCourseList] = useState([]);
@@ -166,11 +179,26 @@ const CollegeScheduleChecker = () => {
   const [selectedReviewEmployeeId, setSelectedReviewEmployeeId] = useState("");
   const [reviewSchedules, setReviewSchedules] = useState([]);
   const [reviewScheduleLoading, setReviewScheduleLoading] = useState(false);
+  const scopeRevision = useRegistrarScopeRevision();
 
-  const fetchPersonData = async () => {
+  const loadDepartments = async () => {
+    if (!user) return;
+
     try {
       const res = await axios.get(`${API_BASE_URL}/api/admin_data/${user}`);
-      setAdminData(res.data); // { dprtmnt_id: "..." }
+      syncRegistrarScopeFromAdminData(res.data);
+      const departmentIds = getDepartmentIdsFromAdminData(res.data);
+
+      if (!departmentIds.length) {
+        setSelectedDepartment("");
+        return;
+      }
+
+      setRegistrarScopes(Array.isArray(res.data?.scopes) ? res.data.scopes : []);
+
+      if (departmentIds.length >= 1) {
+        setSelectedDepartment(String(departmentIds[0]));
+      }
     } catch (err) {
       console.error("Error fetching admin data:", err);
     }
@@ -178,14 +206,15 @@ const CollegeScheduleChecker = () => {
 
   useEffect(() => {
     if (user) {
-      fetchPersonData();
+      loadDepartments();
     }
-  }, [user]);
+  }, [user, scopeRevision]);
 
   const fetchRoom = async () => {
+    if (!selectedDepartment) return;
     try {
       const response = await axios.get(
-        `${API_BASE_URL}/api/room_list/${adminData.dprtmnt_id}`
+        `${API_BASE_URL}/api/room_list/${selectedDepartment}`
       );
       setRoomList(response.data);
     } catch (error) {
@@ -223,9 +252,10 @@ const CollegeScheduleChecker = () => {
   };
 
   const fetchProfList = async () => {
+    if (!selectedDepartment) return;
     try {
       const res = await axios.get(
-        `${API_BASE_URL}/api/prof_list/${adminData.dprtmnt_id}`
+        `${API_BASE_URL}/api/prof_list/${selectedDepartment}`
       );
       setProfList(res.data);
     } catch (err) {
@@ -245,26 +275,71 @@ const CollegeScheduleChecker = () => {
   };
 
   const fetchSectionList = async () => {
+    if (!selectedDepartment) return;
     try {
       const response = await axios.get(
-        `${API_BASE_URL}/api/section_table/${adminData.dprtmnt_id}`
+        `${API_BASE_URL}/api/department-sections`,
+        { params: { departmentId: selectedDepartment } },
       );
 
-      setSectionList(response.data);
+      const mapped = (response.data || []).map((row) => ({
+        dep_section_id: row.department_and_program_section_id,
+        description: row.description,
+        program_code: row.program_code,
+        program_id: row.program_id,
+        program_description: row.program_description,
+        major: row.major,
+      }));
+      setSectionList(mapped);
     } catch (error) {
-      console.log(error);
+      console.error("Error fetching sections:", error);
+      setSectionList([]);
     }
   };
 
+  const filteredSectionList = useMemo(() => {
+    let list = sectionList;
+
+    const scopedPrograms = registrarScopes
+      .filter(
+        (scope) => String(scope.dprtmnt_id) === String(selectedDepartment),
+      )
+      .map((scope) => String(scope.program_id))
+      .filter(Boolean);
+
+    if (scopedPrograms.length > 0) {
+      const allowedProgramIds = new Set(scopedPrograms);
+      list = list.filter((section) =>
+        allowedProgramIds.has(String(section.program_id)),
+      );
+    }
+
+    return list;
+  }, [sectionList, registrarScopes, selectedDepartment]);
+
+  useEffect(() => {
+    if (!selectedSection) return;
+    const stillVisible = filteredSectionList.some(
+      (section) => String(section.dep_section_id) === String(selectedSection),
+    );
+    if (!stillVisible) {
+      setSelectedSection("");
+    }
+  }, [filteredSectionList, selectedSection]);
+
   const fetchProgramList = async () => {
+    if (!selectedDepartment) return;
     try {
       const response = await axios.get(
-        `${API_BASE_URL}/api/program_list/${adminData.dprtmnt_id}`
+        `${API_BASE_URL}/api/program_list/${selectedDepartment}`
       );
 
-      setProgramList(response.data);
+      setProgramList(
+        restrictToRegistrarCurriculum(response.data || []),
+      );
     } catch (error) {
-      console.log(error);
+      console.error("Error fetching programs:", error);
+      setProgramList([]);
     }
   };
 
@@ -300,7 +375,11 @@ const CollegeScheduleChecker = () => {
       const response = await axios.get(
         `${API_BASE_URL}/api/get_professor_schedule/${employeeId}`
       );
-      setReviewSchedules(response.data || []);
+      setReviewSchedules(
+        (response.data || []).filter((sched) =>
+          isRegistrarProgramScopeMatch(sched.program_id, selectedDepartment),
+        ),
+      );
     } catch (error) {
       console.error("Error fetching professor review schedule:", error);
       setReviewSchedules([]);
@@ -310,9 +389,13 @@ const CollegeScheduleChecker = () => {
   };
 
   const fetchAllCollegeSchedule = async () => {
+    if (!selectedDepartment) return;
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/get_college_professor_schedule/${adminData.dprtmnt_id}`)
-      setSchedules(res.data);
+      const res = await axios.get(`${API_BASE_URL}/api/get_college_professor_schedule/${selectedDepartment}`)
+      const scopedSchedules = (res.data || []).filter((sched) =>
+        isRegistrarProgramScopeMatch(sched.program_id, selectedDepartment),
+      );
+      setSchedules(scopedSchedules);
     } catch (error) {
       if (error.response && error.response.status === 404) {
         setMessage(
@@ -331,16 +414,44 @@ const CollegeScheduleChecker = () => {
     return `${hour12}:${minutes} ${suffix}`;
   };
 
+  const handleScheduleTimeChange = (value, setter, label) => {
+    if (!value) {
+      setter("");
+      return;
+    }
+
+    if (!isValidScheduleTimeSlot(value)) {
+      setMessage(getScheduleTimeValidationMessage(value, label));
+      setOpenSnackbar(true);
+      return;
+    }
+
+    setter(value);
+  };
+
+  const assertValidScheduleTimes = () => {
+    const result = validateScheduleTimePair(
+      selectedStartTime,
+      selectedEndTime,
+    );
+    if (!result.valid) {
+      setMessage(result.message);
+      setOpenSnackbar(true);
+      return false;
+    }
+    return true;
+  };
+
 
   useEffect(() => {
-    if (!adminData.dprtmnt_id) return;
+    if (!selectedDepartment) return;
 
     fetchRoom();
     fetchProfList();
     fetchSectionList();
     fetchProgramList();
     fetchAllCollegeSchedule();
-  }, [adminData.dprtmnt_id]);
+  }, [selectedDepartment, scopeRevision]);
 
   useEffect(() => {
     fetchCourseList();
@@ -416,6 +527,8 @@ const CollegeScheduleChecker = () => {
     e.preventDefault();
     setMessage("");
     console.log(selectedSection);
+
+    if (!assertValidScheduleTimes()) return;
 
     try {
       const formattedStartTime = formatTimeTo12Hour(selectedStartTime);
@@ -495,6 +608,8 @@ const CollegeScheduleChecker = () => {
     e.preventDefault();
     setMessage("");
 
+    if (!assertValidScheduleTimes()) return;
+
     try {
       const formattedStartTime = formatTimeTo12Hour(selectedStartTime);
       const formattedEndTime = formatTimeTo12Hour(selectedEndTime);
@@ -547,6 +662,8 @@ const CollegeScheduleChecker = () => {
     e.preventDefault();
     setMessage("");
     console.log(selectedSection);
+
+    if (!assertValidScheduleTimes()) return;
 
     try {
       const formattedStartTime = formatTimeTo12Hour(selectedStartTime);
@@ -607,6 +724,8 @@ const CollegeScheduleChecker = () => {
   const handleInsertDesignation = async (e) => {
     e.preventDefault();
     setMessage("");
+
+    if (!assertValidScheduleTimes()) return;
 
     try {
       const formattedStartTime = formatTimeTo12Hour(selectedStartTime);
@@ -748,6 +867,10 @@ const CollegeScheduleChecker = () => {
 
   const filteredScheduleList = allschedules
     .filter((sched) => {
+      if (!isRegistrarProgramScopeMatch(sched.program_id, selectedDepartment)) {
+        return false;
+      }
+
       // PROGRAM FILTER
       if (programFilter !== "all" && sched.program_id !== programFilter) return false;
 
@@ -1165,13 +1288,13 @@ const CollegeScheduleChecker = () => {
               <div className="flex mb-2">
                 <div className="p-2 w-[12rem]">Section:</div>
                 <Autocomplete
-                  options={sectionList}
+                  options={filteredSectionList}
                   fullWidth
                   getOptionLabel={(option) =>
-                    `${option.description || ""} ${option.program_code || ""}`.trim()
+                    `${option.program_code || ""} - ${option.description || ""}`.trim()
                   }
                   value={
-                    sectionList.find(
+                    filteredSectionList.find(
                       (section) => String(section.dep_section_id) === String(selectedSection)
                     ) || null
                   }
@@ -1180,6 +1303,11 @@ const CollegeScheduleChecker = () => {
                   }}
                   isOptionEqualToValue={(option, value) =>
                     String(option.dep_section_id) === String(value.dep_section_id)
+                  }
+                  noOptionsText={
+                    selectedDepartment
+                      ? "No sections match your program scope"
+                      : "Select a department first"
                   }
                   filterOptions={(options, { inputValue }) => {
                     const input = inputValue.trim().toLowerCase();
@@ -1344,8 +1472,17 @@ const CollegeScheduleChecker = () => {
               <input
                 className="border border-gray-500 rounded w-full h-10 px-2"
                 type="time"
+                min={SCHEDULE_TIME_MIN}
+                max={SCHEDULE_TIME_MAX}
+                step={SCHEDULE_TIME_STEP_SECONDS}
                 value={selectedStartTime}
-                onChange={(e) => setSelectedStartTime(e.target.value)}
+                onChange={(e) =>
+                  handleScheduleTimeChange(
+                    e.target.value,
+                    setSelectedStartTime,
+                    "Start time",
+                  )
+                }
                 required
               />
             </div>
@@ -1356,8 +1493,17 @@ const CollegeScheduleChecker = () => {
               <input
                 className="border border-gray-500 rounded w-full h-10 px-2"
                 type="time"
+                min={SCHEDULE_TIME_MIN}
+                max={SCHEDULE_TIME_MAX}
+                step={SCHEDULE_TIME_STEP_SECONDS}
                 value={selectedEndTime}
-                onChange={(e) => setSelectedEndTime(e.target.value)}
+                onChange={(e) =>
+                  handleScheduleTimeChange(
+                    e.target.value,
+                    setSelectedEndTime,
+                    "End time",
+                  )
+                }
                 required
               />
             </div>

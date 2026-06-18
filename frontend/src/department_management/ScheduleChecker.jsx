@@ -31,6 +31,14 @@ import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import API_BASE_URL from "../apiConfig";
 import SearchIcon from "@mui/icons-material/Search";
 import { postAuditEvent } from "../utils/auditEvents";
+import {
+  isValidScheduleTimeSlot,
+  getScheduleTimeValidationMessage,
+  validateScheduleTimePair,
+  SCHEDULE_TIME_MIN,
+  SCHEDULE_TIME_MAX,
+  SCHEDULE_TIME_STEP_SECONDS,
+} from "../utils/scheduleTimeValidation";
 
 const ScheduleChecker = () => {
   const settings = useContext(SettingsContext);
@@ -303,6 +311,34 @@ const ScheduleChecker = () => {
     return `${hour12}:${minutes} ${suffix}`;
   };
 
+  const handleScheduleTimeChange = (value, setter, label) => {
+    if (!value) {
+      setter("");
+      return;
+    }
+
+    if (!isValidScheduleTimeSlot(value)) {
+      setMessage(getScheduleTimeValidationMessage(value, label));
+      setOpenSnackbar(true);
+      return;
+    }
+
+    setter(value);
+  };
+
+  const assertValidScheduleTimes = () => {
+    const result = validateScheduleTimePair(
+      selectedStartTime,
+      selectedEndTime,
+    );
+    if (!result.valid) {
+      setMessage(result.message);
+      setOpenSnackbar(true);
+      return false;
+    }
+    return true;
+  };
+
   useEffect(() => {
     if (!dprtmnt_id) return;
 
@@ -387,6 +423,8 @@ const ScheduleChecker = () => {
     setMessage("");
     console.log(selectedSection);
 
+    if (!assertValidScheduleTimes()) return;
+
     try {
       const formattedStartTime = formatTimeTo12Hour(selectedStartTime);
       const formattedEndTime = formatTimeTo12Hour(selectedEndTime);
@@ -465,6 +503,8 @@ const ScheduleChecker = () => {
     e.preventDefault();
     setMessage("");
 
+    if (!assertValidScheduleTimes()) return;
+
     try {
       const formattedStartTime = formatTimeTo12Hour(selectedStartTime);
       const formattedEndTime = formatTimeTo12Hour(selectedEndTime);
@@ -517,6 +557,8 @@ const ScheduleChecker = () => {
     e.preventDefault();
     setMessage("");
     console.log(selectedSection);
+
+    if (!assertValidScheduleTimes()) return;
 
     try {
       const formattedStartTime = formatTimeTo12Hour(selectedStartTime);
@@ -577,6 +619,8 @@ const ScheduleChecker = () => {
   const handleInsertDesignation = async (e) => {
     e.preventDefault();
     setMessage("");
+
+    if (!assertValidScheduleTimes()) return;
 
     try {
       const formattedStartTime = formatTimeTo12Hour(selectedStartTime);
@@ -1317,8 +1361,17 @@ const ScheduleChecker = () => {
               <input
                 className="border border-gray-500 rounded w-full h-10 px-2"
                 type="time"
+                min={SCHEDULE_TIME_MIN}
+                max={SCHEDULE_TIME_MAX}
+                step={SCHEDULE_TIME_STEP_SECONDS}
                 value={selectedStartTime}
-                onChange={(e) => setSelectedStartTime(e.target.value)}
+                onChange={(e) =>
+                  handleScheduleTimeChange(
+                    e.target.value,
+                    setSelectedStartTime,
+                    "Start time",
+                  )
+                }
                 required
               />
             </div>
@@ -1329,8 +1382,17 @@ const ScheduleChecker = () => {
               <input
                 className="border border-gray-500 rounded w-full h-10 px-2"
                 type="time"
+                min={SCHEDULE_TIME_MIN}
+                max={SCHEDULE_TIME_MAX}
+                step={SCHEDULE_TIME_STEP_SECONDS}
                 value={selectedEndTime}
-                onChange={(e) => setSelectedEndTime(e.target.value)}
+                onChange={(e) =>
+                  handleScheduleTimeChange(
+                    e.target.value,
+                    setSelectedEndTime,
+                    "End time",
+                  )
+                }
                 required
               />
             </div>

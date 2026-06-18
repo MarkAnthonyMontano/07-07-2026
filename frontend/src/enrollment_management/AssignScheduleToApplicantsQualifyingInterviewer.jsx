@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
+import React, { useState, useEffect, useContext, useRef, useMemo } from "react";
 import { SettingsContext } from "../App";
 import axios from "axios";
 import { io } from "socket.io-client";
@@ -29,7 +29,7 @@ import {
   Alert,
 } from "@mui/material";
 import { Search } from "@mui/icons-material";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import CloseIcon from "@mui/icons-material/Close"; // or use the custom SVG below
 
 import SchoolIcon from "@mui/icons-material/School";
@@ -46,11 +46,15 @@ import SearchIcon from "@mui/icons-material/Search";
 import API_BASE_URL from "../apiConfig";
 import {
   getRegistrarCurriculumId,
-  isRegistrarCurriculumMatch,
+  isRegistrarApplicantScopeMatch,
   isRegistrarProgramSelectionLocked,
   restrictToRegistrarCurriculum,
   syncRegistrarScopeFromAdminData,
   getDepartmentIdsFromAdminData,
+  getDepartmentsFromAdminScopes,
+  getScopedProgramIdsForDepartment,
+  departmentIdsMatch,
+  normalizeDepartmentId,
 } from "../utils/registrarCurriculumRestriction";
 import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
@@ -227,32 +231,60 @@ const AssignScheduleToApplicantsInterviewer = () => {
     }
   }, [user]);
 
-  const resolveSenderForApplicant = async (applicant) => {
-    const currentEmployeeId = employeeID || localStorage.getItem("employee_id");
-    const programId = applicant?.program; // this is curriculum_id from admission.person_table
-
-    // Try to find in allCurriculums (which has enrollment curriculum_ids like 8736)
+  const getApplicantProgramLabels = (applicant) => {
+    const programId = applicant?.program;
     const curriculumMatch = allCurriculums.find(
-      (c) => String(c.curriculum_id) === String(programId),
+      (c) =>
+        String(c.curriculum_id) === String(programId) ||
+        String(c.program_id) === String(programId),
     );
-
     const departmentId =
       curriculumMatch?.dprtmnt_id ||
       getDepartmentIdsFromAdminData(adminData)[0] ||
       adminData.dprtmnt_id;
 
-    console.log("🔍 resolveSender:", {
-      applicant_program: programId,
-      curriculumMatch: curriculumMatch || "NOT FOUND in allCurriculums",
+    const programLabel = curriculumMatch
+      ? [curriculumMatch.program_code, curriculumMatch.program_description]
+          .filter(Boolean)
+          .join(" - ") || "the selected program"
+      : "the selected program";
+
+    const departmentRecord =
+      department.find((dep) =>
+        departmentIdsMatch(dep.dprtmnt_id, departmentId),
+      ) ||
+      getDepartmentsFromAdminScopes(adminData).find((dep) =>
+        departmentIdsMatch(dep.dprtmnt_id, departmentId),
+      );
+
+    const departmentLabel =
+      departmentRecord?.dprtmnt_name ||
+      curriculumMatch?.dprtmnt_name ||
+      "the selected department";
+
+    return {
+      curriculumMatch,
       departmentId,
-      currentEmployeeId,
-    });
+      programId,
+      programLabel,
+      departmentLabel,
+    };
+  };
+
+  const resolveSenderForApplicant = async (applicant) => {
+    const currentEmployeeId = employeeID || localStorage.getItem("employee_id");
+    const {
+      departmentId,
+      programId,
+      programLabel,
+      departmentLabel,
+    } = getApplicantProgramLabels(applicant);
 
     if (!currentEmployeeId) {
       throw new Error("No employee ID found. Please log out and log in again.");
     }
     if (!programId) {
-      throw new Error("Program ID missing for this applicant.");
+      throw new Error("Applicant program information is missing.");
     }
 
     const res = await axios.get(
@@ -260,7 +292,7 @@ const AssignScheduleToApplicantsInterviewer = () => {
       {
         params: {
           department_id: departmentId,
-          program_id: programId, // send the raw value — backend will resolve it
+          program_id: programId,
           employee_id: currentEmployeeId,
         },
       },
@@ -268,7 +300,7 @@ const AssignScheduleToApplicantsInterviewer = () => {
 
     if (!Array.isArray(res.data) || res.data.length === 0) {
       throw new Error(
-        `No active email account for employee ${currentEmployeeId}, program=${programId}, department=${departmentId}.`,
+        `No active email sender account is configured for ${programLabel} (${departmentLabel}).`,
       );
     }
 
@@ -318,7 +350,6 @@ const AssignScheduleToApplicantsInterviewer = () => {
     navigate(to); // this will actually change the page
   };
 
-  const location = useLocation();
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(4);
   const [clickedSteps, setClickedSteps] = useState(
@@ -332,19 +363,6 @@ const AssignScheduleToApplicantsInterviewer = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [loading2, setLoading2] = useState(false);
-  const [person, setPerson] = useState({
-    campus: "",
-    last_name: "",
-    first_name: "",
-    middle_name: "",
-    document_status: "",
-    extension: "",
-    emailAddress: "",
-    program: "",
-    middle_Code: "",
-    created_at: "",
-    generalAverage1: "",
-  });
   const [selectedApplicantStatus, setSelectedApplicantStatus] = useState("");
   const [curriculumOptions, setCurriculumOptions] = useState([]);
   const scopeRevision = useRegistrarScopeRevision();
@@ -370,18 +388,7 @@ const AssignScheduleToApplicantsInterviewer = () => {
       }
     };
     fetchCurriculums();
-  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
-
-  useEffect(() => {
-    const departmentIds = getDepartmentIdsFromAdminData(adminData);
-    if (departmentIds.length) return;
-
-    axios.get(`${API_BASE_URL}/api/applied_program`).then((res) => {
-      const restrictedCurriculums = restrictToRegistrarCurriculum(res.data);
-      setAllCurriculums(restrictedCurriculums);
-      setCurriculumOptions(restrictedCurriculums);
-    });
-  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, adminData.scopes, scopeRevision]);
 
   const [schoolYears, setSchoolYears] = useState([]);
   const [semesters, setSchoolSemester] = useState([]);
@@ -1264,7 +1271,15 @@ ${requirementsSection}
       resolvedSender = await resolveSenderForApplicant(emailTargets[0]);
     } catch (err) {
       setLoading2(false);
-      setSnack({ open: true, message: err.message || "No active sender account is assigned.", severity: "warning" });
+      const fallback =
+        "No active email sender account is assigned for this program and department.";
+      const message =
+        typeof err?.message === "string" &&
+        !err.message.includes("program=") &&
+        !err.message.includes("department=")
+          ? err.message
+          : fallback;
+      setSnack({ open: true, message, severity: "warning" });
       return;
     }
 
@@ -1337,24 +1352,6 @@ ${requirementsSection}
   const [itemsPerPage, setItemsPerPage] = useState(100);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchError, setSearchError] = useState("");
-
-  useEffect(() => {
-    const delayDebounce = setTimeout(async () => {
-      if (searchQuery.trim() === "") return;
-
-      try {
-        const res = await axios.get(`${API_BASE_URL}/api/search-person`, {
-          params: { query: searchQuery },
-        });
-
-        setPerson(res.data); // ❌ don't do this
-      } catch (err) {
-        setSearchError("Applicant not found");
-      }
-    }, 500);
-    return () => clearTimeout(delayDebounce);
-  }, [searchQuery]);
 
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("asc");
@@ -1369,21 +1366,27 @@ ${requirementsSection}
   const [endDate, setEndDate] = useState("");
 
   const [selectedCampusFilter, setSelectedCampusFilter] = useState("");
-  const scopedDepartmentIds = getDepartmentIdsFromAdminData(adminData).map(String);
-  const scopedDepartments = department.filter((dep) =>
-    scopedDepartmentIds.includes(String(dep.dprtmnt_id)),
-  );
+  const scopedDepartments = useMemo(() => {
+    const ids = getDepartmentIdsFromAdminData(adminData).map(String);
+    const fromAdmin = getDepartmentsFromAdminScopes(adminData);
+    return (department.length > 0 ? department : fromAdmin).filter(
+      (dep) =>
+        !ids.length ||
+        ids.includes(normalizeDepartmentId(dep.dprtmnt_id)),
+    );
+  }, [department, adminData]);
 
-  const filteredDepartments = scopedDepartments.filter((dep) =>
-    allCurriculums.some(
-      (curriculum) =>
-        String(curriculum.dprtmnt_id) === String(dep.dprtmnt_id) &&
-        (!selectedCampusFilter ||
-          String(curriculum.components) === String(selectedCampusFilter)),
-    ),
-  );
-  const selectableDepartments =
-    filteredDepartments.length > 0 ? filteredDepartments : scopedDepartments;
+  const selectableDepartments = useMemo(() => {
+    const filtered = scopedDepartments.filter((dep) =>
+      allCurriculums.some(
+        (curriculum) =>
+          departmentIdsMatch(curriculum.dprtmnt_id, dep.dprtmnt_id) &&
+          (!selectedCampusFilter ||
+            String(curriculum.components) === String(selectedCampusFilter)),
+      ),
+    );
+    return filtered.length > 0 ? filtered : scopedDepartments;
+  }, [scopedDepartments, allCurriculums, selectedCampusFilter]);
 
   const activeDepartmentFilter =
     selectedDepartmentFilter ||
@@ -1391,12 +1394,24 @@ ${requirementsSection}
       ? String(selectableDepartments[0].dprtmnt_id)
       : "");
 
-  const filteredCurriculumOptions = allCurriculums.filter(
-    (curriculum) =>
-      (!selectedCampusFilter ||
-        String(curriculum.components) === String(selectedCampusFilter)) &&
-      (!activeDepartmentFilter ||
-        String(curriculum.dprtmnt_id) === String(activeDepartmentFilter)),
+  const scopedProgramIds = getScopedProgramIdsForDepartment(activeDepartmentFilter);
+  const filteredCurriculumOptions = useMemo(
+    () =>
+      allCurriculums.filter(
+        (curriculum) =>
+          (!selectedCampusFilter ||
+            String(curriculum.components) === String(selectedCampusFilter)) &&
+          (!activeDepartmentFilter ||
+            departmentIdsMatch(curriculum.dprtmnt_id, activeDepartmentFilter)) &&
+          (!scopedProgramIds ||
+            scopedProgramIds.has(String(curriculum.program_id))),
+      ),
+    [
+      allCurriculums,
+      selectedCampusFilter,
+      activeDepartmentFilter,
+      scopedProgramIds,
+    ],
   );
 
   useEffect(() => {
@@ -1408,12 +1423,24 @@ ${requirementsSection}
   const handleCampusFilterChange = (branchId) => {
     setSelectedCampusFilter(branchId);
     setSelectedSchedule("");
-    if (selectableDepartments.length > 0) {
-      setSelectedDepartmentFilter(String(selectableDepartments[0].dprtmnt_id));
-    }
+    setSelectedDepartmentFilter("");
     if (!isProgramLocked) setSelectedProgramFilter("");
     setCurrentPage(1);
   };
+
+  useEffect(() => {
+    if (!selectedCampusFilter || selectableDepartments.length === 0) return;
+
+    const selectableIds = selectableDepartments.map((dep) =>
+      normalizeDepartmentId(dep.dprtmnt_id),
+    );
+    setSelectedDepartmentFilter((current) => {
+      if (current && selectableIds.includes(normalizeDepartmentId(current))) {
+        return current;
+      }
+      return String(selectableDepartments[0].dprtmnt_id);
+    });
+  }, [selectedCampusFilter, selectableDepartments]);
 
   const handleDepartmentChange = (departmentId) => {
     setSelectedDepartmentFilter(departmentId);
@@ -1459,8 +1486,17 @@ ${requirementsSection}
     const personCampus = String(personData.campus ?? "").trim();
     const selectedCampusId = String(selectedCampusFilter ?? "").trim();
 
+    const programInfo = allCurriculums.find(
+      (opt) =>
+        String(opt.curriculum_id) === String(personData.program ?? "") ||
+        String(opt.program_id) === String(personData.program ?? ""),
+    );
+    const programCampus = String(programInfo?.components ?? "").trim();
+
     const matchesCampus =
-      selectedCampusFilter === "" || personCampus === selectedCampusId;
+      selectedCampusFilter === "" ||
+      personCampus === selectedCampusId ||
+      programCampus === selectedCampusId;
 
     /* 🎯 SCORE FILTERS (NEW) */
     const matchesTotal =
@@ -1485,12 +1521,10 @@ ${requirementsSection}
     const matchesName = fullName.includes(query);
     const matchesEmail = personData.emailAddress?.toLowerCase().includes(query);
 
-    const programInfo = allCurriculums.find(
-      (opt) => opt.curriculum_id?.toString() === personData.program?.toString(),
-    );
-    const matchesRegistrarCurriculum = isRegistrarCurriculumMatch(
-      personData.program,
-    );
+    const matchesRegistrarScope = isRegistrarApplicantScopeMatch(personData, {
+      curriculumId: personData.program,
+      programId: programInfo?.program_id ?? personData.program_id,
+    });
 
     const matchesProgramQuery = programInfo?.program_code
       ?.toLowerCase()
@@ -1499,7 +1533,10 @@ ${requirementsSection}
     /* 🎓 FILTERS */
     const matchesDepartment =
       activeDepartmentFilter === "" ||
-      String(programInfo?.dprtmnt_id) === String(activeDepartmentFilter);
+      departmentIdsMatch(
+        programInfo?.dprtmnt_id ?? personData.dprtmnt_id,
+        activeDepartmentFilter,
+      );
 
     const matchesProgramFilter =
       selectedProgramFilter === "" ||
@@ -1533,7 +1570,7 @@ ${requirementsSection}
         matchesEmail ||
         matchesProgramQuery) &&
       matchesDepartment &&
-      matchesRegistrarCurriculum &&
+      matchesRegistrarScope &&
       matchesProgramFilter &&
       matchesSchoolYear &&
       matchesSemester &&
@@ -1621,6 +1658,10 @@ ${requirementsSection}
 
   useEffect(() => {
     const departmentIds = getDepartmentIdsFromAdminData(adminData);
+    const seededDepartments = getDepartmentsFromAdminScopes(adminData);
+    if (seededDepartments.length) {
+      setDepartment(seededDepartments);
+    }
     if (!departmentIds.length) return;
 
     const fetchDepartments = async () => {
@@ -1635,19 +1676,33 @@ ${requirementsSection}
         );
         const uniqueDepartments = [
           ...new Map(
-            mergedDepartments.map((dep) => [String(dep.dprtmnt_id), dep]),
+            mergedDepartments.map((dep) => [
+              normalizeDepartmentId(dep.dprtmnt_id),
+              {
+                ...dep,
+                dprtmnt_id: normalizeDepartmentId(dep.dprtmnt_id),
+              },
+            ]),
           ).values(),
         ];
         setDepartment(uniqueDepartments);
-        if (uniqueDepartments.length > 0) {
+        if (uniqueDepartments.length > 0 && !selectedDepartmentFilter) {
           setSelectedDepartmentFilter(String(uniqueDepartments[0].dprtmnt_id));
         }
       } catch (error) {
         console.error("Error fetching departments:", error);
+        if (seededDepartments.length) {
+          setDepartment(seededDepartments);
+        }
       }
     };
     fetchDepartments();
-  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
+  }, [
+    adminData.dprtmnt_id,
+    adminData.dprtmnt_ids,
+    adminData.scopes,
+    scopeRevision,
+  ]);
 
   const maxButtonsToShow = 5;
   let startPage = Math.max(1, currentPage - Math.floor(maxButtonsToShow / 2));

@@ -456,6 +456,7 @@ const SectionPanel = () => {
                       Last
                     </Button>
 
+                    {canCreate && (
                     <Button
                       variant="contained"
                       onClick={() => {
@@ -479,6 +480,7 @@ const SectionPanel = () => {
                     >
                       + Add Section
                     </Button>
+                    )}
                   </Box>
                 </Box>
               </TableCell>
@@ -501,7 +503,9 @@ const SectionPanel = () => {
             <TableRow>
               <TableCell sx={{ fontWeight: "bold", textAlign: "center", border: `1px solid ${borderColor}`, backgroundColor: "#f5f5f5", color: "#000" }}>ID</TableCell>
               <TableCell sx={{ fontWeight: "bold", textAlign: "center", border: `1px solid ${borderColor}`, backgroundColor: "#f5f5f5", color: "#000" }}>Section Description</TableCell>
+              {showActionColumn && (
               <TableCell sx={{ fontWeight: "bold", textAlign: "center", border: `1px solid ${borderColor}`, backgroundColor: "#f5f5f5", color: "#000" }}>Action</TableCell>
+              )}
             </TableRow>
           </TableHead>
           <TableBody
@@ -521,8 +525,10 @@ const SectionPanel = () => {
                 <TableCell sx={{ border: `1px solid ${borderColor}`, textAlign: "center" }}>{startIndex + index + 1}</TableCell>
                 <TableCell sx={{ border: `1px solid ${borderColor}`, textAlign: "center" }}>{section.description}</TableCell>
 
+                {showActionColumn && (
                 <TableCell sx={{ border: `1px solid ${borderColor}`, textAlign: "center" }}>
                   <Box sx={{ display: "flex", gap: 1, justifyContent: "center" }}>
+                    {canEdit && (
                     <Button
                       variant="contained"
                       size="small"
@@ -545,7 +551,9 @@ const SectionPanel = () => {
                       onClick={() => handleEdit(section)}
                     >
                       <EditIcon fontSize="small" /> Edit   </Button>
+                    )}
 
+                    {canDelete && (
                     <Button
                       variant="contained"
                       size="small"
@@ -571,8 +579,10 @@ const SectionPanel = () => {
                     >
                       <DeleteIcon fontSize="small" /> Delete
                     </Button>
+                    )}
                   </Box>
                 </TableCell>
+                )}
 
 
 
@@ -825,6 +835,7 @@ const SectionPanel = () => {
 
           <Button
             variant="contained"
+            disabled={editId ? !canEdit : !canCreate}
             sx={{
               px: 4,
               fontWeight: 600,
@@ -887,6 +898,7 @@ const SectionPanel = () => {
           <Button
             variant="contained"
             color="error"
+            disabled={!canDelete}
             onClick={handleConfirmDelete}
           >
             Yes, Delete

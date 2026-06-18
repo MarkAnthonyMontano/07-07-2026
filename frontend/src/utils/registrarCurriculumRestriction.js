@@ -78,6 +78,37 @@ export const getDepartmentIdsFromAdminData = (adminData = {}) => {
   return [];
 };
 
+export const normalizeDepartmentId = (value) => {
+  if (value === null || value === undefined || value === "") return "";
+  return String(value);
+};
+
+export const departmentIdsMatch = (left, right) =>
+  normalizeDepartmentId(left) === normalizeDepartmentId(right);
+
+export const getDepartmentsFromAdminScopes = (adminData = {}) => {
+  const departmentIds = getDepartmentIdsFromAdminData(adminData).map((id) =>
+    normalizeDepartmentId(id),
+  );
+  const scopes = Array.isArray(adminData.scopes) ? adminData.scopes : [];
+  const scopeById = new Map(
+    scopes.map((scope) => [normalizeDepartmentId(scope.dprtmnt_id), scope]),
+  );
+
+  const ids = departmentIds.length
+    ? departmentIds
+    : [...scopeById.keys()].filter(Boolean);
+
+  return ids.map((id) => {
+    const scope = scopeById.get(id) || {};
+    return {
+      dprtmnt_id: id,
+      dprtmnt_name: scope.dprtmnt_name || `Department ${id}`,
+      dprtmnt_code: scope.dprtmnt_code || "",
+    };
+  });
+};
+
 export const getAllowedCurriculumIds = () => {
   if (typeof window === "undefined") return [];
   return parseJsonArray(localStorage.getItem(ALLOWED_CURRICULUMS_STORAGE_KEY))
@@ -179,22 +210,136 @@ export const isRegistrarCurriculumMatch = (value) => {
   const allowedCurriculumIds = getAllowedCurriculumIds();
   const scopes = getRegistrarScopes();
 
-  if (scopes.length > 0 && allowedCurriculumIds.length === 0) {
-    return false;
-  }
-
   if (allowedCurriculumIds.length > 0) {
     if (value === null || value === undefined || value === "") return false;
     return allowedCurriculumIds.includes(String(value));
   }
 
-  if (scopes.length > 0) return false;
+  if (scopes.length > 0) {
+    return false;
+  }
 
   const curriculumId = getRegistrarCurriculumId();
   if (!curriculumId) return true;
   if (value === null || value === undefined || value === "") return false;
 
   return String(value) === String(curriculumId);
+};
+
+export const getScopedProgramIdsForDepartment = (departmentId = "") => {
+  const scopes = getRegistrarScopes();
+  if (!scopes.length) return null;
+
+  const normalizedDept = normalizeDepartmentId(departmentId);
+  const relevantScopes = normalizedDept
+    ? scopes.filter((scope) => departmentIdsMatch(scope.dprtmnt_id, normalizedDept))
+    : scopes;
+
+  return new Set(
+    relevantScopes.map((scope) => String(scope.program_id)).filter(Boolean),
+  );
+};
+
+export const isRegistrarStudentScopeMatch = (student = {}) => {
+  if (!hasRegistrarCurriculumRestriction()) return true;
+
+  const allowedCurriculumIds = getAllowedCurriculumIds();
+  const curriculumId =
+    student.curriculum_id ??
+    student.active_curriculum ??
+    student.program ??
+    "";
+
+  if (allowedCurriculumIds.length > 0) {
+    if (!curriculumId) return false;
+    return allowedCurriculumIds.includes(String(curriculumId));
+  }
+
+  const scopes = getRegistrarScopes();
+  if (scopes.length > 0) {
+    const programId = String(student.program_id ?? "");
+    const departmentId = normalizeDepartmentId(
+      student.dprtmnt_id ?? student.department_id ?? "",
+    );
+
+    if (programId) {
+      return scopes.some(
+        (scope) =>
+          String(scope.program_id) === programId &&
+          (!departmentId || departmentIdsMatch(scope.dprtmnt_id, departmentId)),
+      );
+    }
+
+    if (curriculumId) {
+      return restrictToRegistrarCurriculum(
+        [{ curriculum_id: curriculumId }],
+        (item) => item.curriculum_id,
+      ).length > 0;
+    }
+
+    return false;
+  }
+
+  const lockedCurriculumId = getRegistrarCurriculumId();
+  if (!lockedCurriculumId) return true;
+  if (!curriculumId) return false;
+  return String(curriculumId) === String(lockedCurriculumId);
+};
+
+export const isRegistrarApplicantScopeMatch = (
+  applicant = {},
+  { curriculumId, programId } = {},
+) => {
+  if (!hasRegistrarCurriculumRestriction()) return true;
+
+  const resolvedCurriculumId =
+    curriculumId ??
+    applicant.program ??
+    applicant.curriculum_id ??
+    applicant.active_curriculum ??
+    "";
+  const resolvedProgramId = programId ?? applicant.program_id ?? "";
+
+  const allowedCurriculumIds = getAllowedCurriculumIds();
+  if (allowedCurriculumIds.length > 0) {
+    if (!resolvedCurriculumId) return false;
+    return allowedCurriculumIds.includes(String(resolvedCurriculumId));
+  }
+
+  const scopes = getRegistrarScopes();
+  if (scopes.length > 0) {
+    if (resolvedProgramId) {
+      return scopes.some(
+        (scope) => String(scope.program_id) === String(resolvedProgramId),
+      );
+    }
+
+    if (resolvedCurriculumId) {
+      return restrictToRegistrarCurriculum(
+        [{ curriculum_id: resolvedCurriculumId }],
+        (item) => item.curriculum_id,
+      ).length > 0;
+    }
+
+    return false;
+  }
+
+  return isRegistrarCurriculumMatch(resolvedCurriculumId);
+};
+
+export const isRegistrarProgramScopeMatch = (
+  programId,
+  departmentId = "",
+) => {
+  if (!hasRegistrarCurriculumRestriction()) return true;
+
+  const scopedProgramIds = getScopedProgramIdsForDepartment(departmentId);
+  if (scopedProgramIds) {
+    if (!programId) return false;
+    return scopedProgramIds.has(String(programId));
+  }
+
+  return true;
 };
 
 export const restrictToRegistrarCurriculum = (items = [], getValue) => {

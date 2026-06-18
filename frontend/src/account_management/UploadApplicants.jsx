@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import {
   Alert,
@@ -147,9 +147,14 @@ const UploadApplicants = () => {
 
   const [selectedFile, setSelectedFile] = useState(null);
   const [applicants, setApplicants] = useState([]);
+  const [totalApplicants, setTotalApplicants] = useState(0);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortOption, setSortOption] = useState("id_desc");
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [totalPages, setTotalPages] = useState(1);
+  const [fetchingApplicants, setFetchingApplicants] = useState(false);
   const [importing, setImporting] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -170,73 +175,58 @@ const UploadApplicants = () => {
   }, [settings]);
 
   useEffect(() => {
-    fetchApplicants();
-  }, []);
-
-  const filteredApplicants = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    const rows = query
-      ? applicants.filter((row) =>
-        [
-          row.applicant_number,
-          row.last_name,
-          row.first_name,
-          row.middle_name,
-          row.program,
-          row.email_address,
-          row.contact_num,
-          row.address,
-          row.date_applied,
-          row.program_display,
-          row.student_number,
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(query),
-      )
-      : applicants;
-
-    return [...rows].sort((a, b) => {
-      if (sortOption === "lname_asc") {
-        return String(a.last_name || "").localeCompare(String(b.last_name || ""), undefined, {
-          sensitivity: "base",
-        });
-      }
-      if (sortOption === "lname_desc") {
-        return String(b.last_name || "").localeCompare(String(a.last_name || ""), undefined, {
-          sensitivity: "base",
-        });
-      }
-      return Number(b.id || 0) - Number(a.id || 0);
-    });
-  }, [applicants, search, sortOption]);
-
-  const itemsPerPage = 10;
-  const totalPages = Math.max(1, Math.ceil(filteredApplicants.length / itemsPerPage));
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedApplicants = filteredApplicants.slice(startIndex, startIndex + itemsPerPage);
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, sortOption, applicants.length]);
+  }, [debouncedSearch, sortOption, itemsPerPage]);
 
   useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(totalPages);
-  }, [currentPage, totalPages]);
+    if (hasAccess) {
+      fetchApplicants();
+    }
+  }, [hasAccess, currentPage, debouncedSearch, sortOption, itemsPerPage]);
 
-  const fetchApplicants = async () => {
+  const fetchApplicants = async (pageOverride) => {
+    const page = pageOverride ?? currentPage;
+
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/get_uploaded_applicants`);
-      const rows = Array.isArray(res.data) ? res.data : res.data?.data;
+      setFetchingApplicants(true);
+      const res = await axios.get(`${API_BASE_URL}/api/get_uploaded_applicants`, {
+        params: {
+          page,
+          limit: itemsPerPage,
+          sort: sortOption,
+          ...(debouncedSearch ? { search: debouncedSearch } : {}),
+        },
+      });
+
+      const payload = res.data;
+      const rows = Array.isArray(payload) ? payload : payload?.data;
+      const nextTotal = Number(payload?.total || 0);
+      const nextTotalPages = Math.max(1, Number(payload?.totalPages || 1));
+
       setApplicants(Array.isArray(rows) ? rows : []);
+      setTotalApplicants(nextTotal);
+      setTotalPages(nextTotalPages);
+
+      if (page > nextTotalPages) {
+        setCurrentPage(nextTotalPages);
+      }
     } catch (err) {
       setSnackbar({
         open: true,
         message: err.response?.data?.error || "Failed to fetch uploaded applicants.",
         severity: "error",
       });
+    } finally {
+      setFetchingApplicants(false);
     }
   };
+
+  const startIndex = (currentPage - 1) * itemsPerPage;
 
   const handleDeleteApplicant = async () => {
     if (!deleteTarget) return;
@@ -244,13 +234,19 @@ const UploadApplicants = () => {
     try {
       setActionLoadingId(deleteTarget.id);
       await axios.delete(`${API_BASE_URL}/api/uploaded-applicants/${deleteTarget.id}`);
-      setApplicants((prev) => prev.filter((row) => row.id !== deleteTarget.id));
       setSnackbar({
         open: true,
         message: "Uploaded applicant deleted successfully.",
         severity: "success",
       });
       setDeleteTarget(null);
+      const nextPage =
+        applicants.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+      if (nextPage !== currentPage) {
+        setCurrentPage(nextPage);
+      } else {
+        await fetchApplicants(nextPage);
+      }
     } catch (err) {
       setSnackbar({
         open: true,
@@ -431,7 +427,7 @@ const UploadApplicants = () => {
       <hr style={{ border: "1px solid #ccc", width: "100%" }} />
 
       <Paper sx={{ p: 2, my: 2, border: `1px solid ${borderColor}` }}>
-        <Box display="grid" gridTemplateColumns={{ xs: "1fr", md: "1fr 220px" }} gap={2}>
+        <Box display="grid" gridTemplateColumns={{ xs: "1fr", md: "1fr 180px 180px" }} gap={2}>
           <TextField
             size="small"
             value={search}
@@ -446,8 +442,21 @@ const UploadApplicants = () => {
               <MenuItem value="lname_desc">Last Name (Z-A)</MenuItem>
             </Select>
           </FormControl>
+          <FormControl size="small">
+            <Select
+              value={itemsPerPage}
+              onChange={(event) => setItemsPerPage(Number(event.target.value))}
+            >
+              <MenuItem value={25}>25 per page</MenuItem>
+              <MenuItem value={50}>50 per page</MenuItem>
+              <MenuItem value={100}>100 per page</MenuItem>
+              <MenuItem value={200}>200 per page</MenuItem>
+            </Select>
+          </FormControl>
         </Box>
       </Paper>
+
+      <LoadingOverlay open={fetchingApplicants} message="Loading applicants..." />
 
       <TableContainer component={Paper} sx={{ border: `1px solid ${borderColor}` }}>
         <Table size="small">
@@ -474,7 +483,7 @@ const UploadApplicants = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {paginatedApplicants.map((row, index) => (
+            {applicants.map((row, index) => (
               <TableRow key={`${row.id}-${row.applicant_number}`}>
                 <TableCell sx={{ color: "black", fontWeight: "bold", border: `1px solid ${borderColor}` }}>{startIndex + index + 1}</TableCell>
                 <TableCell sx={{ color: "black", fontWeight: "bold", border: `1px solid ${borderColor}` }}>{row.applicant_number}</TableCell>
@@ -517,7 +526,7 @@ const UploadApplicants = () => {
                 </TableCell>
               </TableRow>
             ))}
-            {paginatedApplicants.length === 0 && (
+            {applicants.length === 0 && !fetchingApplicants && (
               <TableRow>
                 <TableCell colSpan={12} align="center" sx={{ height: 120 }}>
                   No uploaded applicants found.
@@ -530,7 +539,8 @@ const UploadApplicants = () => {
 
       <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1} mt={2}>
         <Typography fontSize="14px" fontWeight="bold">
-          Total Applicants: {filteredApplicants.length}
+          Total Applicants: {totalApplicants.toLocaleString()}
+          {debouncedSearch ? " (filtered)" : ""}
         </Typography>
         <Box display="flex" alignItems="center" gap={1}>
           <Button size="small" variant="outlined" disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>

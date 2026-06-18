@@ -413,6 +413,7 @@ router.get(
         ON current_sy.astatus = 1
       LEFT JOIN admission.interview_applicants ea
         ON ees.schedule_id = ea.schedule_id
+        AND COALESCE(ea.email_sent, 0) = 1
       WHERE COALESCE(sy.year_id, current_sy.year_id) = ?
         AND COALESCE(sy.semester_id, current_sy.semester_id) = ?${branchClause}
       GROUP BY ees.schedule_id

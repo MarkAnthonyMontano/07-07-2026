@@ -416,7 +416,8 @@ ${shortTerm} Information System
        FROM entrance_exam_schedule s
        INNER JOIN exam_applicants ea
          ON ea.schedule_id = s.schedule_id
-       WHERE ea.applicant_id = ?`,
+       WHERE ea.applicant_id = ?
+         AND COALESCE(ea.email_sent, 0) = 1`,
           [applicantNumber],
         );
 
@@ -459,6 +460,7 @@ ${shortTerm} Information System
       JOIN person_table pt ON an.person_id = pt.person_id
       JOIN entrance_exam_schedule ees ON ea.schedule_id = ees.schedule_id
       WHERE ees.proctor = ?
+        AND COALESCE(ea.email_sent, 0) = 1
     `,
           [proctor_name],
         );
@@ -505,7 +507,8 @@ WHERE proctor LIKE ?
          FROM exam_applicants ea
          JOIN applicant_numbering_table an ON ea.applicant_id = an.applicant_number
          JOIN person_table p ON an.person_id = p.person_id
-         WHERE ea.schedule_id = ?`,
+         WHERE ea.schedule_id = ?
+           AND COALESCE(ea.email_sent, 0) = 1`,
             [sched.schedule_id],
           );
 
@@ -1312,6 +1315,7 @@ WHERE proctor LIKE ?
       JOIN entrance_exam_schedule s
         ON ea.schedule_id = s.schedule_id
       WHERE ea.applicant_id = ?
+        AND COALESCE(ea.email_sent, 0) = 1
       LIMIT 1
     `,
         [applicant_number],
@@ -3360,7 +3364,8 @@ WHERE proctor LIKE ?
            JOIN applicant_numbering_table ant ON ant.applicant_number = ea.applicant_id
            JOIN person_table pt ON pt.person_id = ant.person_id
            JOIN entrance_exam_schedule s ON s.schedule_id = ea.schedule_id
-           WHERE ea.schedule_id = ?`,
+           WHERE ea.schedule_id = ?
+             AND COALESCE(ea.email_sent, 0) = 1`,
             [schedule.schedule_id],
           );
 
@@ -5245,7 +5250,8 @@ WHERE proctor LIKE ?
           ps.exam_result,
 
           ia.qualifying_status,
-          ia.interview_status
+          ia.interview_status,
+          ia.email_sent
 
         FROM interview_applicants ia
         JOIN interview_exam_schedule ies
@@ -5253,6 +5259,7 @@ WHERE proctor LIKE ?
         LEFT JOIN person_status_table ps
           ON ia.applicant_id = ps.applicant_id
         WHERE ia.applicant_id = ?
+          AND COALESCE(ia.email_sent, 0) = 1
         LIMIT 1
         `,
           [applicantNumber],
@@ -6173,6 +6180,7 @@ WHERE proctor LIKE ?
           JOIN interview_exam_schedule s
             ON ia.schedule_id = s.schedule_id
           WHERE ia.schedule_id = ?
+            AND COALESCE(ia.email_sent, 0) = 1
           `,
             [sched.schedule_id],
           );
