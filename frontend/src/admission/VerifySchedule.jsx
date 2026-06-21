@@ -709,12 +709,13 @@ const AssignScheduleToApplicants = () => {
         "8:00 AM – 5:00 PM"
     );
 
-    const [importantReminders, setImportantReminders] = useState(
-        `• Arrive at least 1 hour before your scheduled time.
+const [importantReminders, setImportantReminders] = useState(
+`• Arrive at least 1 hour before your scheduled time.
 • Bring all listed documents and a valid ID.
 • Ensure all documents are Certified True Copies with a dry seal from your school.
+• Place all documents in a long brown envelope with a transparent plastic cover.
 • Incomplete requirements may delay your verification process.`
-    );
+);
 
     const [finalEmailMessage, setFinalEmailMessage] = useState("");
 

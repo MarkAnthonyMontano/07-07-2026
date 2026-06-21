@@ -222,6 +222,7 @@ const SearchCertificateOfRegistration = lazy(() => import("./registrar/SearchCer
 const StudentEnrollment = lazy(() => import("./registrar/StudentEnrollment"));
 const StudentList = lazy(() => import("./registrar/StudentList"));
 const StudentNumbering = lazy(() => import("./registrar/StudentNumbering"));
+const StudentNumberAdmin = lazy(() => import("./system_management/StudentNumberAdmin"));
 const StudentOnlineRequirementsRegistrar = lazy(() => import("./registrar/StudentOnlineRequirementsRegistrar"));
 const SuperAdminApplicantList = lazy(() => import("./registrar/SuperAdminApplicantList"));
 const TranscriptOfRecords = lazy(() => import("./registrar/TranscriptOfRecords"));
@@ -737,6 +738,7 @@ function App() {
                       <Route path="/system_dashboard" element={<ProtectedRoute><SystemDashboardPanel /></ProtectedRoute>} />
                       <Route path="/account_dashboard" element={<ProtectedRoute><AccountDashboard /></ProtectedRoute>} />
                       <Route path="/student_numbering" element={<ProtectedRoute><StudentNumbering /></ProtectedRoute>} />
+                      <Route path="/student_number_admin" element={<ProtectedRoute><StudentNumberAdmin /></ProtectedRoute>} />
                       <Route path="/student_numbering_per_college" element={<ProtectedRoute><StudentNumberingPerCollege /></ProtectedRoute>} />
                       <Route path="/course_tagging" element={<ProtectedRoute><CourseTagging /></ProtectedRoute>} />
                       <Route path="/course_tagging_for_college" element={<ProtectedRoute><CourseTaggingForCollege /></ProtectedRoute>} />

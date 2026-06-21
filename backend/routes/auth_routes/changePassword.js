@@ -36,7 +36,7 @@ router.post("/applicant-change-password", async (req, res) => {
     const user = rows[0];
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) return res.status(401).json({ message: "Current password is incorrect" });
-    const strong = newPassword.length >= 8 && /[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) && /\d/.test(newPassword) && /[!#$^*@]/.test(newPassword);
+    const strong = newPassword.length >= 8 && /[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) && /\d/.test(newPassword) && /^[\s\S]*[!#$^*@\-.<>_&%+=?][\s\S]*$/.test(newPassword);
     if (!strong) return res.status(400).json({ message: "New password does not meet complexity requirements" });
     const hashed = await bcrypt.hash(newPassword, 10);
     // ✅ Clear force_password_change
@@ -62,7 +62,7 @@ router.post("/registrar-change-password", async (req, res) => {
     const user = rows[0];
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) return res.status(401).json({ message: "Current password is incorrect" });
-    const strong = newPassword.length >= 8 && /[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) && /\d/.test(newPassword) && /[!#$^*@]/.test(newPassword);
+    const strong = newPassword.length >= 8 && /[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) && /\d/.test(newPassword) && /^[\s\S]*[!#$^*@\-.<>_&%+=?][\s\S]*$/.test(newPassword);
     if (!strong) return res.status(400).json({ message: "New password does not meet complexity requirements" });
     const hashed = await bcrypt.hash(newPassword, 10);
     // ✅ Clear force_password_change
@@ -89,7 +89,7 @@ router.post("/student-change-password", async (req, res) => {
     const user = rows[0];
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) return res.status(401).json({ message: "Current password is incorrect" });
-    const strong = newPassword.length >= 8 && /[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) && /\d/.test(newPassword) && /[!#$^*@]/.test(newPassword);
+    const strong = newPassword.length >= 8 && /[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) && /\d/.test(newPassword) && /^[\s\S]*[!#$^*@\-.<>_&%+=?][\s\S]*$/.test(newPassword);
     if (!strong) return res.status(400).json({ message: "New password does not meet complexity requirements" });
     const hashed = await bcrypt.hash(newPassword, 10);
     // ✅ Clear force_password_change
@@ -122,7 +122,7 @@ router.post("/faculty-change-password", async (req, res) => {
     const user = rows[0];
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) return res.status(401).json({ message: "Current password is incorrect" });
-    const strong = newPassword.length >= 8 && /[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) && /\d/.test(newPassword) && /[!#$^*@]/.test(newPassword);
+    const strong = newPassword.length >= 8 && /[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) && /\d/.test(newPassword) && /^[\s\S]*[!#$^*@\-.<>_&%+=?][\s\S]*$/.test(newPassword);
     if (!strong) return res.status(400).json({ message: "New password does not meet complexity requirements" });
     const hashed = await bcrypt.hash(newPassword, 10);
     // ✅ Clear force_password_change

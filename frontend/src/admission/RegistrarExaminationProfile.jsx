@@ -867,7 +867,7 @@ const ExaminationProfile = () => {
                   <strong>Step 2:</strong> Bring all required items on the exam day:
                   <ul><li>Official Examination Permit with VERIFIED watermark on it</li><li>No. 2 Pencil (any brand)</li><li>2 Short bond papers</li></ul>
                   <strong>Step 3:</strong> Wear the proper attire:
-                  <ul><li>Plain white T-shirt or plain white polo shirt <strong>(no prints, no logos, no designs)</strong></li><li>Pants (No shorts, No ripped jeans are not Allowed)</li><li>Closed shoes (no crocs, sandals, slippers)</li></ul>
+                  <ul><li>Plain white T-shirt or plain white polo shirt <strong>(no prints, no logos, no designs)</strong></li><li>Pants (Shorts and ripped jeans are not allowed)</li><li>Closed shoes (no crocs, sandals, slippers)</li></ul>
                   <strong>Step 4:</strong> Keep the two paper sheets attached to your exam permit.<br />
                   <strong>Step 5:</strong> Please Arrive at least 1 hour before your examination time. Late applicants will NOT be allowed to enter once the exam room door closes.
                   <br /><br />

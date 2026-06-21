@@ -44,29 +44,44 @@ const insertDepartmentAuditLog = async ({ req, action, message }) => {
 
 // -------------------- CREATE DEPARTMENT --------------------
 router.post("/department", CanCreate, async (req, res) => {
-  const { dep_name, dep_code } = req.body;
+  const { dep_name, dep_code, dept_number } = req.body;
 
-  if (!dep_name || !dep_code) {
+  if (!dep_name || !dep_code || !dept_number) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
   try {
     const normalized_code = dep_code.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
 
-    const [rows] = await db3.query(
-      "SELECT dprtmnt_id FROM dprtmnt_table WHERE dprtmnt_code = ?",
-      [normalized_code],
-    );
+ // Check duplicate department code
+const [rows] = await db3.query(
+  "SELECT dprtmnt_id FROM dprtmnt_table WHERE dprtmnt_code = ?",
+  [normalized_code]
+);
 
-    if (rows.length > 0) {
-      return res.status(400).json({
-        message: "Department already exists",
-      });
-    }
+if (rows.length > 0) {
+  return res.status(400).json({
+    message: "Department code already exists",
+  });
+}
+
+// Check duplicate department number
+const [deptNumberRows] = await db3.query(
+  "SELECT dprtmnt_id FROM dprtmnt_table WHERE dept_number = ?",
+  [dept_number]
+);
+
+if (deptNumberRows.length > 0) {
+  return res.status(400).json({
+    message: "Department number already exists",
+  });
+}
 
     const [result] = await db3.query(
-      "INSERT INTO dprtmnt_table (dprtmnt_name, dprtmnt_code) VALUES (?, ?)",
-      [dep_name, normalized_code],
+      `INSERT INTO dprtmnt_table
+   (dprtmnt_name, dprtmnt_code, dept_number)
+   VALUES (?, ?, ?)`,
+      [dep_name, normalized_code, dept_number]
     );
 
     const { actorId, actorRole } = getAuditActor(req);
@@ -99,20 +114,57 @@ router.get("/get_department", async (req, res) => {
 });
 
 // -------------------- UPDATE DEPARTMENT --------------------
+// -------------------- UPDATE DEPARTMENT --------------------
 router.put("/department/:id", CanEdit, async (req, res) => {
   const { id } = req.params;
-  const { dep_name, dep_code } = req.body;
+  const { dep_name, dep_code, dept_number } = req.body;
 
-  if (!dep_name || !dep_code) {
+  if (!dep_name || !dep_code || !dept_number) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
   try {
+    const normalized_code = dep_code
+      .replace(/[^A-Za-z0-9]/g, "")
+      .toUpperCase();
+
+    // Check if another department already uses this code
+    const [codeRows] = await db3.query(
+      `SELECT dprtmnt_id
+       FROM dprtmnt_table
+       WHERE dprtmnt_code = ?
+       AND dprtmnt_id <> ?`,
+      [normalized_code, id]
+    );
+
+    if (codeRows.length > 0) {
+      return res.status(400).json({
+        message: "Department code already exists",
+      });
+    }
+
+    // Check if another department already uses this department number
+    const [deptNumberRows] = await db3.query(
+      `SELECT dprtmnt_id
+       FROM dprtmnt_table
+       WHERE dept_number = ?
+       AND dprtmnt_id <> ?`,
+      [dept_number, id]
+    );
+
+    if (deptNumberRows.length > 0) {
+      return res.status(400).json({
+        message: "Department number already exists",
+      });
+    }
+
     const [result] = await db3.query(
-      `UPDATE dprtmnt_table 
-       SET dprtmnt_name = ?, dprtmnt_code = ?
+      `UPDATE dprtmnt_table
+       SET dprtmnt_name = ?,
+           dprtmnt_code = ?,
+           dept_number = ?
        WHERE dprtmnt_id = ?`,
-      [dep_name, dep_code, id],
+      [dep_name, normalized_code, dept_number, id]
     );
 
     if (result.affectedRows === 0) {
@@ -121,16 +173,21 @@ router.put("/department/:id", CanEdit, async (req, res) => {
 
     const { actorId, actorRole } = getAuditActor(req);
     const roleLabel = formatAuditActorRole(actorRole);
+
     await insertDepartmentAuditLog({
       req,
       action: "DEPARTMENT_UPDATE",
-      message: `${roleLabel} (${actorId}) updated department ${dep_name} (${dep_code}).`,
+      message: `${roleLabel} (${actorId}) updated department ${dep_name} (${normalized_code}) [Dept No: ${dept_number}].`,
     });
 
-    res.json({ message: "Department updated successfully" });
+    res.json({
+      message: "Department updated successfully",
+    });
   } catch (err) {
     console.error("Error updating department:", err);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
   }
 });
 

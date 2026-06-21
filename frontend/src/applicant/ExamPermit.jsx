@@ -757,7 +757,7 @@ const ExamPermit = ({ personId }) => {
                                 <strong>Step 3:</strong> Wear the proper attire:
                                 <ul>
                                     <li>Plain white T-shirt or plain white polo shirt <strong>(no prints, no logos, no designs)</strong></li>
-                                    <li>Pants (No shorts, No ripped jeans are not Allowed)</li>
+                                    <li>Pants (Shorts and ripped jeans are not allowed)</li>
                                     <li>Closed shoes (no crocs, sandals, slippers)</li>
                                 </ul>
 

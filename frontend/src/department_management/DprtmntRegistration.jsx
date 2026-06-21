@@ -77,7 +77,11 @@ const DepartmentRegistration = () => {
   }, [settings]);
 
 
-  const [department, setDepartment] = useState({ dep_name: '', dep_code: '' });
+  const [department, setDepartment] = useState({
+    dep_name: "",
+    dep_code: "",
+    dept_number: "",
+  });
   const [departmentList, setDepartmentList] = useState([]);
   const [openModal, setOpenModal] = useState(false);
 
@@ -226,7 +230,11 @@ const DepartmentRegistration = () => {
       }
 
       fetchDepartment();
-      setDepartment({ dep_name: "", dep_code: "" });
+      setDepartment({
+        dep_name: "",
+        dep_code: "",
+        dept_number: "",
+      });
       setEditMode(false);
       setSelectedId(null);
       setOpenModal(false);
@@ -253,6 +261,7 @@ const DepartmentRegistration = () => {
     setDepartment({
       dep_name: dept.dprtmnt_name,
       dep_code: dept.dprtmnt_code,
+      dept_number: dept.dept_number,
     });
     setSelectedId(dept.dprtmnt_id);
     setEditMode(true);
@@ -393,7 +402,11 @@ const DepartmentRegistration = () => {
             }}
             onClick={() => {
               setEditMode(false);
-              setDepartment({ dep_name: "", dep_code: "" });
+              setDepartment({
+                dep_name: "",
+                dep_code: "",
+                dept_number: "",
+              });
               setOpenModal(true);
             }}
           >
@@ -454,6 +467,10 @@ const DepartmentRegistration = () => {
 
                     <Typography variant="subtitle" sx={{ color: subtitleColor }}>
                       Code: {department.dprtmnt_code}
+                    </Typography>
+
+                    <Typography variant="subtitle" sx={{ color: subtitleColor }}>
+                      Dept No: {department.dept_number}
                     </Typography>
                   </Box>
 
@@ -573,6 +590,19 @@ const DepartmentRegistration = () => {
               label="Department Code"
               name="dep_code"
               value={department.dep_code}
+              onChange={handleChangesForEverything}
+              fullWidth
+            />
+
+            <Typography fontWeight="bold" mb={1} mt={2}>
+              Department Number:
+            </Typography>
+
+            <TextField
+              label="Department Number"
+              name="dept_number"
+              type="number"
+              value={department.dept_number}
               onChange={handleChangesForEverything}
               fullWidth
             />
