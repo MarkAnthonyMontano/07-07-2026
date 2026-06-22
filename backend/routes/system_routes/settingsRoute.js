@@ -4,7 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const { db } = require("../database/database");
 const { insertAuditLogAdmission } = require("../../utils/auditLogger");
-
+const { computeIsOpen, syncBranchesOpenStatus } = require("../../utils/registrationWindow");
 const router = express.Router();
 
 const formatAuditActorRole = (role) => {
@@ -338,7 +338,22 @@ router.get("/branches", async (req, res) => {
       ],
     }));
 
-    res.json(branches);
+    // ── NEW: live-sync registration_open against the current time ──
+    // If any branch's stored flag disagrees with what the schedule says
+    // it should be right now, correct it and persist the correction.
+    // This is what makes the admin dashboard "self-heal" even if nobody
+    // opens this page exactly at the cutoff moment — the next request
+    // (admin or applicant side) catches up the DB automatically.
+    const { branches: syncedBranches, changed } = syncBranchesOpenStatus(branches);
+
+    if (changed) {
+      await db.query("UPDATE company_settings SET branches = ? WHERE id = 1", [
+        JSON.stringify(syncedBranches),
+      ]);
+      console.log("🔄 Auto-synced registration_open for one or more branches based on schedule.");
+    }
+
+    res.json(syncedBranches);
   } catch (err) {
     console.error("GET ERROR:", err);
     res.status(500).json({ message: err.message });
@@ -562,81 +577,17 @@ router.get("/registration-status/:branch_id", async (req, res) => {
       return res.status(404).json({ message: "No settings found" });
     }
 
-    let branches = JSON.parse(rows[0].branches || "[]");
+    const branches = JSON.parse(rows[0].branches || "[]");
+    const branch = branches.find((b) => b.id == branch_id);
 
-    // ✅ Manila timezone safe
-    const now = new Date(
-      new Date().toLocaleString("en-US", {
-        timeZone: "Asia/Manila",
-      }),
-    );
+    if (!branch) {
+      return res.status(404).json({ message: "Branch not found" });
+    }
 
-    const updatedBranches = branches.map((b) => {
-      if (b.id == branch_id) {
-        let isOpen = Number(b.registration_open) === 1;
-
-        if (isOpen && b.start_date && b.end_date) {
-          const start = new Date(b.start_date + ":00+08:00");
-          const end = new Date(b.end_date + ":00+08:00");
-
-          // ✅ Extract DATE RANGE (ignore time)
-          const today = new Date(now);
-          today.setHours(0, 0, 0, 0);
-
-          const startDate = new Date(start);
-          startDate.setHours(0, 0, 0, 0);
-
-          const endDate = new Date(end);
-          endDate.setHours(0, 0, 0, 0);
-
-          const withinDateRange = today >= startDate && today <= endDate;
-
-          if (withinDateRange) {
-            // ✅ Extract TIME from admin input (NOT hardcoded)
-            const startHour = start.getHours();
-            const startMinute = start.getMinutes();
-
-            const endHour = end.getHours();
-            const endMinute = end.getMinutes();
-
-            const nowHour = now.getHours();
-            const nowMinute = now.getMinutes();
-
-            const nowTotal = nowHour * 60 + nowMinute;
-            const startTotal = startHour * 60 + startMinute;
-            const endTotal = endHour * 60 + endMinute;
-
-            if (startTotal < endTotal) {
-              // 🟢 NORMAL (same day)
-              if (nowTotal >= startTotal && nowTotal <= endTotal) {
-                isOpen = true;
-              }
-            } else {
-              // 🔴 CROSS MIDNIGHT (like 6PM → 6AM)
-              if (nowTotal >= startTotal || nowTotal <= endTotal) {
-                isOpen = true;
-              }
-            }
-          }
-
-          if (now > end) {
-            isOpen = false;
-          }
-        }
-
-        return {
-          ...b,
-          registration_open: isOpen ? 1 : 0,
-        };
-      }
-
-      return b;
-    });
-
-    const branch = updatedBranches.find((b) => b.id == branch_id);
+    const isOpen = computeIsOpen(branch);
 
     res.json({
-      registration_open: branch?.registration_open || 0,
+      registration_open: isOpen ? 1 : 0,
     });
   } catch (err) {
     console.error("STATUS ERROR:", err);

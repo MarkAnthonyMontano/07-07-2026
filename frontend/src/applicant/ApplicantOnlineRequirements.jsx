@@ -101,6 +101,129 @@ const ApplicantOnlineRequirements = () => {
   const [openModal, setOpenModal] = useState(false);
   const [openConfirmModal, setOpenConfirmModal] = useState(false);
 
+
+  const [user, setUser] = useState("");
+  const [userRole, setUserRole] = useState("");
+  const [person, setPerson] = useState({
+    applicant_number: "",
+    profile_img: "",
+    campus: "",
+    academicProgram: "",
+    classifiedAs: "",
+    program: "",
+    program2: "",
+    program3: "",
+    yearLevel: "",
+    last_name: "",
+    first_name: "",
+    middle_name: "",
+    extension: "",
+    nickname: "",
+    height: "",
+    weight: "",
+    lrnNumber: "",
+    gender: "",
+    pwdType: "",
+    pwdId: "",
+    birthOfDate: "",
+    age: "",
+    birthPlace: "",
+    languageDialectSpoken: "",
+    citizenship: "",
+    religion: "",
+    civilStatus: "",
+    tribeEthnicGroup: "",
+    otherEthnicGroup: "",
+    cellphoneNumber: "",
+    emailAddress: "",
+    telephoneNumber: "",
+    facebookAccount: "",
+    presentStreet: "",
+    presentBarangay: "",
+    presentZipCode: "",
+    presentRegion: "",
+    presentProvince: "",
+    presentMunicipality: "",
+    presentDswdHouseholdNumber: "",
+    permanentStreet: "",
+    permanentBarangay: "",
+    permanentZipCode: "",
+    permanentRegion: "",
+    permanentProvince: "",
+    permanentMunicipality: "",
+    permanentDswdHouseholdNumber: "",
+    father_deceased: "",
+    father_family_name: "",
+    father_given_name: "",
+    father_middle_name: "",
+    father_ext: "",
+    father_contact: "",
+    father_occupation: "",
+    father_income: "",
+    father_email: "",
+    mother_deceased: "",
+    mother_family_name: "",
+    mother_given_name: "",
+    mother_middle_name: "",
+    mother_contact: "",
+    mother_occupation: "",
+    mother_income: "",
+    guardian: "",
+    guardian_family_name: "",
+    guardian_given_name: "",
+    guardian_middle_name: "",
+    guardian_ext: "",
+    guardian_nickname: "",
+    guardian_address: "",
+    guardian_contact: "",
+    guardian_email: "",
+    schoolLevel: "",
+    schoolLastAttended: "",
+    schoolAddress: "",
+    courseProgram: "",
+    honor: "",
+    generalAverage: "",
+    yearGraduated: "",
+    schoolLevel1: "",
+    schoolLastAttended1: "",
+    schoolAddress1: "",
+    courseProgram1: "",
+    honor1: "",
+    generalAverage1: "",
+    yearGraduated1: "",
+    strand: "",
+  });
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("email");
+    const storedRole = localStorage.getItem("role");
+    const storedID = localStorage.getItem("person_id");
+
+    if (storedUser && storedRole && storedID) {
+      setUser(storedUser);
+      setUserRole(storedRole);
+      setUserID(storedID);
+
+      if (storedRole === "applicant" || storedRole === "registrar") {
+        fetchPersonData(storedID);
+      } else {
+        window.location.href = "/login";
+      }
+    } else {
+      window.location.href = "/login";
+    }
+  }, []);
+
+  // ✅ Fetch person data from backend
+  const fetchPersonData = async (id) => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/person/${id}`);
+      setPerson(res.data); // make sure backend returns the correct format
+    } catch (error) {
+      console.error("Failed to fetch person:", error);
+    }
+  };
+
   const fetchUploads = async (personId) => {
     try {
       const res = await axios.get(`${API_BASE_URL}/api/uploads/${personId}`);
@@ -207,25 +330,36 @@ const ApplicantOnlineRequirements = () => {
     return null;
   };
 
-  // 🔒 Disable right-click
-  document.addEventListener("contextmenu", (e) => e.preventDefault());
+  const formatBirthDate = (dateValue) => {
+    if (!dateValue) return "—";
+    const d = new Date(dateValue);
+    if (isNaN(d.getTime())) return dateValue; // fallback: show raw value if it can't be parsed
+    return d.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
 
-  // 🔒 Block DevTools shortcuts + Ctrl+P silently
-  document.addEventListener("keydown", (e) => {
-    const isBlockedKey =
-      e.key === "F12" ||
-      e.key === "F11" ||
-      (e.ctrlKey &&
-        e.shiftKey &&
-        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-      (e.ctrlKey && e.key.toLowerCase() === "u") ||
-      (e.ctrlKey && e.key.toLowerCase() === "p");
+  // // 🔒 Disable right-click
+  // document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-    if (isBlockedKey) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  });
+  // // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  // document.addEventListener("keydown", (e) => {
+  //   const isBlockedKey =
+  //     e.key === "F12" ||
+  //     e.key === "F11" ||
+  //     (e.ctrlKey &&
+  //       e.shiftKey &&
+  //       (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+  //     (e.ctrlKey && e.key.toLowerCase() === "u") ||
+  //     (e.ctrlKey && e.key.toLowerCase() === "p");
+
+  //   if (isBlockedKey) {
+  //     e.preventDefault();
+  //     e.stopPropagation();
+  //   }
+  // });
 
   // Mobile card per document
   const renderMobileCard = (doc) => {
@@ -446,6 +580,107 @@ const ApplicantOnlineRequirements = () => {
             <Typography sx={{ fontSize: "13.5px", color: "#333", lineHeight: 1.65 }}>
               The <strong style={{ color: settings?.header_color || "#1976d2" }}>Admission Office</strong> will contact you regarding the evaluation of your submitted documents.
             </Typography>
+          </Box>
+
+          {/* Applicant summary card */}
+          <Box
+            sx={{
+              border: `1.5px solid ${settings?.header_color || "#1976d2"}`,
+              borderRadius: "12px",
+              overflow: "hidden",
+              mb: 1,
+            }}
+          >
+            <Box
+              sx={{
+                backgroundColor: settings?.header_color || "#1976d2",
+                px: 2,
+                py: 1,
+              }}
+            >
+              <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: 13 }}>
+                Your Application Details
+              </Typography>
+            </Box>
+
+            <Box sx={{ p: 2, backgroundColor: "#fafcff" }}>
+              <Typography sx={{ fontSize: 12.5, color: "#000", mb: 0.25 }}>
+                Applicant Name
+              </Typography>
+              <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 1.5 }}>
+                <Box sx={{ flex: "1 1 22%", minWidth: 100 }}>
+                  <Typography sx={{ fontSize: 11, color: "#666" }}>First Name</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>
+                    {person.first_name || "—"}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: "1 1 22%", minWidth: 100 }}>
+                  <Typography sx={{ fontSize: 11, color: "#666" }}>Middle Name</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>
+                    {person.middle_name || "—"}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: "1 1 22%", minWidth: 100 }}>
+                  <Typography sx={{ fontSize: 11, color: "#666" }}>Last Name</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>
+                    {person.last_name || "—"}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: "1 1 18%", minWidth: 80 }}>
+                  <Typography sx={{ fontSize: 11, color: "#666" }}>Extension</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>
+                    {person.extension || "—"}
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  backgroundColor: "#fff3cd",
+                  border: "1.5px dashed #d4a017",
+                  borderRadius: "8px",
+                  p: 1.25,
+                  mb: 1.5,
+                }}
+              >
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ fontSize: 11.5, color: "#7a5c00", fontWeight: 700, letterSpacing: "0.04em" }}>
+                    ⚠️ PLEASE REMEMBER YOUR APPLICANT NUMBER
+                  </Typography>
+                  <Typography sx={{ fontSize: 18, fontWeight: 800, color: "#5d4500", textAlign: "center", letterSpacing: "0.03em", mt: 0.25 }}>
+                    {person.applicant_number || "—"}
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                <Box sx={{ flex: "1 1 45%", minWidth: 130 }}>
+                  <Typography sx={{ fontSize: 11.5, color: "#000" }}>Birth Date</Typography>
+                  <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: "#222" }}>
+                    {formatBirthDate(person.birthOfDate)}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: "1 1 30%", minWidth: 90 }}>
+                  <Typography sx={{ fontSize: 11.5, color: "#000" }}>Age</Typography>
+                  <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: "#222" }}>
+                    {person.age || "—"}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: "1 1 100%" }}>
+                  <Typography sx={{ fontSize: 11.5, color: "#000" }}>Gmail / Email Address</Typography>
+                  <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: "#222", wordBreak: "break-all" }}>
+                    {person.emailAddress || "—"}
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Typography sx={{ fontSize: 11.5, color: "#888", mt: 1.5, fontStyle: "italic", lineHeight: 1.5 }}>
+                Please verify that your birth date and Gmail address above are correct. These will be used to identify you and send important updates regarding your application.
+              </Typography>
+            </Box>
           </Box>
           <Box sx={{ borderTop: "1px solid #e0e0e0", my: 2 }} />
           <Box sx={{ display: "flex", gap: 1.5, mb: 1, flexDirection: { xs: "column", sm: "row" } }}>

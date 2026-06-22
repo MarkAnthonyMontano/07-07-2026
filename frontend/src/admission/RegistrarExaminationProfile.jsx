@@ -847,13 +847,39 @@ const ExaminationProfile = () => {
                 </div>
               </td>
             </tr>
-            <tr style={{ fontFamily: "Arial", fontSize: "15px" }}>
-              <td colSpan={20}>
-                <div style={{ display: "flex", alignItems: "center", width: "100%", marginTop: "-128px" }}>
-                  <label style={{ fontWeight: "bold", whiteSpace: "nowrap", marginRight: "10px" }}>Scheduled by:</label>
-                  <span style={{ flexGrow: 1, borderBottom: "1px solid black", fontFamily: "Arial" }}>{scheduledBy || "N/A"}</span>
+            <tr>
+              <td colSpan={40}>
+                <div style={{ display: "flex", alignItems: "center", width: "50%", marginTop: "-145px" }}>
+                  <label style={{ fontWeight: "bold", marginRight: "10px" }}>
+                    Date Verified:
+                  </label>
+                  <span style={{ flexGrow: 1, borderBottom: "1px solid black", fontFamily: "Arial" }}>
+                    {verifiedAt
+                      ? new Date(verifiedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+                      : ""}
+                  </span>
                 </div>
               </td>
+            </tr>
+            {/* Scheduled By */}
+            <tr>
+              <td colSpan={40}>
+                <div style={{ display: "flex", alignItems: "center", width: "50%", marginTop: "-125px" }}>
+                  <label style={{ fontWeight: "bold", marginRight: "10px" }}>
+                    Scheduled by:
+                  </label>
+                  <span
+                    style={{
+                      flexGrow: 1,
+                      borderBottom: "1px solid black",
+                      fontFamily: "Arial",
+                    }}
+                  >
+                    {scheduledBy || "N/A"}
+                  </span>
+                </div>
+              </td>
+
             </tr>
           </tbody>
         </table>
@@ -1015,7 +1041,7 @@ const ExaminationProfile = () => {
 
       <hr style={{ border: "1px solid #ccc", width: "100%" }} />
       <br />
-       <br />
+      <br />
 
       {/* Nav tabs */}
       <Box sx={{ display: "flex", justifyContent: "space-between", flexWrap: "nowrap", width: "100%", gap: 2 }}>
@@ -1065,7 +1091,7 @@ const ExaminationProfile = () => {
               <Typography fontSize="14px" fontWeight="bold" color="white">Total Signatures: {signatures.length}</Typography>
               <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
                 {[{ label: "First", action: () => setSignaturePage(0), disabled: signaturePage === 0 },
-                  { label: "Prev", action: () => setSignaturePage((p) => Math.max(p - 1, 0)), disabled: signaturePage === 0 }].map(({ label, action, disabled }) => (
+                { label: "Prev", action: () => setSignaturePage((p) => Math.max(p - 1, 0)), disabled: signaturePage === 0 }].map(({ label, action, disabled }) => (
                   <Button key={label} onClick={action} disabled={disabled} variant="outlined" size="small" sx={{ minWidth: 80, color: "white", borderColor: "white", backgroundColor: "transparent", "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" }, "&.Mui-disabled": { color: "white", borderColor: "white", backgroundColor: "transparent", opacity: 1 } }}>{label}</Button>
                 ))}
                 <FormControl size="small" sx={{ minWidth: 90 }}>
@@ -1077,7 +1103,7 @@ const ExaminationProfile = () => {
                 </FormControl>
                 <Typography fontSize="11px" color="white">of {totalSignaturePages} page{totalSignaturePages > 1 ? "s" : ""}</Typography>
                 {[{ label: "Next", action: () => setSignaturePage((p) => Math.min(p + 1, totalSignaturePages - 1)), disabled: signaturePage >= totalSignaturePages - 1 },
-                  { label: "Last", action: () => setSignaturePage(totalSignaturePages - 1), disabled: signaturePage >= totalSignaturePages - 1 }].map(({ label, action, disabled }) => (
+                { label: "Last", action: () => setSignaturePage(totalSignaturePages - 1), disabled: signaturePage >= totalSignaturePages - 1 }].map(({ label, action, disabled }) => (
                   <Button key={label} onClick={action} disabled={disabled} variant="outlined" size="small" sx={{ minWidth: 80, color: "white", borderColor: "white", backgroundColor: "transparent", "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" }, "&.Mui-disabled": { color: "white", borderColor: "white", backgroundColor: "transparent", opacity: 1 } }}>{label}</Button>
                 ))}
               </Box>
@@ -1121,7 +1147,7 @@ const ExaminationProfile = () => {
             <Typography fontSize="14px" fontWeight="bold" color="white">Total Signatures: {signatures.length}</Typography>
             <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
               {[{ label: "First", action: () => setSignaturePage(0), disabled: signaturePage === 0 },
-                { label: "Prev", action: () => setSignaturePage((p) => Math.max(p - 1, 0)), disabled: signaturePage === 0 }].map(({ label, action, disabled }) => (
+              { label: "Prev", action: () => setSignaturePage((p) => Math.max(p - 1, 0)), disabled: signaturePage === 0 }].map(({ label, action, disabled }) => (
                 <Button key={label} onClick={action} disabled={disabled} variant="outlined" size="small" sx={{ minWidth: 80, color: "white", borderColor: "white", backgroundColor: "transparent", "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" }, "&.Mui-disabled": { color: "white", borderColor: "white", backgroundColor: "transparent", opacity: 1 } }}>{label}</Button>
               ))}
               <FormControl size="small" sx={{ minWidth: 90 }}>
@@ -1133,7 +1159,7 @@ const ExaminationProfile = () => {
               </FormControl>
               <Typography fontSize="11px" color="white">of {totalSignaturePages} page{totalSignaturePages > 1 ? "s" : ""}</Typography>
               {[{ label: "Next", action: () => setSignaturePage((p) => Math.min(p + 1, totalSignaturePages - 1)), disabled: signaturePage >= totalSignaturePages - 1 },
-                { label: "Last", action: () => setSignaturePage(totalSignaturePages - 1), disabled: signaturePage >= totalSignaturePages - 1 }].map(({ label, action, disabled }) => (
+              { label: "Last", action: () => setSignaturePage(totalSignaturePages - 1), disabled: signaturePage >= totalSignaturePages - 1 }].map(({ label, action, disabled }) => (
                 <Button key={label} onClick={action} disabled={disabled} variant="outlined" size="small" sx={{ minWidth: 80, color: "white", borderColor: "white", backgroundColor: "transparent", "&:hover": { borderColor: "white", backgroundColor: "rgba(255,255,255,0.1)" }, "&.Mui-disabled": { color: "white", borderColor: "white", backgroundColor: "transparent", opacity: 1 } }}>{label}</Button>
               ))}
             </Box>

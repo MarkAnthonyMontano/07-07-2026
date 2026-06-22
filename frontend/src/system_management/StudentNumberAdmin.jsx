@@ -45,7 +45,7 @@ function buildNumber(activeYear, deptNum, seq, branchLetter) {
   return `${y}${d}-${s}${b}`;
 }
 
-const ROWS_PER_PAGE = 5;
+const ROWS_PER_PAGE = 25;
 
 const StudentNumberAdmin = () => {
   const settings = useContext(SettingsContext);
@@ -140,6 +140,14 @@ const StudentNumberAdmin = () => {
         d.dprtmnt_id === id
           ? { ...d, dept_number: val === "" ? null : parseInt(val) }
           : d
+      )
+    );
+  };
+
+  const updateDeptComponents = (id, val) => {
+    setDepts((prev) =>
+      prev.map((d) =>
+        d.dprtmnt_id === id ? { ...d, components: parseInt(val) } : d
       )
     );
   };
@@ -241,7 +249,7 @@ const StudentNumberAdmin = () => {
       </Box>
       {label && (
         <Typography
-          fontSize={9}
+          fontSize={13}
           color="text.secondary"
           mt={0.3}
           sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}
@@ -254,7 +262,7 @@ const StudentNumberAdmin = () => {
 
   const commonHeaderCellSx = {
     fontWeight: 600,
-    fontSize: 11,
+    fontSize: 12,
     textTransform: "uppercase",
     color: "text.secondary",
     backgroundColor: "#f5f5f5",
@@ -313,7 +321,7 @@ const StudentNumberAdmin = () => {
                   Live Preview
                 </Typography>
                 <Box sx={{ textAlign: "right" }}>
-                  <Typography fontSize={11} sx={{ color: "rgba(255,255,255,0.75)" }}>
+                  <Typography fontSize={13} sx={{ color: "rgba(255,255,255,0.75)" }}>
                     Active School Year
                   </Typography>
                   <Typography
@@ -373,7 +381,7 @@ const StudentNumberAdmin = () => {
                     >
                       {depts.map((d) => (
                         <MenuItem key={d.dprtmnt_id} value={d.dprtmnt_id}>
-                          {d.dprtmnt_code} — dept #{d.dept_number ?? "?"}
+                          {d.dprtmnt_code} — {d.dprtmnt_name ?? "?"}
                         </MenuItem>
                       ))}
                     </Select>
@@ -408,7 +416,7 @@ const StudentNumberAdmin = () => {
                 </Box>
               </Box>
 
-              <Typography fontSize={11} color="text.secondary" mt={1.5}>
+              <Typography fontSize={13} color="text.secondary" mt={1.5}>
                 Format: <code>YY + dept # − sequence + branch letter</code>. Sequence shown
                 here is for preview only — the real number is assigned automatically and
                 increments per department, per year.
@@ -515,8 +523,8 @@ const StudentNumberAdmin = () => {
                 <Table size="small" sx={{ mt: 1 }}>
                   <TableHead>
                     <TableRow>
-                      {["#", "Department", "Code", "Dept #", "Status"].map((h) => (
-                        <TableCell key={h} sx={commonHeaderCellSx} align={h === "Dept #" || h === "Status" ? "center" : "left"}>
+                      {["#", "Department", "Code", "Dept #", "Branch", "Status"].map((h) => (
+                        <TableCell key={h} sx={commonHeaderCellSx} align={["Dept #", "Branch", "Status"].includes(h) ? "center" : "left"}>
                           {h}
                         </TableCell>
                       ))}
@@ -530,7 +538,7 @@ const StudentNumberAdmin = () => {
                   >
                     {paginatedDepts.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} sx={{ ...commonBodyCellSx, textAlign: "center", py: 4 }}>
+                        <TableCell colSpan={13} sx={{ ...commonBodyCellSx, textAlign: "center", py: 4 }}>
                           No departments found.
                         </TableCell>
                       </TableRow>
@@ -546,8 +554,8 @@ const StudentNumberAdmin = () => {
                               borderLeft: isDup
                                 ? "3px solid #d32f2f"
                                 : isEmpty
-                                ? "3px solid #ed6c02"
-                                : "3px solid transparent",
+                                  ? "3px solid #ed6c02"
+                                  : "3px solid transparent",
                               "& td": { border: `1px solid ${borderColor}`, color: "black" },
                             }}
                           >
@@ -577,6 +585,17 @@ const StudentNumberAdmin = () => {
                               />
                             </TableCell>
                             <TableCell align="center">
+                              <Select
+                                size="small"
+                                value={d.components ?? 1}
+                                onChange={(e) => updateDeptComponents(d.dprtmnt_id, e.target.value)}
+                                sx={{ minWidth: 100 }}
+                              >
+                                <MenuItem value={1}>Manila</MenuItem>
+                                <MenuItem value={2}>Cavite</MenuItem>
+                              </Select>
+                            </TableCell>
+                            <TableCell align="center">
                               <Chip
                                 size="small"
                                 label={isDup ? "Duplicate" : isEmpty ? "Missing" : "OK"}
@@ -602,7 +621,7 @@ const StudentNumberAdmin = () => {
                     py={1.5}
                     borderTop={`1px solid ${borderColor}`}
                   >
-                    <Typography fontSize={12} color="text.secondary">
+                    <Typography fontSize={13} color="text.secondary">
                       Page {deptPage + 1} of {deptTotalPages} ({depts.length} total)
                     </Typography>
                     <IconButton
@@ -778,7 +797,7 @@ const StudentNumberAdmin = () => {
                     py={1.5}
                     borderTop={`1px solid ${borderColor}`}
                   >
-                    <Typography fontSize={12} color="text.secondary">
+                    <Typography fontSize={13} color="text.secondary">
                       Page {branchPage + 1} of {branchTotalPages} ({branches.length} total)
                     </Typography>
                     <IconButton
@@ -817,6 +836,7 @@ const StudentNumberAdmin = () => {
                   <TableRow>
                     <TableCell sx={commonHeaderCellSx}>Department</TableCell>
                     <TableCell sx={{ ...commonHeaderCellSx, textAlign: "center" }}>Dept #</TableCell>
+                    <TableCell sx={{ ...commonHeaderCellSx, textAlign: "center" }}>Branch</TableCell>
                     {branches.map((b) => (
                       <TableCell key={b.id} sx={{ ...commonHeaderCellSx, textAlign: "center" }}>
                         {b.branch}
@@ -858,6 +878,12 @@ const StudentNumberAdmin = () => {
                         }}
                       >
                         {d.dept_number ?? "—"}
+                      </TableCell>
+                      <TableCell
+                        align="center"
+                        sx={{ fontSize: 12, fontWeight: 600 }}
+                      >
+                        {Number(d.components) === 2 ? "Cavite" : "Manila"}
                       </TableCell>
                       {branches.map((b) => {
                         const num = buildNumber(activeYear, d.dept_number, 1, b.letter_code);

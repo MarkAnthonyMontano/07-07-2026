@@ -44,9 +44,9 @@ const insertDepartmentAuditLog = async ({ req, action, message }) => {
 
 // -------------------- CREATE DEPARTMENT --------------------
 router.post("/department", CanCreate, async (req, res) => {
-  const { dep_name, dep_code, dept_number } = req.body;
+  const { dep_name, dep_code, dept_number, components } = req.body;
 
-  if (!dep_name || !dep_code || !dept_number) {
+  if (!dep_name || !dep_code || !dept_number || !components) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
@@ -79,9 +79,9 @@ if (deptNumberRows.length > 0) {
 
     const [result] = await db3.query(
       `INSERT INTO dprtmnt_table
-   (dprtmnt_name, dprtmnt_code, dept_number)
-   VALUES (?, ?, ?)`,
-      [dep_name, normalized_code, dept_number]
+   (dprtmnt_name, dprtmnt_code, dept_number, components)
+   VALUES (?, ?, ?, ?)`,
+      [dep_name, normalized_code, dept_number, components]
     );
 
     const { actorId, actorRole } = getAuditActor(req);
@@ -117,9 +117,9 @@ router.get("/get_department", async (req, res) => {
 // -------------------- UPDATE DEPARTMENT --------------------
 router.put("/department/:id", CanEdit, async (req, res) => {
   const { id } = req.params;
-  const { dep_name, dep_code, dept_number } = req.body;
+  const { dep_name, dep_code, dept_number, components } = req.body;
 
-  if (!dep_name || !dep_code || !dept_number) {
+  if (!dep_name || !dep_code || !dept_number || !components) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
@@ -162,9 +162,10 @@ router.put("/department/:id", CanEdit, async (req, res) => {
       `UPDATE dprtmnt_table
        SET dprtmnt_name = ?,
            dprtmnt_code = ?,
-           dept_number = ?
+           dept_number = ?,
+           components = ?
        WHERE dprtmnt_id = ?`,
-      [dep_name, normalized_code, dept_number, id]
+      [dep_name, normalized_code, dept_number, components, id]
     );
 
     if (result.affectedRows === 0) {

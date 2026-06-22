@@ -51,6 +51,9 @@ const DepartmentRegistration = () => {
   const [shortTerm, setShortTerm] = useState("");
   const [campusAddress, setCampusAddress] = useState("");
 
+  // 🏢 Branches (from company_settings.branches) - used for the "components" field
+  const [branches, setBranches] = useState([]);
+
   useEffect(() => {
     if (!settings) return;
 
@@ -74,13 +77,36 @@ const DepartmentRegistration = () => {
     if (settings.short_term) setShortTerm(settings.short_term);
     if (settings.campus_address) setCampusAddress(settings.campus_address);
 
+    // 🏢 Branches (components dropdown source)
+    if (settings.branches) {
+      try {
+        const parsedBranches =
+          typeof settings.branches === "string"
+            ? JSON.parse(settings.branches)
+            : settings.branches;
+        setBranches(Array.isArray(parsedBranches) ? parsedBranches : []);
+      } catch (err) {
+        console.error("Error parsing branches:", err);
+        setBranches([]);
+      }
+    }
+
   }, [settings]);
 
+  // 🔎 Helper to get a branch name from its id (used on cards)
+  const getBranchName = (componentId) => {
+    if (!componentId) return "—";
+    const match = branches.find(
+      (b) => String(b.id) === String(componentId)
+    );
+    return match ? match.branch : `Branch #${componentId}`;
+  };
 
   const [department, setDepartment] = useState({
     dep_name: "",
     dep_code: "",
     dept_number: "",
+    components: "",
   });
   const [departmentList, setDepartmentList] = useState([]);
   const [openModal, setOpenModal] = useState(false);
@@ -179,7 +205,12 @@ const DepartmentRegistration = () => {
   const [selectedId, setSelectedId] = useState(null);
 
   const handleAddingDepartment = async () => {
-    if (!department.dep_name || !department.dep_code) {
+    if (
+      !department.dep_name ||
+      !department.dep_code ||
+      !department.dept_number ||
+      !department.components
+    ) {
       setSnack({
         open: true,
         message: "Please fill all fields",
@@ -234,6 +265,7 @@ const DepartmentRegistration = () => {
         dep_name: "",
         dep_code: "",
         dept_number: "",
+        components: "",
       });
       setEditMode(false);
       setSelectedId(null);
@@ -262,6 +294,7 @@ const DepartmentRegistration = () => {
       dep_name: dept.dprtmnt_name,
       dep_code: dept.dprtmnt_code,
       dept_number: dept.dept_number,
+      components: dept.components ?? "",
     });
     setSelectedId(dept.dprtmnt_id);
     setEditMode(true);
@@ -406,6 +439,7 @@ const DepartmentRegistration = () => {
                 dep_name: "",
                 dep_code: "",
                 dept_number: "",
+                components: "",
               });
               setOpenModal(true);
             }}
@@ -471,6 +505,10 @@ const DepartmentRegistration = () => {
 
                     <Typography variant="subtitle" sx={{ color: subtitleColor }}>
                       Dept No: {department.dept_number}
+                    </Typography>
+
+                    <Typography variant="subtitle" sx={{ color: subtitleColor }}>
+                      Branch: {getBranchName(department.components)}
                     </Typography>
                   </Box>
 
@@ -606,6 +644,27 @@ const DepartmentRegistration = () => {
               onChange={handleChangesForEverything}
               fullWidth
             />
+
+            <Typography fontWeight="bold" mb={1} mt={2}>
+              Branch:
+            </Typography>
+
+            <Select
+              name="components"
+              value={department.components}
+              onChange={handleChangesForEverything}
+              displayEmpty
+              fullWidth
+            >
+              <MenuItem value="">
+                <em>Select a branch</em>
+              </MenuItem>
+              {branches.map((branch) => (
+                <MenuItem key={branch.id} value={branch.id}>
+                  {branch.branch}
+                </MenuItem>
+              ))}
+            </Select>
           </Box>
         </DialogContent>
 

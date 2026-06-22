@@ -203,11 +203,11 @@ module.exports = function registerSocketHandlers({
     const yy = String(yearRow?.yr || new Date().getFullYear()).slice(-2);
 
     const [[deptRow]] = await db3.query(
-      `SELECT dt.dept_number
-     FROM dprtmnt_curriculum_table dct
-     JOIN dprtmnt_table dt ON dct.dprtmnt_id = dt.dprtmnt_id
-     WHERE dct.curriculum_id = ?
-     LIMIT 1`,
+      `SELECT dt.dept_number, dt.components AS dept_components
+ FROM dprtmnt_curriculum_table dct
+ JOIN dprtmnt_table dt ON dct.dprtmnt_id = dt.dprtmnt_id
+ WHERE dct.curriculum_id = ?
+ LIMIT 1`,
       [person_data.program],
     );
 
@@ -219,16 +219,25 @@ module.exports = function registerSocketHandlers({
     }
     const deptNum = deptRow.dept_number;
 
+    // ── Branch is derived from dprtmnt_table.components, NOT person_data.campus ──
+    // components: 1 = Manila, 2 = Cavite. The department is authoritative here:
+    // e.g. dept 12 "Earist (Cavite Branch)" and dept 13 "Graduate School ... (Cavite Branch)"
+    // are Cavite regardless of what campus the applicant happened to select on the form.
+    const deptComponents = deptRow.dept_components;
+
     const [[companyRow]] = await db.query(
       'SELECT branches FROM company_settings WHERE id = 1',
     );
     const branchList = JSON.parse(companyRow?.branches || '[]');
-    const campusId = parseInt(person_data.campus);
-    const branch = branchList.find(b => b.id === campusId);
+
+    const targetBranchName = Number(deptComponents) === 2 ? 'Cavite' : 'Manila';
+    const branch = branchList.find(
+      (b) => String(b.branch || '').trim().toLowerCase() === targetBranchName.toLowerCase(),
+    );
 
     if (!branch?.letter_code) {
       throw new Error(
-        `No letter_code configured for campus id=${campusId}. ` +
+        `No letter_code configured for branch "${targetBranchName}" (derived from department components=${deptComponents}, dept_number=${deptNum}). ` +
         `Open the Student Number Configuration panel → Branch letters.`,
       );
     }
@@ -3712,7 +3721,7 @@ ${process.env.DB_HOST_LOCAL}:5173/login
 
   ///////---------------------------- DUPLICATE ----------------------------//////////
   app.get("/api/departments", async (req, res) => {
-    const sql = "SELECT dprtmnt_id, dprtmnt_code, dprtmnt_name, dept_number FROM dprtmnt_table";
+    const sql = "SELECT dprtmnt_id, dprtmnt_code, dprtmnt_name, dept_number, components FROM dprtmnt_table";
 
     try {
       const [result] = await db3.query(sql);
@@ -4645,7 +4654,7 @@ ${process.env.DB_HOST_LOCAL}:5173/login
     try {
       const [departments] = await db3.execute(
         `
-      SELECT dt.dprtmnt_id, dt.dprtmnt_name, dt.dprtmnt_code, dept_number FROM dprtmnt_table AS dt WHERE dt.dprtmnt_id = ?
+      SELECT dt.dprtmnt_id, dt.dprtmnt_name, dt.dprtmnt_code, dept_number, components FROM dprtmnt_table AS dt WHERE dt.dprtmnt_id = ?
     `,
         [dprtmnt_id],
       );
@@ -4659,7 +4668,7 @@ ${process.env.DB_HOST_LOCAL}:5173/login
   app.get("/api/departments", async (req, res) => {
     try {
       const [departments] = await db3.execute(`
-      SELECT dt.dprtmnt_id, dt.dprtmnt_name, dt.dprtmnt_code, dt.dept_number FROM dprtmnt_table AS dt
+      SELECT dt.dprtmnt_id, dt.dprtmnt_name, dt.dprtmnt_code, dt.dept_number, components FROM dprtmnt_table AS dt
     `);
       res.json(departments);
     } catch (err) {
@@ -5199,7 +5208,9 @@ ${process.env.DB_HOST_LOCAL}:5173/login
         pt.components,
         pt.academic_program,
         d.dprtmnt_id,
-        d.dprtmnt_name
+        d.dprtmnt_name,
+        d.dept_number,
+        d.components
       FROM curriculum_table AS ct
       INNER JOIN program_table AS pt ON pt.program_id = ct.program_id
       INNER JOIN dprtmnt_curriculum_table AS dc ON ct.curriculum_id = dc.curriculum_id
@@ -8111,9 +8122,9 @@ ${process.env.DB_HOST_LOCAL}:5173/login
   app.get('/api/admin/dept-numbers', async (req, res) => {
     try {
       const [rows] = await db3.query(
-        `SELECT dprtmnt_id, dprtmnt_name, dprtmnt_code, dept_number
-         FROM dprtmnt_table
-         ORDER BY dprtmnt_id ASC`
+        `SELECT dprtmnt_id, dprtmnt_name, dprtmnt_code, dept_number, components
+       FROM dprtmnt_table
+       ORDER BY dprtmnt_id ASC`
       );
       res.json(rows);
     } catch (err) {
@@ -8135,7 +8146,6 @@ ${process.env.DB_HOST_LOCAL}:5173/login
       return res.status(400).json({ error: 'departments array is required' });
     }
 
-    // Guard: no duplicate dept_numbers
     const nums = departments.map(d => d.dept_number).filter(n => n !== null && n !== undefined);
     const seen = new Set();
     for (const n of nums) {
@@ -8143,20 +8153,38 @@ ${process.env.DB_HOST_LOCAL}:5173/login
       seen.add(n);
     }
 
+    // Default missing/null components to Manila (1) — matches the frontend's
+    // display fallback (`d.components ?? 1`) so what gets saved matches what
+    // the registrar saw on screen. Only reject values that are genuinely wrong.
+    const normalizedDepartments = departments.map((d) => ({
+      ...d,
+      components: d.components === null || d.components === undefined
+        ? 1
+        : Number(d.components),
+    }));
+
+    const invalidComponents = normalizedDepartments.filter(
+      (d) => ![1, 2].includes(d.components),
+    );
+    if (invalidComponents.length > 0) {
+      return res.status(400).json({
+        error: `Invalid components value for dprtmnt_id(s): ${invalidComponents.map(d => d.dprtmnt_id).join(', ')}. Must be 1 (Manila) or 2 (Cavite).`,
+      });
+    }
+
     try {
-      for (const dept of departments) {
+      for (const dept of normalizedDepartments) {
         await db3.query(
-          'UPDATE dprtmnt_table SET dept_number = ? WHERE dprtmnt_id = ?',
-          [dept.dept_number ?? null, dept.dprtmnt_id]
+          'UPDATE dprtmnt_table SET dept_number = ?, components = ? WHERE dprtmnt_id = ?',
+          [dept.dept_number ?? null, dept.components, dept.dprtmnt_id]
         );
       }
-      res.json({ success: true, updated: departments.length });
+      res.json({ success: true, updated: normalizedDepartments.length });
     } catch (err) {
       console.error('[admin/dept-numbers PUT]', err);
       res.status(500).json({ error: err.message });
     }
   });
-
 
   // ─────────────────────────────────────────────────────────────────────────────
   // GET /api/admin/branch-letters

@@ -104,6 +104,8 @@ const ExamPermit = ({ personId }) => {
                     const { verified, totalRequired, totalVerified, hasSchedule } = verifyStatusRes.data;
 
                     setIsVerified(verified || verifyStatusRes.data.hasSchedule);
+                    setVerifiedAt(verified_at || null); // ✅ NEW
+
 
                     if (!verified) {
                         console.warn(
@@ -221,29 +223,30 @@ const ExamPermit = ({ personId }) => {
     }, [personId]);
 
     const [isVerified, setIsVerified] = useState(false);
+    const [verifiedAt, setVerifiedAt] = useState(null); // ✅ NEW: when documents were verified
 
 
 
 
-  // 🔒 Disable right-click
-  document.addEventListener("contextmenu", (e) => e.preventDefault());
+    // 🔒 Disable right-click
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  // 🔒 Block DevTools shortcuts + Ctrl+P silently
-  document.addEventListener("keydown", (e) => {
-    const isBlockedKey =
-      e.key === "F12" ||
-      e.key === "F11" ||
-      (e.ctrlKey &&
-        e.shiftKey &&
-        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-      (e.ctrlKey && e.key.toLowerCase() === "u") ||
-      (e.ctrlKey && e.key.toLowerCase() === "p");
+    // 🔒 Block DevTools shortcuts + Ctrl+P silently
+    document.addEventListener("keydown", (e) => {
+        const isBlockedKey =
+            e.key === "F12" ||
+            e.key === "F11" ||
+            (e.ctrlKey &&
+                e.shiftKey &&
+                (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+            (e.ctrlKey && e.key.toLowerCase() === "u") ||
+            (e.ctrlKey && e.key.toLowerCase() === "p");
 
-    if (isBlockedKey) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  });
+        if (isBlockedKey) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    });
 
     if (!person) return <div>Loading Exam Permit...</div>;
 
@@ -265,18 +268,23 @@ const ExamPermit = ({ personId }) => {
 
             <style>{`
 
-            
-        @page {
-          size: 8.5in 11in;
-          margin: 0;
-        }
-        @media print {
-          body {
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-          button { display: none; }
-        }
+            /* ✅ Print margin fix:
+               @page now reserves 1in on top so content is never clipped
+               by the printer's own unprintable area. Side/bottom margins
+               are kept smaller so the 8.5in/8in content widths used below
+               still fit on a standard 8.5in x 11in sheet. */
+            @page {
+              size: 8.5in 11in;
+              margin: 0.25in 0.25in 0.25in 0.25in;
+            }
+            @media print {
+              html, body {
+                width: 8.5in;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              button { display: none; }
+            }
       `}</style>
 
             {/* ✅ VERIFIED / NOT VERIFIED Watermark */}
@@ -348,7 +356,7 @@ const ExamPermit = ({ personId }) => {
 
                                 }}
                             >
-                               {firstLine}
+                                {firstLine}
                             </div>
                             {secondLine && (
                                 <div
@@ -360,7 +368,7 @@ const ExamPermit = ({ personId }) => {
 
                                     }}
                                 >
-                                   {secondLine}
+                                    {secondLine}
                                 </div>
                             )}
                             {campusAddress && (
@@ -563,7 +571,7 @@ const ExamPermit = ({ personId }) => {
                         </td>
                     </tr>
 
-              
+
 
                     {/* Building + Room + QR */}
                     <tr>
@@ -660,7 +668,21 @@ const ExamPermit = ({ personId }) => {
                         <td colSpan={40}>
                             <div style={{ display: "flex", alignItems: "center", width: "50%", marginTop: "-145px" }}>
                                 <label style={{ fontWeight: "bold", marginRight: "10px" }}>
-                                    Date of Examination:
+                                    Date Verified:
+                                </label>
+                                <span style={{ flexGrow: 1, borderBottom: "1px solid black", fontFamily: "Arial" }}>
+                                    {verifiedAt
+                                        ? new Date(verifiedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+                                        : ""}
+                                </span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colSpan={40}>
+                            <div style={{ display: "flex", alignItems: "center", width: "50%", marginTop: "-145px" }}>
+                                <label style={{ fontWeight: "bold", marginRight: "10px" }}>
+                                    Date:
                                 </label>
                                 <span
                                     style={{

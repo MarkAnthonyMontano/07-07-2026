@@ -35,9 +35,9 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://192.168.50.211:5173",
   "http://136.239.248.62:5173",
-  "http://192.168.1.12:5173",
+  "http://192.168.50.58:5173",
   "http://192.168.1.9:5173",
-  "http://192.168.1.12:5173",
+  "http://192.168.50.58:5173",
 ];
 
 app.use(
@@ -1591,6 +1591,8 @@ app.get("/api/list_of_students/details", async (req, res) => {
         dpt.dprtmnt_id,
         dpt.dprtmnt_name,
         dpt.dprtmnt_code,
+        dpt.dept_number,
+        dpt.components,
         sst.year_level_id,
         es.en_remarks AS en_remarks,
         es.en_remarks AS remark_summary,
@@ -1676,6 +1678,8 @@ app.get("/api/list_of_students/data/:studentNumber/:activeSchoolYearId", async (
         dpt.dprtmnt_id,
         dpt.dprtmnt_name,
         dpt.dprtmnt_code,
+        dpt.dept_number,
+        dpt.components,
         sst.year_level_id,
         es.en_remarks AS en_remarks,
         es.en_remarks AS remark_summary,
@@ -3496,7 +3500,9 @@ app.get("/api/applied_program", async (req, res) => {
         pt.components,
         pt.academic_program,
         d.dprtmnt_id,
-        d.dprtmnt_name
+        d.dprtmnt_name,
+        d.dept_number,
+        d.components,
       FROM curriculum_table AS ct
       INNER JOIN program_table AS pt ON pt.program_id = ct.program_id
       INNER JOIN dprtmnt_curriculum_table AS dc ON ct.curriculum_id = dc.curriculum_id
