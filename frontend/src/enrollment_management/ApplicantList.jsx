@@ -207,11 +207,7 @@ const ApplicantList = () => {
       to: "/qualifying_interview_exam_scores",
       icon: <ScoreIcon fontSize="large" />,
     },
-    {
-      label: "Student Numbering",
-      to: "/student_numbering_per_college",
-      icon: <DashboardIcon fontSize="large" />,
-    },
+  
   ];
 
   const navigate = useNavigate();

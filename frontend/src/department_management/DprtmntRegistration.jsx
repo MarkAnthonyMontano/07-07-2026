@@ -503,10 +503,13 @@ const DepartmentRegistration = () => {
                       Code: {department.dprtmnt_code}
                     </Typography>
 
+                    <br />
+
                     <Typography variant="subtitle" sx={{ color: subtitleColor }}>
                       Dept No: {department.dept_number}
                     </Typography>
 
+                    <br />
                     <Typography variant="subtitle" sx={{ color: subtitleColor }}>
                       Branch: {getBranchName(department.components)}
                     </Typography>
@@ -608,7 +611,7 @@ const DepartmentRegistration = () => {
         {/* CONTENT */}
         <DialogContent sx={{ p: 3 }}>
           <Box display="flex" flexDirection="column" gap={2} mt={1}>
-            <Typography fontWeight="bold" mb={1} mt={2}>
+            <Typography fontWeight="bold" mt={2}>
               Department Name:
             </Typography>
 
@@ -620,7 +623,7 @@ const DepartmentRegistration = () => {
               fullWidth
             />
 
-            <Typography fontWeight="bold" mb={1} mt={2}>
+            <Typography fontWeight="bold" mt={1}>
               Department Code:
             </Typography>
 
@@ -632,7 +635,7 @@ const DepartmentRegistration = () => {
               fullWidth
             />
 
-            <Typography fontWeight="bold" mb={1} mt={2}>
+            <Typography fontWeight="bold" mt={1}>
               Department Number:
             </Typography>
 
@@ -645,7 +648,7 @@ const DepartmentRegistration = () => {
               fullWidth
             />
 
-            <Typography fontWeight="bold" mb={1} mt={2}>
+            <Typography fontWeight="bold" mt={1}>
               Branch:
             </Typography>
 

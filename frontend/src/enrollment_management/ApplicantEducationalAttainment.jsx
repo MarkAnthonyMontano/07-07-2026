@@ -71,41 +71,37 @@ const RegistrarDashboard3 = () => {
     }, [settings]);
 
     const stepsData = [
-        {
+       {
             label: "Applicant List",
             to: "/applicant_list",
             icon: <SchoolIcon fontSize="large" />,
-        },
-        {
+          },
+          {
             label: "Applicant Profile",
             to: "/applicant_college_personal_information",
             icon: <PersonIcon fontSize="large" />,
-        },
-        {
+          },
+          {
             label: "Applicant Online Requirements",
             to: "/applicant_online_requirements_college",
             icon: <AssignmentIcon fontSize="large" />,
-        },
-        {
+          },
+          {
             label: "Entrance Examination Score",
             to: "/entrance_examination_score",
             icon: <ScoreIcon fontSize="large" />,
-        },
-        {
+          },
+          {
             label: "Qualifying / Interview Schedule Management",
             to: "/assign_schedule_applicants_qualifying_interview",
             icon: <ScheduleIcon fontSize="large" />,
-        },
-        {
+          },
+          {
             label: "Qualifying / Interview Exam Score",
             to: "/qualifying_interview_exam_scores",
             icon: <ScoreIcon fontSize="large" />,
-        },
-        {
-            label: "Student Numbering",
-            to: "/student_numbering_per_college",
-            icon: <DashboardIcon fontSize="large" />,
-        },
+          },
+        
     ];
     const [currentStep, setCurrentStep] = useState(1);
     const [visitedSteps, setVisitedSteps] = useState(Array(stepsData.length).fill(false));

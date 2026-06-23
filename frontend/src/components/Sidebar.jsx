@@ -12,6 +12,7 @@ import {
     Business, LibraryBooks, People, LogoutOutlined, Settings, ExpandMore,
     ExpandLess, Menu,
 } from "@mui/icons-material";
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import PaymentIcon from "@mui/icons-material/Payment";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
@@ -710,7 +711,7 @@ const SideBar = ({
             { title: "Entrance Examination Score", link: "/entrance_examination_score", icon: Assessment, page_id: 151 },
             { title: "Qualifying Schedule Mgmt", link: "/assign_schedule_applicants_qualifying_interview", icon: EditCalendar, page_id: 12 },
             { title: "Qualifying / Interview Scores", link: "/qualifying_interview_exam_scores", icon: Assessment, page_id: 37 },
-            { title: "Student Numbering", link: "/student_numbering_per_college", icon: FormatListNumbered, page_id: 60 },
+            // { title: "Student Numbering", link: "/student_numbering_per_college", icon: FormatListNumbered, page_id: 60 },
             { title: "Student List", link: "/student_list_for_enrollment", icon: ListAlt, page_id: 137 },
             { title: "Student Profile", link: "/student_college_personal_information", icon: AccountCircle, page_id: 43 },
             { title: "Student Online Requirements", link: "/student_online_requirements_college", icon: FolderCopy, page_id: 124 },
@@ -740,6 +741,8 @@ const SideBar = ({
             { title: "Applicant Profile", link: "/applicant_registrar_personal_information", icon: AccountCircle, page_id: 161 },
             { title: "Applicant Online Requirements", link: "/applicant_online_requirements_registrar", icon: FolderCopy, page_id: 160 },
             { title: "Student Numbering Panel", link: "/student_numbering", icon: Numbers, page_id: 59 },
+            // { title: "Student Number Admin", link: "/student_number_admin", icon: AdminPanelSettings, page_id: 167 },
+
             { title: "Student List", link: "/student_list", icon: ListAltOutlined, page_id: 104 },
             { title: "Student Profile", link: "/student_registrar_personal_information", icon: AccountCircle, page_id: 38 },
             { title: "Student Online Requirements", link: "/student_online_requirements_registrar", icon: FolderCopy, page_id: 106 },
@@ -782,7 +785,7 @@ const SideBar = ({
 
     const systemMenuGroups = [
         { key: "roomManagement", label: "Room Management", icon: MeetingRoom, items: [{ title: "Room Registration", link: "/room_registration", icon: MeetingRoom, page_id: 52 }] },
-        { key: "studentNumberAdmin", label: "Student Number Admin", icon: FormatListNumbered, items: [{ title: "Student Numbering Admin", link: "/student_number_admin", icon: FormatListNumbered, page_id: 167 }] },
+        // { key: "studentNumberAdmin", label: "Student Number Admin", icon: FormatListNumbered, items: [{ title: "Student Numbering Admin", link: "/student_number_admin", icon: FormatListNumbered, page_id: 167 }] },
 
         { key: "requirementsManagement", label: "Requirements Management", icon: Assignment, items: [{ title: "Requirements Panel", link: "/requirements_form", icon: Assignment, page_id: 51 }] },
         { key: "profileSettings", label: "Profile & Settings", icon: Settings, items: [{ title: `${shortTerm} Profile`, link: "/settings", icon: Settings, page_id: 74 }, { title: "Signature Upload", link: "/signature_upload", icon: Settings, page_id: 114 }] },

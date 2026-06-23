@@ -35,9 +35,9 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://192.168.50.211:5173",
   "http://136.239.248.62:5173",
-  "http://192.168.50.58:5173",
+  "http://192.168.50.53:5173",
   "http://192.168.1.9:5173",
-  "http://192.168.50.58:5173",
+  "http://192.168.50.53:5173",
 ];
 
 app.use(
@@ -1591,8 +1591,7 @@ app.get("/api/list_of_students/details", async (req, res) => {
         dpt.dprtmnt_id,
         dpt.dprtmnt_name,
         dpt.dprtmnt_code,
-        dpt.dept_number,
-        dpt.components,
+       
         sst.year_level_id,
         es.en_remarks AS en_remarks,
         es.en_remarks AS remark_summary,
@@ -1678,8 +1677,7 @@ app.get("/api/list_of_students/data/:studentNumber/:activeSchoolYearId", async (
         dpt.dprtmnt_id,
         dpt.dprtmnt_name,
         dpt.dprtmnt_code,
-        dpt.dept_number,
-        dpt.components,
+    
         sst.year_level_id,
         es.en_remarks AS en_remarks,
         es.en_remarks AS remark_summary,
@@ -1923,6 +1921,170 @@ app.get("/api/all-applicants", async (req, res) => {
   } catch (err) {
     console.error(" Error fetching all applicants:", err);
     res.status(500).send("Server error");
+  }
+});
+
+
+const toManilaIsoLike = (utcDate) => {
+  if (!utcDate) return null;
+  const d = new Date(utcDate);
+  if (isNaN(d.getTime())) return null;
+ 
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+ 
+  const get = (type) => parts.find((p) => p.type === type)?.value;
+  const y = get("year");
+  const mo = get("month");
+  const da = get("day");
+  let h = get("hour");
+  const mi = get("minute");
+  const se = get("second");
+  if (h === "24") h = "00"; // Intl can render midnight as "24" — normalize it
+ 
+  return `${y}-${mo}-${da}T${h}:${mi}:${se}.000Z`;
+};
+
+app.get("/api/document-verification/:applicant_number", async (req, res) => {
+  const { applicant_number } = req.params;
+
+  try {
+    // 1) Resolve person_id + applicant_type (applyingAs) for this applicant
+    const [[person]] = await db.query(
+      `
+      SELECT pt.person_id, pt.applyingAs
+      FROM applicant_numbering_table ant
+      INNER JOIN person_table pt ON ant.person_id = pt.person_id
+      WHERE ant.applicant_number = ?
+      LIMIT 1
+      `,
+      [applicant_number],
+    );
+
+    if (!person) {
+      return res.status(404).json({ message: "Applicant not found" });
+    }
+
+    const { person_id, applyingAs } = person;
+
+    // 2) Figure out which requirements are required + verifiable for this applicant type
+    const [requiredRows] = await db.query(
+      `
+      SELECT id
+      FROM requirements_table
+      WHERE category = 'Main'
+        AND is_verifiable = 1
+        AND (
+          applicant_type = ?
+          OR applicant_type = '0'
+          OR applicant_type = 0
+          OR applicant_type = 'All'
+        )
+      `,
+      [applyingAs],
+    );
+
+    if (requiredRows.length === 0) {
+      return res.json({
+        verified: false,
+        verified_at: null,
+        verified_by: null,
+        message: "No verifiable requirements configured for this applicant type.",
+      });
+    }
+
+    const requiredIds = requiredRows.map((r) => r.id);
+    const placeholders = requiredIds.map(() => "?").join(",");
+
+    // 3) Pull this applicant's uploads for exactly those requirement ids
+    const [uploadRows] = await db.query(
+      `
+      SELECT requirements_id, document_status, created_at, last_updated_by
+      FROM requirement_uploads
+      WHERE person_id = ?
+        AND requirements_id IN (${placeholders})
+      `,
+      [person_id, ...requiredIds],
+    );
+
+    // Must have an upload row for every required requirement, and every one
+    // of those must be verified, for the applicant to count as fully verified.
+    const uploadedIds = new Set(uploadRows.map((u) => u.requirements_id));
+    const hasAllRequired = requiredIds.every((id) => uploadedIds.has(id));
+    const allVerified =
+      hasAllRequired &&
+      uploadRows.every((u) => u.document_status === "Documents Verified & ECAT");
+
+    if (!allVerified) {
+      return res.json({
+        verified: false,
+        verified_at: null,
+        verified_by: null,
+        required_count: requiredIds.length,
+        verified_count: uploadRows.filter(
+          (u) => u.document_status === "Documents Verified & ECAT",
+        ).length,
+      });
+    }
+
+    // 4) All required docs verified — "Date Verified" is when the LAST one
+    //    was completed, i.e. the max(created_at) among the verified rows.
+    const latestRow = uploadRows.reduce((latest, row) => {
+      if (!latest) return row;
+      return new Date(row.created_at) > new Date(latest.created_at) ? row : latest;
+    }, null);
+
+    let verifiedBy = null;
+    if (latestRow?.last_updated_by) {
+      // last_updated_by stores a person_id that lives in the ENROLLMENT db (db3),
+      // same cross-db join pattern used elsewhere in this file
+      // (e.g. LEFT JOIN enrollment.user_accounts ua ON ru.last_updated_by = ua.person_id)
+      const [[actor]] = await db3.query(
+        `
+        SELECT role, employee_id, first_name, middle_name, last_name, email
+        FROM user_accounts
+        WHERE person_id = ?
+        LIMIT 1
+        `,
+        [latestRow.last_updated_by],
+      );
+
+      if (actor) {
+        const roleLabel = String(actor.role || "registrar")
+          .split(/[\s_-]+/)
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+          .join(" ");
+        const fullName = [actor.last_name, actor.first_name, actor.middle_name]
+          .filter(Boolean)
+          .join(", ");
+
+        verifiedBy = {
+          employee_id: actor.employee_id || null,
+          role: actor.role || null,
+          name: fullName || actor.email || "Unknown",
+          display: `${roleLabel}${actor.employee_id ? ` (${actor.employee_id})` : ""} - ${fullName || actor.email}`,
+        };
+      }
+    }
+
+   res.json({
+    verified: true,
+    verified_at: toManilaIsoLike(latestRow.created_at),
+    verified_by: verifiedBy,
+    required_count: requiredIds.length,
+    verified_count: uploadRows.length,
+  });
+  } catch (err) {
+    console.error("Error fetching document verification info:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
@@ -3501,8 +3663,6 @@ app.get("/api/applied_program", async (req, res) => {
         pt.academic_program,
         d.dprtmnt_id,
         d.dprtmnt_name,
-        d.dept_number,
-        d.components,
       FROM curriculum_table AS ct
       INNER JOIN program_table AS pt ON pt.program_id = ct.program_id
       INNER JOIN dprtmnt_curriculum_table AS dc ON ct.curriculum_id = dc.curriculum_id

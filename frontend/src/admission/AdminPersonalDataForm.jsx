@@ -588,7 +588,7 @@ const PersonalDataForm = () => {
                                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                                             <input
                                                 type="text"
-                                                value={shortDate}
+                                               
                                                 readOnly
                                                 style={{
                                                     width: "75%",

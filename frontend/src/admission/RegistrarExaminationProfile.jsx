@@ -260,23 +260,50 @@ const ExaminationProfile = () => {
   }, []);
 
   const [isVerified, setIsVerified] = useState(false);
+  const [verifiedAt, setVerifiedAt] = useState(null); // ✅ NEW: when documents were verified
 
+
+
+
+  // Exam schedule ONLY drives examSchedule (Date of Exam, Bldg, Room, Time).
+  // It no longer touches isVerified/verifiedAt — those come from actual
+  // document verification status, fetched separately below.
   useEffect(() => {
     if (selectedPerson?.applicant_number) {
       axios
         .get(`${API_BASE_URL}/api/exam-schedule/${selectedPerson.applicant_number}`)
         .then((res) => {
           setExamSchedule(res.data);
-          setIsVerified(res.data && Object.keys(res.data).length > 0);
         })
         .catch(() => {
           setExamSchedule(null);
+        });
+    } else {
+      setExamSchedule(null);
+    }
+  }, [selectedPerson]);
+
+  // Document verification status ("VERIFIED" watermark + Date Verified field)
+  // comes from /api/document-verification/:applicant_number, which checks
+  // requirement_uploads directly — independent of the exam schedule.
+  useEffect(() => {
+    if (selectedPerson?.applicant_number) {
+      axios
+        .get(`${API_BASE_URL}/api/document-verification/${selectedPerson.applicant_number}`)
+        .then((res) => {
+          setIsVerified(Boolean(res.data?.verified));
+          setVerifiedAt(res.data?.verified ? res.data.verified_at : null);
+        })
+        .catch(() => {
           setIsVerified(false);
+          setVerifiedAt(null);
         });
     } else {
       setIsVerified(false);
+      setVerifiedAt(null);
     }
   }, [selectedPerson]);
+
 
   useEffect(() => {
     axios
@@ -366,15 +393,7 @@ const ExaminationProfile = () => {
   if (loading || hasAccess === null) return <LoadingOverlay open={loading} message="Loading..." />;
   if (!hasAccess) return <Unauthorized />;
 
-  document.addEventListener("contextmenu", (e) => e.preventDefault());
-  document.addEventListener("keydown", (e) => {
-    const isBlockedKey =
-      e.key === "F12" || e.key === "F11" ||
-      (e.ctrlKey && e.shiftKey && (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-      (e.ctrlKey && e.key.toLowerCase() === "u") ||
-      (e.ctrlKey && e.key.toLowerCase() === "p");
-    if (isBlockedKey) { e.preventDefault(); e.stopPropagation(); }
-  });
+
 
   // ─── Shared header block ──────────────────────────────────────────────────
   const SchoolHeader = ({ showProfile = false }) => (
@@ -815,59 +834,172 @@ const ExaminationProfile = () => {
             </tr>
             <tr style={{ fontFamily: "Arial", fontSize: "15px" }}>
               <td colSpan={20}>
-                <div style={{ display: "flex", alignItems: "center", width: "100%", marginTop: "-85px" }}>
-                  <label style={{ fontWeight: "bold", whiteSpace: "nowrap", marginRight: "10px" }}>Bldg. :</label>
-                  <span style={{ flexGrow: 1, borderBottom: "1px solid black", height: "1.2em", fontFamily: "Arial", textAlign: "left" }}>
-                    {examSchedule?.building_description || ""} - {getOrdinal(examSchedule?.floor)} Floor
-                  </span>
-                </div>
-              </td>
-              <td colSpan={20}>
-                <div style={{ display: "flex", alignItems: "center", width: "100%", justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", alignItems: "center", marginTop: "-130px" }}>
-                    <label style={{ fontWeight: "bold", marginRight: "10px", width: "80px" }}>Room No.:</label>
-                    <span style={{ flexGrow: 1, borderBottom: "1px solid black", fontFamily: "Arial", width: "150px" }}>{examSchedule?.room_description || ""}</span>
-                  </div>
-                  {selectedPerson?.applicant_number && (
-                    <div style={{ width: "4.5cm", height: "4.5cm", borderRadius: "4px", background: "#fff", display: "flex", justifyContent: "center", alignItems: "center", position: "relative", overflow: "hidden", marginLeft: "10px" }}>
-                      <QRCodeSVG value={`${window.location.origin}/applicant_profile/${person.applicant_number}`} size={150} level="H" />
-                      <div style={{ position: "absolute", fontSize: "12px", fontWeight: "bold", color: "maroon", background: "white", padding: "2px 4px", borderRadius: "2px" }}>{selectedPerson.applicant_number}</div>
-                    </div>
-                  )}
-                </div>
-              </td>
-            </tr>
-            <tr style={{ fontFamily: "Arial", fontSize: "15px" }}>
-              <td colSpan={20}>
-                <div style={{ display: "flex", alignItems: "center", width: "100%", marginTop: "-148px" }}>
-                  <label style={{ fontWeight: "bold", whiteSpace: "nowrap", marginRight: "10px" }}>Date of Examination:</label>
+                <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+                  <label style={{ fontWeight: "bold", whiteSpace: "nowrap", marginRight: "10px" }}>Date of Exam:</label>
                   <span style={{ flexGrow: 1, borderBottom: "1px solid black", height: "1.2em", fontFamily: "Arial", textAlign: "left" }}>
                     {examSchedule?.schedule_created_at ? new Date(examSchedule.schedule_created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : ""}
+
                   </span>
                 </div>
               </td>
-            </tr>
-            <tr>
-              <td colSpan={40}>
-                <div style={{ display: "flex", alignItems: "center", width: "50%", marginTop: "-145px" }}>
-                  <label style={{ fontWeight: "bold", marginRight: "10px" }}>
-                    Date Verified:
+              <td colSpan={20}>
+                <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+                  <label
+                    style={{
+                      fontWeight: "bold",
+                      whiteSpace: "nowrap",
+                      marginRight: "10px",
+                    }}
+                  >
+                    Time :
                   </label>
-                  <span style={{ flexGrow: 1, borderBottom: "1px solid black", fontFamily: "Arial" }}>
-                    {verifiedAt
-                      ? new Date(verifiedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+                  <span
+                    style={{
+                      flexGrow: 1,
+                      borderBottom: "1px solid black",
+                      height: "1.2em",
+                      fontFamily: "Arial",
+                      textAlign: "left",
+                    }}
+                  >
+                    {examSchedule
+                      ? new Date(`1970-01-01T${examSchedule.start_time}`).toLocaleTimeString(
+                        "en-US",
+                        { hour: "numeric", minute: "2-digit", hour12: true }
+                      )
                       : ""}
                   </span>
                 </div>
               </td>
+
             </tr>
-            {/* Scheduled By */}
-            <tr>
-              <td colSpan={40}>
-                <div style={{ display: "flex", alignItems: "center", width: "50%", marginTop: "-125px" }}>
-                  <label style={{ fontWeight: "bold", marginRight: "10px" }}>
-                    Scheduled by:
+
+            <tr style={{ fontFamily: "Arial", fontSize: "15px" }}>
+              <td colSpan={20}>
+                <div style={{ display: "flex", alignItems: "center", width: "100%", marginTop: "-85px" }}>
+                  <label style={{ fontWeight: "bold", whiteSpace: "nowrap", marginRight: "10px" }}>
+                    Bldg. :
                   </label>
+                  <span
+                    style={{
+                      flexGrow: 1,
+                      borderBottom: "1px solid black",
+                      height: "1.2em",
+                      fontFamily: "Arial",
+                      textAlign: "left",
+                    }}
+                  >
+                    {examSchedule?.building_description || ""}
+                  </span>
+                </div>
+              </td>
+
+              {/* Room No. + QR side by side */}
+              <td colSpan={20}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    width: "100%",
+                    justifyContent: "space-between", // space text & QR
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", marginTop: "-130px" }}>
+                    <label style={{ fontWeight: "bold", marginRight: "10px", width: "80px" }}>
+                      Room No.:
+                    </label>
+                    <span
+                      style={{
+                        flexGrow: 1,
+                        borderBottom: "1px solid black",
+                        fontFamily: "Arial",
+                        width: "150px",
+                      }}
+                    >
+                      {examSchedule?.room_description || ""}
+                    </span>
+                  </div>
+
+                  {selectedPerson?.applicant_number && (
+                    <div
+                      style={{
+                        width: "4.5cm",
+                        height: "4.5cm",
+                        borderRadius: "4px",
+                        background: "#fff",
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        position: "relative",
+                        overflow: "hidden",
+                        marginLeft: "10px"
+                      }}
+                    >
+                      <QRCodeSVG
+                        value={`${window.location.origin}/applicant_profile/${person.applicant_number}`}
+                        size={150}
+                        level="H"
+                      />
+
+                      <div
+                        style={{
+                          position: "absolute",
+                          fontSize: "12px",
+                          fontWeight: "bold",
+                          color: "maroon",
+                          background: "white",
+                          padding: "2px 4px",
+                          borderRadius: "2px",
+                        }}
+                      >
+                        {selectedPerson.applicant_number}
+                      </div>
+                    </div>
+                  )}
+
+
+                </div>
+              </td>
+            </tr>
+
+
+
+            <tr style={{ fontFamily: "Arial", fontSize: "15px" }}>
+              <td colSpan={20}>
+                <div style={{ display: "flex", alignItems: "center", width: "100%", marginTop: "-148px" }}>
+                  <label
+                    style={{
+                      fontWeight: "bold",
+                      whiteSpace: "nowrap",
+                      marginRight: "10px",
+                    }}
+                  >
+                    Date Verified:
+                  </label>
+                  <span
+                    style={{
+                      flexGrow: 1,
+                      borderBottom: "1px solid black",
+                      height: "1.2em",
+                      fontFamily: "Arial",
+                      textAlign: "left",
+                    }}
+                  >
+
+                    {verifiedAt
+                      ? new Date(verifiedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+                      : ""}
+
+                  </span>
+                </div>
+              </td>
+
+            </tr>
+
+            <tr style={{ fontFamily: "Arial", fontSize: "15px" }}>
+              <td colSpan={20}>
+                <div style={{ display: "flex", alignItems: "center", width: "100%", marginTop: "-128px" }}>
+                  <label style={{ fontWeight: "bold", whiteSpace: "nowrap", marginRight: "10px" }}>Scheduled by:</label>
                   <span
                     style={{
                       flexGrow: 1,
@@ -877,10 +1009,11 @@ const ExaminationProfile = () => {
                   >
                     {scheduledBy || "N/A"}
                   </span>
+
                 </div>
               </td>
-
             </tr>
+
           </tbody>
         </table>
         <table className="student-table" style={{ borderCollapse: "collapse", fontFamily: "Arial", width: "8in", margin: "0 auto", textAlign: "center", tableLayout: "fixed", border: "1px solid black" }}>

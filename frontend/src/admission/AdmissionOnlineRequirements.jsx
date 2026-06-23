@@ -1869,49 +1869,96 @@ const StudentRequirements = () => {
           </Alert>
         </Snackbar>
         {/* Confirmation Dialog */}
-        <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
-          <DialogTitle>
+        <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} fullWidth maxWidth="sm">
+          <DialogTitle
+            sx={{
+              background: settings?.header_color || "#9E0000",
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: "1.2rem",
+              py: 2,
+            }}
+          >
             {confirmAction === "upload"
-              ? "Confirm Upload"
+              ? "📤 Confirm Upload"
               : confirmAction === "delete"
-                ? "Confirm Deletion"
-                : "Confirm Status Change"}
+                ? "🗑️ Confirm Deletion"
+                : confirmAction === "status"
+                  ? "🔄 Confirm Status Change"
+                  : "🔄 Confirm Document Status Change"}
           </DialogTitle>
-          <DialogContent>
-            {confirmAction === "upload" ? (
-              <>Are you sure you want to upload <strong>{targetDoc?.label}</strong>?<br />
-                Added by: <strong>{localStorage.getItem("username")}</strong></>
-            ) : confirmAction === "delete" ? (
-              <>Are you sure you want to delete
-                <strong>{targetDoc?.label || targetDoc?.short_label || targetDoc?.file_path}</strong>?<br />
-                Deleted by: <strong>{localStorage.getItem("username")}</strong></>
-            ) : confirmAction === "status" ? (
-              <>
-                Are you sure you want to change <strong>{targetDoc?.label}</strong> from{" "}
-                <strong>{getUploadStatusLabel(targetDoc?.currentStatus)}</strong> to{" "}
-                <strong>{getUploadStatusLabel(targetDoc?.nextStatus)}</strong>?
-              </>
-            ) : (
-              <>
-                Are you sure you want to change this applicant's document status from{" "}
-                <strong>{targetDoc?.currentStatus}</strong> to{" "}
-                <strong>{targetDoc?.nextStatus}</strong>?
-              </>
-            )}
+
+          <DialogContent sx={{ maxHeight: 400, overflowY: "auto", p: 3, mt: 2 }}>
+            <Box
+              sx={{
+                backgroundColor: "#fdfdfd",
+                borderRadius: "8px",
+                px: 2,
+                py: 2,
+                border: "1px solid #ddd",
+                fontSize: "0.95rem",
+                lineHeight: 1.8,
+              }}
+            >
+              {confirmAction === "upload" ? (
+                <Typography>
+                  Are you sure you want to upload{" "}
+                  <strong>{targetDoc?.label}</strong>?<br />
+                  Added by:{" "}
+                  <strong>{localStorage.getItem("username")}</strong>
+                </Typography>
+              ) : confirmAction === "delete" ? (
+                <Typography>
+                  Are you sure you want to delete{" "}
+                  <strong>
+                    {targetDoc?.label || targetDoc?.short_label || targetDoc?.file_path}
+                  </strong>
+                  ?<br />
+                  Deleted by:{" "}
+                  <strong>{localStorage.getItem("username")}</strong>
+                </Typography>
+              ) : confirmAction === "status" ? (
+                <Typography>
+                  Are you sure you want to change{" "}
+                  <strong>{targetDoc?.label}</strong> from{" "}
+                  <strong>{getUploadStatusLabel(targetDoc?.currentStatus)}</strong> to{" "}
+                  <strong>{getUploadStatusLabel(targetDoc?.nextStatus)}</strong>?
+                </Typography>
+              ) : (
+                <Typography>
+                  Are you sure you want to change this applicant&apos;s document
+                  status from{" "}
+                  <strong>{targetDoc?.currentStatus}</strong> to{" "}
+                  <strong>{targetDoc?.nextStatus}</strong>?
+                </Typography>
+              )}
+            </Box>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setConfirmOpen(false)}
+
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button
               color="error"
               variant="outlined"
+              onClick={() => setConfirmOpen(false)}
             >
               Cancel
             </Button>
-            <Button onClick={handleConfirmAction} variant="contained">
+            <Button
+              variant="contained"
+              onClick={handleConfirmAction}
+              sx={{
+                backgroundColor: settings?.header_color || "#9E0000",
+                "&:hover": {
+                  backgroundColor: settings?.header_color
+                    ? `${settings.header_color}cc`
+                    : "#7a0000",
+                },
+              }}
+            >
               Yes, Confirm
             </Button>
           </DialogActions>
         </Dialog>
-
         {/* Photo Upload Modal */}
         {/* Photo Upload Modal - matches AdminDashboard1 style */}
         <Modal

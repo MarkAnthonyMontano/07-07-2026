@@ -192,83 +192,6 @@ module.exports = function registerSocketHandlers({
     return { copied: true, filePath: normalizedTarget };
   };
 
-  const generateStudentNumber = async (person_data) => {
-    const [[yearRow]] = await db3.query(
-      `SELECT yt.year_description AS yr
-     FROM active_school_year_table asy
-     JOIN year_table yt ON asy.year_id = yt.year_id
-     WHERE asy.astatus = 1
-     LIMIT 1`,
-    );
-    const yy = String(yearRow?.yr || new Date().getFullYear()).slice(-2);
-
-    const [[deptRow]] = await db3.query(
-      `SELECT dt.dept_number, dt.components AS dept_components
- FROM dprtmnt_curriculum_table dct
- JOIN dprtmnt_table dt ON dct.dprtmnt_id = dt.dprtmnt_id
- WHERE dct.curriculum_id = ?
- LIMIT 1`,
-      [person_data.program],
-    );
-
-    if (!deptRow?.dept_number) {
-      throw new Error(
-        `No dept_number configured for curriculum_id=${person_data.program}. ` +
-        `Open the Student Number Configuration panel and assign a number to the relevant department.`,
-      );
-    }
-    const deptNum = deptRow.dept_number;
-
-    // ── Branch is derived from dprtmnt_table.components, NOT person_data.campus ──
-    // components: 1 = Manila, 2 = Cavite. The department is authoritative here:
-    // e.g. dept 12 "Earist (Cavite Branch)" and dept 13 "Graduate School ... (Cavite Branch)"
-    // are Cavite regardless of what campus the applicant happened to select on the form.
-    const deptComponents = deptRow.dept_components;
-
-    const [[companyRow]] = await db.query(
-      'SELECT branches FROM company_settings WHERE id = 1',
-    );
-    const branchList = JSON.parse(companyRow?.branches || '[]');
-
-    const targetBranchName = Number(deptComponents) === 2 ? 'Cavite' : 'Manila';
-    const branch = branchList.find(
-      (b) => String(b.branch || '').trim().toLowerCase() === targetBranchName.toLowerCase(),
-    );
-
-    if (!branch?.letter_code) {
-      throw new Error(
-        `No letter_code configured for branch "${targetBranchName}" (derived from department components=${deptComponents}, dept_number=${deptNum}). ` +
-        `Open the Student Number Configuration panel → Branch letters.`,
-      );
-    }
-    const letter = branch.letter_code.toUpperCase();
-
-    // ── Fixed atomic sequence ────────────────────────────────────────────────
-    // Use a SELECT after upsert to always get the correct next_seq value,
-    // avoiding the LAST_INSERT_ID() confusion between INSERT and UPDATE paths.
-    const conn = await db3.getConnection();
-    let seq;
-    try {
-      await conn.query(
-        `INSERT INTO student_number_sequence (school_year, dept_number, next_seq)
-       VALUES (?, ?, 1)
-       ON DUPLICATE KEY UPDATE next_seq = next_seq + 1`,
-        [yy, deptNum],
-      );
-
-      const [[seqRow]] = await conn.query(
-        `SELECT next_seq FROM student_number_sequence
-       WHERE school_year = ? AND dept_number = ?`,
-        [yy, deptNum],
-      );
-
-      seq = String(seqRow.next_seq).padStart(5, '0');
-    } finally {
-      conn.release();
-    }
-
-    return `${yy}${deptNum}-${seq}${letter}`;
-  };
 
   io.on("connection", (socket) => {
     console.log(" Socket.IO client connected");
@@ -473,6 +396,9 @@ ${shortTerm} Information System
         res.status(500).json({ error: "Server error" });
       }
     });
+
+  
+
 
     app.get("/api/applicant-schedule/:applicantNumber", async (req, res) => {
       try {
@@ -703,7 +629,6 @@ WHERE proctor LIKE ?
     // ---------------------- Assign Student Number ----------------------
 
     socket.on("assign-student-number", async (payload) => {
-      const conn = await db3.getConnection();
       try {
         const person_id =
           typeof payload === "object" && payload !== null
@@ -718,14 +643,13 @@ WHERE proctor LIKE ?
             ? payload.audit_actor_role || "registrar"
             : "registrar";
 
-        // ── Fetch person from ADMISSION db ──────────────────────────────────────
+        //  Fetch person info
         const [rows] = await db.query(
           `SELECT * FROM person_table AS pt WHERE person_id = ?`,
           [person_id],
         );
 
         if (rows.length === 0) {
-          conn.release();
           return socket.emit("assign-student-number-result", {
             success: false,
             message: "Person not found.",
@@ -733,36 +657,36 @@ WHERE proctor LIKE ?
         }
 
         const person_data = rows[0];
-        const { emailAddress, first_name, middle_name, last_name } = person_data;
-
-        // ── Generate student number ──────────────────────────────────────────────
-        let student_number;
-        try {
-          student_number = await generateStudentNumber(person_data);
-        } catch (genErr) {
-          console.error("[assign-student-number] generateStudentNumber failed:", genErr.message);
-          conn.release();
-          return socket.emit("assign-student-number-result", {
-            success: false,
-            message: genErr.message,
-          });
-        }
-
+        const { emailAddress, first_name, middle_name, last_name } =
+          person_data;
+        const student_number = `${new Date().getFullYear()}${String(person_id).padStart(5, "0")}`;
         const tempPassword = Math.random().toString(36).slice(-8).toUpperCase();
         const hashedPassword = await bcrypt.hash(tempPassword, 10);
         let studentProfileImg = person_data.profile_img;
 
-        // ── Copy applicant 1×1 photo to Student1by1 folder ──────────────────────
+        // Copy applicant 1x1 image to student 1x1 folder during student-number assignment.
         if (person_data.profile_img) {
           try {
-            const applicantDir = path.join(__dirname, "uploads", "Applicant1by1");
+            const applicantDir = path.join(
+              __dirname,
+              "uploads",
+              "Applicant1by1",
+            );
             const studentDir = path.join(__dirname, "uploads", "Student1by1");
             const uploadRootDir = path.join(__dirname, "uploads");
 
-            if (!fs.existsSync(studentDir)) fs.mkdirSync(studentDir, { recursive: true });
+            if (!fs.existsSync(studentDir)) {
+              fs.mkdirSync(studentDir, { recursive: true });
+            }
 
-            const applicantPath = path.join(applicantDir, person_data.profile_img);
-            const uploadRootPath = path.join(uploadRootDir, person_data.profile_img);
+            const applicantPath = path.join(
+              applicantDir,
+              person_data.profile_img,
+            );
+            const uploadRootPath = path.join(
+              uploadRootDir,
+              person_data.profile_img,
+            );
             const sourcePath = fs.existsSync(applicantPath)
               ? applicantPath
               : fs.existsSync(uploadRootPath)
@@ -772,23 +696,32 @@ WHERE proctor LIKE ?
             if (sourcePath) {
               const ext = path.extname(person_data.profile_img) || ".jpg";
               studentProfileImg = `${student_number}_profile_image${ext}`;
-              fs.copyFileSync(sourcePath, path.join(studentDir, studentProfileImg));
+              const targetPath = path.join(studentDir, studentProfileImg);
+              fs.copyFileSync(sourcePath, targetPath);
             } else {
-              console.warn(`[assign-student-number] profile image not found for person_id=${person_id}`);
+              console.warn(
+                `[assign-student-number] profile image not found for person_id=${person_id}: ${person_data.profile_img}`,
+              );
             }
           } catch (imgErr) {
-            console.error(`[assign-student-number] failed to copy profile image for person_id=${person_id}`, imgErr);
+            console.error(
+              `[assign-student-number] failed to copy profile image for person_id=${person_id}`,
+              imgErr,
+            );
           }
         }
 
-        // ── Get uploaded requirements from ADMISSION db ──────────────────────────
+        //  Get uploaded requirements
         const [requirements] = await db.query(
           `SELECT * FROM requirement_uploads WHERE person_id = ?`,
           [person_id],
         );
 
         const [[applicantNumberRow]] = await db.query(
-          `SELECT applicant_number FROM applicant_numbering_table WHERE person_id = ? LIMIT 1`,
+          `SELECT applicant_number
+           FROM applicant_numbering_table
+           WHERE person_id = ?
+           LIMIT 1`,
           [person_id],
         );
         const applicantNumber = applicantNumberRow?.applicant_number || null;
@@ -802,265 +735,65 @@ WHERE proctor LIKE ?
                 .filter((id) => id !== null && id !== undefined),
             ),
           ];
+
           if (requirementIds.length) {
             const [requirementRows] = await db.query(
-              `SELECT id, short_label FROM requirements_table WHERE id IN (?)`,
+              `SELECT id, short_label
+               FROM requirements_table
+               WHERE id IN (?)`,
               [requirementIds],
             );
+
             for (const row of requirementRows) {
               requirementShortLabels.set(row.id, row.short_label || "Unknown");
             }
           }
         }
 
-        // ── BEGIN TRANSACTION in ENROLLMENT db ───────────────────────────────────
-        await conn.beginTransaction();
-
-        // ── Build values array matching the 148 columns (skipping person_id) ────
-        // Column order matches your schema exactly: col 2 → col 149
-        const personValues = [
-          student_number,                       // 2  student_number
-          studentProfileImg,                    // 3  profile_img
-          person_data.campus,                   // 4  campus
-          person_data.academicProgram,          // 5  academicProgram
-          person_data.classifiedAs,             // 6  classifiedAs
-          person_data.applyingAs,               // 7  applyingAs
-          person_data.program,                  // 8  program
-          person_data.program2,                 // 9  program2
-          person_data.program3,                 // 10 program3
-          person_data.yearLevel,                // 11 yearLevel
-          person_data.last_name,                // 12 last_name
-          person_data.first_name,               // 13 first_name
-          person_data.middle_name,              // 14 middle_name
-          person_data.extension,                // 15 extension
-          person_data.nickname,                 // 16 nickname
-          person_data.height,                   // 17 height
-          person_data.weight,                   // 18 weight
-          person_data.lrnNumber,                // 19 lrnNumber
-          person_data.nolrnNumber,              // 20 nolrnNumber
-          person_data.gender,                   // 21 gender
-          person_data.pwdMember,                // 22 pwdMember
-          person_data.pwdType,                  // 23 pwdType
-          person_data.pwdId,                    // 24 pwdId
-          person_data.birthOfDate,              // 25 birthOfDate
-          person_data.age,                      // 26 age
-          person_data.birthPlace,               // 27 birthPlace
-          person_data.languageDialectSpoken,    // 28 languageDialectSpoken
-          person_data.citizenship,              // 29 citizenship
-          person_data.religion,                 // 30 religion
-          person_data.civilStatus,              // 31 civilStatus
-          person_data.tribeEthnicGroup,         // 32 tribeEthnicGroup
-          person_data.cellphoneNumber,          // 33 cellphoneNumber
-          person_data.emailAddress,             // 34 emailAddress
-          person_data.presentStreet,            // 35 presentStreet
-          person_data.presentBarangay,          // 36 presentBarangay
-          person_data.presentZipCode,           // 37 presentZipCode
-          person_data.presentRegion,            // 38 presentRegion
-          person_data.presentProvince,          // 39 presentProvince
-          person_data.presentMunicipality,      // 40 presentMunicipality
-          person_data.presentDswdHouseholdNumber, // 41 presentDswdHouseholdNumber
-          person_data.sameAsPresentAddress,     // 42 sameAsPresentAddress
-          person_data.permanentStreet,          // 43 permanentStreet
-          person_data.permanentBarangay,        // 44 permanentBarangay
-          person_data.permanentZipCode,         // 45 permanentZipCode
-          person_data.permanentRegion,          // 46 permanentRegion
-          person_data.permanentProvince,        // 47 permanentProvince
-          person_data.permanentMunicipality,    // 48 permanentMunicipality
-          person_data.permanentDswdHouseholdNumber, // 49 permanentDswdHouseholdNumber
-          person_data.solo_parent,              // 50 solo_parent
-          person_data.father_deceased,          // 51 father_deceased
-          person_data.father_family_name,       // 52 father_family_name
-          person_data.father_given_name,        // 53 father_given_name
-          person_data.father_middle_name,       // 54 father_middle_name
-          person_data.father_ext,               // 55 father_ext
-          person_data.father_nickname,          // 56 father_nickname
-          person_data.father_education,         // 57 father_education
-          person_data.father_education_level,   // 58 father_education_level
-          person_data.father_last_school,       // 59 father_last_school
-          person_data.father_course,            // 60 father_course
-          person_data.father_year_graduated,    // 61 father_year_graduated
-          person_data.father_school_address,    // 62 father_school_address
-          person_data.father_contact,           // 63 father_contact
-          person_data.father_occupation,        // 64 father_occupation
-          person_data.father_employer,          // 65 father_employer
-          person_data.father_income,            // 66 father_income
-          person_data.father_email,             // 67 father_email
-          person_data.mother_deceased,          // 68 mother_deceased
-          person_data.mother_family_name,       // 69 mother_family_name
-          person_data.mother_given_name,        // 70 mother_given_name
-          person_data.mother_middle_name,       // 71 mother_middle_name
-          person_data.mother_ext,               // 72 mother_ext
-          person_data.mother_nickname,          // 73 mother_nickname
-          person_data.mother_education,         // 74 mother_education
-          person_data.mother_education_level,   // 75 mother_education_level
-          person_data.mother_last_school,       // 76 mother_last_school
-          person_data.mother_course,            // 77 mother_course
-          person_data.mother_year_graduated,    // 78 mother_year_graduated
-          person_data.mother_school_address,    // 79 mother_school_address
-          person_data.mother_contact,           // 80 mother_contact
-          person_data.mother_occupation,        // 81 mother_occupation
-          person_data.mother_employer,          // 82 mother_employer
-          person_data.mother_income,            // 83 mother_income
-          person_data.mother_email,             // 84 mother_email
-          person_data.guardian,                 // 85 guardian
-          person_data.guardian_family_name,     // 86 guardian_family_name
-          person_data.guardian_given_name,      // 87 guardian_given_name
-          person_data.guardian_middle_name,     // 88 guardian_middle_name
-          person_data.guardian_ext,             // 89 guardian_ext
-          person_data.guardian_nickname,        // 90 guardian_nickname
-          person_data.guardian_address,         // 91 guardian_address
-          person_data.guardian_contact,         // 92 guardian_contact
-          person_data.guardian_email,           // 93 guardian_email
-          person_data.annual_income,            // 94 annual_income
-          person_data.schoolLevel,              // 95 schoolLevel
-          person_data.schoolLastAttended,       // 96 schoolLastAttended
-          person_data.schoolAddress,            // 97 schoolAddress
-          person_data.courseProgram,            // 98 courseProgram
-          person_data.honor,                    // 99 honor
-          person_data.generalAverage,           // 100 generalAverage
-          person_data.yearGraduated,            // 101 yearGraduated
-          person_data.schoolLevel1,             // 102 schoolLevel1
-          person_data.schoolLastAttended1,      // 103 schoolLastAttended1
-          person_data.schoolAddress1,           // 104 schoolAddress1
-          person_data.courseProgram1,           // 105 courseProgram1
-          person_data.honor1,                   // 106 honor1
-          person_data.generalAverage1,          // 107 generalAverage1
-          person_data.yearGraduated1,           // 108 yearGraduated1
-          person_data.strand,                   // 109 strand
-          person_data.cough,                    // 110 cough
-          person_data.colds,                    // 111 colds
-          person_data.fever,                    // 112 fever
-          person_data.asthma,                   // 113 asthma
-          person_data.faintingSpells,           // 114 faintingSpells
-          person_data.heartDisease,             // 115 heartDisease
-          person_data.tuberculosis,             // 116 tuberculosis
-          person_data.frequentHeadaches,        // 117 frequentHeadaches
-          person_data.hernia,                   // 118 hernia
-          person_data.chronicCough,             // 119 chronicCough
-          person_data.headNeckInjury,           // 120 headNeckInjury
-          person_data.hiv,                      // 121 hiv
-          person_data.highBloodPressure,        // 122 highBloodPressure
-          person_data.diabetesMellitus,         // 123 diabetesMellitus
-          person_data.allergies,                // 124 allergies
-          person_data.cancer,                   // 125 cancer
-          person_data.smokingCigarette,         // 126 smokingCigarette
-          person_data.alcoholDrinking,          // 127 alcoholDrinking
-          person_data.hospitalized,             // 128 hospitalized
-          person_data.hospitalizationDetails,   // 129 hospitalizationDetails
-          person_data.medications,              // 130 medications
-          person_data.hadCovid,                 // 131 hadCovid
-          person_data.covidDate,                // 132 covidDate
-          person_data.vaccine1Brand,            // 133 vaccine1Brand
-          person_data.vaccine1Date,             // 134 vaccine1Date
-          person_data.vaccine2Brand,            // 135 vaccine2Brand
-          person_data.vaccine2Date,             // 136 vaccine2Date
-          person_data.booster1Brand,            // 137 booster1Brand
-          person_data.booster1Date,             // 138 booster1Date
-          person_data.booster2Brand,            // 139 booster2Brand
-          person_data.booster2Date,             // 140 booster2Date
-          person_data.chestXray,                // 141 chestXray
-          person_data.cbc,                      // 142 cbc
-          person_data.urinalysis,               // 143 urinalysis
-          person_data.otherworkups,             // 144 otherworkups
-          person_data.symptomsToday,            // 145 symptomsToday
-          person_data.remarks,                  // 146 remarks
-          person_data.termsOfAgreement,         // 147 termsOfAgreement
-          person_data.created_at,               // 148 created_at
-          person_data.current_step,             // 149 current_step
-        ];
-
-        // Safety check — logs the count so you can verify it's 148
-        console.log("[assign-student-number] personValues count:", personValues.length);
-
-        const placeholders = personValues.map(() => "?").join(", ");
-
-        const [personInsertResult] = await conn.query(
-          `INSERT INTO person_table (
-        student_number, profile_img, campus, academicProgram, classifiedAs,
-        applyingAs, program, program2, program3, yearLevel, last_name, first_name,
-        middle_name, extension, nickname, height, weight, lrnNumber, nolrnNumber,
-        gender, pwdMember, pwdType, pwdId, birthOfDate, age, birthPlace,
-        languageDialectSpoken, citizenship, religion, civilStatus, tribeEthnicGroup,
-        cellphoneNumber, emailAddress, presentStreet, presentBarangay, presentZipCode,
-        presentRegion, presentProvince, presentMunicipality, presentDswdHouseholdNumber,
-        sameAsPresentAddress, permanentStreet, permanentBarangay, permanentZipCode,
-        permanentRegion, permanentProvince, permanentMunicipality,
-        permanentDswdHouseholdNumber, solo_parent, father_deceased, father_family_name,
-        father_given_name, father_middle_name, father_ext, father_nickname,
-        father_education, father_education_level, father_last_school, father_course,
-        father_year_graduated, father_school_address, father_contact, father_occupation,
-        father_employer, father_income, father_email, mother_deceased, mother_family_name,
-        mother_given_name, mother_middle_name, mother_ext, mother_nickname,
-        mother_education, mother_education_level, mother_last_school, mother_course,
-        mother_year_graduated, mother_school_address, mother_contact, mother_occupation,
-        mother_employer, mother_income, mother_email, guardian, guardian_family_name,
-        guardian_given_name, guardian_middle_name, guardian_ext, guardian_nickname,
-        guardian_address, guardian_contact, guardian_email, annual_income, schoolLevel,
-        schoolLastAttended, schoolAddress, courseProgram, honor, generalAverage,
-        yearGraduated, schoolLevel1, schoolLastAttended1, schoolAddress1, courseProgram1,
-        honor1, generalAverage1, yearGraduated1, strand, cough, colds, fever, asthma,
-        faintingSpells, heartDisease, tuberculosis, frequentHeadaches, hernia,
-        chronicCough, headNeckInjury, hiv, highBloodPressure, diabetesMellitus,
-        allergies, cancer, smokingCigarette, alcoholDrinking, hospitalized,
-        hospitalizationDetails, medications, hadCovid, covidDate, vaccine1Brand,
-        vaccine1Date, vaccine2Brand, vaccine2Date, booster1Brand, booster1Date,
-        booster2Brand, booster2Date, chestXray, cbc, urinalysis, otherworkups,
-        symptomsToday, remarks, termsOfAgreement, created_at, current_step
-      ) VALUES (${placeholders})`,
-          personValues,
+        const [studentFuturePI] = await db3.query(
+          `SELECT MAX(person_id) AS latest_person_id FROM person_table;`,
         );
 
-        // ── Real person_id from MySQL auto-increment ─────────────────────────────
-        const personIdForStudent = personInsertResult.insertId;
-        console.log("[assign-student-number] personIdForStudent:", personIdForStudent);
+        const personIdForStudent = studentFuturePI[0].latest_person_id;
 
-        // ── Insert into student_numbering_table ──────────────────────────────────
-        await conn.query(
+        //  Save to student_numbering_table
+        await db3.query(
           `INSERT INTO student_numbering_table (student_number, person_id) VALUES (?, ?)`,
-          [student_number, personIdForStudent],
+          [student_number, personIdForStudent + 1],
         );
 
-        // ── Insert into person_status_table ──────────────────────────────────────
-        await conn.query(
-          `INSERT INTO person_status_table
-        (person_id, exam_status, requirements, residency, student_registration_status, exam_result, hs_ave)
-       VALUES (?, 0, 0, 0, 0, 0, 0)`,
-          [personIdForStudent],
+        await db3.query(
+          `INSERT INTO person_status_table (person_id, exam_status, requirements, residency, student_registration_status, exam_result, hs_ave)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [personIdForStudent + 1, 0, 0, 0, 0, 0, 0],
         );
 
-        // ── Insert into student_status_table ─────────────────────────────────────
-        await conn.query(
-          `INSERT INTO student_status_table
-        (student_number, active_curriculum, enrolled_status, year_level_id, active_school_year_id, control_status)
-       VALUES (?, ?, 0, 0, 0, 0)`,
-          [student_number, person_data.program],
-        );
-
-        // ── Copy requirements to ENROLLMENT db ───────────────────────────────────
+        //  Copy requirements to db3 and StudentOnlineDocuments
         for (const req of requirements) {
-          const shortLabel = requirementShortLabels.get(req.requirements_id) || "Unknown";
+          const shortLabel =
+            requirementShortLabels.get(req.requirements_id) || "Unknown";
           const targetFilename = buildStudentRequirementFilename(
             applicantNumber,
             student_number,
             req.file_path,
             shortLabel,
           );
-          const { filePath: enrollmentFilePath } = await copyRequirementFileForEnrollment({
-            sourceFilename: req.file_path,
-            targetFilename,
-            applicantNumber,
-            studentNumber: student_number,
-            shortLabelFallback: shortLabel,
-          });
+          const { filePath: enrollmentFilePath } =
+            await copyRequirementFileForEnrollment({
+              sourceFilename: req.file_path,
+              targetFilename,
+              applicantNumber,
+              studentNumber: student_number,
+              shortLabelFallback: shortLabel,
+            });
 
-          await conn.query(
+          await db3.query(
             `INSERT INTO requirement_uploads
-          (requirements_id, person_id, submitted_documents, file_path, original_name,
-           remarks, status, document_status, registrar_status, created_at)
+          (requirements_id, person_id, submitted_documents, file_path, original_name, remarks, status, document_status, registrar_status, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               req.requirements_id,
-              personIdForStudent,
+              personIdForStudent + 1,
               req.submitted_documents,
               enrollmentFilePath || targetFilename || req.file_path,
               req.original_name,
@@ -1073,50 +806,212 @@ WHERE proctor LIKE ?
           );
         }
 
-        // ── Mark student registration complete ───────────────────────────────────
-        await conn.query(
-          `UPDATE person_status_table SET student_registration_status = 1 WHERE person_id = ?`,
-          [personIdForStudent],
+        await db3.query(
+          `INSERT INTO student_status_table
+         (student_number, active_curriculum, enrolled_status, year_level_id, active_school_year_id, control_status)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+          [student_number, person_data.program, 0, 0, 0, 0],
         );
 
-        // ── Insert or update login credentials in ENROLLMENT user_accounts ───────
-        const [existingUser] = await conn.query(
-          `SELECT id FROM user_accounts WHERE person_id = ?`,
-          [personIdForStudent],
+        //  Update registration status
+        await db3.query(
+          `UPDATE person_status_table SET student_registration_status = 1 WHERE person_id = ?`,
+          [personIdForStudent + 1],
+        );
+
+        await db3.query(
+          `
+      INSERT INTO person_table (person_id, student_number, profile_img, campus, academicProgram, classifiedAs, applyingAs, program, program2, program3, yearLevel, last_name, first_name, middle_name, extension, nickname, height, weight, lrnNumber, nolrnNumber, gender, pwdMember, pwdType, pwdId, birthOfDate, age, birthPlace, languageDialectSpoken, citizenship, religion, civilStatus, tribeEthnicGroup, cellphoneNumber, emailAddress, presentStreet, presentBarangay, presentZipCode, presentRegion, presentProvince, presentMunicipality, presentDswdHouseholdNumber, sameAsPresentAddress, permanentStreet, permanentBarangay, permanentZipCode, permanentRegion, permanentProvince, permanentMunicipality, permanentDswdHouseholdNumber, solo_parent, father_deceased, father_family_name, father_given_name, father_middle_name, father_ext, father_nickname, father_education, father_education_level, father_last_school, father_course, father_year_graduated, father_school_address, father_contact, father_occupation, father_employer, father_income, father_email, mother_deceased, mother_family_name, mother_given_name, mother_middle_name, mother_ext, mother_nickname, mother_education, mother_education_level, mother_last_school, mother_course, mother_year_graduated, mother_school_address, mother_contact, mother_occupation, mother_employer, mother_income, mother_email, guardian, guardian_family_name, guardian_given_name, guardian_middle_name, guardian_ext, guardian_nickname, guardian_address, guardian_contact, guardian_email, annual_income, schoolLevel, schoolLastAttended, schoolAddress, courseProgram, honor, generalAverage, yearGraduated, schoolLevel1, schoolLastAttended1, schoolAddress1, courseProgram1, honor1, generalAverage1, yearGraduated1, strand, cough, colds, fever, asthma, faintingSpells, heartDisease, tuberculosis, frequentHeadaches, hernia, chronicCough, headNeckInjury, hiv, highBloodPressure, diabetesMellitus, allergies, cancer, smokingCigarette, alcoholDrinking, hospitalized, hospitalizationDetails, medications, hadCovid, covidDate, vaccine1Brand, vaccine1Date, vaccine2Brand, vaccine2Date, booster1Brand, booster1Date, booster2Brand, booster2Date, chestXray, cbc, urinalysis, otherworkups, symptomsToday, remarks, termsOfAgreement, created_at, current_step)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+          [
+            personIdForStudent + 1,
+            student_number,
+            studentProfileImg,
+            person_data.campus,
+            person_data.academicProgram,
+            person_data.classifiedAs,
+            person_data.applyingAs,
+            person_data.program,
+            person_data.program2,
+            person_data.program3,
+            person_data.yearLevel,
+            person_data.last_name,
+            person_data.first_name,
+            person_data.middle_name,
+            person_data.extension,
+            person_data.nickname,
+            person_data.height,
+            person_data.weight,
+            person_data.lrnNumber,
+            person_data.nolrnNumber,
+            person_data.gender,
+            person_data.pwdMember,
+            person_data.pwdType,
+            person_data.pwdId,
+            person_data.birthOfDate,
+            person_data.age,
+            person_data.birthPlace,
+            person_data.languageDialectSpoken,
+            person_data.citizenship,
+            person_data.religion,
+            person_data.civilStatus,
+            person_data.tribeEthnicGroup,
+            person_data.cellphoneNumber,
+            person_data.emailAddress,
+            person_data.presentStreet,
+            person_data.presentBarangay,
+            person_data.presentZipCode,
+            person_data.presentRegion,
+            person_data.presentProvince,
+            person_data.presentMunicipality,
+            person_data.presentDswdHouseholdNumber,
+            person_data.sameAsPresentAddress,
+            person_data.permanentStreet,
+            person_data.permanentBarangay,
+            person_data.permanentZipCode,
+            person_data.permanentRegion,
+            person_data.permanentProvince,
+            person_data.permanentMunicipality,
+            person_data.permanentDswdHouseholdNumber,
+            person_data.solo_parent,
+            person_data.father_deceased,
+            person_data.father_family_name,
+            person_data.father_given_name,
+            person_data.father_middle_name,
+            person_data.father_ext,
+            person_data.father_nickname,
+            person_data.father_education,
+            person_data.father_education_level,
+            person_data.father_last_school,
+            person_data.father_course,
+            person_data.father_year_graduated,
+            person_data.father_school_address,
+            person_data.father_contact,
+            person_data.father_occupation,
+            person_data.father_employer,
+            person_data.father_income,
+            person_data.father_email,
+            person_data.mother_deceased,
+            person_data.mother_family_name,
+            person_data.mother_given_name,
+            person_data.mother_middle_name,
+            person_data.mother_ext,
+            person_data.mother_nickname,
+            person_data.mother_education,
+            person_data.mother_education_level,
+            person_data.mother_last_school,
+            person_data.mother_course,
+            person_data.mother_year_graduated,
+            person_data.mother_school_address,
+            person_data.mother_contact,
+            person_data.mother_occupation,
+            person_data.mother_employer,
+            person_data.mother_income,
+            person_data.mother_email,
+            person_data.guardian,
+            person_data.guardian_family_name,
+            person_data.guardian_given_name,
+            person_data.guardian_middle_name,
+            person_data.guardian_ext,
+            person_data.guardian_nickname,
+            person_data.guardian_address,
+            person_data.guardian_contact,
+            person_data.guardian_email,
+            person_data.annual_income,
+            person_data.schoolLevel,
+            person_data.schoolLastAttended,
+            person_data.schoolAddress,
+            person_data.courseProgram,
+            person_data.honor,
+            person_data.generalAverage,
+            person_data.yearGraduated,
+            person_data.schoolLevel1,
+            person_data.schoolLastAttended1,
+            person_data.schoolAddress1,
+            person_data.courseProgram1,
+            person_data.honor1,
+            person_data.generalAverage1,
+            person_data.yearGraduated1,
+            person_data.strand,
+            person_data.cough,
+            person_data.colds,
+            person_data.fever,
+            person_data.asthma,
+            person_data.faintingSpells,
+            person_data.heartDisease,
+            person_data.tuberculosis,
+            person_data.frequentHeadaches,
+            person_data.hernia,
+            person_data.chronicCough,
+            person_data.headNeckInjury,
+            person_data.hiv,
+            person_data.highBloodPressure,
+            person_data.diabetesMellitus,
+            person_data.allergies,
+            person_data.cancer,
+            person_data.smokingCigarette,
+            person_data.alcoholDrinking,
+            person_data.hospitalized,
+            person_data.hospitalizationDetails,
+            person_data.medications,
+            person_data.hadCovid,
+            person_data.covidDate,
+            person_data.vaccine1Brand,
+            person_data.vaccine1Date,
+            person_data.vaccine2Brand,
+            person_data.vaccine2Date,
+            person_data.booster1Brand,
+            person_data.booster1Date,
+            person_data.booster2Brand,
+            person_data.booster2Date,
+            person_data.chestXray,
+            person_data.cbc,
+            person_data.urinalysis,
+            person_data.otherworkups,
+            person_data.symptomsToday,
+            person_data.remarks,
+            person_data.termsOfAgreement,
+            person_data.created_at,
+            person_data.current_step,
+          ],
+        );
+
+        //  Insert login credentials (or update if existing)
+        const [existingUser] = await db3.query(
+          `SELECT * FROM user_accounts WHERE person_id = ?`,
+          [personIdForStudent + 1],
         );
 
         if (existingUser.length === 0) {
-          await conn.query(
-            `INSERT INTO user_accounts (person_id, email, password, role, status)
-         VALUES (?, ?, ?, 'student', 1)`,
-            [personIdForStudent, person_data.emailAddress, hashedPassword],
+          await db3.query(
+            `INSERT INTO user_accounts (person_id, email, password, role, status) VALUES (?, ?, ?, 'student', 1)`,
+            [personIdForStudent + 1, person_data.emailAddress, hashedPassword],
           );
         } else {
-          await conn.query(
-            `UPDATE user_accounts SET email = ?, password = ?, role = 'student', status = 1
-         WHERE person_id = ?`,
-            [person_data.emailAddress, hashedPassword, personIdForStudent],
+          await db3.query(
+            `UPDATE user_accounts SET email = ?, password = ?, role = 'student', status = 1 WHERE person_id = ?`,
+            [person_data.emailAddress, hashedPassword, personIdForStudent + 1],
           );
         }
 
-        // ── Commit transaction ───────────────────────────────────────────────────
-        await conn.commit();
-        conn.release();
-
-        // ── Generate QR code ─────────────────────────────────────────────────────
         const qrData = `${process.env.DB_HOST_LOCAL}:5173/student_qr_information/${student_number}`;
         const qrFilename = `${student_number}_qrcode.png`;
-        const qrPath = path.join(__dirname, "./uploads/QrCodeGenerated", qrFilename);
+        const qrPath = path.join(
+          __dirname,
+          "./uploads/QrCodeGenerated",
+          qrFilename,
+        );
 
         await QRCode.toFile(qrPath, qrData, {
           color: { dark: "#000", light: "#FFF" },
           width: 300,
         });
 
-        // ── Audit log ────────────────────────────────────────────────────────────
         const roleLabel = formatAuditActorRole(auditActorRole);
-        const studentName = [last_name, first_name, middle_name].filter(Boolean).join(", ");
-
+        const studentName = [last_name, first_name, middle_name]
+          .filter(Boolean)
+          .join(", ");
         await insertAuditLogEnrollment({
           actorId: auditActorId,
           role: auditActorRole,
@@ -1125,14 +1020,16 @@ WHERE proctor LIKE ?
           message: `${roleLabel} (${auditActorId}) assigned student number ${student_number} to ${studentName || `person_id ${person_id}`}.`,
         });
 
-        // ── Send welcome email ───────────────────────────────────────────────────
+        //  Fetch company name dynamically
         const [[company]] = await db.query(
           "SELECT company_name, short_term FROM company_settings WHERE id = 1",
         );
+
         const companyName = company?.company_name || "Enrollment Office";
         const companyShort = company?.short_term || "";
 
-        const mailer = nodemailer.createTransport({
+        //  Send welcome email
+        const transporter = nodemailer.createTransport({
           service: "gmail",
           auth: {
             user: process.env.EMAIL_USER,
@@ -1140,45 +1037,55 @@ WHERE proctor LIKE ?
           },
         });
 
+        const mailOptions = {
+          from: `"${companyShort} Enrollment Office" <${process.env.EMAIL_USER}>`,
+          to: emailAddress,
+          subject: `  Welcome to ${companyName} - Acceptance Confirmation`,
+          text: `
+          Hi, ${first_name} ${middle_name || ""} ${last_name},
+
+           Congratulations! You are now officially accepted and part of the ${companyName} community.
+
+          Please visit your respective college offices to tag your schedule to your account and obtain your class schedule.
+
+          Your Student Number is: ${student_number}
+          Your Email Address is: ${emailAddress}
+
+          Your temporary password is: ${tempPassword}
+
+          You may change your password and keep it secure.
+
+            Click the link below to log in:
+          ${process.env.DB_HOST_LOCAL}:5173/login
+          `.trim(),
+        };
+
         let emailSent = false;
         let emailErrorMessage = "";
 
         try {
-          if (!emailAddress) throw new Error("Student email address is empty.");
-          await mailer.sendMail({
-            from: `"${companyShort} Enrollment Office" <${process.env.EMAIL_USER}>`,
-            to: emailAddress,
-            subject: `Welcome to ${companyName} - Acceptance Confirmation`,
-            text: `
-Hi, ${first_name} ${middle_name || ""} ${last_name},
+          if (!emailAddress) {
+            throw new Error("Student email address is empty.");
+          }
 
-Congratulations! You are now officially accepted and part of the ${companyName} community.
-
-Please visit your respective college offices to tag your schedule to your account and obtain your class schedule.
-
-Your Student Number is: ${student_number}
-Your Email Address is: ${emailAddress}
-Your temporary password is: ${tempPassword}
-
-You may change your password and keep it secure.
-
-Click the link below to log in:
-${process.env.DB_HOST_LOCAL}:5173/login
-        `.trim(),
-          });
+          await transporter.sendMail(mailOptions);
           emailSent = true;
         } catch (emailError) {
-          emailErrorMessage = emailError?.response || emailError?.message || "Failed to send email.";
-          console.error("[assign-student-number] Email send failed:", emailError);
+          emailErrorMessage =
+            emailError?.response ||
+            emailError?.message ||
+            "Failed to send email.";
+          console.error(
+            "[assign-student-number] Email send failed:",
+            emailError,
+          );
         }
 
-        // ── Deactivate the applicant account in ADMISSION ────────────────────────
         await db.query(
           `UPDATE user_accounts SET status = 0 WHERE person_id = ?`,
           [person_id],
         );
 
-        // ── Emit result ──────────────────────────────────────────────────────────
         socket.emit("assign-student-number-result", {
           success: true,
           student_number,
@@ -1187,15 +1094,11 @@ ${process.env.DB_HOST_LOCAL}:5173/login
             ? "Student number assigned and email sent successfully."
             : `Student number assigned, but email was not sent. ${emailErrorMessage}`,
         });
-
       } catch (error) {
-        try { await conn.rollback(); } catch (_) { }
-        conn.release();
-
         console.error("Error in assign-student-number:", error);
         socket.emit("assign-student-number-result", {
           success: false,
-          message: error.message || "Internal server error.",
+          message: "Internal server error.",
         });
       }
     });
@@ -3721,7 +3624,7 @@ ${process.env.DB_HOST_LOCAL}:5173/login
 
   ///////---------------------------- DUPLICATE ----------------------------//////////
   app.get("/api/departments", async (req, res) => {
-    const sql = "SELECT dprtmnt_id, dprtmnt_code, dprtmnt_name, dept_number, components FROM dprtmnt_table";
+    const sql = "SELECT dprtmnt_id, dprtmnt_code, dprtmnt_name FROM dprtmnt_table";
 
     try {
       const [result] = await db3.query(sql);
@@ -4654,7 +4557,7 @@ ${process.env.DB_HOST_LOCAL}:5173/login
     try {
       const [departments] = await db3.execute(
         `
-      SELECT dt.dprtmnt_id, dt.dprtmnt_name, dt.dprtmnt_code, dept_number, components FROM dprtmnt_table AS dt WHERE dt.dprtmnt_id = ?
+      SELECT dt.dprtmnt_id, dt.dprtmnt_name, dt.dprtmnt_code FROM dprtmnt_table AS dt WHERE dt.dprtmnt_id = ?
     `,
         [dprtmnt_id],
       );
@@ -4668,7 +4571,7 @@ ${process.env.DB_HOST_LOCAL}:5173/login
   app.get("/api/departments", async (req, res) => {
     try {
       const [departments] = await db3.execute(`
-      SELECT dt.dprtmnt_id, dt.dprtmnt_name, dt.dprtmnt_code, dt.dept_number, components FROM dprtmnt_table AS dt
+      SELECT dt.dprtmnt_id, dt.dprtmnt_name, dt.dprtmnt_code FROM dprtmnt_table AS dt
     `);
       res.json(departments);
     } catch (err) {
@@ -5208,9 +5111,8 @@ ${process.env.DB_HOST_LOCAL}:5173/login
         pt.components,
         pt.academic_program,
         d.dprtmnt_id,
-        d.dprtmnt_name,
-        d.dept_number,
-        d.components
+        d.dprtmnt_name
+   
       FROM curriculum_table AS ct
       INNER JOIN program_table AS pt ON pt.program_id = ct.program_id
       INNER JOIN dprtmnt_curriculum_table AS dc ON ct.curriculum_id = dc.curriculum_id
@@ -8116,134 +8018,6 @@ ${process.env.DB_HOST_LOCAL}:5173/login
     } catch (error) {
       console.error(" Error checking student number:", error);
       res.status(500).json({ error: "Internal Server Error" });
-    }
-  });
-
-  app.get('/api/admin/dept-numbers', async (req, res) => {
-    try {
-      const [rows] = await db3.query(
-        `SELECT dprtmnt_id, dprtmnt_name, dprtmnt_code, dept_number, components
-       FROM dprtmnt_table
-       ORDER BY dprtmnt_id ASC`
-      );
-      res.json(rows);
-    } catch (err) {
-      console.error('[admin/dept-numbers GET]', err);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // PUT /api/admin/dept-numbers
-  // Body: { departments: [{ dprtmnt_id, dept_number }, …] }
-  // Bulk-updates dept_number for every department in the array.
-  // ─────────────────────────────────────────────────────────────────────────────
-  app.put('/api/admin/dept-numbers', async (req, res) => {
-    const { departments } = req.body;
-
-    if (!Array.isArray(departments) || departments.length === 0) {
-      return res.status(400).json({ error: 'departments array is required' });
-    }
-
-    const nums = departments.map(d => d.dept_number).filter(n => n !== null && n !== undefined);
-    const seen = new Set();
-    for (const n of nums) {
-      if (seen.has(n)) return res.status(400).json({ error: `Duplicate dept_number: ${n}` });
-      seen.add(n);
-    }
-
-    // Default missing/null components to Manila (1) — matches the frontend's
-    // display fallback (`d.components ?? 1`) so what gets saved matches what
-    // the registrar saw on screen. Only reject values that are genuinely wrong.
-    const normalizedDepartments = departments.map((d) => ({
-      ...d,
-      components: d.components === null || d.components === undefined
-        ? 1
-        : Number(d.components),
-    }));
-
-    const invalidComponents = normalizedDepartments.filter(
-      (d) => ![1, 2].includes(d.components),
-    );
-    if (invalidComponents.length > 0) {
-      return res.status(400).json({
-        error: `Invalid components value for dprtmnt_id(s): ${invalidComponents.map(d => d.dprtmnt_id).join(', ')}. Must be 1 (Manila) or 2 (Cavite).`,
-      });
-    }
-
-    try {
-      for (const dept of normalizedDepartments) {
-        await db3.query(
-          'UPDATE dprtmnt_table SET dept_number = ?, components = ? WHERE dprtmnt_id = ?',
-          [dept.dept_number ?? null, dept.components, dept.dprtmnt_id]
-        );
-      }
-      res.json({ success: true, updated: normalizedDepartments.length });
-    } catch (err) {
-      console.error('[admin/dept-numbers PUT]', err);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // GET /api/admin/branch-letters
-  // Returns the branches array from company_settings (already JSON-parsed).
-  // ─────────────────────────────────────────────────────────────────────────────
-  app.get('/api/admin/branch-letters', async (req, res) => {
-    try {
-      const [[row]] = await db.query(
-        'SELECT branches FROM company_settings WHERE id = 1'
-      );
-      const branches = JSON.parse(row?.branches || '[]');
-      res.json(branches);
-    } catch (err) {
-      console.error('[admin/branch-letters GET]', err);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // PUT /api/admin/branch-letters
-  // Body: { branches: [{ id, letter_code }, …] }
-  // Merges letter_code into the existing branches JSON without touching other fields.
-  // ─────────────────────────────────────────────────────────────────────────────
-  app.put('/api/admin/branch-letters', async (req, res) => {
-    const { branches: incoming } = req.body;
-
-    if (!Array.isArray(incoming)) {
-      return res.status(400).json({ error: 'branches array is required' });
-    }
-
-    // Validate: each letter_code must be a single uppercase letter
-    for (const b of incoming) {
-      if (b.letter_code && !/^[A-Za-z]$/.test(b.letter_code)) {
-        return res.status(400).json({ error: `Invalid letter_code "${b.letter_code}" for branch id=${b.id}. Must be a single letter.` });
-      }
-    }
-
-    try {
-      const [[row]] = await db.query(
-        'SELECT branches FROM company_settings WHERE id = 1'
-      );
-      const existing = JSON.parse(row?.branches || '[]');
-
-      const updated = existing.map(branch => {
-        const found = incoming.find(n => n.id === branch.id);
-        if (!found) return branch;
-        return { ...branch, letter_code: found.letter_code.toUpperCase() };
-      });
-
-      await db.query(
-        'UPDATE company_settings SET branches = ? WHERE id = 1',
-        [JSON.stringify(updated)]
-      );
-
-      res.json({ success: true });
-    } catch (err) {
-      console.error('[admin/branch-letters PUT]', err);
-      res.status(500).json({ error: err.message });
     }
   });
 
