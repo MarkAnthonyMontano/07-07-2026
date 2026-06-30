@@ -264,6 +264,25 @@ const StudentNumbering = () => {
   const [lockTimer, setLockTimer] = useState(0);
   const lockIntervalRef = useRef(null);
 
+
+  const [assignedStudentData, setAssignedStudentData] = useState(null);
+  const [tempPasswordResult, setTempPasswordResult] = useState("");
+  const [emailSubject, setEmailSubject] = useState(
+    "Welcome - Acceptance Confirmation"
+  );
+  const [emailMessage, setEmailMessage] = useState("");
+  const [finalPreview, setFinalPreview] = useState("");
+  const [importantReminders, setImportantReminders] = useState(
+    `⚠️ Important Reminder:
+    
+- Please keep your temporary password confidential and change it upon first login.
+- Visit your respective college office to tag your schedule and obtain your class schedule.
+- Bring a valid school ID when claiming any physical documents.`
+  );
+
+
+
+
   useEffect(() => {
     axios
       .get(`${API_BASE_URL}/api/get_school_year/`)
@@ -412,11 +431,28 @@ const StudentNumbering = () => {
   // 🔑 For modal
   const [openModal, setOpenModal] = useState(false);
   const [password, setPassword] = useState("");
+  const [isAssigning, setIsAssigning] = useState(false); // 🔒 prevents double submit
 
   const [itemsPerPage, setItemsPerPage] = useState(100);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchError, setSearchError] = useState("");
+
+
+  useEffect(() => {
+    if (!openModal) return;
+    setFinalPreview(`${emailMessage}\n\n${importantReminders}`);
+  }, [importantReminders, emailMessage, openModal]);
+
+
+  const openAssignModal = () => {
+    if (!selectedPerson) return;
+    setPassword("");
+    const base = buildAcceptanceEmailPreview();
+    setEmailMessage(base);
+    setFinalPreview(`${base}\n\n${importantReminders}`);
+    setOpenModal(true);
+  };
 
   useEffect(() => {
     const delayDebounce = setTimeout(async () => {
@@ -525,7 +561,7 @@ const StudentNumbering = () => {
     const matchesSemester =
       !selectedSchoolSemester ||
       normalize(personData.middle_code) ===
-        normalize(selectedSemester?.semester_code);
+      normalize(selectedSemester?.semester_code);
 
     return (
       (matchesApplicantID || matchesName || matchesEmail) &&
@@ -623,12 +659,7 @@ const StudentNumbering = () => {
     setError("");
   };
 
-  // 🔑 Step 1: Open confirmation modal
-  const openAssignModal = () => {
-    if (!selectedPerson) return;
-    setPassword(""); // ✅ clears any previously typed password
-    setOpenModal(true);
-  };
+
 
   const buildAcceptanceEmailPreview = () => {
     const schoolName = companyName || "our school";
@@ -636,28 +667,25 @@ const StudentNumbering = () => {
     const middleName = selectedPerson?.middle_name || "";
     const lastName = selectedPerson?.last_name || "";
     const emailAddress = selectedPerson?.emailAddress || "";
-    const loginUrl =
-      typeof window !== "undefined"
-        ? `${window.location.origin}/login`
-        : "/login";
+    const loginUrl = "https://ap.earist.edu.ph/login";
 
     return `
-            Hi, ${firstName} ${middleName || ""} ${lastName},
+          Hi, ${firstName} ${middleName || ""} ${lastName},
 
-            🎉 Congratulations! You are now officially accepted and part of the ${schoolName} community.
+          🎉 Congratulations! You are now officially accepted and part of the ${schoolName} community.
 
-            Please visit your respective college offices to tag your schedule to your account and obtain your class schedule.
+          Please visit your respective college offices to tag your schedule to your account and obtain your class schedule.
 
-            Your Student Number is: [Assigned after confirmation]
-            Your Email Address is: ${emailAddress}
+          Your Student Number is: [Assigned after confirmation]
+          Your Email Address is: ${emailAddress}
 
-            Your temporary password is: [Generated automatically]
+          Your temporary password is: [Generated automatically]
 
-            You may change your password and keep it secure.
+          You may change your password and keep it secure.
 
-            👉 Click the link below to log in:
-            ${loginUrl}
-        `;
+          👉 Click the link below to log in:
+          ${loginUrl}
+      `;
   };
 
   const [userEmail, setUserEmail] = useState("");
@@ -669,6 +697,9 @@ const StudentNumbering = () => {
   }, []);
 
   const confirmAssignNumber = async () => {
+    if (isAssigning) return; // already in progress, ignore extra clicks
+    setIsAssigning(true);
+
     try {
       socket.current.emit("assign-student-number", {
         person_id: selectedPerson.person_id,
@@ -682,8 +713,12 @@ const StudentNumbering = () => {
       });
 
       socket.current.once("assign-student-number-result", (data) => {
+        setIsAssigning(false); // 🔓 release lock once server responds
+
         if (data.success) {
           setAssignedNumber(data.student_number);
+          setAssignedStudentData(data.student_data || null);
+          setTempPasswordResult(data.temp_password || "");
           setOpenModal(false);
           setSnack({
             open: true,
@@ -705,6 +740,7 @@ const StudentNumbering = () => {
         }
       });
     } catch (err) {
+      setIsAssigning(false); // 🔓 release lock on error too
       setAuthError("Invalid Password please try Again");
     }
   };
@@ -714,25 +750,25 @@ const StudentNumbering = () => {
     setSnack((prev) => ({ ...prev, open: false }));
   };
 
-     // 🔒 Disable right-click
-    document.addEventListener("contextmenu", (e) => e.preventDefault());
+  // // 🔒 Disable right-click
+  // document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-    // 🔒 Block DevTools shortcuts + Ctrl+P silently
-    document.addEventListener("keydown", (e) => {
-        const isBlockedKey =
-            e.key === "F12" ||
-            e.key === "F11" ||
-            (e.ctrlKey &&
-                e.shiftKey &&
-                (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-            (e.ctrlKey && e.key.toLowerCase() === "u") ||
-            (e.ctrlKey && e.key.toLowerCase() === "p");
+  // // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  // document.addEventListener("keydown", (e) => {
+  //   const isBlockedKey =
+  //     e.key === "F12" ||
+  //     e.key === "F11" ||
+  //     (e.ctrlKey &&
+  //       e.shiftKey &&
+  //       (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+  //     (e.ctrlKey && e.key.toLowerCase() === "u") ||
+  //     (e.ctrlKey && e.key.toLowerCase() === "p");
 
-        if (isBlockedKey) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-    });
+  //   if (isBlockedKey) {
+  //     e.preventDefault();
+  //     e.stopPropagation();
+  //   }
+  // });
 
   // Put this at the very bottom before the return
   if (loading || hasAccess === null) {
@@ -1608,13 +1644,13 @@ const StudentNumbering = () => {
                 <strong>Birth Of Date:</strong>{" "}
                 {selectedPerson.birthOfDate
                   ? new Date(selectedPerson.birthOfDate).toLocaleDateString(
-                      "en-US",
-                      {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      },
-                    )
+                    "en-US",
+                    {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    },
+                  )
                   : "N/A"}
                 <br />
                 <strong>Age:</strong> {selectedPerson.age}
@@ -1638,10 +1674,22 @@ const StudentNumbering = () => {
             <Typography>No person selected.</Typography>
           )}
 
-          {assignedNumber && (
-            <Typography mt={2} color="green">
-              <strong>Assigned Student Number:</strong> {assignedNumber}
-            </Typography>
+          {assignedStudentData && (
+            <Card sx={{ mt: 2, p: 2, border: "1px solid #2e7d32" }}>
+              <Typography fontWeight="bold" color="green" mb={1}>
+                ✅ Student Number Assigned
+              </Typography>
+              <Typography fontSize={14}>
+                <strong>Student Number:</strong> {assignedStudentData.student_number}
+                <br />
+                <strong>Name:</strong> {assignedStudentData.last_name},{" "}
+                {assignedStudentData.first_name} {assignedStudentData.middle_name}
+                <br />
+                <strong>Email:</strong> {assignedStudentData.email}
+                <br />
+                <strong>Temporary Password:</strong> {tempPasswordResult}
+              </Typography>
+            </Card>
           )}
 
           {error && (
@@ -1858,9 +1906,11 @@ const StudentNumbering = () => {
       <Dialog
         open={openModal}
         onClose={(event, reason) => {
-          if (reason === "backdropClick") return;
+          if (reason === "backdropClick" || isAssigning) return;
           setOpenModal(false);
         }}
+        maxWidth="lg"
+        fullWidth
       >
         <DialogTitle
           sx={{
@@ -1926,25 +1976,60 @@ const StudentNumbering = () => {
           </IconButton>
         </DialogTitle>
 
-        <DialogContent>
+        <DialogContent dividers sx={{ p: 3 }}>
           <TextField
-            multiline
+            label="Email Subject"
+            value={emailSubject}
+            onChange={(e) => setEmailSubject(e.target.value)}
             fullWidth
-            minRows={16}
-            value={buildAcceptanceEmailPreview()}
-            InputProps={{ readOnly: true }}
+            sx={{ mb: 3 }}
           />
+
+          <Box sx={{ display: "flex", gap: 3, alignItems: "flex-start" }}>
+            <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+              <Typography variant="subtitle2" color="text.secondary" fontWeight={600}>
+                👁️ Email Preview
+              </Typography>
+              <TextField
+                value={finalPreview}
+                fullWidth
+                multiline
+                minRows={18}
+                InputProps={{ readOnly: true }}
+                sx={{ "& .MuiInputBase-root": { backgroundColor: "#f9f9f9" } }}
+              />
+            </Box>
+
+            <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+              <Typography variant="subtitle2" color="text.secondary" fontWeight={600}>
+                ✏️ Important Reminders
+              </Typography>
+              <TextField
+                value={importantReminders}
+                onChange={(e) => setImportantReminders(e.target.value)}
+                fullWidth
+                multiline
+                minRows={10}
+                placeholder="Edit reminders here..."
+              />
+            </Box>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button
             onClick={() => setOpenModal(false)}
             color="error"
             variant="outlined"
+            disabled={isAssigning}
           >
             Cancel
           </Button>
-          <Button onClick={confirmAssignNumber} variant="contained">
-            Confirm Assign & Send Email
+          <Button
+            onClick={confirmAssignNumber}
+            variant="contained"
+            disabled={isAssigning}
+          >
+            {isAssigning ? "Processing..." : "Confirm Assign & Send Email"}
           </Button>
         </DialogActions>
       </Dialog>

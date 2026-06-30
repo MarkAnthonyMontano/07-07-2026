@@ -741,7 +741,7 @@ const SideBar = ({
             { title: "Applicant Profile", link: "/applicant_registrar_personal_information", icon: AccountCircle, page_id: 161 },
             { title: "Applicant Online Requirements", link: "/applicant_online_requirements_registrar", icon: FolderCopy, page_id: 160 },
             { title: "Student Numbering Panel", link: "/student_numbering", icon: Numbers, page_id: 59 },
-            // { title: "Student Number Admin", link: "/student_number_admin", icon: AdminPanelSettings, page_id: 167 },
+            { title: "Student Number Admin", link: "/student_number_admin", icon: AdminPanelSettings, page_id: 167 },
 
             { title: "Student List", link: "/student_list", icon: ListAltOutlined, page_id: 104 },
             { title: "Student Profile", link: "/student_registrar_personal_information", icon: AccountCircle, page_id: 38 },

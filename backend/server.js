@@ -35,9 +35,9 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://192.168.50.211:5173",
   "http://136.239.248.62:5173",
-  "http://192.168.50.53:5173",
+  "http://192.168.50.62:5173",
   "http://192.168.1.9:5173",
-  "http://192.168.50.53:5173",
+  "http://192.168.50.62:5173",
 ];
 
 app.use(
@@ -1591,7 +1591,8 @@ app.get("/api/list_of_students/details", async (req, res) => {
         dpt.dprtmnt_id,
         dpt.dprtmnt_name,
         dpt.dprtmnt_code,
-       
+        dpt.dept_number,
+        dpt.components,
         sst.year_level_id,
         es.en_remarks AS en_remarks,
         es.en_remarks AS remark_summary,
@@ -1643,6 +1644,8 @@ app.get("/api/list_of_students/details", async (req, res) => {
   }
 });
 
+
+
 app.get("/api/list_of_students/data/:studentNumber/:activeSchoolYearId", async (req, res) => {
   const { studentNumber, activeSchoolYearId } = req.params;
 
@@ -1677,7 +1680,8 @@ app.get("/api/list_of_students/data/:studentNumber/:activeSchoolYearId", async (
         dpt.dprtmnt_id,
         dpt.dprtmnt_name,
         dpt.dprtmnt_code,
-    
+        dpt.dept_number,
+        dpt.components,
         sst.year_level_id,
         es.en_remarks AS en_remarks,
         es.en_remarks AS remark_summary,
@@ -1731,6 +1735,8 @@ app.get("/api/list_of_students/data/:studentNumber/:activeSchoolYearId", async (
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
+
 
 app.get("/api/list_of_students/documents/:personId", async (req, res) => {
   const { personId } = req.params;
@@ -3645,7 +3651,9 @@ app.post(
 );
 
 //  5. Get applied programs list (sample, adjust db name/table)
-// server.js
+
+
+
 app.get("/api/applied_program", async (req, res) => {
   try {
     const [rows] = await db3.execute(`
@@ -3663,6 +3671,8 @@ app.get("/api/applied_program", async (req, res) => {
         pt.academic_program,
         d.dprtmnt_id,
         d.dprtmnt_name,
+        d.dept_number,
+        d.components
       FROM curriculum_table AS ct
       INNER JOIN program_table AS pt ON pt.program_id = ct.program_id
       INNER JOIN dprtmnt_curriculum_table AS dc ON ct.curriculum_id = dc.curriculum_id
@@ -3681,6 +3691,8 @@ app.get("/api/applied_program", async (req, res) => {
     res.status(500).json({ error: "Database error" });
   }
 });
+
+
 
 app.get("/api/search-person", async (req, res) => {
   const { query } = req.query;
