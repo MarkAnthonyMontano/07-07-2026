@@ -16,6 +16,8 @@ const {
   resolveRegistrarLoginFields,
 } = require("../../utils/registrarScopeService");
 const router = express.Router();
+const dns = require("dns").promises;
+
 
 // ─── In-memory stores ───────────────────────────────────────────────────────
 let otpStore = {};
@@ -33,6 +35,57 @@ const calculateAge = (birthDate) => {
   const m = today.getMonth() - date.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < date.getDate())) age -= 1;
   return age;
+};
+
+// ─── Dynamic domain reachability check (no hardcoded domain list) ──────────
+const isDomainReachable = async (email) => {
+  const domain = String(email || "").split("@")[1];
+  if (!domain) return false;
+  try {
+    const mxRecords = await dns.resolveMx(domain);
+    if (Array.isArray(mxRecords) && mxRecords.length > 0) return true;
+  } catch (err) {
+    // fall through — try A/AAAA as a fallback for domains that accept
+    // mail without an explicit MX record (rare, but some do)
+  }
+  try {
+    const aRecords = await dns.resolve(domain);
+    return Array.isArray(aRecords) && aRecords.length > 0;
+  } catch (err) {
+    return false;
+  }
+};
+
+const COMMON_EMAIL_DOMAINS = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com"];
+
+const levenshtein = (a, b) => {
+  const dp = Array.from({ length: a.length + 1 }, (_, i) =>
+    Array(b.length + 1).fill(0).map((_, j) => (i === 0 ? j : j === 0 ? i : 0))
+  );
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+  return dp[a.length][b.length];
+};
+
+const suggestEmailDomain = (domain) => {
+  if (!domain) return null;
+  const lower = domain.toLowerCase();
+  if (COMMON_EMAIL_DOMAINS.includes(lower)) return null;
+  let best = null;
+  let bestDist = Infinity;
+  for (const known of COMMON_EMAIL_DOMAINS) {
+    const dist = levenshtein(lower, known);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = known;
+    }
+  }
+  return bestDist > 0 && bestDist <= 2 ? best : null;
 };
 
 async function getApplicantNumberByPersonId(personId) {
@@ -158,6 +211,24 @@ const checkEnrollmentPersonDuplicate = async ({
 router.post("/check-registration-duplicate", async (req, res) => {
   try {
     const { email, firstName, lastName, birthday } = req.body;
+
+    const domainOk = await isDomainReachable(email);
+    if (!domainOk) {
+      await insertRegistrationAuditLog({
+        actorId: email || "unknown",
+        outcome: "FAILED",
+        event: "failed duplicate registration check",
+        reason: "Email domain has no valid mail records",
+      });
+      return res.status(400).json({
+        success: false,
+        duplicate: false,
+        reason: "invalid_domain",
+        message:
+          "This email domain doesn't appear to exist or can't receive mail. Please double-check for typos.",
+      });
+    }
+
     const duplicateCheck = await checkEnrollmentPersonDuplicate({
       email,
       firstName,
@@ -286,10 +357,26 @@ router.post("/register", async (req, res) => {
   } = req.body;
   const normalizedEmail = email?.trim().toLowerCase();
 
+  const domainOk = await isDomainReachable(normalizedEmail);
+  if (!domainOk) {
+    await insertRegistrationAuditLog({
+      actorId: normalizedEmail || "unknown",
+      outcome: "FAILED",
+      event: "failed to register",
+      reason: "Email domain has no valid mail records",
+    });
+    return res.status(400).json({
+      success: false,
+      message: "This email domain doesn't appear to exist or can't receive mail.",
+    });
+  }
+
   const [existingEmail] = await db.query(
     "SELECT 1 FROM user_accounts WHERE email = ?",
     [normalizedEmail]
   );
+
+
   if (existingEmail.length > 0) {
     return res
       .status(400)
@@ -1776,8 +1863,8 @@ router.get("/get-otp-setting/:type/:person_id", async (req, res) => {
     return res.status(400).json({ message: "Missing parameters" });
 
   let table, idColumn;
-  if (type === "user")      { table = "user_accounts"; idColumn = "person_id"; }
-  else if (type === "prof") { table = "prof_table";    idColumn = "employee_id"; }
+  if (type === "user") { table = "user_accounts"; idColumn = "person_id"; }
+  else if (type === "prof") { table = "prof_table"; idColumn = "employee_id"; }
   else return res.status(400).json({ message: "Invalid type" });
 
   try {
@@ -1801,8 +1888,8 @@ router.post("/update-otp-setting", async (req, res) => {
     return res.status(400).json({ message: "Missing parameters" });
 
   let table, idColumn;
-  if (type === "user")      { table = "user_accounts"; idColumn = "person_id"; }
-  else if (type === "prof") { table = "prof_table";    idColumn = "employee_id"; }
+  if (type === "user") { table = "user_accounts"; idColumn = "person_id"; }
+  else if (type === "prof") { table = "prof_table"; idColumn = "employee_id"; }
   else return res.status(400).json({ message: "Invalid type" });
 
   const newValue = Number(require_otp) === 1 ? 1 : 0;
@@ -1824,6 +1911,19 @@ router.post("/update-otp-setting", async (req, res) => {
   } catch (err) {
     console.error("Failed to update TOTP setting:", err);
     res.status(500).json({ message: "Server error updating TOTP setting" });
+  }
+});
+
+router.get("/check-domain-mx", async (req, res) => {
+  try {
+    const { domain } = req.query;
+    if (!domain) return res.json({ valid: false, suggestion: null });
+    const valid = await isDomainReachable(`x@${domain}`);
+    const suggestion = suggestEmailDomain(domain);
+    return res.json({ valid, suggestion });
+  } catch (error) {
+    console.error("Domain MX check error:", error);
+    return res.json({ valid: false, suggestion: null });
   }
 });
 

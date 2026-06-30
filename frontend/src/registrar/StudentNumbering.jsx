@@ -1656,8 +1656,8 @@ const StudentNumbering = () => {
                 <strong>Age:</strong> {selectedPerson.age}
                 <br />
                 <strong>Program Applied:</strong> ({selectedPerson.program_code}
-                ){selectedPerson.program_description}
-                {selectedPerson.major}
+                ) - {selectedPerson.program_description}
+                {selectedPerson.major} - 
                 <br />
                 <strong>Email Address:</strong> {selectedPerson.emailAddress}
               </Typography>

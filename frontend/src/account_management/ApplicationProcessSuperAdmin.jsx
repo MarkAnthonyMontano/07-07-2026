@@ -2121,7 +2121,7 @@ const ApplicationProcessAdmin = () => {
               >
                 Remarks
               </TableCell>
-              <TableCell
+              {/* <TableCell
                 sx={{
                   color: "white",
                   textAlign: "center",
@@ -2132,7 +2132,7 @@ const ApplicationProcessAdmin = () => {
                 }}
               >
                 Delete Account
-              </TableCell>
+              </TableCell> */}
               {/* <TableCell sx={{ color: "white", textAlign: "center", width: "8%", py: 0.5, fontSize: "12px", border: `1px solid ${borderColor}` }}>
                                 Registrar Status
                             </TableCell> */}

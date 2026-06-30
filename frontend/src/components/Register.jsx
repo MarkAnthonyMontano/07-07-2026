@@ -1062,6 +1062,8 @@ const Register = () => {
   };
 
   const [usersData, setUserData] = useState({ email: "", password: "" });
+  const [emailDomainStatus, setEmailDomainStatus] = useState(null); // null | "checking" | "valid" | "invalid"
+  const [emailDomainSuggestion, setEmailDomainSuggestion] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -1072,6 +1074,43 @@ const Register = () => {
     const { name, value } = e.target;
     setUserData((prev) => ({ ...prev, [name]: value }));
   };
+
+  const handleEmailBlur = async () => {
+    const email = usersData.email.trim();
+    const at = email.lastIndexOf("@");
+    if (at === -1 || at === email.length - 1) {
+      setEmailDomainStatus(null);
+      setEmailDomainSuggestion(null);
+      return;
+    }
+    const domain = email.slice(at + 1).toLowerCase();
+    if (!domain) {
+      setEmailDomainStatus(null);
+      setEmailDomainSuggestion(null);
+      return;
+    }
+
+    setEmailDomainStatus("checking");
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/check-domain-mx`, {
+        params: { domain },
+      });
+      setEmailDomainStatus(res.data.valid ? "valid" : "invalid");
+      setEmailDomainSuggestion(res.data.suggestion || null);
+
+      if (res.data.suggestion) {
+        setSnack({
+          open: true,
+          message: `This looks like a typo. Did you mean "${res.data.suggestion}"? Please correct it before submitting.`,
+          severity: "warning",
+        });
+      }
+    } catch {
+      setEmailDomainStatus(null);
+      setEmailDomainSuggestion(null);
+    }
+  };
+
 
   const [agreeChecked, setAgreeChecked] = useState(false);
   const [reminderChecked, setReminderChecked] = useState(false);
@@ -1192,6 +1231,23 @@ const Register = () => {
   // ── UPDATED: handleRegister now opens TotpSetupModal instead of email OTP ─
   const handleRegister = async () => {
     if (isSubmitting) return;
+
+    if (emailDomainSuggestion) {
+      setSnack({
+        open: true,
+        message: `Please fix the suspected typo in your email before submitting. Did you mean "${emailDomainSuggestion}"?`,
+        severity: "warning",
+      });
+      return;
+    }
+    if (emailDomainStatus === "invalid") {
+      setSnack({
+        open: true,
+        message: "This email domain doesn't appear to accept mail. Please correct it before submitting.",
+        severity: "error",
+      });
+      return;
+    }
 
     if (!reminderChecked) {
       setSnack({ open: true, message: "You must agree to the Terms and Conditions before registering.", severity: "warning" });
@@ -1577,14 +1633,63 @@ const Register = () => {
 
               <div className="TextField" style={{ position: "relative" }}>
                 <label style={{ color: "black" }}>Email Address<span style={{ color: "red" }}> *</span></label>
-                <input required type="email" disabled={fieldDisabled} className="border"
-                  id="email" name="email" placeholder="Enter your email address"
-                  value={usersData.email} onChange={handleChanges} onKeyDown={handleKeyDownRegister}
-                  style={{ paddingLeft: "2.5rem", height: inputH, border: errors.email ? "2px solid red" : "2px solid black" }} />
+                <input
+                  required
+                  type="email"
+                  disabled={fieldDisabled}
+                  className="border"
+                  id="email"
+                  name="email"
+                  placeholder="Enter your email address"
+                  value={usersData.email}
+                  onChange={(e) => {
+                    handleChanges(e);
+                    setEmailDomainStatus(null);
+                    setEmailDomainSuggestion(null);
+                  }}
+                  onBlur={handleEmailBlur}
+                  onKeyDown={handleKeyDownRegister}
+                  style={{
+                    paddingLeft: "2.5rem",
+                    height: inputH,
+                    border: errors.email || emailDomainStatus === "invalid" ? "2px solid red" : "2px solid black",
+                  }}
+                />
                 <EmailIcon style={{ position: "absolute", top: "2.5rem", left: "0.7rem", color: "rgba(0,0,0,0.4)", fontSize: "20px" }} />
                 {errors.email && <span style={{ color: "red", fontSize: "12px" }}>This field is required</span>}
+                {emailDomainStatus === "checking" && (
+                  <span style={{ fontSize: "12px", color: "#888", marginTop: "4px", display: "block" }}>
+                    Checking email domain…
+                  </span>
+                )}
+                {emailDomainStatus === "invalid" && (
+                  <span style={{ fontSize: "12.5px", color: "#c62828", marginTop: "4px", display: "block", fontWeight: 600 }}>
+                    ⚠️ This domain doesn't appear to accept email. Please check for typos.
+                  </span>
+                )}
+                {emailDomainSuggestion && (
+                  <span style={{ fontSize: "12.5px", color: "#b36b00", marginTop: "4px", display: "block" }}>
+                    Did you mean{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const at = usersData.email.lastIndexOf("@");
+                        const fixed = usersData.email.slice(0, at + 1) + emailDomainSuggestion;
+                        setUserData((prev) => ({ ...prev, email: fixed }));
+                        setEmailDomainSuggestion(null);
+                        setEmailDomainStatus(null);
+                        // re-validate the corrected domain
+                        setTimeout(() => handleEmailBlur(), 0);
+                      }}
+                      style={{ background: "none", border: "none", padding: 0, color: "#1565c0", textDecoration: "underline", cursor: "pointer", fontWeight: 600 }}
+                    >
+                      {usersData.email.slice(0, usersData.email.lastIndexOf("@") + 1)}{emailDomainSuggestion}
+                    </button>
+                    ?
+                  </span>
+                )}
                 <span style={{ fontSize: "13px", color: "red", marginTop: "4px", display: "block" }}>
-                  Note: Each email can only be used once. Use a valid and unused Gmail account.
+                  Note: Each email can only be used once. Use a valid and unused email address.
                 </span>
               </div>
 
@@ -1654,6 +1759,10 @@ const Register = () => {
                   if (!branchSelected) { setSnack({ open: true, message: "Please select a branch first!", severity: "warning" }); return; }
                   if (!registrationOpen) { setSnack({ open: true, message: "Registration is currently closed for this campus.", severity: "error" }); return; }
                   if (!reminderChecked) { setSnack({ open: true, message: "Please agree to the Terms and Conditions before registering.", severity: "warning" }); return; }
+                  if (emailDomainSuggestion || emailDomainStatus === "invalid") {
+                    setSnack({ open: true, message: "Please correct the email address typo before submitting.", severity: "warning" });
+                    return;
+                  }
                   if (!isSubmitting) handleRegister();
                 }}
                 onKeyDown={(e) => {
@@ -1661,11 +1770,15 @@ const Register = () => {
                   if (!branchSelected) { setSnack({ open: true, message: "Please select a branch first!", severity: "warning" }); return; }
                   if (!registrationOpen) { setSnack({ open: true, message: "Registration is currently closed for this campus.", severity: "error" }); return; }
                   if (!reminderChecked) { setSnack({ open: true, message: "Please agree to the Terms and Conditions before registering.", severity: "warning" }); return; }
+                  if (emailDomainSuggestion || emailDomainStatus === "invalid") {
+                    setSnack({ open: true, message: "Please correct the email address typo before submitting.", severity: "warning" });
+                    return;
+                  }
                   if (!isSubmitting) handleRegister();
                 }}
                 style={{
-                  opacity: registrationOpen && branchSelected ? 1 : 0.5,
-                  cursor: "pointer",
+                  opacity: registrationOpen && branchSelected && !emailDomainSuggestion && emailDomainStatus !== "invalid" ? 1 : 0.5,
+                  cursor: emailDomainSuggestion || emailDomainStatus === "invalid" ? "not-allowed" : "pointer",
                   marginTop: isMobile ? "24px" : "40px",
                   backgroundColor: mainButtonColor,
                   height: "50px",
@@ -1679,7 +1792,13 @@ const Register = () => {
                   fontSize: "16px",
                 }}
               >
-                {!registrationOpen ? "REGISTRATION CLOSED" : isSubmitting ? "VALIDATING..." : "SUBMIT APPLICATION"}
+                {!registrationOpen
+                  ? "REGISTRATION CLOSED"
+                  : emailDomainSuggestion || emailDomainStatus === "invalid"
+                    ? "FIX EMAIL TO CONTINUE"
+                    : isSubmitting
+                      ? "VALIDATING..."
+                      : "SUBMIT APPLICATION"}
               </div>
 
               <div className="LinkContainer RegistrationLink" style={{ margin: "0.1rem 0rem", fontSize: isMobile ? "13px" : undefined }}>

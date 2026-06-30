@@ -23,6 +23,10 @@ import {
   FormControlLabel,
   Checkbox,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { Link, useLocation } from "react-router-dom";
 import PersonIcon from "@mui/icons-material/Person";
@@ -674,6 +678,17 @@ const SuperAdminApplicantDashboard1 = () => {
       if (!nextEmail) return;
       await handleUpdate({ ...person, emailAddress: nextEmail });
       setOriginalEmailAddress(nextEmail);
+      setSnackbar({
+        open: true,
+        message: "Email address updated successfully!",
+        severity: "success",
+      });
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: "Failed to update email address.",
+        severity: "error",
+      });
     } finally {
       setPendingEmailAddress("");
     }
@@ -3262,7 +3277,7 @@ const SuperAdminApplicantDashboard1 = () => {
                     disabled={
                       !String(person.emailAddress || "").trim() ||
                       String(person.emailAddress || "").trim() ===
-                        String(originalEmailAddress || "").trim()
+                      String(originalEmailAddress || "").trim()
                     }
                     sx={{
                       minWidth: 72,
@@ -3277,30 +3292,39 @@ const SuperAdminApplicantDashboard1 = () => {
               </Box>
             </Box>
 
-            <Modal open={emailConfirmOpen} onClose={cancelEmailConfirm}>
-              <Box
+            <Dialog
+              open={emailConfirmOpen}
+              onClose={cancelEmailConfirm}
+              maxWidth="sm"
+              fullWidth
+              PaperProps={{
+                sx: {
+                  borderRadius: 3,
+                  overflow: "hidden",
+                  boxShadow: 6,
+                },
+              }}
+            >
+              <DialogTitle
                 sx={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
-                  width: 520,
-                  bgcolor: "background.paper",
-                  borderRadius: 2,
-                  boxShadow: 24,
-                  p: 3,
+                  background: settings?.header_color || "#1976d2",
+                  color: "#fff",
+                  fontWeight: 700,
+                  fontSize: "1.2rem",
+                  py: 2,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
                 }}
               >
-                <Box display="flex" alignItems="center" gap={1} mb={1}>
-                  <WarningAmberIcon sx={{ color: "#FF9800" }} />
-                  <Typography fontWeight="bold">
-                    Confirm email address change
-                  </Typography>
-                </Box>
+                <WarningAmberIcon />
+                Confirm Email Address Change
+              </DialogTitle>
 
+              <DialogContent sx={{ p: 3, mt: 2 }}>
                 <Typography sx={{ mb: 2 }}>
-                  Changing the applicant&apos;s email will also update the email used for signing in.
-                  Continue?
+                  Changing the applicant&apos;s email will also update the email used
+                  for signing in. Continue?
                 </Typography>
 
                 <Box sx={{ mb: 2 }}>
@@ -3312,7 +3336,7 @@ const SuperAdminApplicantDashboard1 = () => {
                   </Typography>
                 </Box>
 
-                <Box sx={{ mb: 2 }}>
+                <Box>
                   <Typography variant="body2" color="text.secondary">
                     New
                   </Typography>
@@ -3320,21 +3344,29 @@ const SuperAdminApplicantDashboard1 = () => {
                     {pendingEmailAddress || person.emailAddress || "—"}
                   </Typography>
                 </Box>
+              </DialogContent>
 
-                <Box display="flex" justifyContent="flex-end" gap={1}>
-                  <Button variant="outlined" onClick={cancelEmailConfirm}>
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="contained"
-                    onClick={confirmEmailChange}
-                    sx={{ backgroundColor: mainButtonColor }}
-                  >
-                    Continue
-                  </Button>
-                </Box>
-              </Box>
-            </Modal>
+              <DialogActions
+                sx={{
+                  px: 3,
+                  py: 2,
+                  borderTop: "1px solid #e0e0e0",
+                }}
+              >
+                <Button onClick={cancelEmailConfirm} color="error" variant="outlined">
+                  Cancel
+                </Button>
+
+                <Button
+                  color="primary"
+                  variant="contained"
+                  onClick={confirmEmailChange}
+                  sx={{ backgroundColor: mainButtonColor }}
+                >
+                  Continue
+                </Button>
+              </DialogActions>
+            </Dialog>
 
             <Typography
               style={{

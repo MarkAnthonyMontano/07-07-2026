@@ -232,7 +232,7 @@ const CurriculumCourseMap = () => {
       })
       .catch(err => console.error("Fee rules error:", err));
   }, []);
-
+ 
 
   const computeExtraFees = (semesterCourses) => {
     if (!feeRules.length) return [];
@@ -461,28 +461,28 @@ const CurriculumCourseMap = () => {
   };
 
 
-  const [idFee, setIdFee] = useState(null);
+  // const [idFee, setIdFee] = useState(null);
 
-  const fetchIdFee = async (programId, departmentId) => {
-    const res = await axios.get(`${API_BASE_URL}/api/extra_fees`, {
-      params: {
-        year_level_id: 1,
-        semester_id: 1,
-        program_id: programId,
-        dprtmnt_id: departmentId,
-      },
-    });
+  // const fetchIdFee = async (programId, departmentId) => {
+  //   const res = await axios.get(`${API_BASE_URL}/api/extra_fees`, {
+  //     params: {
+  //       year_level_id: 1,
+  //       semester_id: 1,
+  //       program_id: programId,
+  //       dprtmnt_id: departmentId,
+  //     },
+  //   });
 
-    setIdFee(res.data.find(f => f.fee_code === "ID_FEE") || null);
-  };
+  //   setIdFee(res.data.find(f => f.fee_code === "ID_FEE") || null);
+  // };
 
 
-  useEffect(() => {
-    if (!taggedPrograms.length) return;
+  // useEffect(() => {
+  //   if (!taggedPrograms.length) return;
 
-    const p = taggedPrograms.find(t => t.curriculum_id == selectedCurriculum);
-    if (p) fetchIdFee(p.program_id, p.dprtmnt_id);
-  }, [selectedCurriculum, taggedPrograms]);
+  //   const p = taggedPrograms.find(t => t.curriculum_id == selectedCurriculum);
+  //   if (p) fetchIdFee(p.program_id, p.dprtmnt_id);
+  // }, [selectedCurriculum, taggedPrograms]);
 
 
 
@@ -611,25 +611,25 @@ const CurriculumCourseMap = () => {
     textAlign: "center"
   };
 
-  // 🔒 Disable right-click
-  document.addEventListener("contextmenu", (e) => e.preventDefault());
+  // // 🔒 Disable right-click
+  // document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  // 🔒 Block DevTools shortcuts + Ctrl+P silently
-  document.addEventListener("keydown", (e) => {
-    const isBlockedKey =
-      e.key === "F12" ||
-      e.key === "F11" ||
-      (e.ctrlKey &&
-        e.shiftKey &&
-        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-      (e.ctrlKey && e.key.toLowerCase() === "u") ||
-      (e.ctrlKey && e.key.toLowerCase() === "p");
+  // // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  // document.addEventListener("keydown", (e) => {
+  //   const isBlockedKey =
+  //     e.key === "F12" ||
+  //     e.key === "F11" ||
+  //     (e.ctrlKey &&
+  //       e.shiftKey &&
+  //       (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+  //     (e.ctrlKey && e.key.toLowerCase() === "u") ||
+  //     (e.ctrlKey && e.key.toLowerCase() === "p");
 
-    if (isBlockedKey) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  });
+  //   if (isBlockedKey) {
+  //     e.preventDefault();
+  //     e.stopPropagation();
+  //   }
+  // });
 
   return (
     <Box
