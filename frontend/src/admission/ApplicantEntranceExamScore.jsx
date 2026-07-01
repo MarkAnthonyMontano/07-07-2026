@@ -137,7 +137,7 @@ const ApplicantScoring = () => {
     const tabs = [
         {
             label: "Applicant List",
-            to: "/applicant_list_admin",
+            to: "/admission_applicant_list",
             icon: <SchoolIcon fontSize="large" />,
         },
         {
@@ -169,7 +169,7 @@ const ApplicantScoring = () => {
 
         {
             label: "Entrance Examination Score",
-            to: "/applicant_scoring",
+            to: "/applicant_entrance_exam_score",
             icon: <ScoreIcon fontSize="large" />,
         },
 
@@ -273,7 +273,7 @@ const ApplicantScoring = () => {
 
     useEffect(() => {
         if (location.search.includes("person_id")) {
-            navigate("/applicant_scoring", { replace: true });  // ⬅️ removes ?person_id
+            navigate("/applicant_entrance_exam_score", { replace: true });  // ⬅️ removes ?person_id
         }
     }, [location, navigate]);
 

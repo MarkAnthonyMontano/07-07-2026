@@ -49,7 +49,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 const tabs = [
   {
     label: "Applicant List",
-    to: "/applicant_list_admin",
+    to: "/admission_applicant_list",
     icon: <SchoolIcon fontSize="large" />,
   },
   {
@@ -81,7 +81,7 @@ const tabs = [
 
   {
     label: "Entrance Examination Score",
-    to: "/applicant_scoring",
+    to: "/applicant_entrance_exam_score",
     icon: <ScoreIcon fontSize="large" />,
   },
 ];
@@ -136,7 +136,7 @@ const StudentRequirements = () => {
       person?.person_id ||
       sessionStorage.getItem("admin_edit_person_id");
 
-    if (pid && to !== "/applicant_list_admin") {
+    if (pid && to !== "/admission_applicant_list") {
       sessionStorage.setItem("admin_edit_person_id", pid);
       navigate(`${to}?person_id=${pid}`);
     } else {
@@ -422,7 +422,7 @@ const StudentRequirements = () => {
       const tsStr = sessionStorage.getItem("admin_edit_person_id_ts");
       const id = sessionStorage.getItem("admin_edit_person_id");
       const ts = tsStr ? parseInt(tsStr, 10) : 0;
-      const isFresh = source === "applicant_list" && Date.now() - ts < 5 * 60 * 1000;
+      const isFresh = source === "admission_applicant_list" && Date.now() - ts < 5 * 60 * 1000;
 
       if (id && isFresh) {
         await fetchByPersonId(id);

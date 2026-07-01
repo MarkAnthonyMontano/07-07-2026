@@ -46,7 +46,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import AddIcon from '@mui/icons-material/Add';
 
 const tabs1 = [
-  { label: "Student List", to: "/student_list", icon: <SchoolIcon fontSize="large" /> },
+  { label: "Student List", to: "/registrar_student_list", icon: <SchoolIcon fontSize="large" /> },
   { label: "Student Profile", to: "/student_registrar_personal_information", icon: <PersonIcon fontSize="large" /> },
   { label: "Student Online Requirements Registrar", to: "/student_online_requirements_registrar", icon: <AssignmentIcon fontSize="large" /> },
   { label: "Course Tagging", to: "/course_tagging", icon: <AddIcon fontSize="large" /> },

@@ -115,13 +115,13 @@ const ExaminationProfile = () => {
   const secondLine = words.slice(middle).join(" ");
 
   const tabs = [
-    { label: "Applicant List", to: "/applicant_list_admin", icon: <SchoolIcon fontSize="large" /> },
+    { label: "Applicant List", to: "/admission_applicant_list", icon: <SchoolIcon fontSize="large" /> },
     { label: "Applicant Profile", to: "/admission_personal_information", icon: <PersonIcon fontSize="large" /> },
     { label: "Applicant Online Requirements", to: "/admission_online_requirements", icon: <AssignmentIcon fontSize="large" /> },
     { label: "Verify Schedule Management", to: "/verify_schedule", icon: <ScheduleIcon fontSize="large" /> },
     { label: "Entrance Exam Schedule Management", to: "/assign_schedule_applicant", icon: <ScheduleIcon fontSize="large" /> },
     { label: "Examination Permit", to: "/registrar_examination_profile", icon: <PersonSearchIcon fontSize="large" /> },
-    { label: "Entrance Examination Score", to: "/applicant_scoring", icon: <ScoreIcon fontSize="large" /> },
+    { label: "Entrance Examination Score", to: "/applicant_entrance_exam_score", icon: <ScoreIcon fontSize="large" /> },
   ];
 
   const location = useLocation();
@@ -1176,18 +1176,62 @@ const ExaminationProfile = () => {
       <br />
       <br />
 
-      {/* Nav tabs */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", flexWrap: "nowrap", width: "100%", gap: 2 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          flexWrap: "nowrap", // ❌ prevent wrapping
+          width: "100%",
+
+          gap: 2,
+        }}
+      >
         {tabs.map((tab, index) => (
-          <Card key={index} onClick={() => handleStepClick(index, tab.to)}
-            sx={{ flex: `1 1 ${100 / tabs.length}%`, height: 135, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", borderRadius: 2, border: `1px solid ${borderColor}`, backgroundColor: activeStep === index ? settings?.header_color || "#1976d2" : "#E8C999", color: activeStep === index ? "#fff" : "#000", boxShadow: activeStep === index ? "0px 4px 10px rgba(0,0,0,0.3)" : "0px 2px 6px rgba(0,0,0,0.15)", transition: "0.3s ease", "&:hover": { backgroundColor: activeStep === index ? "#000000" : "#f5d98f" } }}>
-            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <Card
+            key={index}
+            onClick={() => handleStepClick(index, tab.to)}
+            sx={{
+              flex: `1 1 ${100 / tabs.length}%`, // evenly divide row
+              height: 135,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              borderRadius: 2,
+              border: `1px solid ${borderColor}`,
+              backgroundColor:
+                activeStep === index
+                  ? settings?.header_color || "#1976d2"
+                  : "#E8C999",
+              color: activeStep === index ? "#fff" : "#000",
+              boxShadow:
+                activeStep === index
+                  ? "0px 4px 10px rgba(0,0,0,0.3)"
+                  : "0px 2px 6px rgba(0,0,0,0.15)",
+              transition: "0.3s ease",
+              "&:hover": {
+                backgroundColor: activeStep === index ? "#000000" : "#f5d98f",
+              },
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+              }}
+            >
               <Box sx={{ fontSize: 40, mb: 1 }}>{tab.icon}</Box>
-              <Typography sx={{ fontSize: 14, fontWeight: "bold", textAlign: "center" }}>{tab.label}</Typography>
+              <Typography
+                sx={{ fontSize: 14, fontWeight: "bold", textAlign: "center" }}
+              >
+                {tab.label}
+              </Typography>
             </Box>
           </Card>
         ))}
       </Box>
+
 
       <br /><br />
 

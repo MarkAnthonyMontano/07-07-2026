@@ -146,7 +146,7 @@ const QualifyingExamScore = () => {
 
     sessionStorage.setItem("admin_edit_person_id", String(personId));
     sessionStorage.setItem("edit_person_id", String(personId));
-    sessionStorage.setItem("admin_edit_person_id_source", "applicant_list");
+    sessionStorage.setItem("admin_edit_person_id_source", "applicant_list_college");
     sessionStorage.setItem("admin_edit_person_id_ts", String(Date.now()));
     sessionStorage.setItem("admin_edit_person_data", JSON.stringify(applicant));
 
@@ -160,37 +160,37 @@ const QualifyingExamScore = () => {
   };
 
   const tabs = [
-   {
-        label: "Applicant List",
-        to: "/applicant_list",
-        icon: <SchoolIcon fontSize="large" />,
-      },
-      {
-        label: "Applicant Profile",
-        to: "/applicant_college_personal_information",
-        icon: <PersonIcon fontSize="large" />,
-      },
-      {
-        label: "Applicant Online Requirements",
-        to: "/applicant_online_requirements_college",
-        icon: <AssignmentIcon fontSize="large" />,
-      },
-      {
-        label: "Entrance Examination Score",
-        to: "/entrance_examination_score",
-        icon: <ScoreIcon fontSize="large" />,
-      },
-      {
-        label: "Qualifying / Interview Schedule Management",
-        to: "/assign_schedule_applicants_qualifying_interview",
-        icon: <ScheduleIcon fontSize="large" />,
-      },
-      {
-        label: "Qualifying / Interview Exam Score",
-        to: "/qualifying_interview_exam_scores",
-        icon: <ScoreIcon fontSize="large" />,
-      },
-    
+    {
+      label: "Applicant List",
+      to: "/applicant_list_college",
+      icon: <SchoolIcon fontSize="large" />,
+    },
+    {
+      label: "Applicant Profile",
+      to: "/applicant_college_personal_information",
+      icon: <PersonIcon fontSize="large" />,
+    },
+    {
+      label: "Applicant Online Requirements",
+      to: "/applicant_online_requirements_college",
+      icon: <AssignmentIcon fontSize="large" />,
+    },
+    {
+      label: "Entrance Examination Score",
+      to: "/college_entrance_examination_score",
+      icon: <ScoreIcon fontSize="large" />,
+    },
+    {
+      label: "Qualifying / Interview Schedule Management",
+      to: "/assign_schedule_applicants_qualifying_interview",
+      icon: <ScheduleIcon fontSize="large" />,
+    },
+    {
+      label: "Qualifying / Interview Exam Score",
+      to: "/college_qualifying_interview_score",
+      icon: <ScoreIcon fontSize="large" />,
+    },
+
   ];
 
   const navigate = useNavigate();
@@ -1841,53 +1841,53 @@ const QualifyingExamScore = () => {
   const [finalizeConfirmMode, setFinalizeConfirmMode] = useState("bulk");
   const [dprtmntName, setDepartmentName] = useState("");
 
- const resolveSenderForApplicant = async (applicant) => {
-  const currentEmployeeId = employeeID || localStorage.getItem("employee_id");
-  const programId = applicant?.program; // this is curriculum_id from admission.person_table
+  const resolveSenderForApplicant = async (applicant) => {
+    const currentEmployeeId = employeeID || localStorage.getItem("employee_id");
+    const programId = applicant?.program; // this is curriculum_id from admission.person_table
 
-  // Try to find in allCurriculums (which has enrollment curriculum_ids like 8736)
-  const curriculumMatch = allCurriculums.find(
-    (c) => String(c.curriculum_id) === String(programId),
-  );
-
-  const departmentId =
-    curriculumMatch?.dprtmnt_id ||
-    getDepartmentIdsFromAdminData(adminData)[0] ||
-    adminData.dprtmnt_id;
-
-  console.log("🔍 resolveSender:", {
-    applicant_program: programId,
-    curriculumMatch: curriculumMatch || "NOT FOUND in allCurriculums",
-    departmentId,
-    currentEmployeeId,
-  });
-
-  if (!currentEmployeeId) {
-    throw new Error("No employee ID found. Please log out and log in again.");
-  }
-  if (!programId) {
-    throw new Error("Program ID missing for this applicant.");
-  }
-
-  const res = await axios.get(
-    `${API_BASE_URL}/api/email-templates/active-senders`,
-    {
-      params: {
-        department_id: departmentId,
-        program_id: programId, // send the raw value — backend will resolve it
-        employee_id: currentEmployeeId,
-      },
-    },
-  );
-
-  if (!Array.isArray(res.data) || res.data.length === 0) {
-    throw new Error(
-      `No active email account for employee ${currentEmployeeId}, program=${programId}, department=${departmentId}.`,
+    // Try to find in allCurriculums (which has enrollment curriculum_ids like 8736)
+    const curriculumMatch = allCurriculums.find(
+      (c) => String(c.curriculum_id) === String(programId),
     );
-  }
 
-  return res.data[0].sender_name;
-};
+    const departmentId =
+      curriculumMatch?.dprtmnt_id ||
+      getDepartmentIdsFromAdminData(adminData)[0] ||
+      adminData.dprtmnt_id;
+
+    console.log("🔍 resolveSender:", {
+      applicant_program: programId,
+      curriculumMatch: curriculumMatch || "NOT FOUND in allCurriculums",
+      departmentId,
+      currentEmployeeId,
+    });
+
+    if (!currentEmployeeId) {
+      throw new Error("No employee ID found. Please log out and log in again.");
+    }
+    if (!programId) {
+      throw new Error("Program ID missing for this applicant.");
+    }
+
+    const res = await axios.get(
+      `${API_BASE_URL}/api/email-templates/active-senders`,
+      {
+        params: {
+          department_id: departmentId,
+          program_id: programId, // send the raw value — backend will resolve it
+          employee_id: currentEmployeeId,
+        },
+      },
+    );
+
+    if (!Array.isArray(res.data) || res.data.length === 0) {
+      throw new Error(
+        `No active email account for employee ${currentEmployeeId}, program=${programId}, department=${departmentId}.`,
+      );
+    }
+
+    return res.data[0].sender_name;
+  };
 
   useEffect(() => {
     const departmentIds = getDepartmentIdsFromAdminData(adminData);
@@ -2558,25 +2558,25 @@ Thank you, best regards
     return <Unauthorized />;
   }
 
-     // 🔒 Disable right-click
-    document.addEventListener("contextmenu", (e) => e.preventDefault());
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-    // 🔒 Block DevTools shortcuts + Ctrl+P silently
-    document.addEventListener("keydown", (e) => {
-        const isBlockedKey =
-            e.key === "F12" ||
-            e.key === "F11" ||
-            (e.ctrlKey &&
-                e.shiftKey &&
-                (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-            (e.ctrlKey && e.key.toLowerCase() === "u") ||
-            (e.ctrlKey && e.key.toLowerCase() === "p");
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
 
-        if (isBlockedKey) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-    });
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   return (
     <Box
@@ -3429,7 +3429,7 @@ Thank you, best regards
           color="maroon"
           sx={{ mb: 1, mt: 3, fontWeight: "bold" }}
         >
-          Applicant Score Filters:
+       Applicant Entrance Exam Filter
         </Typography>
         <Box display="flex" gap={2} mt={2} flexWrap="wrap">
           <Typography fontSize={13} sx={{ minWidth: "70px" }}>
@@ -5094,46 +5094,63 @@ Thank you, best regards
       <Dialog
         open={finalizeConfirmOpen}
         onClose={() => setFinalizeConfirmOpen(false)}
-        maxWidth="sm"
+        maxWidth="xs"
         fullWidth
       >
-        <DialogTitle sx={{ fontWeight: 700 }}>Confirm Finalization</DialogTitle>
-        <DialogContent dividers>
-          {(() => {
-            const targets = getEmailTargets(finalizeConfirmMode);
-            const singleTarget = targets[0];
+        <DialogTitle
+          sx={{
+            background: settings?.header_color || "#9E0000",
+            color: "#fff",
+            fontWeight: 700,
+            fontSize: "1.2rem",
+            py: 2,
+          }}
+        >
+          Confirm Action
+        </DialogTitle>
 
-            if (targets.length === 1) {
+        <DialogContent sx={{ p: 3, mt: 2 }}>
+          <Typography sx={{ mb: 2 }}>
+            {(() => {
+              const targets = getEmailTargets(finalizeConfirmMode);
+              const singleTarget = targets[0];
+
+              if (targets.length === 1) {
+                return (
+                  <>
+                    Are you sure you want to finalize the qualifying / interview
+                    examination score of{" "}
+                    <b>
+                      {getApplicantDisplayName(singleTarget)} (
+                      {singleTarget?.applicant_number})
+                    </b>{" "}
+                    before sending the email?
+                  </>
+                );
+              }
+
               return (
-                <Typography sx={{ fontSize: 14, lineHeight: 1.7 }}>
+                <>
                   Are you sure you want to finalize the qualifying / interview
-                  examination score of{" "}
-                  <b>
-                    {getApplicantDisplayName(singleTarget)} (
-                    {singleTarget?.applicant_number})
-                  </b>{" "}
-                  before sending the email?
-                </Typography>
+                  examination scores of <b>{targets.length} applicants</b> before
+                  sending emails?
+                </>
               );
-            }
+            })()}
+          </Typography>
 
-            return (
-              <Typography sx={{ fontSize: 14, lineHeight: 1.7 }}>
-                Are you sure you want to finalize the qualifying / interview
-                examination scores of <b>{targets.length} applicants</b> before
-                sending emails?
-              </Typography>
-            );
-          })()}
-          <Typography sx={{ mt: 2, fontSize: 13, color: "text.secondary" }}>
+          <Typography sx={{ color: "#d32f2f", fontSize: "0.95rem" }}>
             Once confirmed, the email will be sent and the applicant interview
             status will be marked as finalized.
+            <br />
+            Please make sure the information is correct before proceeding.
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ p: 2, justifyContent: "space-between" }}>
+
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
             onClick={() => setFinalizeConfirmOpen(false)}
-            color="inherit"
+            color="error"
             variant="outlined"
           >
             Cancel
@@ -5143,7 +5160,7 @@ Thank you, best regards
             color="success"
             variant="contained"
           >
-            Yes, Finalize and Send
+            Yes, Confirm
           </Button>
         </DialogActions>
       </Dialog>

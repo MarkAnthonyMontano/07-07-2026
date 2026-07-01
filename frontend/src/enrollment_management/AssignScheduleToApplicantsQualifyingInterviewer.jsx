@@ -289,40 +289,36 @@ const AssignScheduleToApplicantsInterviewer = () => {
 
   const tabs = [
     {
-      label: "Applicant List",
-      to: "/applicant_list",
-      icon: <SchoolIcon fontSize="large" />,
-    },
-    {
-      label: "Applicant Profile",
-      to: "/applicant_college_personal_information",
-      icon: <PersonIcon fontSize="large" />,
-    },
-    {
-      label: "Applicant Online Requirements",
-      to: "/applicant_online_requirements_college",
-      icon: <AssignmentIcon fontSize="large" />,
-    },
-    {
-      label: "Entrance Examination Score",
-      to: "/entrance_examination_score",
-      icon: <ScoreIcon fontSize="large" />,
-    },
-    {
-      label: "Qualifying / Interview Schedule Management",
-      to: "/assign_schedule_applicants_qualifying_interview",
-      icon: <ScheduleIcon fontSize="large" />,
-    },
-    {
-      label: "Qualifying / Interview Exam Score",
-      to: "/qualifying_interview_exam_scores",
-      icon: <ScoreIcon fontSize="large" />,
-    },
-    {
-      label: "Student Numbering",
-      to: "/student_numbering_per_college",
-      icon: <DashboardIcon fontSize="large" />,
-    },
+             label: "Applicant List",
+             to: "/applicant_list_college",
+             icon: <SchoolIcon fontSize="large" />,
+           },
+           {
+             label: "Applicant Profile",
+             to: "/applicant_college_personal_information",
+             icon: <PersonIcon fontSize="large" />,
+           },
+           {
+             label: "Applicant Online Requirements",
+             to: "/applicant_online_requirements_college",
+             icon: <AssignmentIcon fontSize="large" />,
+           },
+           {
+             label: "Entrance Examination Score",
+             to: "/college_entrance_examination_score",
+             icon: <ScoreIcon fontSize="large" />,
+           },
+           {
+             label: "Qualifying / Interview Schedule Management",
+             to: "/assign_schedule_applicants_qualifying_interview",
+             icon: <ScheduleIcon fontSize="large" />,
+           },
+           {
+             label: "Qualifying / Interview Exam Score",
+             to: "/college_qualifying_interview_score",
+             icon: <ScoreIcon fontSize="large" />,
+           },
+         
   ];
 
   const handleStepClick = (index, to) => {
@@ -546,7 +542,7 @@ const AssignScheduleToApplicantsInterviewer = () => {
 
     sessionStorage.setItem("admin_edit_person_id", String(personId));
     sessionStorage.setItem("edit_person_id", String(personId));
-    sessionStorage.setItem("admin_edit_person_id_source", "applicant_list");
+    sessionStorage.setItem("admin_edit_person_id_source", "applicant_list_college");
     sessionStorage.setItem("admin_edit_person_id_ts", String(Date.now()));
 
     // ✅ Always pass person_id in the URL
@@ -1368,9 +1364,9 @@ ${requirementsSection}
   const showAllDepartmentsOption = scopedDepartmentIds.length !== 1;
   const selectedDepartmentFilterValue =
     selectedDepartmentFilter === "" ||
-    selectableDepartments.some(
-      (dep) => String(dep.dprtmnt_id) === String(selectedDepartmentFilter),
-    )
+      selectableDepartments.some(
+        (dep) => String(dep.dprtmnt_id) === String(selectedDepartmentFilter),
+      )
       ? selectedDepartmentFilter
       : "";
 
@@ -1736,25 +1732,25 @@ ${requirementsSection}
     return <Unauthorized />;
   }
 
-     // 🔒 Disable right-click
-    document.addEventListener("contextmenu", (e) => e.preventDefault());
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-    // 🔒 Block DevTools shortcuts + Ctrl+P silently
-    document.addEventListener("keydown", (e) => {
-        const isBlockedKey =
-            e.key === "F12" ||
-            e.key === "F11" ||
-            (e.ctrlKey &&
-                e.shiftKey &&
-                (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-            (e.ctrlKey && e.key.toLowerCase() === "u") ||
-            (e.ctrlKey && e.key.toLowerCase() === "p");
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
 
-        if (isBlockedKey) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-    });
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   return (
     <Box
@@ -2259,7 +2255,7 @@ ${requirementsSection}
           </Box>
         </Box>
         <Typography color="maroon" sx={{ mb: 1, fontWeight: "bold" }}>
-          Applicant Score Filters:
+          Applicant Entrance Exam Filter
         </Typography>
 
         <Box display="flex" gap={2} flexWrap="wrap" alignItems="center">

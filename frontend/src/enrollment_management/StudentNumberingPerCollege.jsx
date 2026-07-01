@@ -125,7 +125,7 @@ const StudentNumbering = () => {
     const tabs = [
      {
           label: "Applicant List",
-          to: "/applicant_list",
+          to: "/applicant_list_college",
           icon: <SchoolIcon fontSize="large" />,
         },
         {
@@ -140,7 +140,7 @@ const StudentNumbering = () => {
         },
         {
           label: "Entrance Examination Score",
-          to: "/entrance_examination_score",
+          to: "/college_entrance_examination_score",
           icon: <ScoreIcon fontSize="large" />,
         },
         {
@@ -150,7 +150,7 @@ const StudentNumbering = () => {
         },
         {
           label: "Qualifying / Interview Exam Score",
-          to: "/qualifying_interview_exam_scores",
+          to: "/college_qualifying_interview_score",
           icon: <ScoreIcon fontSize="large" />,
         },
       

@@ -38,6 +38,11 @@ import SearchIcon from "@mui/icons-material/Search";
 import Unauthorized from "../components/Unauthorized";
 import LoadingOverlay from "../components/LoadingOverlay";
 import DateField from "../components/DateField";
+import SchoolIcon from "@mui/icons-material/School";
+import PersonIcon from "@mui/icons-material/Person";
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import ScoreIcon from '@mui/icons-material/Score';
+import FormatListNumberedIcon from "@mui/icons-material/FormatListNumbered";
 
 const SuperAdminApplicantList = () => {
   const socket = useRef(null);
@@ -171,7 +176,7 @@ const SuperAdminApplicantList = () => {
       ? `&student_number=${encodeURIComponent(applicant.student_number)}`
       : "";
 
-    navigate(`/student_registrar_personal_information?person_id=${personId}${studentQuery}`);
+    navigate(`/applicant_registrar_personal_information?person_id=${personId}${studentQuery}`);
   };
 
   const navigate = useNavigate();
@@ -181,7 +186,7 @@ const SuperAdminApplicantList = () => {
     setActiveStep(index);
     const pid = sessionStorage.getItem("admin_edit_person_id");
 
-    if (pid && to !== "/super_admin_applicant_list") {
+    if (pid && to !== "/applicant_list_registrar") {
       navigate(`${to}?person_id=${pid}`);
     } else {
       navigate(to);
@@ -190,7 +195,7 @@ const SuperAdminApplicantList = () => {
 
   useEffect(() => {
     if (location.search.includes("person_id")) {
-      navigate("/super_admin_applicant_list", { replace: true });
+      navigate("/applicant_list_registrar", { replace: true });
     }
   }, [location, navigate]);
 
@@ -337,6 +342,43 @@ const SuperAdminApplicantList = () => {
   };
 
   const isDuplicateApplicant = detectDuplicateNames(persons);
+
+  const tabs = [
+    {
+      label: "Applicant List",
+      to: "/applicant_list_registrar",
+      icon: <SchoolIcon fontSize="large" />,
+    },
+    {
+      label: "Applicant Profile",
+      to: "/applicant_registrar_personal_information",
+      icon: <PersonIcon fontSize="large" />,
+    },
+    {
+      label: "Applicant Online Requirements",
+      to: "/applicant_online_requirements_registrar",
+      icon: <AssignmentIcon fontSize="large" />,
+    },
+    {
+      label: "Entrance Examination Score",
+      to: "/registrar_entrance_examination_score",
+      icon: <ScoreIcon fontSize="large" />,
+    },
+
+    {
+      label: "Qualifying / Interview Exam Score",
+      to: "/registrar_qualifying_interview_score",
+      icon: <ScoreIcon fontSize="large" />,
+    },
+
+    {
+      label: "Student Numbering Panel",
+      to: "/student_numbering",
+      icon: <FormatListNumberedIcon fontSize="large" />,
+    },
+
+  ];
+
 
   // ── Name normalizer: strips accents, special chars, spaces ──
   const normalizeName = (v) =>
@@ -1119,25 +1161,25 @@ const SuperAdminApplicantList = () => {
     return <Unauthorized />;
   }
 
-     // 🔒 Disable right-click
-    document.addEventListener("contextmenu", (e) => e.preventDefault());
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-    // 🔒 Block DevTools shortcuts + Ctrl+P silently
-    document.addEventListener("keydown", (e) => {
-        const isBlockedKey =
-            e.key === "F12" ||
-            e.key === "F11" ||
-            (e.ctrlKey &&
-                e.shiftKey &&
-                (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-            (e.ctrlKey && e.key.toLowerCase() === "u") ||
-            (e.ctrlKey && e.key.toLowerCase() === "p");
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
 
-        if (isBlockedKey) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-    });
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   return (
     <Box
@@ -1190,6 +1232,65 @@ const SuperAdminApplicantList = () => {
       <br />
       <br />
 
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          flexWrap: "nowrap", // ❌ prevent wrapping
+          width: "100%",
+
+          gap: 2,
+        }}
+      >
+        {tabs.map((tab, index) => (
+          <Card
+            key={index}
+            onClick={() => handleStepClick(index, tab.to)}
+            sx={{
+              flex: `1 1 ${100 / tabs.length}%`, // evenly divide row
+              height: 135,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              borderRadius: 2,
+              border: `1px solid ${borderColor}`,
+              backgroundColor:
+                activeStep === index
+                  ? settings?.header_color || "#1976d2"
+                  : "#E8C999",
+              color: activeStep === index ? "#fff" : "#000",
+              boxShadow:
+                activeStep === index
+                  ? "0px 4px 10px rgba(0,0,0,0.3)"
+                  : "0px 2px 6px rgba(0,0,0,0.15)",
+              transition: "0.3s ease",
+              "&:hover": {
+                backgroundColor: activeStep === index ? "#000000" : "#f5d98f",
+              },
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+              }}
+            >
+              <Box sx={{ fontSize: 40, mb: 1 }}>{tab.icon}</Box>
+              <Typography
+                sx={{ fontSize: 14, fontWeight: "bold", textAlign: "center" }}
+              >
+                {tab.label}
+              </Typography>
+            </Box>
+          </Card>
+        ))}
+      </Box>
+
+      <br />
+      <br />
+
       <TableContainer
         component={Paper}
         sx={{ width: "100%", border: `1px solid ${borderColor}` }}
@@ -1208,6 +1309,8 @@ const SuperAdminApplicantList = () => {
           </TableHead>
         </Table>
       </TableContainer>
+
+
 
       <TableContainer
         component={Paper}
@@ -2006,7 +2109,7 @@ const SuperAdminApplicantList = () => {
                   }}
                 >
                   <Checkbox
-                  
+
                     checked={Number(person.submitted_documents) === 1}
                     onChange={(e) => {
                       const checked = e.target.checked;

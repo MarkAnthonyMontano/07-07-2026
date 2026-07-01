@@ -38,27 +38,19 @@ import MeetingRoomIcon from "@mui/icons-material/MeetingRoom";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import PersonSearchIcon from "@mui/icons-material/PersonSearch";
 import PeopleIcon from "@mui/icons-material/People";
-import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
+import FactCheckIcon from "@mui/icons-material/FactCheck";
 import Unauthorized from "../components/Unauthorized";
 import LoadingOverlay from "../components/LoadingOverlay";
 import SearchIcon from "@mui/icons-material/Search";
+import KeyIcon from "@mui/icons-material/Key";
+import CampaignIcon from "@mui/icons-material/Campaign";
 import API_BASE_URL from "../apiConfig";
-import {
-  isRegistrarCurriculumMatch,
-  isRegistrarProgramSelectionLocked,
-  refreshRegistrarCurriculumId,
-  restrictToRegistrarCurriculum,
-  syncRegistrarScopeFromAdminData,
-} from "../utils/registrarCurriculumRestriction";
-import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
-import MenuBookIcon from "@mui/icons-material/MenuBook";
 import ScoreIcon from "@mui/icons-material/Score";
 import DateField from "../components/DateField";
 import PersonIcon from "@mui/icons-material/Person";
 
-const ApplicantList = () => {
+const AdminApplicantList = () => {
   const socket = useRef(null);
-
   const settings = useContext(SettingsContext);
 
   const [titleColor, setTitleColor] = useState("#000000");
@@ -165,7 +157,7 @@ const ApplicantList = () => {
 
     sessionStorage.setItem("admin_edit_person_id", String(personId));
     sessionStorage.setItem("edit_person_id", String(personId));
-    sessionStorage.setItem("admin_edit_person_id_source", "applicant_list");
+    sessionStorage.setItem("admin_edit_person_id_source", "admission_applicant_list");
     sessionStorage.setItem("admin_edit_person_id_ts", String(Date.now()));
     sessionStorage.setItem("admin_edit_person_data", JSON.stringify(applicant));
     if (searchValue) {
@@ -173,42 +165,98 @@ const ApplicantList = () => {
       sessionStorage.setItem("edit_applicant_number", String(searchValue));
     }
 
-    navigate(`/applicant_college_personal_information?person_id=${personId}`);
+    navigate(`/admission_personal_information?person_id=${personId}`);
   };
 
   const tabs = [
     {
       label: "Applicant List",
-      to: "/applicant_list",
+      to: "/admission_applicant_list",
       icon: <SchoolIcon fontSize="large" />,
     },
     {
       label: "Applicant Profile",
-      to: "/applicant_college_personal_information",
+      to: "/admission_personal_information",
       icon: <PersonIcon fontSize="large" />,
     },
     {
       label: "Applicant Online Requirements",
-      to: "/applicant_online_requirements_college",
+      to: "/admission_online_requirements",
       icon: <AssignmentIcon fontSize="large" />,
     },
     {
-      label: "Entrance Examination Score",
-      to: "/entrance_examination_score",
-      icon: <ScoreIcon fontSize="large" />,
-    },
-    {
-      label: "Qualifying / Interview Schedule Management",
-      to: "/assign_schedule_applicants_qualifying_interview",
+      label: "Verify Schedule Management",
+      to: "/verify_schedule",
       icon: <ScheduleIcon fontSize="large" />,
     },
     {
-      label: "Qualifying / Interview Exam Score",
-      to: "/qualifying_interview_exam_scores",
+      label: "Entrance Exam Schedule Management",
+      to: "/assign_schedule_applicant",
+      icon: <ScheduleIcon fontSize="large" />,
+    },
+
+    {
+      label: "Examination Permit",
+      to: "/registrar_examination_profile",
+      icon: <PersonSearchIcon fontSize="large" />,
+    },
+
+    {
+      label: "Entrance Examination Score",
+      to: "/applicant_entrance_exam_score",
       icon: <ScoreIcon fontSize="large" />,
     },
-  
   ];
+
+  const [hasAccess, setHasAccess] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const pageId = 7;
+
+  const [employeeID, setEmployeeID] = useState("");
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("email");
+    const storedRole = localStorage.getItem("role");
+    const storedID = localStorage.getItem("person_id");
+    const storedEmployeeID = localStorage.getItem("employee_id");
+
+    if (storedUser && storedRole && storedID) {
+      setUser(storedUser);
+      setUserRole(storedRole);
+      setUserID(storedID);
+      setEmployeeID(storedEmployeeID);
+
+      if (storedRole === "registrar") {
+        checkAccess(storedEmployeeID);
+      } else {
+        window.location.href = "/login";
+      }
+    } else {
+      window.location.href = "/login";
+    }
+  }, []);
+
+  const checkAccess = async (employeeID) => {
+    try {
+      const response = await axios.get(
+        `${API_BASE_URL}/api/page_access/${employeeID}/${pageId}`,
+      );
+      if (response.data && response.data.page_privilege === 1) {
+        setHasAccess(true);
+      } else {
+        setHasAccess(false);
+      }
+    } catch (error) {
+      console.error("Error checking access:", error);
+      setHasAccess(false);
+      if (error.response && error.response.data.message) {
+        console.log(error.response.data.message);
+      } else {
+        console.log("An unexpected error occurred.");
+      }
+      setLoading(false);
+    }
+  };
 
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
@@ -220,7 +268,7 @@ const ApplicantList = () => {
     setActiveStep(index);
     const pid = sessionStorage.getItem("admin_edit_person_id");
 
-    if (pid && to !== "/applicant_list") {
+    if (pid && to !== "/admission_applicant_list") {
       navigate(`${to}?person_id=${pid}`);
     } else {
       navigate(to);
@@ -229,7 +277,7 @@ const ApplicantList = () => {
 
   useEffect(() => {
     if (location.search.includes("person_id")) {
-      navigate("/applicant_list", { replace: true });
+      navigate("/admission_applicant_list", { replace: true });
     }
   }, [location, navigate]);
 
@@ -240,10 +288,7 @@ const ApplicantList = () => {
   const [userID, setUserID] = useState("");
   const [user, setUser] = useState("");
   const [userRole, setUserRole] = useState("");
-  const [adminData, setAdminData] = useState({
-    dprtmnt_id: "",
-    dprtmnt_ids: [],
-  });
+  const [adminData, setAdminData] = useState({ dprtmnt_id: "" });
 
   useEffect(() => {
     const storedUser = localStorage.getItem("email");
@@ -273,8 +318,7 @@ const ApplicantList = () => {
   const fetchPersonData = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/api/admin_data/${user}`);
-      setAdminData(res.data);
-      syncRegistrarScopeFromAdminData(res.data);
+      setAdminData(res.data); // { dprtmnt_id: "..." }
     } catch (err) {
       console.error("Error fetching admin data:", err);
     }
@@ -326,7 +370,6 @@ const ApplicantList = () => {
     last_name: "",
     first_name: "",
     middle_name: "",
-    birthOfDate: "",
     document_status: "",
     emailAddress: "",
     extension: "",
@@ -336,6 +379,8 @@ const ApplicantList = () => {
     program: "",
     created_at: "",
     middle_code: "",
+    fromDate: "",
+    toDate: "",
   });
 
   useEffect(() => {
@@ -374,62 +419,7 @@ const ApplicantList = () => {
   const [confirmAction, setConfirmAction] = useState(null); // holds which action to confirm
   const [confirmMessage, setConfirmMessage] = useState("");
 
-  const [hasAccess, setHasAccess] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  const pageId = 6;
-
-  const [employeeID, setEmployeeID] = useState("");
-
-  useEffect(() => {
-    const storedUser = localStorage.getItem("email");
-    const storedRole = localStorage.getItem("role");
-    const storedID = localStorage.getItem("person_id");
-    const storedEmployeeID = localStorage.getItem("employee_id");
-
-    if (storedUser && storedRole && storedID) {
-      setUser(storedUser);
-      setUserRole(storedRole);
-      setUserID(storedID);
-      setEmployeeID(storedEmployeeID);
-
-      if (storedRole === "registrar") {
-        checkAccess(storedEmployeeID);
-      } else {
-        window.location.href = "/login";
-      }
-    } else {
-      window.location.href = "/login";
-    }
-  }, []);
-
-  const checkAccess = async (employeeID) => {
-    try {
-      const response = await axios.get(
-        `${API_BASE_URL}/api/page_access/${employeeID}/${pageId}`,
-      );
-      if (response.data && response.data.page_privilege === 1) {
-        setHasAccess(true);
-      } else {
-        setHasAccess(false);
-      }
-    } catch (error) {
-      console.error("Error checking access:", error);
-      setHasAccess(false);
-      if (error.response && error.response.data.message) {
-        console.log(error.response.data.message);
-      } else {
-        console.log("An unexpected error occurred.");
-      }
-      setLoading(false);
-    }
-  };
-
-  const handleSubmittedDocumentsChange = async (
-    upload_id,
-    checked,
-    person_id,
-  ) => {
+  const handleSubmittedDocumentsChange = async (upload_id, checked, person_id) => {
     try {
       const res = await axios.put(
         `${API_BASE_URL}/api/submitted-documents/${upload_id}`,
@@ -474,12 +464,12 @@ const ApplicantList = () => {
         prev.map((p) =>
           p.person_id === person_id
             ? {
-                ...p,
-                registrar_status: status,
-                submitted_documents: status, // sync with checkbox
-                remarks: status ? 1 : 0,
-                missing_documents: status ? [] : null,
-              }
+              ...p,
+              registrar_status: status,
+              submitted_documents: status, // sync with checkbox
+              remarks: status ? 1 : 0,
+              missing_documents: status ? [] : null,
+            }
             : p,
         ),
       );
@@ -494,55 +484,47 @@ const ApplicantList = () => {
     }
   };
 
-  ``;
+  useEffect(() => {
+    // Replace this with your actual API endpoint
+    fetch(`${API_BASE_URL}/api/all-applicants`)
+      .then((res) => res.json())
+      .then((data) => setPersons(data)); // ✅ Correct
+  }, []);
+
   useEffect(() => {
     if (!socket.current) return;
 
-    const handler = () => fetchApplicants();
+    const handler = () => {
+      fetch(`${API_BASE_URL}/api/all-applicants`)
+        .then((res) => res.json())
+        .then((data) => setPersons(data));
+    };
+
     socket.current.on("document_status_updated", handler);
 
-    return () => socket.current.off("document_status_updated", handler);
+    return () => {
+      socket.current.off("document_status_updated", handler);
+    };
   }, []);
 
   const [curriculumOptions, setCurriculumOptions] = useState([]);
-  const [allCurriculums, setAllCurriculums] = useState([]);
-  const scopeRevision = useRegistrarScopeRevision();
 
   useEffect(() => {
-    if (userRole !== "registrar" || !employeeID) return;
-    refreshRegistrarCurriculumId(employeeID).catch((err) => {
-      console.error("Error refreshing registrar scope:", err);
-    });
-  }, [userRole, employeeID]);
-
-  useEffect(() => {
-    const departmentIds =
-      Array.isArray(adminData.dprtmnt_ids) && adminData.dprtmnt_ids.length
-        ? adminData.dprtmnt_ids
-        : adminData.dprtmnt_id
-          ? [adminData.dprtmnt_id]
-          : [];
-
-    if (!departmentIds.length) return;
+    if (!adminData.dprtmnt_id) return;
 
     const fetchCurriculums = async () => {
       try {
-        const responses = await Promise.all(
-          departmentIds.map((departmentId) =>
-            axios.get(`${API_BASE_URL}/api/applied_program/${departmentId}`),
-          ),
+        const response = await axios.get(
+          `${API_BASE_URL}/api/applied_program/${adminData.dprtmnt_id}`,
         );
-        const merged = responses.flatMap((response) => response.data || []);
-        const restricted = restrictToRegistrarCurriculum(merged);
-        setCurriculumOptions(restricted);
-        setAllCurriculums(restricted);
+        setCurriculumOptions(response.data);
       } catch (error) {
         console.error("Error fetching curriculum options:", error);
       }
     };
 
     fetchCurriculums();
-  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
+  }, [adminData.dprtmnt_id]);
 
   const [selectedApplicantStatus, setSelectedApplicantStatus] = useState("");
   const [sortBy, setSortBy] = useState("name");
@@ -553,45 +535,11 @@ const ApplicantList = () => {
   const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("");
   const [selectedProgramFilter, setSelectedProgramFilter] = useState("");
   const [department, setDepartment] = useState([]);
+  const [allCurriculums, setAllCurriculums] = useState([]);
   const [schoolYears, setSchoolYears] = useState([]);
   const [semesters, setSchoolSemester] = useState([]);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState("");
   const [selectedSchoolSemester, setSelectedSchoolSemester] = useState("");
-  const selectedSchoolYearValue = schoolYears.some(
-    (sy) => String(sy.year_id) === String(selectedSchoolYear),
-  )
-    ? selectedSchoolYear
-    : "";
-  const selectedSchoolSemesterValue = semesters.some(
-    (sem) => String(sem.semester_id) === String(selectedSchoolSemester),
-  )
-    ? selectedSchoolSemester
-    : "";
-  const selectedDepartmentFilterValue =
-    selectedDepartmentFilter === "" ||
-    department.some(
-      (dep) => String(dep.dprtmnt_name) === String(selectedDepartmentFilter),
-    )
-      ? selectedDepartmentFilter
-      : "";
-  const selectedProgramFilterValue =
-    selectedProgramFilter === "" ||
-    curriculumOptions.some(
-      (prog) => String(prog.program_code) === String(selectedProgramFilter),
-    )
-      ? selectedProgramFilter
-      : "";
-  const isProgramLocked = isRegistrarProgramSelectionLocked();
-
-  useEffect(() => {
-    if (!isProgramLocked) return;
-    const assignedCurriculum = curriculumOptions.find((prog) =>
-      isRegistrarCurriculumMatch(prog.curriculum_id),
-    );
-    if (assignedCurriculum?.program_code) {
-      setSelectedProgramFilter(assignedCurriculum.program_code);
-    }
-  }, [curriculumOptions, isProgramLocked]);
 
   useEffect(() => {
     axios
@@ -627,118 +575,6 @@ const ApplicantList = () => {
     setSelectedSchoolSemester(event.target.value);
   };
 
-  const cleanName = (v) => (v ?? "").trim().toLowerCase();
-
-  const detectDuplicateNames = (list) => {
-    const map = {};
-
-    for (const p of list) {
-      const ln = cleanName(p.last_name);
-      const fn = cleanName(p.first_name);
-      const mn = cleanName(p.middle_name);
-
-      // Must have all 3 for strict duplicate match
-      if (!ln || !fn || !mn) continue;
-
-      const key = `${ln}|${fn}|${mn}`;
-
-      if (!map[key]) map[key] = 0;
-      map[key]++;
-    }
-
-    return (person) => {
-      const ln = cleanName(person.last_name);
-      const fn = cleanName(person.first_name);
-      const mn = cleanName(person.middle_name);
-
-      if (!ln || !fn || !mn) return false;
-
-      const key = `${ln}|${fn}|${mn}`;
-      return map[key] > 1;
-    };
-  };
-
-  const isDuplicateApplicant = detectDuplicateNames(persons);
-
-  // ── Name normalizer: strips accents, special chars, spaces ──
-  const normalizeName = (v) =>
-    (v ?? "")
-      .trim()
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") // remove accents
-      .replace(/[^a-z0-9]/g, ""); // remove dots, commas, spaces, etc.
-
-  // ── DETECTOR 1: Suspicious name (special characters / slight variation) ──
-  // Catches: "Montano." vs "Montano", "De Leon" vs "DeLeon"
-  const detectSuspiciousDuplicates = (list) => {
-    const map = {};
-    for (const p of list) {
-      const ln = normalizeName(p.last_name);
-      const fn = normalizeName(p.first_name);
-      const bd = p.birthOfDate ? String(p.birthOfDate).split("T")[0] : "";
-      if (!ln || !fn) continue;
-      const key = `${ln}|${fn}|${bd}`;
-      if (!map[key]) map[key] = 0;
-      map[key]++;
-    }
-    return (person) => {
-      const ln = normalizeName(person.last_name);
-      const fn = normalizeName(person.first_name);
-      const bd = person.birthOfDate
-        ? String(person.birthOfDate).split("T")[0]
-        : "";
-      if (!ln || !fn) return false;
-      const key = `${ln}|${fn}|${bd}`;
-      // Only flag if normalized key has duplicates BUT exact name doesn't
-      // (so it doesn't overlap with isDuplicateApplicant)
-      const exactLn = cleanName(person.last_name);
-      const exactFn = cleanName(person.first_name);
-      const exactMn = cleanName(person.middle_name);
-      const exactKey = `${exactLn}|${exactFn}|${exactMn}`;
-      const exactMap = {};
-      for (const p of list) {
-        const k = `${cleanName(p.last_name)}|${cleanName(p.first_name)}|${cleanName(p.middle_name)}`;
-        if (!exactMap[k]) exactMap[k] = 0;
-        exactMap[k]++;
-      }
-      return map[key] > 1 && exactMap[exactKey] <= 1;
-    };
-  };
-
-  // ── DETECTOR 2: New account but someone with same name+birthday already took exam ──
-  // Catches: person registers fresh while their old account has email_sent=1 or exam_status=1
-  const detectExamTakenDuplicates = (list) => {
-    const examTakenKeys = new Set();
-    for (const p of list) {
-      const ln = normalizeName(p.last_name);
-      const fn = normalizeName(p.first_name);
-      const bd = p.birthOfDate ? String(p.birthOfDate).split("T")[0] : "";
-      if (!ln || !fn) continue;
-      if (Number(p.email_sent) === 1 || Number(p.exam_status) === 1) {
-        examTakenKeys.add(`${ln}|${fn}|${bd}`);
-      }
-    }
-    return (person) => {
-      const ln = normalizeName(person.last_name);
-      const fn = normalizeName(person.first_name);
-      const bd = person.birthOfDate
-        ? String(person.birthOfDate).split("T")[0]
-        : "";
-      if (!ln || !fn) return false;
-      const key = `${ln}|${fn}|${bd}`;
-      // Flag only the NEW account (hasn't taken exam yet)
-      return (
-        examTakenKeys.has(key) &&
-        Number(person.email_sent) !== 1 &&
-        Number(person.exam_status) !== 1
-      );
-    };
-  };
-
-  const isSuspiciousDuplicate = detectSuspiciousDuplicates(persons);
-  const isExamTakenDuplicate = detectExamTakenDuplicates(persons);
-
   // helper to make string comparisons robust
   const normalize = (s) => (s ?? "").toString().trim().toLowerCase();
   const selectedSemester = semesters.find(
@@ -759,8 +595,6 @@ const ApplicantList = () => {
       const fullText =
         `${personData.first_name} ${personData.middle_name} ${personData.last_name} ${personData.emailAddress ?? ""} ${personData.applicant_number ?? ""}`.toLowerCase();
       const matchesSearch = fullText.includes(searchQuery.toLowerCase());
-
-      /* 🏫 CAMPUS */
 
       /* 🏫 CAMPUS */
       const matchesCampus =
@@ -785,9 +619,6 @@ const ApplicantList = () => {
       const programInfo = allCurriculums.find(
         (opt) =>
           opt.curriculum_id?.toString() === personData.program?.toString(),
-      );
-      const matchesRegistrarCurriculum = isRegistrarCurriculumMatch(
-        personData.program,
       );
 
       const matchesProgram =
@@ -821,15 +652,20 @@ const ApplicantList = () => {
         overrideBySearch ||
         selectedSchoolSemester === "" ||
         normalize(personData.middle_code) ===
-          normalize(selectedSemester?.semester_code);
+        normalize(selectedSemester?.semester_code);
 
       /* 📆 FROM–TO DATE RANGE (fixed 100%) */
       let matchesDateRange = true;
 
       let from = parseDateOnlyLocal(person.fromDate);
       let to = parseDateOnlyLocal(person.toDate);
-      if (to) to.setHours(23, 59, 59, 999);
 
+      // Make "To Date" inclusive for the whole selected day.
+      if (to) {
+        to.setHours(23, 59, 59, 999);
+      }
+
+      // Handle accidentally reversed input dates.
       if (from && to && from > to) {
         const swappedFrom = parseDateOnlyLocal(person.toDate);
         const swappedTo = parseDateOnlyLocal(person.fromDate);
@@ -854,7 +690,6 @@ const ApplicantList = () => {
         matchesSubmittedDocs &&
         matchesDepartment &&
         matchesProgram &&
-        matchesRegistrarCurriculum &&
         matchesSchoolYear &&
         matchesSemester &&
         matchesDateRange
@@ -921,49 +756,137 @@ const ApplicantList = () => {
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/all-applicants`) // 👈 This is the new endpoint
       .then((res) => res.json())
-      .then((data) => setPersons(data))
+
       .catch((err) => console.error("Error fetching applicants:", err));
   }, []);
 
   useEffect(() => {
-    const departmentIds =
-      Array.isArray(adminData.dprtmnt_ids) && adminData.dprtmnt_ids.length
-        ? adminData.dprtmnt_ids
-        : adminData.dprtmnt_id
-          ? [adminData.dprtmnt_id]
-          : [];
-
-    if (!departmentIds.length) return;
-
     const fetchDepartments = async () => {
       try {
-        const responses = await Promise.all(
-          departmentIds.map((departmentId) =>
-            axios.get(`${API_BASE_URL}/api/departments/${departmentId}`),
-          ),
-        );
-        const mergedDepartments = responses.flatMap(
-          (response) => response.data || [],
-        );
-        const uniqueDepartments = [
-          ...new Map(
-            mergedDepartments.map((dep) => [String(dep.dprtmnt_id), dep]),
-          ).values(),
-        ];
-        setDepartment(uniqueDepartments);
+        const response = await axios.get(`${API_BASE_URL}/api/departments`); // ✅ Update if needed
+        setDepartment(response.data);
       } catch (error) {
         console.error("Error fetching departments:", error);
       }
     };
 
     fetchDepartments();
-  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
+  }, []);
 
   useEffect(() => {
     if (currentPage > totalPages) {
       setCurrentPage(totalPages || 1);
     }
   }, [filteredPersons.length, totalPages]);
+
+  const cleanName = (v) => (v ?? "").trim().toLowerCase();
+
+  const detectDuplicateNames = (list) => {
+    const map = {};
+
+    for (const p of list) {
+      const ln = cleanName(p.last_name);
+      const fn = cleanName(p.first_name);
+      const mn = cleanName(p.middle_name);
+
+      // Must have all 3 for strict duplicate match
+      if (!ln || !fn || !mn) continue;
+
+      const key = `${ln}|${fn}|${mn}`;
+
+      if (!map[key]) map[key] = 0;
+      map[key]++;
+    }
+
+    return (person) => {
+      const ln = cleanName(person.last_name);
+      const fn = cleanName(person.first_name);
+      const mn = cleanName(person.middle_name);
+
+      if (!ln || !fn || !mn) return false;
+
+      const key = `${ln}|${fn}|${mn}`;
+      return map[key] > 1;
+    };
+  };
+
+  const isDuplicateApplicant = detectDuplicateNames(persons);
+
+  // ── Name normalizer: strips accents, special chars, spaces ──
+  const normalizeName = (v) =>
+    (v ?? "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")  // remove accents
+      .replace(/[^a-z0-9]/g, "");       // remove dots, commas, spaces, etc.
+
+  // ── DETECTOR 1: Suspicious name (special characters / slight variation) ──
+  // Catches: "Montano." vs "Montano", "De Leon" vs "DeLeon"
+  const detectSuspiciousDuplicates = (list) => {
+    const map = {};
+    for (const p of list) {
+      const ln = normalizeName(p.last_name);
+      const fn = normalizeName(p.first_name);
+      const bd = p.birthOfDate ? String(p.birthOfDate).split("T")[0] : "";
+      if (!ln || !fn) continue;
+      const key = `${ln}|${fn}|${bd}`;
+      if (!map[key]) map[key] = 0;
+      map[key]++;
+    }
+    return (person) => {
+      const ln = normalizeName(person.last_name);
+      const fn = normalizeName(person.first_name);
+      const bd = person.birthOfDate ? String(person.birthOfDate).split("T")[0] : "";
+      if (!ln || !fn) return false;
+      const key = `${ln}|${fn}|${bd}`;
+      // Only flag if normalized key has duplicates BUT exact name doesn't
+      // (so it doesn't overlap with isDuplicateApplicant)
+      const exactLn = cleanName(person.last_name);
+      const exactFn = cleanName(person.first_name);
+      const exactMn = cleanName(person.middle_name);
+      const exactKey = `${exactLn}|${exactFn}|${exactMn}`;
+      const exactMap = {};
+      for (const p of list) {
+        const k = `${cleanName(p.last_name)}|${cleanName(p.first_name)}|${cleanName(p.middle_name)}`;
+        if (!exactMap[k]) exactMap[k] = 0;
+        exactMap[k]++;
+      }
+      return map[key] > 1 && exactMap[exactKey] <= 1;
+    };
+  };
+
+  // ── DETECTOR 2: New account but someone with same name+birthday already took exam ──
+  // Catches: person registers fresh while their old account has email_sent=1 or exam_status=1
+  const detectExamTakenDuplicates = (list) => {
+    const examTakenKeys = new Set();
+    for (const p of list) {
+      const ln = normalizeName(p.last_name);
+      const fn = normalizeName(p.first_name);
+      const bd = p.birthOfDate ? String(p.birthOfDate).split("T")[0] : "";
+      if (!ln || !fn) continue;
+      if (Number(p.email_sent) === 1 || Number(p.exam_status) === 1) {
+        examTakenKeys.add(`${ln}|${fn}|${bd}`);
+      }
+    }
+    return (person) => {
+      const ln = normalizeName(person.last_name);
+      const fn = normalizeName(person.first_name);
+      const bd = person.birthOfDate ? String(person.birthOfDate).split("T")[0] : "";
+      if (!ln || !fn) return false;
+      const key = `${ln}|${fn}|${bd}`;
+      // Flag only the NEW account (hasn't taken exam yet)
+      return (
+        examTakenKeys.has(key) &&
+        Number(person.email_sent) !== 1 &&
+        Number(person.exam_status) !== 1
+      );
+    };
+  };
+
+  const isSuspiciousDuplicate = detectSuspiciousDuplicates(persons);
+  const isExamTakenDuplicate = detectExamTakenDuplicates(persons);
+
 
   const [openDialog, setOpenDialog] = useState(false);
   const [activePerson, setActivePerson] = useState(null);
@@ -1040,29 +963,11 @@ const ApplicantList = () => {
   const activeDocumentOptions = getDocumentOptionsForPerson(activePerson);
 
   useEffect(() => {
-    const departmentIds =
-      Array.isArray(adminData.dprtmnt_ids) && adminData.dprtmnt_ids.length
-        ? adminData.dprtmnt_ids
-        : adminData.dprtmnt_id
-          ? [adminData.dprtmnt_id]
-          : [];
-
-    if (departmentIds.length) return;
-
     axios.get(`${API_BASE_URL}/api/applied_program`).then((res) => {
-      const restrictedCurriculums = restrictToRegistrarCurriculum(res.data);
-      setAllCurriculums(restrictedCurriculums);
-      setCurriculumOptions(restrictedCurriculums);
+      setAllCurriculums(res.data);
+      setCurriculumOptions(res.data);
     });
-  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
-
-  useEffect(() => {
-    if (department.length > 0 && !selectedDepartmentFilter) {
-      const firstDept = department[0].dprtmnt_name;
-      setSelectedDepartmentFilter(firstDept);
-      handleDepartmentChange(firstDept); // if you also want to trigger it
-    }
-  }, [department, selectedDepartmentFilter]);
+  }, []);
 
   const handleDepartmentChange = (selectedDept) => {
     setSelectedDepartmentFilter(selectedDept);
@@ -1073,7 +978,7 @@ const ApplicantList = () => {
         allCurriculums.filter((opt) => opt.dprtmnt_name === selectedDept),
       );
     }
-    if (!isProgramLocked) setSelectedProgramFilter("");
+    setSelectedProgramFilter("");
   };
 
   const [applicants, setApplicants] = useState([]);
@@ -1194,22 +1099,20 @@ const ApplicantList = () => {
                  <div style="font-size: 13px; font-family: Arial">Republic of the Philippines</div>
    
                  <!-- ✅ Dynamic company name -->
-                 ${
-                   name
-                     ? `
+                 ${name
+        ? `
                        <b style="letter-spacing: 1px; font-size: 20px; font-family: Arial, sans-serif;">
                          ${firstLine}
                        </b>
-                       ${
-                         secondLine
-                           ? `<div style="letter-spacing: 1px; font-size: 20px; font-family: Arial, sans-serif;">
+                       ${secondLine
+          ? `<div style="letter-spacing: 1px; font-size: 20px; font-family: Arial, sans-serif;">
                                <b>${secondLine}</b>
                              </div>`
-                           : ""
-                       }
+          : ""
+        }
                      `
-                     : ""
-                 }
+        : ""
+      }
    
                  <!-- ✅ Dynamic campus address -->
                  <div style="font-size: 13px; font-family: Arial">${resolvedCampusAddress}</div>
@@ -1236,31 +1139,30 @@ const ApplicantList = () => {
                </thead>
                <tbody>
                  ${filteredPersons
-                   .map(
-                     (person) => `
+        .map(
+          (person) => `
                        <tr>
                          <td style="width:10%">${person.applicant_number || ""}</td>
                          <td style="width:40%">${person.last_name}, ${person.first_name} ${person.middle_name || ""} ${person.extension || ""}</td>
-                         <td style="width:15%">${
-                           allCurriculums.find(
-                             (item) =>
-                               item.curriculum_id?.toString() ===
-                               person.program?.toString(),
-                           )?.program_code ?? "N/A"
-                         }</td>                 
+                         <td style="width:15%">${allCurriculums.find(
+            (item) =>
+              item.curriculum_id?.toString() ===
+              person.program?.toString(),
+          )?.program_code ?? "N/A"
+            }</td>                 
                          <td style="width:10%">${person.generalAverage1 || ""}</td>
                          <td style="width:10%">${new Date(
-                           person.created_at.split("T")[0],
-                         ).toLocaleDateString("en-PH", {
-                           year: "numeric",
-                           month: "short",
-                           day: "2-digit",
-                         })}</td>
+              person.created_at.split("T")[0],
+            ).toLocaleDateString("en-PH", {
+              year: "numeric",
+              month: "short",
+              day: "2-digit",
+            })}</td>
                          <td style="width:15%">${getApplicantStatus(person)}</td>
                        </tr>
                      `,
-                   )
-                   .join("")}
+        )
+        .join("")}
                </tbody>
              </table>
            </div>
@@ -1279,25 +1181,25 @@ const ApplicantList = () => {
     return <Unauthorized />;
   }
 
-     // 🔒 Disable right-click
-    document.addEventListener("contextmenu", (e) => e.preventDefault());
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-    // 🔒 Block DevTools shortcuts + Ctrl+P silently
-    document.addEventListener("keydown", (e) => {
-        const isBlockedKey =
-            e.key === "F12" ||
-            e.key === "F11" ||
-            (e.ctrlKey &&
-                e.shiftKey &&
-                (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-            (e.ctrlKey && e.key.toLowerCase() === "u") ||
-            (e.ctrlKey && e.key.toLowerCase() === "p");
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
 
-        if (isBlockedKey) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-    });
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   return (
     <Box
@@ -1441,7 +1343,6 @@ const ApplicantList = () => {
           rowGap={2}
         >
           {/* Left Side: Campus Dropdown */}
-          {/* Left Side: Campus Dropdown */}
           <Box
             display="flex"
             flexDirection="column"
@@ -1510,8 +1411,6 @@ const ApplicantList = () => {
               <FcPrint size={20} />
               Print Applicant List
             </button>
-
-            {/* To Date */}
 
             {/* From Date */}
             <FormControl size="small" sx={{ width: 200 }}>
@@ -1725,10 +1624,14 @@ const ApplicantList = () => {
                     </Button>
                   </Box>
                 </Box>
+
               </TableCell>
             </TableRow>
           </TableHead>
+
         </Table>
+
+
       </TableContainer>
 
       <TableContainer
@@ -1742,7 +1645,7 @@ const ApplicantList = () => {
           rowGap={3}
           columnGap={5}
         >
-          {/* LEFT COLUMN: Sorting & Status Filters */}
+
           <Box display="flex" flexDirection="column" gap={2}>
             {/* Sort By */}
             <Box display="flex" alignItems="center" gap={1}>
@@ -1800,18 +1703,19 @@ const ApplicantList = () => {
               </FormControl>
             </Box>
 
-            {/* <Typography fontSize={13} sx={{ minWidth: "140px" }}>Registrar Status:</Typography>
-                            <FormControl size="small" sx={{ width: "275px" }}>
-                                <Select
-                                    value={selectedRegistrarStatus}
-                                    onChange={(e) => setSelectedRegistrarStatus(e.target.value)}
-                                    displayEmpty
-                                >
-                                    <MenuItem value="">Select status</MenuItem>
-                                    <MenuItem value="Submitted">Submitted</MenuItem>
-                                    <MenuItem value="Unsubmitted / Incomplete">Unsubmitted / Incomplete</MenuItem>
-                                </Select>
-                            </FormControl> */}
+            {/* 
+                        <Typography fontSize={13} sx={{ minWidth: "140px" }}>Registrar Status:</Typography>
+                        <FormControl size="small" sx={{ width: "275px" }}>
+                            <Select
+                                value={selectedRegistrarStatus}
+                                onChange={(e) => setSelectedRegistrarStatus(e.target.value)}
+                                displayEmpty
+                            >
+                                <MenuItem value="">Select status</MenuItem>
+                                <MenuItem value="Submitted">Submitted</MenuItem>
+                                <MenuItem value="Unsubmitted / Incomplete">Unsubmitted / Incomplete</MenuItem>
+                            </Select>
+                        </FormControl> */}
 
             <FormControl
               size="small"
@@ -1828,6 +1732,8 @@ const ApplicantList = () => {
               />
               <Typography fontSize={13}>Show Submitted Only</Typography>
             </FormControl>
+
+
           </Box>
 
           {/* MIDDLE COLUMN: SY & Semester */}
@@ -1840,7 +1746,7 @@ const ApplicantList = () => {
                 <InputLabel id="school-year-label">School Years</InputLabel>
                 <Select
                   labelId="school-year-label"
-                  value={selectedSchoolYearValue}
+                  value={selectedSchoolYear}
                   onChange={handleSchoolYearChange}
                   displayEmpty
                 >
@@ -1851,9 +1757,7 @@ const ApplicantList = () => {
                       </MenuItem>
                     ))
                   ) : (
-                    <MenuItem value="" disabled>
-                      School Year is not found
-                    </MenuItem>
+                    <MenuItem disabled>School Year is not found</MenuItem>
                   )}
                 </Select>
               </FormControl>
@@ -1867,7 +1771,7 @@ const ApplicantList = () => {
                 <InputLabel>School Semester</InputLabel>
                 <Select
                   label="School Semester"
-                  value={selectedSchoolSemesterValue}
+                  value={selectedSchoolSemester}
                   onChange={handleSchoolSemesterChange}
                   displayEmpty
                 >
@@ -1878,9 +1782,7 @@ const ApplicantList = () => {
                       </MenuItem>
                     ))
                   ) : (
-                    <MenuItem value="" disabled>
-                      School Semester is not found
-                    </MenuItem>
+                    <MenuItem disabled>School Semester is not found</MenuItem>
                   )}
                 </Select>
               </FormControl>
@@ -1895,7 +1797,7 @@ const ApplicantList = () => {
               </Typography>
               <FormControl size="small" sx={{ width: "400px" }}>
                 <Select
-                  value={selectedDepartmentFilterValue}
+                  value={selectedDepartmentFilter}
                   onChange={(e) => {
                     const selectedDept = e.target.value;
                     setSelectedDepartmentFilter(selectedDept);
@@ -1903,6 +1805,7 @@ const ApplicantList = () => {
                   }}
                   displayEmpty
                 >
+                  <MenuItem value="">Select College</MenuItem>
                   {department.map((dep) => (
                     <MenuItem key={dep.dprtmnt_id} value={dep.dprtmnt_name}>
                       {dep.dprtmnt_name} ({dep.dprtmnt_code})
@@ -1918,14 +1821,11 @@ const ApplicantList = () => {
               </Typography>
               <FormControl size="small" sx={{ width: "350px" }}>
                 <Select
-                  value={selectedProgramFilterValue}
+                  value={selectedProgramFilter}
                   onChange={(e) => setSelectedProgramFilter(e.target.value)}
-                  disabled={isProgramLocked}
                   displayEmpty
                 >
-                  {!isProgramLocked && (
-                    <MenuItem value="">All Programs</MenuItem>
-                  )}
+                  <MenuItem value="">All Programs</MenuItem>
                   {curriculumOptions.map((prog) => (
                     <MenuItem
                       key={prog.curriculum_id}
@@ -1936,62 +1836,32 @@ const ApplicantList = () => {
                   ))}
                 </Select>
               </FormControl>
+
             </Box>
+
           </Box>
         </Box>
-
-        <Box
-          display="flex"
-          flexDirection="column"
-          alignItems="center"
-          gap={1}
-          mb={1}
-        >
-          <Typography fontSize={16} fontWeight="bold">
-            Color Indication
-          </Typography>
+        <Box display="flex" flexDirection="column" alignItems="center" gap={1} mb={1}>
+          <Typography fontSize={16} fontWeight="bold">Color Indication</Typography>
           <Box display="flex" justifyContent="center" gap={2} flexWrap="wrap">
             <Box display="flex" alignItems="center" gap={0.5}>
-              <Box
-                sx={{
-                  width: 16,
-                  height: 16,
-                  backgroundColor: "#A5D6A7",
-                  border: "1px solid #ccc",
-                  borderRadius: 0.5,
-                }}
-              />
+              <Box sx={{ width: 16, height: 16, backgroundColor: "#A5D6A7", border: "1px solid #ccc", borderRadius: 0.5 }} />
               <Typography fontSize={12}>Submitted Documents</Typography>
             </Box>
             <Box display="flex" alignItems="center" gap={0.5}>
-              <Box
-                sx={{
-                  width: 16,
-                  height: 16,
-                  backgroundColor: "#90CAF9",
-                  border: "1px solid #ccc",
-                  borderRadius: 0.5,
-                }}
-              />
+              <Box sx={{ width: 16, height: 16, backgroundColor: "#90CAF9", border: "1px solid #ccc", borderRadius: 0.5 }} />
+
               <Typography fontSize={12}>Exam Schedule Sent</Typography>
             </Box>
             <Box display="flex" alignItems="center" gap={0.5}>
-              <Box
-                sx={{
-                  width: 16,
-                  height: 16,
-                  backgroundColor: "#FFCC80",
-                  border: "1px solid #ccc",
-                  borderRadius: 0.5,
-                }}
-              />
-              <Typography fontSize={12}>
-                Duplicate / Suspicious / Re-registration Detected
-              </Typography>
+              <Box sx={{ width: 16, height: 16, backgroundColor: "#FFCC80", border: "1px solid #ccc", borderRadius: 0.5 }} />
+              <Typography fontSize={12}>Duplicate / Suspicious / Re-registration Detected</Typography>
             </Box>
           </Box>
         </Box>
       </TableContainer>
+
+
 
       <div ref={divToPrintRef}></div>
 
@@ -2085,7 +1955,6 @@ const ApplicantList = () => {
               >
                 Program
               </TableCell>
-
               <TableCell
                 sx={{
                   color: "white",
@@ -2098,7 +1967,6 @@ const ApplicantList = () => {
               >
                 JHS GWA
               </TableCell>
-
               <TableCell
                 sx={{
                   color: "white",
@@ -2160,390 +2028,318 @@ const ApplicantList = () => {
               >
                 Remarks
               </TableCell>
-
               {/* <TableCell sx={{ color: "white", textAlign: "center", width: "8%", py: 0.5, fontSize: "12px", border: `1px solid ${borderColor}` }}>
                                 Registrar Status
                             </TableCell> */}
             </TableRow>
           </TableHead>
-          {/* --- Confirmation Dialog --- */}
-          <Dialog
-            open={confirmOpen}
-            onClose={() => setConfirmOpen(false)}
-            maxWidth="xs"
-            fullWidth
-          >
-            <DialogTitle
-              sx={{
-                background: settings?.header_color || "#9E0000",
-                color: "#fff",
-                fontWeight: 700,
-                fontSize: "1.2rem",
-                py: 2,
-              }}
-            >
-              Confirm Action
-            </DialogTitle>
-
-            <DialogContent sx={{ p: 3, mt: 2 }}>
-              <Typography sx={{ mb: 2 }}>
-                {confirmMessage ||
-                  "Are you sure you want to update this applicant's status?"}
-              </Typography>
-
-              <Typography sx={{ color: "#d32f2f", fontSize: "0.95rem" }}>
-                This action will update the applicant's record in the system.
-                <br />
-                Please make sure the information is correct before proceeding.
-              </Typography>
-            </DialogContent>
-
-            <DialogActions sx={{ px: 3, pb: 2 }}>
-              <Button
-                onClick={() => setConfirmOpen(false)}
-                color="error"
-                variant="outlined"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={async () => {
-                  if (confirmAction) await confirmAction();
-                  setConfirmOpen(false);
-                  fetchApplicants();
-                }}
-                color="success"
-                variant="contained"
-              >
-                Yes, Confirm
-              </Button>
-            </DialogActions>
-          </Dialog>
 
           <TableBody>
-            {currentPersons.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={12}
-                  sx={{
-                    textAlign: "center",
-                    py: 3,
-                    color: "gray",
-                    border: `1px solid ${borderColor}`,
-                  }}
-                >
-                  No applicants found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              currentPersons.map((person, index) => (
-                <TableRow
-                  key={person.person_id}
-                  sx={{
-                    backgroundColor: (() => {
-                      const hasSubmitted =
-                        Number(person.submitted_documents) === 1;
-                      const isAnyDuplicate =
-                        isDuplicateApplicant(person) ||
-                        isSuspiciousDuplicate(person) ||
-                        isExamTakenDuplicate(person);
-                      const hasExamSent =
-                        person.schedule_id && Number(person.email_sent) === 1;
+            {currentPersons.map((person, index) => (
+              <TableRow
+                key={person.person_id}
+                sx={{
+                  backgroundColor: (() => {
+                    const hasSubmitted = Number(person.submitted_documents) === 1;
+                    const isAnyDuplicate =
+                      isDuplicateApplicant(person) ||
+                      isSuspiciousDuplicate(person) ||
+                      isExamTakenDuplicate(person);
+                    const hasExamSent = person.schedule_id && Number(person.email_sent) === 1;
 
-                      if (hasSubmitted) return "#A5D6A7"; // green     — submitted documents
-                      if (isAnyDuplicate) return "#FFCC80"; // medium salmon orange — duplicate / suspicious
-                      if (hasExamSent) return "#90CAF9"; // sky blue  — exam schedule sent
+                    if (hasSubmitted) return "#A5D6A7";  // green     — submitted documents
+                    if (isAnyDuplicate) return "#FFCC80";  // medium salmon orange — duplicate / suspicious
+                    if (hasExamSent) return "#90CAF9";  // sky blue  — exam schedule sent
 
-                      return index % 2 === 0 ? "#ffffff" : "lightgray";
-                    })(),
+                    return index % 2 === 0 ? "#ffffff" : "lightgray";
+                  })(),
 
+                  color: "black",
+
+                  "& td:not(.clickable-cell)": {
                     color: "black",
+                  },
 
-                    "& td:not(.clickable-cell)": {
-                      color: "black",
-                    },
-
-                    fontWeight:
-                      Number(person.submitted_documents) === 1 ||
+                  fontWeight:
+                    Number(person.submitted_documents) === 1 ||
                       isDuplicateApplicant(person) ||
                       isSuspiciousDuplicate(person) ||
                       isExamTakenDuplicate(person) ||
                       (person.schedule_id && Number(person.email_sent) === 1)
-                        ? "bold"
-                        : "normal",
+                      ? "bold"
+                      : "normal",
+                }}
+              >
+                {/* # */}
+                <TableCell
+                  sx={{
+                    textAlign: "center",
+                    border: `1px solid ${borderColor}`,
+                    fontSize: "12px",
                   }}
                 >
-                  {/* # */}
-                  <TableCell
-                    sx={{
-                      textAlign: "center",
-                      border: `1px solid ${borderColor}`,
-                      fontSize: "12px",
-                    }}
-                  >
-                    {index + 1}
-                  </TableCell>
+                  {index + 1}
+                </TableCell>
 
-                  {/* Submitted Checkbox */}
-                  <TableCell
-                    sx={{
-                      textAlign: "center",
-                      border: `1px solid ${borderColor}`,
-                      fontSize: "12px",
-                    }}
-                  >
-                    <Checkbox
-                      disabled
-                      checked={Number(person.submitted_documents) === 1}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setConfirmMessage(
-                          `Are you sure you want to mark this applicant’s Original Documents as ${checked ? "Submitted" : "Unsubmitted"}?`,
+                {/* Submitted Checkbox */}
+                <TableCell
+                  sx={{
+                    textAlign: "center",
+                    border: `1px solid ${borderColor}`,
+                    fontSize: "12px",
+                  }}
+                >
+                  <Checkbox
+                    disabled
+                    checked={Number(person.submitted_documents) === 1}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setConfirmMessage(
+                        `Are you sure you want to mark this applicant’s Original Documents as ${checked ? "Submitted" : "Unsubmitted"}?`,
+                      );
+                      setConfirmAction(() => async () => {
+                        setPersons((prev) =>
+                          prev.map((p) =>
+                            p.person_id === person.person_id
+                              ? { ...p, submitted_documents: checked ? 1 : 0 }
+                              : p,
+                          ),
                         );
-                        setConfirmAction(() => async () => {
-                          setPersons((prev) =>
-                            prev.map((p) =>
-                              p.person_id === person.person_id
-                                ? { ...p, submitted_documents: checked ? 1 : 0 }
-                                : p,
-                            ),
-                          );
-                          await handleSubmittedDocumentsChange(
-                            person.upload_id,
-                            checked,
-                            person.person_id,
-                          );
-                        });
-                        setConfirmOpen(true);
-                      }}
-                      sx={{
-                        color: mainButtonColor,
-                        "&.Mui-checked": { color: mainButtonColor },
-                        width: 25,
-                        height: 25,
-                        padding: 0,
-                        "& svg": { width: 25, height: 25 }, // ensures the check icon scales correctly
-                      }}
-                    />
-                  </TableCell>
-
-                  {/* Applicant ID */}
-                  <TableCell
-                    className="clickable-cell"
-                    sx={{
-                      textAlign: "center",
-                      border: `1px solid ${borderColor}`,
-                      cursor: "pointer",
-                      color: "blue",
-                      fontSize: "12px",
-                    }}
-                    onClick={() => handleRowClick(person)}
-                  >
-                    {person.applicant_number ?? "N/A"}
-                  </TableCell>
-
-                  {/* Name */}
-                  <TableCell
-                    className="clickable-cell"
-                    sx={{
-                      textAlign: "left",
-                      border: `1px solid ${borderColor}`,
-                      cursor: "pointer",
-                      color: "blue",
-                      fontSize: "12px",
-                    }}
-                    onClick={() => handleRowClick(person)}
-                  >
-                    {`${person.last_name}, ${person.first_name} ${person.middle_name ?? ""} ${person.extension ?? ""}`}
-                  </TableCell>
-
-                  <TableCell
-                    className="clickable-cell"
-                    sx={{
-                      textAlign: "center",
-                      border: `1px solid ${borderColor}`,
-                      fontSize: "12px",
-                    }}
-                  >
-                    {(() => {
-                      if (!person.birthOfDate) return ""; // handle null/undefined
-
-                      const isoDate = person.birthOfDate.split("T")[0]; // get YYYY-MM-DD
-                      const date = new Date(isoDate);
-
-                      // If invalid date, just return raw string
-                      if (isNaN(date.getTime())) return isoDate;
-
-                      // Format nicely
-                      return date.toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
+                        await handleSubmittedDocumentsChange(
+                          person.upload_id,
+                          checked,
+                          person.person_id,
+                        );
                       });
-                    })()}
-                  </TableCell>
-
-                  <TableCell
+                      setConfirmOpen(true);
+                    }}
                     sx={{
-                      textAlign: "center",
-                      border: `1px solid ${borderColor}`,
-                      fontSize: "12px",
+                      color: mainButtonColor,
+                      "&.Mui-checked": { color: mainButtonColor },
+                      width: 25,
+                      height: 25,
+                      padding: 0,
+                      "& svg": { width: 25, height: 25 }, // ensures the check icon scales correctly
+                    }}
+                  />
+                </TableCell>
+
+                {/* Applicant ID */}
+                <TableCell
+                  className="clickable-cell"
+                  sx={{
+                    textAlign: "center",
+                    border: `1px solid ${borderColor}`,
+                    cursor: "pointer",
+                    color: "blue",
+                    fontSize: "12px",
+                  }}
+                  onClick={() => handleRowClick(person)}
+                >
+                  {person.applicant_number ?? "N/A"}
+                </TableCell>
+
+                {/* Name */}
+                <TableCell
+                  className="clickable-cell"
+                  sx={{
+                    textAlign: "left",
+                    border: `1px solid ${borderColor}`,
+                    cursor: "pointer",
+                    color: "blue",
+                    fontSize: "12px",
+                  }}
+                  onClick={() => handleRowClick(person)}
+                >
+                  {`${person.last_name}, ${person.first_name} ${person.middle_name ?? ""} ${person.extension ?? ""}`}
+                </TableCell>
+
+                <TableCell
+                  sx={{
+                    textAlign: "center",
+                    border: `1px solid ${borderColor}`,
+                    fontSize: "12px",
+                  }}
+                >
+                  {(() => {
+                    if (!person.birthOfDate) return ""; // handle null/undefined
+
+                    const isoDate = person.birthOfDate.split("T")[0]; // get YYYY-MM-DD
+                    const date = new Date(isoDate);
+
+                    // If invalid date, just return raw string
+                    if (isNaN(date.getTime())) return isoDate;
+
+                    // Format nicely
+                    return date.toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    });
+                  })()}
+                </TableCell>
+
+                <TableCell
+                  sx={{
+                    textAlign: "center",
+                    border: `1px solid ${borderColor}`,
+                    fontSize: "12px",
+                  }}
+                >
+                  {person.emailAddress || ""}
+                </TableCell>
+
+                {/* Program */}
+                <TableCell
+                  sx={{
+                    textAlign: "center",
+                    border: `1px solid ${borderColor}`,
+                    fontSize: "12px",
+                  }}
+                >
+                  {allCurriculums.find(
+                    (item) =>
+                      item.curriculum_id?.toString() ===
+                      person.program?.toString(),
+                  )?.program_code ?? "N/A"}
+                </TableCell>
+                <TableCell
+                  sx={{
+                    textAlign: "center",
+                    border: `1px solid ${borderColor}`,
+                    fontSize: "12px",
+                  }}
+                >
+                  {person.generalAverage || "0"}
+                </TableCell>
+
+                <TableCell
+                  sx={{
+                    textAlign: "center",
+                    border: `1px solid ${borderColor}`,
+                    fontSize: "12px",
+                  }}
+                >
+                  {person.generalAverage1 || "0"}
+                </TableCell>
+
+                {/* Strand */}
+                <TableCell
+                  sx={{
+                    textAlign: "center",
+                    border: `1px solid ${borderColor}`,
+                    fontSize: "12px",
+                  }}
+                >
+                  {person.strand}
+                </TableCell>
+
+                {/* Date Applied */}
+                <TableCell
+                  sx={{
+                    textAlign: "center",
+                    border: `1px solid ${borderColor}`,
+                    fontSize: "12px",
+                  }}
+                >
+                  {(() => {
+                    if (!person.created_at.split("T")[0]) return "";
+
+                    const date = new Date(person.created_at.split("T")[0]);
+
+                    if (isNaN(date)) return person.created_at.split("T")[0];
+
+                    return date.toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    });
+                  })()}
+                </TableCell>
+
+                {/* Status */}
+                <TableCell
+                  sx={{
+                    textAlign: "center",
+                    border: `1px solid ${borderColor}`,
+                    fontSize: "12px",
+                  }}
+                >
+                  {getApplicantStatus(person)}
+                </TableCell>
+
+                {/* Docs Button */}
+                <TableCell
+                  sx={{
+                    border: `1px solid ${borderColor}`,
+                    textAlign: "center",
+                    verticalAlign: "middle",
+
+                    p: 0,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      height: "100%",
+                      minHeight: "42px",
+                      marginRight: "10px",
+                      marginLeft: "10px",
                     }}
                   >
-                    {person.emailAddress || ""}
-                  </TableCell>
-
-                  {/* Program */}
-                  <TableCell
-                    sx={{
-                      textAlign: "center",
-                      border: `1px solid ${borderColor}`,
-                      fontSize: "12px",
-                    }}
-                  >
-                    {allCurriculums.find(
-                      (item) =>
-                        item.curriculum_id?.toString() ===
-                        person.program?.toString(),
-                    )?.program_code ?? "N/A"}
-                  </TableCell>
-                  {/* SHS GWA */}
-                  <TableCell
-                    sx={{
-                      textAlign: "center",
-                      border: `1px solid ${borderColor}`,
-                      fontSize: "12px",
-                    }}
-                  >
-                    {person.generalAverage || "0"}
-                  </TableCell>
-
-                  <TableCell
-                    sx={{
-                      textAlign: "center",
-                      border: `1px solid ${borderColor}`,
-                      fontSize: "12px",
-                    }}
-                  >
-                    {person.generalAverage1 || "0"}
-                  </TableCell>
-                  {/* Strand */}
-                  <TableCell
-                    sx={{
-                      textAlign: "center",
-                      border: `1px solid ${borderColor}`,
-                      fontSize: "12px",
-                    }}
-                  >
-                    {person.strand}
-                  </TableCell>
-
-                  {/* Date Applied */}
-                  <TableCell
-                    sx={{
-                      textAlign: "center",
-                      border: `1px solid ${borderColor}`,
-                      fontSize: "12px",
-                    }}
-                  >
-                    {(() => {
-                      if (!person.created_at.split("T")[0]) return "";
-
-                      const date = new Date(person.created_at.split("T")[0]);
-
-                      if (isNaN(date)) return person.created_at.split("T")[0];
-
-                      return date.toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      });
-                    })()}
-                  </TableCell>
-
-                  {/* Status */}
-                  <TableCell
-                    sx={{
-                      textAlign: "center",
-                      border: `1px solid ${borderColor}`,
-                      fontSize: "12px",
-                    }}
-                  >
-                    {getApplicantStatus(person)}
-                  </TableCell>
-
-                  {/* Docs Button */}
-                  <TableCell
-                    sx={{
-                      border: `1px solid ${borderColor}`,
-                      textAlign: "center",
-                      verticalAlign: "middle",
-
-                      p: 0,
-                    }}
-                  >
-                    <Box
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => handleOpenDialog(person)}
                       sx={{
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        height: "100%",
-                        minHeight: "42px",
-                        marginRight: "10px",
-                        marginLeft: "10px",
-                      }}
-                    >
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={() => handleOpenDialog(person)}
-                        sx={{
-                          width: "160px",
+                        width: "160px",
+                        backgroundColor:
+                          person.submitted_documents === 1 &&
+                            person.registrar_status === 1 &&
+                            Array.isArray(person.missing_documents) &&
+                            person.missing_documents.length === 0
+                            ? "#4CAF50"
+                            : Array.isArray(person.missing_documents) &&
+                              person.missing_documents.length > 0
+                              ? "#FFD580"
+                              : "#D6F0FF",
+                        border: `1px solid ${borderColor}`,
+                        color:
+                          person.submitted_documents === 1 &&
+                            person.registrar_status === 1 &&
+                            Array.isArray(person.missing_documents) &&
+                            person.missing_documents.length === 0
+                            ? "white"
+                            : "black",
+                        fontWeight: "bold",
+                        fontSize: "0.875rem",
+                        whiteSpace: "nowrap",
+                        "&:hover": {
                           backgroundColor:
                             person.submitted_documents === 1 &&
-                            person.registrar_status === 1 &&
-                            Array.isArray(person.missing_documents) &&
-                            person.missing_documents.length === 0
-                              ? "#4CAF50"
-                              : Array.isArray(person.missing_documents) &&
-                                  person.missing_documents.length > 0
-                                ? "#FFD580"
-                                : "#D6F0FF",
-                          border: "3px solid black",
-                          color:
-                            person.submitted_documents === 1 &&
-                            person.registrar_status === 1 &&
-                            Array.isArray(person.missing_documents) &&
-                            person.missing_documents.length === 0
-                              ? "white"
-                              : "black",
-                          fontWeight: "bold",
-                          fontSize: "0.875rem",
-                          whiteSpace: "nowrap",
-                          "&:hover": {
-                            backgroundColor:
-                              person.submitted_documents === 1 &&
                               person.registrar_status === 1 &&
                               Array.isArray(person.missing_documents) &&
                               person.missing_documents.length === 0
-                                ? "#45A049"
-                                : Array.isArray(person.missing_documents) &&
-                                    person.missing_documents.length > 0
-                                  ? "#FFC04D"
-                                  : "#B9E3FF",
-                          },
-                        }}
-                      >
-                        {person.submitted_documents === 1 &&
+                              ? "#45A049"
+                              : Array.isArray(person.missing_documents) &&
+                                person.missing_documents.length > 0
+                                ? "#FFC04D"
+                                : "#B9E3FF",
+                        },
+                      }}
+                    >
+                      {person.submitted_documents === 1 &&
                         person.registrar_status === 1 &&
                         Array.isArray(person.missing_documents) &&
                         person.missing_documents.length === 0
-                          ? "✅ Completed"
-                          : "📋 Missing Docs"}
-                      </Button>
-                    </Box>
-                  </TableCell>
-                  {/*
+                        ? "✅ Completed"
+                        : "📋 Missing Docs"}
+                    </Button>
+                  </Box>
+                </TableCell>
+                {/*
                                                                <TableCell sx={{ textAlign: "center", border: "2px solid maroon" }}>
                                                                    {person.registrar_status === 1 ? (
                                                                        <Box
@@ -2605,125 +2401,24 @@ const ApplicantList = () => {
                                                                    )}
                                                                </TableCell>
                                                                */}
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-
-          <Dialog
-            open={openDialog}
-            onClose={handleCloseDialog}
-            fullWidth
-            maxWidth="sm"
-          >
-            <DialogTitle
-              sx={{
-                background: settings?.header_color || "#9E0000",
-                color: "#fff",
-                fontWeight: 700,
-                fontSize: "1.2rem",
-                py: 2,
-              }}
-            >
-              {Array.isArray(activePerson?.missing_documents) &&
-              activePerson.missing_documents.length === 0 &&
-              activePerson?.submitted_documents === 1 &&
-              activePerson?.registrar_status === 1
-                ? "✅ Completed All Documents"
-                : "Mark Missing Documents"}
-            </DialogTitle>
-
-            <DialogContent
-              sx={{ maxHeight: 400, overflowY: "auto", p: 3, mt: 2 }}
-            >
-              {activeDocumentOptions.length === 0 ? (
-                <Typography sx={{ textAlign: "center", color: "gray", mt: 2 }}>
-                  No requirements found in database.
-                </Typography>
-              ) : (
-                <Box
+              </TableRow>
+            ))}
+            {currentPersons.length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={12}
                   sx={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-                    gap: 1.5,
-                    alignItems: "center",
+                    textAlign: "center",
+                    border: `1px solid ${borderColor}`,
+                    color: "#777",
+                    py: 3,
                   }}
                 >
-                  {activeDocumentOptions.map((doc) => {
-                    const selectedArray = Array.isArray(
-                      activePerson?.missing_documents,
-                    )
-                      ? activePerson.missing_documents
-                      : [];
-
-                    const isCompleted =
-                      selectedArray.length === 0 &&
-                      activePerson?.submitted_documents === 1 &&
-                      activePerson?.registrar_status === 1;
-
-                    return (
-                      <FormControlLabel
-                        key={doc.key}
-                        control={
-                          <Checkbox
-                            checked={
-                              isCompleted
-                                ? true
-                                : selectedArray.includes(doc.key)
-                            }
-                            disabled={isCompleted}
-                            onChange={(e) => {
-                              if (isCompleted) return;
-                              const updated = e.target.checked
-                                ? [...selectedArray, doc.key]
-                                : selectedArray.filter((x) => x !== doc.key);
-                              setActivePerson((prev) =>
-                                prev
-                                  ? { ...prev, missing_documents: updated }
-                                  : prev,
-                              );
-                            }}
-                          />
-                        }
-                        label={doc.label}
-                        sx={{
-                          backgroundColor: "#fdfdfd",
-                          borderRadius: "8px",
-                          px: 1,
-                          py: 0.5,
-                          border: "1px solid #ddd",
-                        }}
-                      />
-                    );
-                  })}
-                </Box>
-              )}
-            </DialogContent>
-
-            <DialogActions sx={{ px: 3, pb: 2 }}>
-              <Button
-                color="error"
-                variant="outlined"
-                onClick={handleCloseDialog}
-              >
-                Cancel
-              </Button>
-              {!(
-                Array.isArray(activePerson?.missing_documents) &&
-                activePerson.missing_documents.length === 0 &&
-                activePerson?.submitted_documents === 1 &&
-                activePerson?.registrar_status === 1
-              ) && (
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleSaveMissingDocs}
-                >
-                  Save
-                </Button>
-              )}
-            </DialogActions>
-          </Dialog>
+                  There's no applicant in the record.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
         </Table>
       </TableContainer>
 
@@ -2911,6 +2606,143 @@ const ApplicantList = () => {
         </Table>
       </TableContainer>
 
+      {/* --- Confirmation Dialog --- */}
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle
+          sx={{
+            background: settings?.header_color || "#9E0000",
+            color: "#fff",
+            fontWeight: 700,
+            fontSize: "1.2rem",
+            py: 2,
+          }}
+        >
+          Confirm Action
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 3, mt: 2 }}>
+          <Typography sx={{ mb: 2 }}>
+            {confirmMessage || "Are you sure you want to update this applicant's status?"}
+          </Typography>
+
+          <Typography sx={{ color: "#d32f2f", fontSize: "0.95rem" }}>
+            This action will update the applicant's record in the system.
+            <br />
+            Please make sure the information is correct before proceeding.
+          </Typography>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setConfirmOpen(false)} color="error" variant="outlined">
+            Cancel
+          </Button>
+          <Button
+            onClick={async () => {
+              if (confirmAction) await confirmAction();
+              setConfirmOpen(false);
+              fetchApplicants();
+            }}
+            color="success"
+            variant="contained"
+          >
+            Yes, Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+
+      <Dialog open={openDialog} onClose={handleCloseDialog} fullWidth maxWidth="sm">
+        <DialogTitle
+          sx={{
+            background: settings?.header_color || "#9E0000",
+            color: "#fff",
+            fontWeight: 700,
+            fontSize: "1.2rem",
+            py: 2,
+          }}
+        >
+          {Array.isArray(activePerson?.missing_documents) &&
+            activePerson.missing_documents.length === 0 &&
+            activePerson?.submitted_documents === 1 &&
+            activePerson?.registrar_status === 1
+            ? "✅ Completed All Documents"
+            : "Mark Missing Documents"}
+        </DialogTitle>
+
+        <DialogContent sx={{ maxHeight: 400, overflowY: "auto", p: 3, mt: 2 }}>
+          {activeDocumentOptions.length === 0 ? (
+            <Typography sx={{ textAlign: "center", color: "gray", mt: 2 }}>
+              No requirements found in database.
+            </Typography>
+          ) : (
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                gap: 1.5,
+                alignItems: "center",
+              }}
+            >
+              {activeDocumentOptions.map((doc) => {
+                const selectedArray = Array.isArray(activePerson?.missing_documents)
+                  ? activePerson.missing_documents
+                  : [];
+
+                const isCompleted =
+                  selectedArray.length === 0 &&
+                  activePerson?.submitted_documents === 1 &&
+                  activePerson?.registrar_status === 1;
+
+                return (
+                  <FormControlLabel
+                    key={doc.key}
+                    control={
+                      <Checkbox
+                        checked={isCompleted ? true : selectedArray.includes(doc.key)}
+                        disabled={isCompleted}
+                        onChange={(e) => {
+                          if (isCompleted) return;
+                          const updated = e.target.checked
+                            ? [...selectedArray, doc.key]
+                            : selectedArray.filter((x) => x !== doc.key);
+                          setActivePerson((prev) =>
+                            prev ? { ...prev, missing_documents: updated } : prev,
+                          );
+                        }}
+                      />
+                    }
+                    label={doc.label}
+                    sx={{
+                      backgroundColor: "#fdfdfd",
+                      borderRadius: "8px",
+                      px: 1,
+                      py: 0.5,
+                      border: "1px solid #ddd",
+                    }}
+                  />
+                );
+              })}
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button color="error" variant="outlined" onClick={handleCloseDialog}>
+            Cancel
+          </Button>
+          {!(
+            Array.isArray(activePerson?.missing_documents) &&
+            activePerson.missing_documents.length === 0 &&
+            activePerson?.submitted_documents === 1 &&
+            activePerson?.registrar_status === 1
+          ) && (
+              <Button variant="contained" color="primary" onClick={handleSaveMissingDocs}>
+                Save
+              </Button>
+            )}
+        </DialogActions>
+      </Dialog>
+
       <Snackbar
         open={snack.open}
         onClose={handleSnackClose}
@@ -2928,4 +2760,4 @@ const ApplicantList = () => {
   );
 };
 
-export default ApplicantList;
+export default AdminApplicantList;

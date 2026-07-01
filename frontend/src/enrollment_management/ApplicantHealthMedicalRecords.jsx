@@ -74,7 +74,7 @@ const RegistrarDashboard4 = () => {
     const stepsData = [
        {
             label: "Applicant List",
-            to: "/applicant_list",
+            to: "/applicant_list_college",
             icon: <SchoolIcon fontSize="large" />,
           },
           {
@@ -89,7 +89,7 @@ const RegistrarDashboard4 = () => {
           },
           {
             label: "Entrance Examination Score",
-            to: "/entrance_examination_score",
+            to: "/college_entrance_examination_score",
             icon: <ScoreIcon fontSize="large" />,
           },
           {
@@ -99,7 +99,7 @@ const RegistrarDashboard4 = () => {
           },
           {
             label: "Qualifying / Interview Exam Score",
-            to: "/qualifying_interview_exam_scores",
+            to: "/college_qualifying_interview_score",
             icon: <ScoreIcon fontSize="large" />,
           },
         
@@ -266,7 +266,7 @@ const RegistrarDashboard4 = () => {
             const tsStr = sessionStorage.getItem("admin_edit_person_id_ts");
             const id = sessionStorage.getItem("admin_edit_person_id");
             const ts = tsStr ? parseInt(tsStr, 10) : 0;
-            const isFresh = source === "applicant_list" && Date.now() - ts < 5 * 60 * 1000;
+            const isFresh = source === "applicant_list_college" && Date.now() - ts < 5 * 60 * 1000;
 
             if (id && isFresh) {
                 await fetchByPersonId(id);

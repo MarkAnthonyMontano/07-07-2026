@@ -32,6 +32,8 @@ import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import Unauthorized from "../components/Unauthorized";
 import LoadingOverlay from "../components/LoadingOverlay";
 import API_BASE_URL from "../apiConfig";
+import EaristLogo from "../assets/EaristLogo.png";
+import { FcPrint } from "react-icons/fc";
 
 // ─── helpers ──────────────────────────────────────────────────────────────
 const pad = (n, len = 5) => String(n).padStart(len, "0");
@@ -56,7 +58,7 @@ const StudentNumberAdmin = () => {
   // ── access control ────────────────────────────────────────────────────
   const [hasAccess, setHasAccess] = useState(null);
   const [loading, setLoading] = useState(true);
-  const pageId = 60;
+  const pageId = 167;
 
   useEffect(() => {
     const storedRole = localStorage.getItem("role");
@@ -132,6 +134,238 @@ const StudentNumberAdmin = () => {
   useEffect(() => {
     if (hasAccess) fetchAll();
   }, [hasAccess, fetchAll]);
+
+  // ── print handler (same layout pattern as Qualifying Exam printout) ──
+  const printDiv = () => {
+    const newWin = window.open("", "Print-Window");
+    newWin.document.open();
+
+    const logoSrc = settings?.logo_url
+      ? `${API_BASE_URL}${settings.logo_url}`
+      : EaristLogo;
+    const name = settings?.company_name?.trim() || "";
+
+    // ✅ Balanced split
+    const words = name.split(" ");
+    const middleIndex = Math.ceil(words.length / 2);
+    const firstLine = words.slice(0, middleIndex).join(" ");
+    const secondLine = words.slice(middleIndex).join(" ");
+
+    // ✅ Address
+    let campusAddress = "";
+    if (settings?.campus_address && settings.campus_address.trim() !== "") {
+      campusAddress = settings.campus_address;
+    } else if (settings?.address && settings.address.trim() !== "") {
+      campusAddress = settings.address;
+    } else {
+      campusAddress = "No address set in Settings";
+    }
+
+    const htmlContent = `
+  <html>
+    <head>
+      <title>Student Number Configuration</title>
+      <style>
+        @page { size: A4 landscape; margin: 10mm; }
+
+        body {
+          font-family: Arial;
+          margin: 0;
+          padding: 0;
+        }
+
+        .print-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          padding: 0 15px;
+        }
+
+        /* ✅ CLEAN FLEX HEADER */
+        .print-header {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 20px;
+          width: 100%;
+          margin-top: 20px;
+        }
+
+        .print-header img {
+          width: 120px;
+          height: 120px;
+          border-radius: 50%;
+          object-fit: cover;
+        }
+
+        .header-text {
+          text-align: center;
+        }
+
+        .header-text .gov {
+          font-size: 13px;
+        }
+
+        .header-text .school-name {
+          font-size: 20px;
+          font-weight: bold;
+          letter-spacing: 1px;
+          font-family: Arial;
+        }
+
+        .header-text .address {
+          font-size: 13px;
+          margin-top: 2px;
+        }
+
+        .header-text .title {
+          margin-top: 25px;
+          font-size: 22px;
+          font-weight: bold;
+          letter-spacing: 1px;
+        }
+
+        /* ✅ filter context bar (Active Year) */
+        .filter-bar {
+          margin-top: 10px;
+          display: flex;
+          justify-content: center;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .filter-chip {
+          font-size: 12px;
+          font-weight: 600;
+          padding: 4px 12px;
+          border: 1px solid #999;
+          border-radius: 14px;
+          background-color: #f5f5f5;
+          color: #333;
+        }
+
+        .filter-chip span {
+          color: #6D2323;
+          font-weight: 700;
+        }
+
+        /* ✅ TABLE IMPROVED */
+        table {
+          border-collapse: collapse;
+          width: 100%;
+          margin-top: 25px;
+          border: 1.5px solid black;
+          table-layout: fixed;
+        }
+
+        th, td {
+          border: 1.5px solid black;
+          padding: 7px 8px;
+          font-size: 13px;
+          text-align: center;
+          word-wrap: break-word;
+        }
+
+        th {
+          background-color: lightgray;
+          color: black;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+
+        /* ✅ prevent cutoff */
+        th:last-child, td:last-child {
+          border-right: 1.5px solid black !important;
+        }
+
+      </style>
+    </head>
+
+    <body onload="window.print(); setTimeout(() => window.close(), 100);">
+      <div class="print-container">
+
+        <!-- ✅ HEADER -->
+        <div class="print-header">
+          <img src="${logoSrc}" alt="School Logo"/>
+
+          <div class="header-text">
+            <div style="font-size: 13px; font-family: Arial">Republic of the Philippines</div>
+
+            ${name
+        ? `
+              <div class="school-name">${firstLine}</div>
+              ${secondLine ? `<div class="school-name">${secondLine}</div>` : ""}
+            `
+        : ""
+      }
+
+            <div class="address">${campusAddress}</div>
+
+            <div class="title">STUDENT NUMBER CONFIGURATION</div>
+          </div>
+        </div>
+
+        <!-- ✅ FILTER CONTEXT -->
+        <div class="filter-bar">
+          <div class="filter-chip">Active School Year: <span>${activeYear}</span></div>
+          <div class="filter-chip">Total Departments: <span>${depts.length}</span></div>
+          <div class="filter-chip">Total Branches: <span>${branches.length}</span></div>
+        </div>
+
+        <!-- ✅ TABLE: Dept × Branch Combinations -->
+        <table>
+          <thead>
+            <tr>
+              <th style="width:22%">Department</th>
+              <th style="width:10%">Dept #</th>
+              <th style="width:13%">Campus</th>
+              ${branches
+        .map(
+          (b) =>
+            `<th style="width:${Math.max(
+              10,
+              Math.floor(55 / Math.max(branches.length, 1)),
+            )}%">${b.branch} (${b.letter_code || "?"})</th>`,
+        )
+        .join("")}
+            </tr>
+          </thead>
+
+          <tbody>
+            ${depts
+        .map((d) => {
+          return `
+                <tr>
+                  <td>${d.dprtmnt_name ?? "N/A"}</td>
+                  <td>${d.dept_number ?? "—"}</td>
+                  <td>${Number(d.components) === 2 ? "Cavite" : "Manila"}</td>
+                  ${branches
+              .map((b) => {
+                const num = buildNumber(
+                  activeYear,
+                  d.dept_number,
+                  1,
+                  b.letter_code,
+                );
+                return `<td>${num}</td>`;
+              })
+              .join("")}
+                </tr>
+              `;
+        })
+        .join("")}
+          </tbody>
+        </table>
+
+      </div>
+    </body>
+  </html>
+  `;
+
+    newWin.document.write(htmlContent);
+    newWin.document.close();
+  };
 
   // ── department handlers ───────────────────────────────────────────────
   const updateDeptNum = (id, val) => {
@@ -283,25 +517,63 @@ const StudentNumberAdmin = () => {
         padding: 2,
       }}
     >
-      <Snackbar
-        open={snack.open}
-        onClose={handleSnackClose}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-        autoHideDuration={3500}
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={2}
       >
-        <Alert
-          onClose={handleSnackClose}
-          severity={snack.severity}
-          sx={{ width: "100%" }}
-        >
-          {snack.message}
-        </Alert>
-      </Snackbar>
 
-      {/* ── page header ── */}
-      <Typography variant="h4" fontWeight="bold" sx={{ color: titleColor, mb: 2 }}>
-        STUDENT NUMBER CONFIGURATION
-      </Typography>
+
+
+        <Typography
+          variant="h4"
+          sx={{
+            fontWeight: "bold",
+            color: titleColor,
+            fontSize: "36px",
+            minWidth: 0,        // ✅ allow the title to shrink/wrap if needed
+          }}
+        >
+          STUDENT NUMBER CONFIGURATION
+        </Typography>
+
+
+        <button
+          onClick={printDiv}
+          style={{
+            padding: "5px 20px",
+            border: "2px solid black",
+            backgroundColor: "#f0f0f0",
+            color: "black",
+            borderRadius: "5px",
+            cursor: "pointer",
+            fontSize: "14px",
+            fontWeight: "bold",
+            transition: "background-color 0.3s, transform 0.2s",
+            height: "40px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            userSelect: "none",
+            width: "245px", // ✅ same width as Import
+          }}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.backgroundColor = "#d3d3d3")
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.backgroundColor = "#f0f0f0")
+          }
+          onMouseDown={(e) =>
+            (e.currentTarget.style.transform = "scale(0.95)")
+          }
+          onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
+          type="button"
+        >
+          <FcPrint size={20} />
+          PRINT STUDENT NUMBER
+        </button>
+      </Box>
       <hr style={{ border: "1px solid #ccc", width: "100%" }} />
       <br />
 
@@ -910,6 +1182,21 @@ const StudentNumberAdmin = () => {
           </TableContainer>
         </>
       )}
+
+      <Snackbar
+        open={snack.open}
+        onClose={handleSnackClose}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        autoHideDuration={3500}
+      >
+        <Alert
+          onClose={handleSnackClose}
+          severity={snack.severity}
+          sx={{ width: "100%" }}
+        >
+          {snack.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

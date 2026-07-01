@@ -124,7 +124,7 @@ const ApplicantScoringReadOnly = () => {
 
         sessionStorage.setItem("admin_edit_person_id", String(personId));
         sessionStorage.setItem("edit_person_id", String(personId));
-        sessionStorage.setItem("admin_edit_person_id_source", "applicant_list");
+        sessionStorage.setItem("admin_edit_person_id_source", "applicant_list_college");
         sessionStorage.setItem("admin_edit_person_id_ts", String(Date.now()));
         sessionStorage.setItem("admin_edit_person_data", JSON.stringify(applicant));
 
@@ -139,7 +139,7 @@ const ApplicantScoringReadOnly = () => {
     const tabs = [
        {
             label: "Applicant List",
-            to: "/applicant_list",
+            to: "/applicant_list_college",
             icon: <SchoolIcon fontSize="large" />,
           },
           {
@@ -154,7 +154,7 @@ const ApplicantScoringReadOnly = () => {
           },
           {
             label: "Entrance Examination Score",
-            to: "/entrance_examination_score",
+            to: "/college_entrance_examination_score",
             icon: <ScoreIcon fontSize="large" />,
           },
           {
@@ -164,7 +164,7 @@ const ApplicantScoringReadOnly = () => {
           },
           {
             label: "Qualifying / Interview Exam Score",
-            to: "/qualifying_interview_exam_scores",
+            to: "/college_qualifying_interview_score",
             icon: <ScoreIcon fontSize="large" />,
           },
         
@@ -265,7 +265,7 @@ const ApplicantScoringReadOnly = () => {
 
     useEffect(() => {
         if (location.search.includes("person_id")) {
-            navigate("/entrance_examination_score", { replace: true });
+            navigate("/college_entrance_examination_score", { replace: true });
         }
     }, [location, navigate]);
 

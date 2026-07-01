@@ -72,7 +72,7 @@ const OfficialStudentDashboard5 = () => {
     }, [settings]);
 
     const stepsData = [
-       { label: "Student List", to: "/student_list_for_enrollment", icon: <SchoolIcon fontSize="large" /> },
+       { label: "Student List", to: "/college_student_list", icon: <SchoolIcon fontSize="large" /> },
           { label: "Student Profile", to: "/student_college_personal_information", icon: <PersonIcon fontSize="large" /> },
           { label: "Student Online Requirements", to: "/student_online_requirements_college", icon: <AssignmentIcon fontSize="large" /> },
           { label: "Course Tagging", to: "/course_tagging_for_college", icon: <UploadFileIcon fontSize="large" /> },

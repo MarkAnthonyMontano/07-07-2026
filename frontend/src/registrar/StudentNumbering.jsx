@@ -42,6 +42,11 @@ import {
   syncRegistrarScopeFromAdminData,
 } from "../utils/registrarCurriculumRestriction";
 import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
+import SchoolIcon from "@mui/icons-material/School";
+import PersonIcon from "@mui/icons-material/Person";
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import ScoreIcon from '@mui/icons-material/Score';
+import FormatListNumberedIcon from "@mui/icons-material/FormatListNumbered";
 
 const StudentNumbering = () => {
   const socket = useRef(null);
@@ -260,6 +265,44 @@ const StudentNumbering = () => {
     setActiveStep(index);
     navigate(to); // this will actually change the page
   };
+
+  const [activeStep, setActiveStep] = useState(5);
+
+  const tabs = [
+    {
+      label: "Applicant List",
+      to: "/applicant_list_registrar",
+      icon: <SchoolIcon fontSize="large" />,
+    },
+    {
+      label: "Applicant Profile",
+      to: "/applicant_registrar_personal_information",
+      icon: <PersonIcon fontSize="large" />,
+    },
+    {
+      label: "Applicant Online Requirements",
+      to: "/applicant_online_requirements_registrar",
+      icon: <AssignmentIcon fontSize="large" />,
+    },
+    {
+      label: "Entrance Examination Score",
+      to: "/registrar_entrance_examination_score",
+      icon: <ScoreIcon fontSize="large" />,
+    },
+
+    {
+      label: "Qualifying / Interview Exam Score",
+      to: "/registrar_qualifying_interview_score",
+      icon: <ScoreIcon fontSize="large" />,
+    },
+
+    {
+      label: "Student Numbering Panel",
+      to: "/student_numbering",
+      icon: <FormatListNumberedIcon fontSize="large" />,
+    },
+
+  ];
 
   const [authOpen, setAuthOpen] = useState(true);
   const [authPassword, setAuthPassword] = useState("");
@@ -514,16 +557,16 @@ const StudentNumbering = () => {
   const isProgramLocked = isRegistrarProgramSelectionLocked();
   const selectedDepartmentFilterValue =
     selectedDepartmentFilter === "" ||
-    department.some(
-      (dep) => String(dep.dprtmnt_name) === String(selectedDepartmentFilter),
-    )
+      department.some(
+        (dep) => String(dep.dprtmnt_name) === String(selectedDepartmentFilter),
+      )
       ? selectedDepartmentFilter
       : "";
   const selectedProgramFilterValue =
     selectedProgramFilter === "" ||
-    curriculumOptions.some(
-      (prog) => String(prog.program_code) === String(selectedProgramFilter),
-    )
+      curriculumOptions.some(
+        (prog) => String(prog.program_code) === String(selectedProgramFilter),
+      )
       ? selectedProgramFilter
       : "";
   const normalize = (value) =>
@@ -573,7 +616,7 @@ const StudentNumbering = () => {
       overrideBySearch ||
       selectedSchoolSemester === "" ||
       normalize(personData.middle_code) ===
-        normalize(selectedSemester?.semester_code);
+      normalize(selectedSemester?.semester_code);
 
     return (
       matchesSearch &&
@@ -1318,6 +1361,65 @@ const StudentNumbering = () => {
       <br />
       <br />
 
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          flexWrap: "nowrap", // ❌ prevent wrapping
+          width: "100%",
+
+          gap: 2,
+        }}
+      >
+        {tabs.map((tab, index) => (
+          <Card
+            key={index}
+            onClick={() => handleStepClick(index, tab.to)}
+            sx={{
+              flex: `1 1 ${100 / tabs.length}%`, // evenly divide row
+              height: 135,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              borderRadius: 2,
+              border: `1px solid ${borderColor}`,
+              backgroundColor:
+                activeStep === index
+                  ? settings?.header_color || "#1976d2"
+                  : "#E8C999",
+              color: activeStep === index ? "#fff" : "#000",
+              boxShadow:
+                activeStep === index
+                  ? "0px 4px 10px rgba(0,0,0,0.3)"
+                  : "0px 2px 6px rgba(0,0,0,0.15)",
+              transition: "0.3s ease",
+              "&:hover": {
+                backgroundColor: activeStep === index ? "#000000" : "#f5d98f",
+              },
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+              }}
+            >
+              <Box sx={{ fontSize: 40, mb: 1 }}>{tab.icon}</Box>
+              <Typography
+                sx={{ fontSize: 14, fontWeight: "bold", textAlign: "center" }}
+              >
+                {tab.label}
+              </Typography>
+            </Box>
+          </Card>
+        ))}
+      </Box>
+
+      <br />
+      <br />
+
       <TableContainer
         component={Paper}
         sx={{ width: "100%", border: `1px solid ${borderColor}` }}
@@ -1793,7 +1895,7 @@ const StudentNumbering = () => {
                 <br />
                 <strong>Program Applied:</strong> ({selectedPerson.program_code}
                 ) - {selectedPerson.program_description}
-                {selectedPerson.major} - 
+                {selectedPerson.major} -
                 <br />
                 <strong>Email Address:</strong> {selectedPerson.emailAddress}
               </Typography>

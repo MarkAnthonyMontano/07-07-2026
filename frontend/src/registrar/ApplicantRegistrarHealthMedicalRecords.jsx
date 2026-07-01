@@ -29,6 +29,8 @@ import CampaignIcon from '@mui/icons-material/Campaign';
 import ScoreIcon from '@mui/icons-material/Score';
 import API_BASE_URL from "../apiConfig";
 import DateField from "../components/DateField";
+import FormatListNumberedIcon from "@mui/icons-material/FormatListNumbered";
+
 const AdminDashboard4 = () => {
 
   const settings = useContext(SettingsContext);
@@ -441,6 +443,45 @@ const AdminDashboard4 = () => {
   };
 
 
+  const stepsData = [
+    {
+      label: "Applicant List",
+      to: "/applicant_list_registrar",
+      icon: <SchoolIcon fontSize="large" />,
+    },
+    {
+      label: "Applicant Profile",
+      to: "/applicant_registrar_personal_information",
+      icon: <PersonIcon fontSize="large" />,
+    },
+    {
+      label: "Applicant Online Requirements",
+      to: "/applicant_online_requirements_registrar",
+      icon: <AssignmentIcon fontSize="large" />,
+    },
+    {
+      label: "Entrance Examination Score",
+      to: "/registrar_entrance_examination_score",
+      icon: <ScoreIcon fontSize="large" />,
+    },
+
+    {
+      label: "Qualifying / Interview Exam Score",
+      to: "/registrar_qualifying_interview_score",
+      icon: <ScoreIcon fontSize="large" />,
+    },
+
+    {
+      label: "Student Numbering Panel",
+      to: "/student_numbering",
+      icon: <FormatListNumberedIcon fontSize="large" />,
+    },
+
+  ];
+
+  const [visitedSteps, setVisitedSteps] = useState(Array(stepsData.length).fill(false));
+
+
   const divToPrintRef = useRef();
   const [showPrintView, setShowPrintView] = useState(false);
 
@@ -620,6 +661,74 @@ const AdminDashboard4 = () => {
         </Typography>
       </Box>
       <hr style={{ border: "1px solid #ccc", width: "100%" }} />
+      <br />
+      <br />
+
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          width: "100%",
+
+        }}
+      >
+        {stepsData.map((step, index) => (
+          <React.Fragment key={index}>
+            {/* Step Card */}
+            <Card
+              onClick={() => handleNavigateStep(index, step.to)}
+              sx={{
+                flex: 1,
+                maxWidth: `${100 / stepsData.length}%`, // evenly fit 100%
+                height: 140,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                borderRadius: 2,
+                border: `1px solid ${borderColor}`,
+                backgroundColor: currentStep === index ? settings?.header_color || "#1976d2" : "#E8C999",
+                color: currentStep === index ? "#fff" : "#000",
+                boxShadow:
+                  currentStep === index
+                    ? "0px 4px 10px rgba(0,0,0,0.3)"
+                    : "0px 2px 6px rgba(0,0,0,0.15)",
+                transition: "0.3s ease",
+                "&:hover": {
+                  backgroundColor: currentStep === index ? "#000" : "#f5d98f",
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                }}
+              >
+                <Box sx={{ fontSize: 32, mb: 0.5 }}>{step.icon}</Box>
+                <Typography
+                  sx={{ fontSize: 14, fontWeight: "bold", textAlign: "center" }}
+                >
+                  {step.label}
+                </Typography>
+              </Box>
+            </Card>
+
+            {/* Spacer instead of line */}
+            {index < stepsData.length - 1 && (
+              <Box
+                sx={{
+
+                  mx: 1, // margin to keep spacing
+                }}
+              />
+            )}
+          </React.Fragment>
+        ))}
+      </Box>
+
       <br />
       <br />
 

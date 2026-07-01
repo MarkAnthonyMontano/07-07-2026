@@ -73,7 +73,7 @@ const AdminDashboard5 = () => {
   const stepsData = [
     {
       label: "Applicant List",
-      to: "/applicant_list_admin",
+      to: "/admission_applicant_list",
       icon: <SchoolIcon fontSize="large" />,
     },
     {
@@ -105,7 +105,7 @@ const AdminDashboard5 = () => {
 
     {
       label: "Entrance Examination Score",
-      to: "/applicant_scoring",
+      to: "/applicant_entrance_exam_score",
       icon: <ScoreIcon fontSize="large" />,
     },
   ];

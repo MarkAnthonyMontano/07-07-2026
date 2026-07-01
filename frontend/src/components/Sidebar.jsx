@@ -687,13 +687,13 @@ const SideBar = ({
     /* ── menu definitions ── */
     const admissionMenuGroups = [{
         key: "admissionOffice", label: "Admission Office", icon: AdminPanelSettings, items: [
-            { title: "Applicant List", link: "/applicant_list_admin", icon: ListAltOutlined, page_id: 7 },
+            { title: "Applicant List", link: "/admission_applicant_list", icon: ListAltOutlined, page_id: 7 },
             { title: "Applicant Profile", link: "/admission_personal_information", icon: AccountCircle, page_id: 1 },
             { title: "Applicant Online Requirements", link: "/admission_online_requirements", icon: FolderCopy, page_id: 61 },
             { title: "Verify Document Schedule Mgmt", link: "/verify_schedule", icon: EditCalendar, page_id: 118 },
             { title: "Entrance Exam Schedule Mgmt", link: "/assign_schedule_applicant", icon: EditCalendar, page_id: 11 },
             { title: "Examination Permit", link: "/registrar_examination_profile", icon: Badge, page_id: 48 },
-            { title: "Entrance Examination Scoring", link: "/applicant_scoring", icon: Score, page_id: 8 },
+            { title: "Entrance Examination Scoring", link: "/applicant_entrance_exam_score", icon: Score, page_id: 8 },
             { title: "Verify Schedule Assignment", link: "/verify_document_schedule", icon: AccessTimeIcon, page_id: 115 },
             { title: "Evaluator Applicant List", link: "/evaluator_schedule_room_list", icon: People, page_id: 120 },
             { title: "Entrance Exam Room Assignment", link: "/assign_entrance_exam", icon: AccessTimeIcon, page_id: 9 },
@@ -705,14 +705,14 @@ const SideBar = ({
     }];
     const enrollmentMenuGroups = [{
         key: "enrollmentOfficer", label: "Enrollment Officer", icon: AssignmentIndIcon, items: [
-            { title: "Applicant List", link: "/applicant_list", icon: ListAlt, page_id: 6 },
+            { title: "Applicant List", link: "/applicant_list_college", icon: ListAlt, page_id: 6 },
             { title: "Applicant Profile", link: "/applicant_college_personal_information", icon: AccountCircle, page_id: 43 },
             { title: "Applicant Online Requirements", link: "/applicant_online_requirements_college", icon: FolderCopy, page_id: 49 },
-            { title: "Entrance Examination Score", link: "/entrance_examination_score", icon: Assessment, page_id: 151 },
+            { title: "Entrance Examination Score", link: "/college_entrance_examination_score", icon: Assessment, page_id: 151 },
             { title: "Qualifying Schedule Mgmt", link: "/assign_schedule_applicants_qualifying_interview", icon: EditCalendar, page_id: 12 },
-            { title: "Qualifying / Interview Scores", link: "/qualifying_interview_exam_scores", icon: Assessment, page_id: 37 },
+            { title: "Qualifying / Interview Scores", link: "/college_qualifying_interview_score", icon: Assessment, page_id: 37 },
             // { title: "Student Numbering", link: "/student_numbering_per_college", icon: FormatListNumbered, page_id: 60 },
-            { title: "Student List", link: "/student_list_for_enrollment", icon: ListAlt, page_id: 137 },
+            { title: "Student List", link: "/college_student_list", icon: ListAlt, page_id: 137 },
             { title: "Student Profile", link: "/student_college_personal_information", icon: AccountCircle, page_id: 43 },
             { title: "Student Online Requirements", link: "/student_online_requirements_college", icon: FolderCopy, page_id: 124 },
             { title: "Course Tagging", link: "/course_tagging_for_college", icon: Class, page_id: 124 },
@@ -737,13 +737,17 @@ const SideBar = ({
 
     const registrarMenuGroups = [{
         key: "registrarOffice", label: "Registrar's Office", icon: HistoryEdu, items: [
-            { title: "Applicant List", link: "/super_admin_applicant_list", icon: ListAltOutlined, page_id: 80 },
+            { title: "Applicant List", link: "/applicant_list_registrar", icon: ListAltOutlined, page_id: 80 },
             { title: "Applicant Profile", link: "/applicant_registrar_personal_information", icon: AccountCircle, page_id: 161 },
             { title: "Applicant Online Requirements", link: "/applicant_online_requirements_registrar", icon: FolderCopy, page_id: 160 },
+            { title: "Entrance Examination Score", link: "/registrar_entrance_examination_score", icon: Assessment, page_id: 169 },
+
+            { title: "Qualifying / Interview Scores", link: "/registrar_qualifying_interview_score", icon: Assessment, page_id: 168 },
+
             { title: "Student Numbering Panel", link: "/student_numbering", icon: Numbers, page_id: 59 },
             { title: "Student Number Admin", link: "/student_number_admin", icon: AdminPanelSettings, page_id: 167 },
 
-            { title: "Student List", link: "/student_list", icon: ListAltOutlined, page_id: 104 },
+            { title: "Student List", link: "/registrar_student_list", icon: ListAltOutlined, page_id: 104 },
             { title: "Student Profile", link: "/student_registrar_personal_information", icon: AccountCircle, page_id: 38 },
             { title: "Student Online Requirements", link: "/student_online_requirements_registrar", icon: FolderCopy, page_id: 106 },
             { title: "Course Tagging", link: "/course_tagging", icon: Class, page_id: 17 },
@@ -785,8 +789,6 @@ const SideBar = ({
 
     const systemMenuGroups = [
         { key: "roomManagement", label: "Room Management", icon: MeetingRoom, items: [{ title: "Room Registration", link: "/room_registration", icon: MeetingRoom, page_id: 52 }] },
-        // { key: "studentNumberAdmin", label: "Student Number Admin", icon: FormatListNumbered, items: [{ title: "Student Numbering Admin", link: "/student_number_admin", icon: FormatListNumbered, page_id: 167 }] },
-
         { key: "requirementsManagement", label: "Requirements Management", icon: Assignment, items: [{ title: "Requirements Panel", link: "/requirements_form", icon: Assignment, page_id: 51 }] },
         { key: "profileSettings", label: "Profile & Settings", icon: Settings, items: [{ title: `${shortTerm} Profile`, link: "/settings", icon: Settings, page_id: 74 }, { title: "Signature Upload", link: "/signature_upload", icon: Settings, page_id: 114 }] },
         { key: "academicConfiguration", label: "Academic Configuration", icon: School, items: [{ title: "Grade Conversion Management", link: "/grade_conversion_admin", icon: Settings, page_id: 144 }, { title: "Change Grading Period", link: "/change_grade_period", icon: ChangeCircle, page_id: 14 }, { title: "Student Grade File", link: "/student_grade_file", icon: Grade, page_id: 126 }, { title: "Academic Achiever Awardee's", link: "/honors_report", icon: EmojiEvents, page_id: 146 }] },

@@ -35,7 +35,7 @@ import { refreshRegistrarCurriculumId } from "./utils/registrarCurriculumRestric
 import StudentAccounts from "./account_management/StudentAccounts";
 import ApplicationProcessAdmin from "./admission/ApplicationProcessAdmin";
 import CourseTaggingForSummerCollege from "./enrollment_management/CourseTaggingForSummerCollege";
-import StudentListForEnrollment from "./enrollment_management/StudentListForEnrollment";
+import CollegeStudentList from "./enrollment_management/CollegeStudentList";
 import GradeConversionAdmin from "./system_management/GradeConversionAdmin";
 import HonorsReport from "./system_management/HonorsReport";
 
@@ -88,8 +88,8 @@ const AdminPersonalDataForm = lazy(() => import("./admission/AdminPersonalDataFo
 const AdmissionScheduleTile = lazy(() => import("./admission/AdmissionScheduleTile"));
 const AnnouncementForAdmission = lazy(() => import("./admission/AnnouncementForAdmission"));
 const ApplicantExamSubjects = lazy(() => import("./admission/ApplicantExamSubjects"));
-const ApplicantListAdmin = lazy(() => import("./admission/ApplicantListAdmin"));
-const ApplicantScoring = lazy(() => import("./admission/ApplicantScoring"));
+const AdmissionApplicantList = lazy(() => import("./admission/AdmissionApplicantList"));
+const ApplicantEntranceExamScore = lazy(() => import("./admission/ApplicantEntranceExamScore"));
 const AssignEntranceExam = lazy(() => import("./admission/AssignEntranceExam"));
 const AssignScheduleToApplicants = lazy(() => import("./admission/AssignScheduleToApplicants"));
 const EvaluatorApplicantList = lazy(() => import("./admission/EvaluatorApplicantList"));
@@ -144,8 +144,10 @@ const DepartmentRegistration = lazy(() => import("./department_management/Dprtmn
 const DepartmentRoom = lazy(() => import("./department_management/DprtmntRoom"));
 const SlotMonitoring = lazy(() => import("./department_management/SlotMonitoring"));
 const SectionSlotManagement = lazy(() => import("./department_management/SectionSlotManagement"));
-const ApplicantList = lazy(() => import("./enrollment_management/ApplicantList"));
-const EntranceExaminationScore = lazy(() => import("./enrollment_management/EntranceExaminationScore"));
+const ApplicantListCollege = lazy(() => import("./enrollment_management/ApplicantListCollege"));
+const CollegeEntranceExamScore = lazy(() => import("./enrollment_management/CollegeEntranceExamScore"));
+const RegistrarEntranceExamScore = lazy(() => import("./registrar/RegistrarEntranceExamScore"));
+
 const AssignQualifyingInterviewExam = lazy(() => import("./enrollment_management/AssignQualifyingInterviewExam"));
 const AssignScheduleToApplicantsQualifyingInterviewer = lazy(() => import("./enrollment_management/AssignScheduleToApplicantsQualifyingInterviewer"));
 const CertificateOfRegistrationForCollege = lazy(() => import("./enrollment_management/CertificateOfRegistrationForCollege"));
@@ -159,7 +161,8 @@ const StudentCollegeEducationalAttainment = lazy(() => import("./enrollment_mana
 const StudentCollegeHealthMedicalRecords = lazy(() => import("./enrollment_management/StudentCollegeHealthMedicalRecords"));
 const StudentCollegeOtherInformation = lazy(() => import("./enrollment_management/StudentCollegeOtherInformation"));
 const QualifyingInterviewerApplicantList = lazy(() => import("./enrollment_management/QualifyingInterviewerApplicantList"));
-const QualifyingInterviewExamScore = lazy(() => import("./enrollment_management/QualifyingInterviewExamScore"));
+const CollegeQualifyingInterviewExamScore = lazy(() => import("./enrollment_management/CollegeQualifyingInterviewExamScore"));
+const RegistrarQualifyingInterviewExamScore = lazy(() => import("./registrar/RegistrarQualifyingInterviewExamScore"));
 const ApplicantCollegePersonalInformation = lazy(() => import("./enrollment_management/ApplicantCollegePersonalInformation"));
 const ApplicantCollegeFamilyBackground = lazy(() => import("./enrollment_management/ApplicantCollegeFamilyBackground"));
 const ApplicantCollegeEducationalAttainment = lazy(() => import("./enrollment_management/ApplicantEducationalAttainment"));
@@ -220,11 +223,11 @@ const ReportOfGrade = lazy(() => import("./registrar/ReportOfGrade"));
 const ScheduleChecker = lazy(() => import("./department_management/ScheduleChecker"));
 const SearchCertificateOfRegistration = lazy(() => import("./registrar/SearchCertificateOfRegistration"));
 const StudentEnrollment = lazy(() => import("./registrar/StudentEnrollment"));
-const StudentList = lazy(() => import("./registrar/StudentList"));
+const RegistrarStudentList = lazy(() => import("./registrar/RegistrarStudentList"));
 const StudentNumbering = lazy(() => import("./registrar/StudentNumbering"));
-const StudentNumberAdmin = lazy(() => import("./system_management/StudentNumberAdmin"));
+const StudentNumberAdmin = lazy(() => import("./registrar/StudentNumberAdmin"));
 const StudentOnlineRequirementsRegistrar = lazy(() => import("./registrar/StudentOnlineRequirementsRegistrar"));
-const SuperAdminApplicantList = lazy(() => import("./registrar/SuperAdminApplicantList"));
+const ApplicantListRegistrar = lazy(() => import("./registrar/ApplicantListRegistrar"));
 const TranscriptOfRecords = lazy(() => import("./registrar/TranscriptOfRecords"));
 const CertificateOfRegistration = lazy(() => import("./student/CertificateOfRegistration"));
 const StudentAdmissionFormProcess = lazy(() => import("./student/StudentAdmissionFormProcess"));
@@ -761,7 +764,7 @@ function App() {
                       <Route path="/verify_schedule" element={<ProtectedRoute><VerifyApplicantDocumentSchedule /></ProtectedRoute>} />
                       <Route path="/admission_schedule_room_list" element={<ProtectedRoute><AdmissionScheduleTile /></ProtectedRoute>} />
                       <Route path="/enrollment_schedule_room_list" element={<ProtectedRoute><EnrollmentScheduleTile /></ProtectedRoute>} />
-                      <Route path="/applicant_scoring" element={<ProtectedRoute><ApplicantScoring /></ProtectedRoute>} />
+                      <Route path="/applicant_entrance_exam_score" element={<ProtectedRoute><ApplicantEntranceExamScore /></ProtectedRoute>} />
                       <Route path="/applicant_exam_subjects" element={<ProtectedRoute><ApplicantExamSubjects /></ProtectedRoute>} />
                       <Route path="/evaluator_schedule_room_list" element={<ProtectedRoute><EvaluatorScheduleTile /></ProtectedRoute>} />
                       <Route path="/evaluator_applicant_list" element={<ProtectedRoute><EvaluatorApplicantList /></ProtectedRoute>} />
@@ -769,8 +772,8 @@ function App() {
                       <Route path="/assign_schedule_applicants_qualifying_interview" element={<ProtectedRoute><AssignScheduleToApplicantsQualifyingInterviewer /></ProtectedRoute>} />
                       <Route path="/qualifying_interviewer_applicant_list" element={<ProtectedRoute><QualifyingInterviewerApplicantList /></ProtectedRoute>} />
                       <Route path="/grading_sheet" element={<ProtectedRoute><GradingSheet /></ProtectedRoute>} />
-                      <Route path="/student_list" element={<ProtectedRoute><StudentList /></ProtectedRoute>} />
-                      <Route path="/student_list_for_enrollment" element={<ProtectedRoute><StudentListForEnrollment /></ProtectedRoute>} />
+                      <Route path="/registrar_student_list" element={<ProtectedRoute><RegistrarStudentList /></ProtectedRoute>} />
+                      <Route path="/college_student_list" element={<ProtectedRoute><CollegeStudentList /></ProtectedRoute>} />
                       <Route path="/faculty_workload" element={<ProtectedRoute><FacultyWorkload /></ProtectedRoute>} />
                       <Route path="/faculty_evaluation" element={<ProtectedRoute><FacultyEvaluation /></ProtectedRoute>} />
                       <Route path="/faculty_masterlist" element={<ProtectedRoute><FacultyMasterList /></ProtectedRoute>} />
@@ -782,11 +785,12 @@ function App() {
                       <Route path="/grades_page" element={<ProtectedRoute><StudentGradingPage allowedRoles={"student"} /></ProtectedRoute>} />
                       <Route path="/student_faculty_evaluation" element={<ProtectedRoute allowedRoles={"student"}><StudentFacultyEvaluation /></ProtectedRoute>} />
                       <Route path="/unauthorized" element={<Unauthorized />} />
-                      <Route path="/applicant_list" element={<ProtectedRoute><ApplicantList /></ProtectedRoute>} />
-                      <Route path="/entrance_examination_score" element={<ProtectedRoute><EntranceExaminationScore /></ProtectedRoute>} />
+                      <Route path="/applicant_list_college" element={<ProtectedRoute><ApplicantListCollege /></ProtectedRoute>} />
+                      <Route path="/college_entrance_examination_score" element={<ProtectedRoute><CollegeEntranceExamScore /></ProtectedRoute>} />
+                      <Route path="/registrar_entrance_examination_score" element={<ProtectedRoute><RegistrarEntranceExamScore /></ProtectedRoute>} />
                       <Route path="/medical_student_list" element={<ProtectedRoute><MedicalApplicantList /></ProtectedRoute>} />
-                      <Route path="/applicant_list_admin" element={<ProtectedRoute><ApplicantListAdmin /></ProtectedRoute>} />
-                      <Route path="/super_admin_applicant_list" element={<ProtectedRoute><SuperAdminApplicantList /></ProtectedRoute>} />
+                      <Route path="/admission_applicant_list" element={<ProtectedRoute><AdmissionApplicantList /></ProtectedRoute>} />
+                      <Route path="/applicant_list_registrar" element={<ProtectedRoute><ApplicantListRegistrar /></ProtectedRoute>} />
                       <Route path="/application_process_admin" element={<ProtectedRoute><ApplicationProcessAdmin /></ProtectedRoute>} />
                       <Route path="/archived" element={<ProtectedRoute><Archived /></ProtectedRoute>} />
                       <Route path="/application_process_super_admin" element={<ProtectedRoute><ApplicationSuperAdmin /></ProtectedRoute>} />
@@ -794,7 +798,9 @@ function App() {
                       <Route path="/honors_report" element={<ProtectedRoute><HonorsReport /></ProtectedRoute>} />
                       <Route path="/proctor_applicant_list" element={<ProtectedRoute><ProctorApplicantList /></ProtectedRoute>} />
                       <Route path="/evaluation_crud" element={<ProtectedRoute><EvaluationCRUD /></ProtectedRoute>} />
-                      <Route path="/qualifying_interview_exam_scores" element={<ProtectedRoute><QualifyingInterviewExamScore /></ProtectedRoute>} />
+                      <Route path="/college_qualifying_interview_score" element={<ProtectedRoute><CollegeQualifyingInterviewExamScore /></ProtectedRoute>} />
+                      <Route path="/registrar_qualifying_interview_score" element={<ProtectedRoute><RegistrarQualifyingInterviewExamScore /></ProtectedRoute>} />
+
                       <Route path="/settings" element={<ProtectedRoute><Settings onUpdate={fetchSettings} /></ProtectedRoute>} />
                       <Route path="/admission_personal_information" element={<ProtectedRoute><AdmissionPersonalInformation /></ProtectedRoute>} />
                       <Route path="/admission_family_background" element={<ProtectedRoute><AdmissionFamilyBackground /></ProtectedRoute>} />

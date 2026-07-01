@@ -124,7 +124,7 @@ const AssignScheduleToApplicants = () => {
     const tabs = [
         {
             label: "Applicant List",
-            to: "/applicant_list_admin",
+            to: "/admission_applicant_list",
             icon: <SchoolIcon fontSize="large" />,
         },
         {
@@ -156,7 +156,7 @@ const AssignScheduleToApplicants = () => {
 
         {
             label: "Entrance Examination Score",
-            to: "/applicant_scoring",
+            to: "/applicant_entrance_exam_score",
             icon: <ScoreIcon fontSize="large" />,
         },
     ];
@@ -174,7 +174,7 @@ const AssignScheduleToApplicants = () => {
         setActiveStep(index);
         const pid = sessionStorage.getItem("admin_edit_person_id");
 
-        if (pid && to !== "/applicant_list_admin") {
+        if (pid && to !== "/admission_applicant_list") {
             navigate(`${to}?person_id=${pid}`);
         } else {
             navigate(to);
