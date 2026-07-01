@@ -27,6 +27,24 @@ const normalizeExamStatus = (status) => {
   return String(Number(status));
 };
 
+const mapExamResultStatusToPersonExamStatus = (status) => {
+  if (status === null || status === undefined || status === "") return null;
+  const numericStatus = Number(status);
+  if (Number.isNaN(numericStatus)) return null;
+  // exam_results.status: 0 = PASSED, 1 = FAILED
+  // person_status_table.exam_status: 1 = passed/finished, 0 = not passed
+  if (numericStatus === 0) return 1;
+  if (numericStatus === 1) return 0;
+  return null;
+};
+
+const formatPersonExamStatus = (status) => {
+  if (status === null || status === undefined || status === "") return "N/A";
+  if (Number(status) === 1) return "PASSED";
+  if (Number(status) === 0) return "NOT PASSED";
+  return String(status);
+};
+
 // -----------------------------
 // VERIFY TOKEN
 // -----------------------------
@@ -429,6 +447,28 @@ router.post("/exam/save", verifyToken, async (req, res) => {
       ]);
     }
 
+    const personExamStatus = mapExamResultStatusToPersonExamStatus(status);
+    let previousPersonExamStatus = null;
+
+    if (personExamStatus !== null) {
+      const [personStatusRows] = await db.query(
+        `SELECT exam_status
+         FROM person_status_table
+         WHERE person_id = ?
+         LIMIT 1`,
+        [personId]
+      );
+
+      previousPersonExamStatus = personStatusRows[0]?.exam_status ?? null;
+
+      await db.query(
+        `INSERT INTO person_status_table (person_id, applicant_id, exam_status)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE exam_status = VALUES(exam_status)`,
+        [personId, applicant_number, personExamStatus]
+      );
+    }
+
     //--------------------------------------
     // AUDIT LOG
     //--------------------------------------
@@ -448,6 +488,19 @@ router.post("/exam/save", verifyToken, async (req, res) => {
         role: actor.role,
         action: "UPDATE_EXAM_STATUS",
         message: `${roleLabel} (${actor.actorId}) changed ECAT status of Applicant (${applicant_number}${applicantName ? ` - ${applicantName}` : ""}): ${formatExamStatus(previousStatus)} -> ${formatExamStatus(status)}.`,
+        severity: "INFO"
+      });
+    }
+
+    if (
+      personExamStatus !== null &&
+      String(previousPersonExamStatus ?? "") !== String(personExamStatus)
+    ) {
+      await insertAuditLogAdmission({
+        actorId: actor.actorId,
+        role: actor.role,
+        action: "UPDATE_PERSON_EXAM_STATUS",
+        message: `${roleLabel} (${actor.actorId}) changed applicant exam_status for (${applicant_number}${applicantName ? ` - ${applicantName}` : ""}): ${formatPersonExamStatus(previousPersonExamStatus)} -> ${formatPersonExamStatus(personExamStatus)}.`,
         severity: "INFO"
       });
     }

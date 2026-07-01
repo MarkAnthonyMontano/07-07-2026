@@ -405,7 +405,8 @@ router.get(
         ees.created_at,
         COALESCE(sy.year_id, current_sy.year_id) AS year_id,
         COALESCE(sy.semester_id, current_sy.semester_id) AS semester_id,
-        COUNT(ea.applicant_id) AS current_occupancy
+        COUNT(ea.applicant_id) AS current_occupancy,
+        SUM(CASE WHEN COALESCE(ea.email_sent, 0) = 1 THEN 1 ELSE 0 END) AS official_occupancy
       FROM admission.interview_exam_schedule ees
       LEFT JOIN enrollment.active_school_year_table sy
         ON ees.active_school_year_id = sy.id
@@ -413,7 +414,6 @@ router.get(
         ON current_sy.astatus = 1
       LEFT JOIN admission.interview_applicants ea
         ON ees.schedule_id = ea.schedule_id
-        AND COALESCE(ea.email_sent, 0) = 1
       WHERE COALESCE(sy.year_id, current_sy.year_id) = ?
         AND COALESCE(sy.semester_id, current_sy.semester_id) = ?${branchClause}
       GROUP BY ees.schedule_id
@@ -459,6 +459,7 @@ router.get("/interview_schedules_with_count", async (req, res) => {
         s.interviewer,
         s.room_quota,
         IFNULL(COUNT(ia.applicant_id), 0) AS current_occupancy,
+        IFNULL(SUM(CASE WHEN COALESCE(ia.email_sent, 0) = 1 THEN 1 ELSE 0 END), 0) AS official_occupancy,
         (s.room_quota - IFNULL(COUNT(ia.applicant_id), 0)) AS remaining_slots
       FROM interview_exam_schedule s
       LEFT JOIN interview_applicants ia
@@ -484,6 +485,7 @@ router.get("/interview_schedules_with_count", async (req, res) => {
       .json({ error: "Failed to fetch interview schedules with count" });
   }
 });
+
 // 4. Unassign one applicant
 router.post("/unassign_interview", async (req, res) => {
   const { applicant_number, audit_actor_id, audit_actor_role } = req.body;

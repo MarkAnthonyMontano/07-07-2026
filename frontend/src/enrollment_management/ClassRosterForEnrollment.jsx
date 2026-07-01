@@ -34,13 +34,11 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import PersonIcon from "@mui/icons-material/Person";
 import {
-  departmentIdsMatch,
   getDepartmentIdsFromAdminData,
-  getDepartmentsFromAdminScopes,
   isRegistrarCurriculumMatch,
   isRegistrarProgramSelectionLocked,
   isRegistrarStudentScopeMatch,
-  normalizeDepartmentId,
+  restrictDepartmentsToScope,
   restrictToRegistrarCurriculum,
   syncRegistrarScopeFromAdminData,
 } from "../utils/registrarCurriculumRestriction";
@@ -204,7 +202,6 @@ const ClassRoster = () => {
           ...new Map(
             responses
               .flat()
-              .filter((student) => isRegistrarStudentScopeMatch(student))
               .map((student) => [
                 `${student.student_number}-${student.year_id}-${student.semester_id}-${student.curriculum_id}`,
                 student,
@@ -245,10 +242,6 @@ const ClassRoster = () => {
 
   useEffect(() => {
     const departmentIds = getDepartmentIdsFromAdminData(adminData);
-    const seededDepartments = getDepartmentsFromAdminScopes(adminData);
-    if (seededDepartments.length) {
-      setDepartment(seededDepartments);
-    }
     if (!departmentIds.length) return;
 
     const fetchDepartments = async () => {
@@ -258,31 +251,22 @@ const ClassRoster = () => {
             axios.get(`${API_BASE_URL}/api/departments/${departmentId}`),
           ),
         );
-        const mergedDepartments = responses.flatMap(
-          (response) => response.data || [],
+        const mergedDepartments = restrictDepartmentsToScope(
+          responses.flatMap((response) => response.data || []),
         );
         const uniqueDepartments = [
           ...new Map(
-            mergedDepartments.map((dep) => [
-              normalizeDepartmentId(dep.dprtmnt_id),
-              {
-                ...dep,
-                dprtmnt_id: normalizeDepartmentId(dep.dprtmnt_id),
-              },
-            ]),
+            mergedDepartments.map((dep) => [String(dep.dprtmnt_id), dep]),
           ).values(),
         ];
         setDepartment(uniqueDepartments);
       } catch (error) {
         console.error("Error fetching departments:", error);
-        if (seededDepartments.length) {
-          setDepartment(seededDepartments);
-        }
       }
     };
 
     fetchDepartments();
-  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, adminData.scopes, scopeRevision]);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
 
   useEffect(() => {
     const departmentIds = getDepartmentIdsFromAdminData(adminData);
@@ -305,7 +289,24 @@ const ClassRoster = () => {
     };
 
     fetchCurriculums();
-  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, adminData.scopes, scopeRevision]);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
+
+  useEffect(() => {
+    const departmentIds = getDepartmentIdsFromAdminData(adminData);
+    if (departmentIds.length) return;
+
+    axios.get(`${API_BASE_URL}/api/departments`)
+      .then(res => setDepartment(res.data))
+      .catch(console.error);
+
+    axios.get(`${API_BASE_URL}/api/applied_program`)
+      .then(res => {
+        const restrictedCurriculums = restrictToRegistrarCurriculum(res.data);
+        setAllCurriculums(restrictedCurriculums);
+        setCurriculumOptions(restrictedCurriculums);
+      })
+      .catch(console.error);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
 
   useEffect(() => {
     if (department.length === 0 || selectedDepartmentFilter) return;
@@ -313,24 +314,10 @@ const ClassRoster = () => {
     if (departmentIds.length !== 1) return;
     if (allCurriculums.length === 0) return;
 
-    const firstDeptId = normalizeDepartmentId(department[0].dprtmnt_id);
+    const firstDeptId = department[0].dprtmnt_id;
     setSelectedDepartmentFilter(firstDeptId);
     handleDepartmentChange(firstDeptId);
   }, [department, allCurriculums, selectedDepartmentFilter, adminData]);
-
-  const handleDepartmentChange = (selectedDept) => {
-    const normalizedDept = normalizeDepartmentId(selectedDept);
-    setSelectedDepartmentFilter(normalizedDept);
-    setCurriculumOptions(
-      normalizedDept
-        ? allCurriculums.filter((option) =>
-            departmentIdsMatch(option.dprtmnt_id, normalizedDept),
-          )
-        : allCurriculums,
-    );
-    if (!isProgramLocked) setSelectedProgramFilter("");
-    setCurrentPage(1);
-  };
 
   // ─────────────────────────────────────────────────────────────────────────────
   // STEP 6 — Apply UI restrictions based on the user's department
@@ -338,7 +325,7 @@ const ClassRoster = () => {
   useEffect(() => {
     if (!isProgramLocked) return;
     const assignedCurriculum = curriculumOptions.find((prog) =>
-      isRegistrarCurriculumMatch(prog.curriculum_id)
+      isRegistrarCurriculumMatch(prog.curriculum_id, curriculumOptions)
     );
     if (assignedCurriculum?.curriculum_id) {
       setSelectedProgramFilter(assignedCurriculum.curriculum_id);
@@ -374,16 +361,23 @@ const ClassRoster = () => {
   const handleSchoolYearChange = e => { setSelectedSchoolYear(e.target.value); setCurrentPage(1); };
   const handleSchoolSemesterChange = e => { setSelectedSchoolSemester(e.target.value); setCurrentPage(1); };
 
+  const handleDepartmentChange = (selectedDept) => {
+    setSelectedDepartmentFilter(selectedDept);
+    setCurriculumOptions(
+      selectedDept ? allCurriculums.filter(o => o.dprtmnt_id === selectedDept) : allCurriculums
+    );
+    if (!isProgramLocked) setSelectedProgramFilter("");
+    setCurrentPage(1);
+  };
+
   // ─────────────────────────────────────────────────────────────────────────────
   // STEP 7 — Frontend filtering
   // ─────────────────────────────────────────────────────────────────────────────
   const filteredStudents = students
     .filter(s => {
-      const matchDept =
-        selectedDepartmentFilter === "" ||
-        departmentIdsMatch(s.dprtmnt_id, selectedDepartmentFilter);
+      const matchDept = selectedDepartmentFilter === "" || s.dprtmnt_id === selectedDepartmentFilter;
       const matchProgram = selectedProgramFilter === "" || String(s.curriculum_id) === String(selectedProgramFilter);
-      const matchRegistrarScope = isRegistrarStudentScopeMatch(s);
+      const matchRegistrarScope = isRegistrarStudentScopeMatch(s, allCurriculums);
       const matchYear = selectedSchoolYear === "" || String(s.year_id) === String(selectedSchoolYear);
       const matchSemester = selectedSchoolSemester === "" || String(s.semester_id) === String(selectedSchoolSemester);
       const matchStatus = selectedStatusFilter === ""
@@ -489,8 +483,8 @@ const ClassRoster = () => {
   const showAllDepartmentsOption = scopedDepartmentIds.length !== 1;
   const selectedDepartmentFilterValue =
     selectedDepartmentFilter === "" ||
-    department.some((dep) =>
-      departmentIdsMatch(dep.dprtmnt_id, selectedDepartmentFilter),
+    department.some(
+      (dep) => String(dep.dprtmnt_id) === String(selectedDepartmentFilter),
     )
       ? selectedDepartmentFilter
       : "";
@@ -781,7 +775,7 @@ const ClassRoster = () => {
                           <MenuItem value="">All Departments</MenuItem>
                         )}
                         {department.map(dep => (
-                          <MenuItem key={dep.dprtmnt_id} value={normalizeDepartmentId(dep.dprtmnt_id)}>
+                          <MenuItem key={dep.dprtmnt_id} value={dep.dprtmnt_id}>
                             {dep.dprtmnt_name} ({dep.dprtmnt_code})
                           </MenuItem>
                         ))}

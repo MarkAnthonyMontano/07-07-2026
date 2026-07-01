@@ -945,6 +945,7 @@ router.post("/student-tagging", async (req, res) => {
       person_id2: student.person_id,
       section: student.section_description,
       activeCurriculum: effectiveProgram,
+      program_id: student.program_id,
       major: student.major,
       yearLevel: student.year_level_id,
       yearLevelDescription: student.year_level_description,
@@ -1158,6 +1159,7 @@ router.post("/student-tagging/dprtmnt", async (req, res) => {
       person_id2: student.person_id,
       section: student.section_description,
       activeCurriculum: effectiveProgram,
+      program_id: student.program_id,
       major: student.major,
       yearLevel: student.year_level_id,
       yearLevelDescription: student.year_level_description,
@@ -1659,12 +1661,30 @@ router.get("/admin_data/:email", async (req, res) => {
       userAccount,
     );
 
+    const { ensureDepartmentIsAllowedColumn } = require("./dprmntRoute");
+    await ensureDepartmentIsAllowedColumn();
+
+    const departmentId = scopePayload.dprtmnt_id ?? userAccount.dprtmnt_id ?? null;
+    let is_allowed = 1;
+
+    if (departmentId) {
+      const [[departmentRow]] = await db3.query(
+        `SELECT COALESCE(is_allowed, 1) AS is_allowed
+         FROM dprtmnt_table
+         WHERE dprtmnt_id = ?
+         LIMIT 1`,
+        [departmentId],
+      );
+      is_allowed = Number(departmentRow?.is_allowed ?? 1);
+    }
+
     res.json({
-      dprtmnt_id: scopePayload.dprtmnt_id ?? userAccount.dprtmnt_id ?? null,
+      dprtmnt_id: departmentId,
       dprtmnt_ids: scopePayload.dprtmnt_ids,
       scopes: scopePayload.scopes,
       allowed_curriculum_ids: scopePayload.allowed_curriculum_ids,
       curriculum_id: scopePayload.curriculum_id ?? null,
+      is_allowed,
     });
   } catch (err) {
     console.error(err);

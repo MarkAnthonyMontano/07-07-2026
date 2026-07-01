@@ -8,6 +8,25 @@ const {
 const { insertAuditLogEnrollment } = require("../../utils/auditLogger");
 const router = express.Router();
 
+let isAllowedColumnReady = false;
+
+const ensureDepartmentIsAllowedColumn = async () => {
+  if (isAllowedColumnReady) return;
+
+  try {
+    await db3.query(`
+      ALTER TABLE dprtmnt_table
+      ADD COLUMN is_allowed tinyint(1) NOT NULL DEFAULT 1
+    `);
+  } catch (err) {
+    if (err?.code !== "ER_DUP_FIELDNAME") {
+      throw err;
+    }
+  }
+
+  isAllowedColumnReady = true;
+};
+
 const formatAuditActorRole = (role) => {
   const safeRole = String(role || "registrar").trim();
   if (!safeRole) return "Registrar";
@@ -44,44 +63,29 @@ const insertDepartmentAuditLog = async ({ req, action, message }) => {
 
 // -------------------- CREATE DEPARTMENT --------------------
 router.post("/department", CanCreate, async (req, res) => {
-  const { dep_name, dep_code, dept_number, components } = req.body;
+  const { dep_name, dep_code } = req.body;
 
-  if (!dep_name || !dep_code || !dept_number || !components) {
+  if (!dep_name || !dep_code) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
   try {
     const normalized_code = dep_code.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
 
- // Check duplicate department code
-const [rows] = await db3.query(
-  "SELECT dprtmnt_id FROM dprtmnt_table WHERE dprtmnt_code = ?",
-  [normalized_code]
-);
+    const [rows] = await db3.query(
+      "SELECT dprtmnt_id FROM dprtmnt_table WHERE dprtmnt_code = ?",
+      [normalized_code],
+    );
 
-if (rows.length > 0) {
-  return res.status(400).json({
-    message: "Department code already exists",
-  });
-}
-
-// Check duplicate department number
-const [deptNumberRows] = await db3.query(
-  "SELECT dprtmnt_id FROM dprtmnt_table WHERE dept_number = ?",
-  [dept_number]
-);
-
-if (deptNumberRows.length > 0) {
-  return res.status(400).json({
-    message: "Department number already exists",
-  });
-}
+    if (rows.length > 0) {
+      return res.status(400).json({
+        message: "Department already exists",
+      });
+    }
 
     const [result] = await db3.query(
-      `INSERT INTO dprtmnt_table
-   (dprtmnt_name, dprtmnt_code, dept_number, components)
-   VALUES (?, ?, ?, ?)`,
-      [dep_name, normalized_code, dept_number, components]
+      "INSERT INTO dprtmnt_table (dprtmnt_name, dprtmnt_code) VALUES (?, ?)",
+      [dep_name, normalized_code],
     );
 
     const { actorId, actorRole } = getAuditActor(req);
@@ -105,7 +109,15 @@ if (deptNumberRows.length > 0) {
 // -------------------- GET DEPARTMENTS --------------------
 router.get("/get_department", async (req, res) => {
   try {
-    const [result] = await db3.query("SELECT * FROM dprtmnt_table");
+    await ensureDepartmentIsAllowedColumn();
+    const [result] = await db3.query(
+      `SELECT
+         dprtmnt_id,
+         dprtmnt_code,
+         dprtmnt_name,
+         COALESCE(is_allowed, 1) AS is_allowed
+       FROM dprtmnt_table`,
+    );
     res.status(200).json(result);
   } catch (err) {
     console.error("Error fetching departments:", err);
@@ -113,59 +125,69 @@ router.get("/get_department", async (req, res) => {
   }
 });
 
-// -------------------- UPDATE DEPARTMENT --------------------
+router.put("/department/:id/is-allowed", CanEdit, async (req, res) => {
+  const { id } = req.params;
+  const isAllowed = Number(req.body?.is_allowed) === 1 ? 1 : 0;
+
+  try {
+    await ensureDepartmentIsAllowedColumn();
+
+    const [departmentRows] = await db3.query(
+      "SELECT dprtmnt_name, dprtmnt_code FROM dprtmnt_table WHERE dprtmnt_id = ?",
+      [id],
+    );
+
+    if (!departmentRows.length) {
+      return res.status(404).json({ message: "Department not found" });
+    }
+
+    const [result] = await db3.query(
+      "UPDATE dprtmnt_table SET is_allowed = ? WHERE dprtmnt_id = ?",
+      [isAllowed, id],
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Department not found" });
+    }
+
+    const department = departmentRows[0];
+    const { actorId, actorRole } = getAuditActor(req);
+    const roleLabel = formatAuditActorRole(actorRole);
+    await insertDepartmentAuditLog({
+      req,
+      action: "DEPARTMENT_PLOTTING_ACCESS",
+      message: `${roleLabel} (${actorId}) ${isAllowed ? "enabled" : "disabled"} schedule plotting for ${department.dprtmnt_name} (${department.dprtmnt_code}).`,
+    });
+
+    res.json({
+      success: true,
+      dprtmnt_id: Number(id),
+      is_allowed: isAllowed,
+      message: isAllowed
+        ? "Department schedule plotting enabled."
+        : "Department schedule plotting disabled.",
+    });
+  } catch (err) {
+    console.error("Error updating department plotting access:", err);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
 // -------------------- UPDATE DEPARTMENT --------------------
 router.put("/department/:id", CanEdit, async (req, res) => {
   const { id } = req.params;
-  const { dep_name, dep_code, dept_number, components } = req.body;
+  const { dep_name, dep_code } = req.body;
 
-  if (!dep_name || !dep_code || !dept_number || !components) {
+  if (!dep_name || !dep_code) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
   try {
-    const normalized_code = dep_code
-      .replace(/[^A-Za-z0-9]/g, "")
-      .toUpperCase();
-
-    // Check if another department already uses this code
-    const [codeRows] = await db3.query(
-      `SELECT dprtmnt_id
-       FROM dprtmnt_table
-       WHERE dprtmnt_code = ?
-       AND dprtmnt_id <> ?`,
-      [normalized_code, id]
-    );
-
-    if (codeRows.length > 0) {
-      return res.status(400).json({
-        message: "Department code already exists",
-      });
-    }
-
-    // Check if another department already uses this department number
-    const [deptNumberRows] = await db3.query(
-      `SELECT dprtmnt_id
-       FROM dprtmnt_table
-       WHERE dept_number = ?
-       AND dprtmnt_id <> ?`,
-      [dept_number, id]
-    );
-
-    if (deptNumberRows.length > 0) {
-      return res.status(400).json({
-        message: "Department number already exists",
-      });
-    }
-
     const [result] = await db3.query(
-      `UPDATE dprtmnt_table
-       SET dprtmnt_name = ?,
-           dprtmnt_code = ?,
-           dept_number = ?,
-           components = ?
+      `UPDATE dprtmnt_table 
+       SET dprtmnt_name = ?, dprtmnt_code = ?
        WHERE dprtmnt_id = ?`,
-      [dep_name, normalized_code, dept_number, components, id]
+      [dep_name, dep_code, id],
     );
 
     if (result.affectedRows === 0) {
@@ -174,21 +196,16 @@ router.put("/department/:id", CanEdit, async (req, res) => {
 
     const { actorId, actorRole } = getAuditActor(req);
     const roleLabel = formatAuditActorRole(actorRole);
-
     await insertDepartmentAuditLog({
       req,
       action: "DEPARTMENT_UPDATE",
-      message: `${roleLabel} (${actorId}) updated department ${dep_name} (${normalized_code}) [Dept No: ${dept_number}].`,
+      message: `${roleLabel} (${actorId}) updated department ${dep_name} (${dep_code}).`,
     });
 
-    res.json({
-      message: "Department updated successfully",
-    });
+    res.json({ message: "Department updated successfully" });
   } catch (err) {
     console.error("Error updating department:", err);
-    res.status(500).json({
-      message: "Internal Server Error",
-    });
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
@@ -231,3 +248,4 @@ router.delete("/department/:id", CanDelete, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.ensureDepartmentIsAllowedColumn = ensureDepartmentIsAllowedColumn;

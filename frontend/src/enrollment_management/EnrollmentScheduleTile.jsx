@@ -80,6 +80,9 @@ const InterviewScheduleHoverTile = () => {
     setBorderColor(settings.border_color || "#000000");
   }, [settings]);
 
+  const getOfficialOccupancy = (schedule) =>
+    Number(schedule?.official_occupancy ?? schedule?.current_occupancy ?? 0);
+
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -587,13 +590,13 @@ const InterviewScheduleHoverTile = () => {
                 </Typography>
 
                 <Typography fontSize="14px" fontWeight="bold" mb={0.5}>
-                  Applicants: {schedule.current_occupancy}/{schedule.room_quota}
+                  Applicants: {getOfficialOccupancy(schedule)}/{schedule.room_quota}
                 </Typography>
 
                 <LinearProgress
                   variant="determinate"
                   value={
-                    (schedule.current_occupancy / schedule.room_quota) * 100
+                    (getOfficialOccupancy(schedule) / schedule.room_quota) * 100
                   }
                   sx={{
                     height: 8,
@@ -601,7 +604,7 @@ const InterviewScheduleHoverTile = () => {
                     backgroundColor: "#eee",
                     "& .MuiLinearProgress-bar": {
                       backgroundColor: getOccupancyColor(
-                        schedule.current_occupancy,
+                        getOfficialOccupancy(schedule),
                         schedule.room_quota,
                       ),
                     },
@@ -609,9 +612,9 @@ const InterviewScheduleHoverTile = () => {
                 />
 
                 <Box sx={{ mt: 1 }}>
-                  {schedule.current_occupancy >= schedule.room_quota ? (
+                  {getOfficialOccupancy(schedule) >= schedule.room_quota ? (
                     <Chip label="Full" color="error" size="small" />
-                  ) : schedule.current_occupancy / schedule.room_quota >=
+                  ) : getOfficialOccupancy(schedule) / schedule.room_quota >=
                     0.7 ? (
                     <Chip label="Almost Full" color="warning" size="small" />
                   ) : (

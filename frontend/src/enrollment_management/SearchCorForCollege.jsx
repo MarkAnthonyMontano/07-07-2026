@@ -36,9 +36,12 @@ import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import {
     getDepartmentIdsFromAdminData,
+    refreshRegistrarCurriculumId,
     resolveStudentRegistrarScope,
+    restrictDepartmentsToScope,
     syncRegistrarScopeFromAdminData,
 } from "../utils/registrarCurriculumRestriction";
+import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 import PersonSearchIcon from "@mui/icons-material/PersonSearch";
 import PersonIcon from "@mui/icons-material/Person";
 import { postAuditEvent } from "../utils/auditEvents";
@@ -120,6 +123,26 @@ const SearchCorForCollege = () => {
     const [dprtmntID, setDepartmentID] = useState("");
     const [departments, setDepartments] = useState([]);
     const [departmentLoading, setDepartmentLoading] = useState(true);
+    const [activeSchoolYearId, setActiveSchoolYearId] = useState(null);
+    const scopeRevision = useRegistrarScopeRevision();
+
+    useEffect(() => {
+        if (userRole !== "registrar" || !employeeID) return;
+        refreshRegistrarCurriculumId(employeeID).catch((err) => {
+            console.error("Error refreshing registrar scope:", err);
+        });
+    }, [userRole, employeeID]);
+
+    useEffect(() => {
+        axios
+            .get(`${API_BASE_URL}/api/get_active_school_years`)
+            .then((res) => {
+                if (Array.isArray(res.data) && res.data.length > 0) {
+                    setActiveSchoolYearId(res.data[0].id);
+                }
+            })
+            .catch((err) => console.error(err));
+    }, []);
 
     useEffect(() => {
         const storedUser = localStorage.getItem("email");
@@ -167,7 +190,9 @@ const SearchCorForCollege = () => {
                         axios.get(`${API_BASE_URL}/api/departments/${departmentId}`),
                     ),
                 );
-                const mergedDepartments = responses.flatMap((response) => response.data || []);
+                const mergedDepartments = restrictDepartmentsToScope(
+                    responses.flatMap((response) => response.data || []),
+                );
                 const uniqueDepartments = [
                     ...new Map(
                         mergedDepartments.map((dep) => [String(dep.dprtmnt_id), dep]),
@@ -183,7 +208,7 @@ const SearchCorForCollege = () => {
         };
 
         loadDepartments();
-    }, []);
+    }, [scopeRevision]);
 
     const checkAccess = async (employeeID) => {
         try {
@@ -324,16 +349,14 @@ const SearchCorForCollege = () => {
         }
 
         const fetchStudent = async () => {
-            if (departmentLoading) {
-                return;
-            }
-
             try {
                 setCorPreloadLoading(true);
 
                 const [evalRes, scopeResult] = await Promise.all([
                     fetch(`${API_BASE_URL}/api/program_evaluation/${debouncedStudentNumber}`),
-                    resolveStudentRegistrarScope(debouncedStudentNumber),
+                    resolveStudentRegistrarScope(debouncedStudentNumber, {
+                        activeSchoolYearId: activeSchoolYearId || undefined,
+                    }),
                 ]);
 
                 if (scopeResult.error) {
@@ -347,7 +370,11 @@ const SearchCorForCollege = () => {
 
                 const preloadData = scopeResult.preload;
                 if (scopeResult.dprtmntId) {
-                    setDepartmentID(String(scopeResult.dprtmntId));
+                    setDepartmentID((prev) =>
+                        String(prev) === String(scopeResult.dprtmntId)
+                            ? prev
+                            : scopeResult.dprtmntId,
+                    );
                 }
                 setCorPreload(preloadData);
 
@@ -356,9 +383,9 @@ const SearchCorForCollege = () => {
                     setSelectedStudent(null);
                     setStudentData([]);
                     setStudentDetails([]);
-                    setCorPreload(null);
                     showSnackbar(
-                        errorBody?.message || "No student data found.",
+                        errorBody?.message ||
+                            "No enrolled-subject summary found. COR can still be generated from student record.",
                         "info",
                     );
                     return;
@@ -398,7 +425,7 @@ const SearchCorForCollege = () => {
         };
 
         fetchStudent();
-    }, [debouncedStudentNumber, departmentLoading]);
+    }, [debouncedStudentNumber, departmentLoading, activeSchoolYearId]);
 
     const divToPrintRef = useRef();
     const [pdfLoading, setPdfLoading] = useState(false);
@@ -533,25 +560,25 @@ const SearchCorForCollege = () => {
         );
     }
 
-       // 🔒 Disable right-click
-    document.addEventListener("contextmenu", (e) => e.preventDefault());
+    //    // 🔒 Disable right-click
+    // document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-    // 🔒 Block DevTools shortcuts + Ctrl+P silently
-    document.addEventListener("keydown", (e) => {
-        const isBlockedKey =
-            e.key === "F12" ||
-            e.key === "F11" ||
-            (e.ctrlKey &&
-                e.shiftKey &&
-                (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-            (e.ctrlKey && e.key.toLowerCase() === "u") ||
-            (e.ctrlKey && e.key.toLowerCase() === "p");
+    // // 🔒 Block DevTools shortcuts + Ctrl+P silently
+    // document.addEventListener("keydown", (e) => {
+    //     const isBlockedKey =
+    //         e.key === "F12" ||
+    //         e.key === "F11" ||
+    //         (e.ctrlKey &&
+    //             e.shiftKey &&
+    //             (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+    //         (e.ctrlKey && e.key.toLowerCase() === "u") ||
+    //         (e.ctrlKey && e.key.toLowerCase() === "p");
 
-        if (isBlockedKey) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-    });
+    //     if (isBlockedKey) {
+    //         e.preventDefault();
+    //         e.stopPropagation();
+    //     }
+    // });
 
     return (
         <Box
@@ -583,15 +610,6 @@ const SearchCorForCollege = () => {
                 </Typography>
 
                 <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
-                    {detectedDepartment && (
-                        <Chip
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                            label={`Matched: ${detectedDepartment.dprtmnt_name} (${detectedDepartment.dprtmnt_code})`}
-                        />
-                    )}
-
                     <TextField
                         variant="outlined"
                         placeholder="Enter Student Number"

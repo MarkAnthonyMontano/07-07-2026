@@ -44,15 +44,13 @@ import SchoolIcon from "@mui/icons-material/School";
 import PersonSearchIcon from "@mui/icons-material/PersonSearch";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import {
-  departmentIdsMatch,
-  getDepartmentIdsFromAdminData,
-  getDepartmentsFromAdminScopes,
-  isRegistrarCurriculumMatch,
-  isRegistrarProgramSelectionLocked,
-  isRegistrarStudentScopeMatch,
-  normalizeDepartmentId,
-  restrictToRegistrarCurriculum,
-  syncRegistrarScopeFromAdminData,
+    getDepartmentIdsFromAdminData,
+    isRegistrarCurriculumMatch,
+    isRegistrarProgramSelectionLocked,
+    isRegistrarStudentScopeMatch,
+    restrictDepartmentsToScope,
+    restrictToRegistrarCurriculum,
+    syncRegistrarScopeFromAdminData,
 } from "../utils/registrarCurriculumRestriction";
 import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 
@@ -178,7 +176,6 @@ const StudentListForEnrollment = () => {
         const storedEmployeeID = localStorage.getItem("employee_id");
 
         if (storedUser && storedRole && storedID) {
-            setUser(storedUser);
             setUserID(storedID);
             setUserRole(storedRole);
             setEmployeeID(storedEmployeeID);
@@ -338,7 +335,6 @@ const StudentListForEnrollment = () => {
                 await Promise.all(responses.map((listRes) => listRes.json()))
             )
                 .flat()
-                .filter((student) => isRegistrarStudentScopeMatch(student))
                 .map((student) => ({
                     ...student,
                     documents: [],
@@ -389,7 +385,7 @@ const StudentListForEnrollment = () => {
 
     useEffect(() => {
         fetchStudents();
-    }, [selectedDepartmentFilter, adminData.dprtmnt_id, adminData.dprtmnt_ids, adminData.scopes, department.length, scopeRevision]);
+    }, [selectedDepartmentFilter, adminData.dprtmnt_id, adminData.dprtmnt_ids, department.length]);
 
     useEffect(() => {
         axios
@@ -495,12 +491,10 @@ const StudentListForEnrollment = () => {
             const programInfo = allCurriculums.find(
                 (opt) => opt.curriculum_id?.toString() === personData.curriculum_id?.toString()
             );
-            const matchesRegistrarScope = isRegistrarStudentScopeMatch({
-                ...personData,
-                dprtmnt_id: programInfo?.dprtmnt_id ?? personData.dprtmnt_id,
-                program_id: programInfo?.program_id ?? personData.program_id,
-                curriculum_id: personData.curriculum_id,
-            });
+            const matchesRegistrarScope = isRegistrarStudentScopeMatch(
+                personData,
+                allCurriculums
+            );
 
             const matchesProgram = selectedProgramFilter === "" ||
                 String(personData.program ?? personData.curriculum_id ?? "") === String(selectedProgramFilter) ||
@@ -508,10 +502,7 @@ const StudentListForEnrollment = () => {
 
             const matchesDepartment =
                 selectedDepartmentFilter === "" ||
-                departmentIdsMatch(
-                    programInfo?.dprtmnt_id ?? personData.dprtmnt_id,
-                    selectedDepartmentFilter,
-                );
+                String(programInfo?.dprtmnt_id ?? personData.dprtmnt_id) === String(selectedDepartmentFilter);
 
             const matchesSchoolYear =
                 selectedSchoolYear === "" ||
@@ -577,10 +568,6 @@ const StudentListForEnrollment = () => {
 
     useEffect(() => {
         const departmentIds = getDepartmentIdsFromAdminData(adminData);
-        const seededDepartments = getDepartmentsFromAdminScopes(adminData);
-        if (seededDepartments.length) {
-            setDepartment(seededDepartments);
-        }
         if (!departmentIds.length) return;
 
         const fetchDepartments = async () => {
@@ -590,31 +577,22 @@ const StudentListForEnrollment = () => {
                         axios.get(`${API_BASE_URL}/api/departments/${departmentId}`),
                     ),
                 );
-                const mergedDepartments = responses.flatMap(
-                    (response) => response.data || [],
+                const mergedDepartments = restrictDepartmentsToScope(
+                    responses.flatMap((response) => response.data || []),
                 );
                 const uniqueDepartments = [
                     ...new Map(
-                        mergedDepartments.map((dep) => [
-                            normalizeDepartmentId(dep.dprtmnt_id),
-                            {
-                                ...dep,
-                                dprtmnt_id: normalizeDepartmentId(dep.dprtmnt_id),
-                            },
-                        ]),
+                        mergedDepartments.map((dep) => [String(dep.dprtmnt_id), dep]),
                     ).values(),
                 ];
                 setDepartment(uniqueDepartments);
             } catch (error) {
                 console.error("Error fetching departments:", error);
-                if (seededDepartments.length) {
-                    setDepartment(seededDepartments);
-                }
             }
         };
 
         fetchDepartments();
-    }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, adminData.scopes, scopeRevision]);
+    }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
 
     useEffect(() => {
         const departmentIds = getDepartmentIdsFromAdminData(adminData);
@@ -637,7 +615,31 @@ const StudentListForEnrollment = () => {
         };
 
         fetchCurriculums();
-    }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, adminData.scopes, scopeRevision]);
+    }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
+
+    useEffect(() => {
+        const departmentIds = getDepartmentIdsFromAdminData(adminData);
+        if (departmentIds.length) return;
+
+        const fetchDepartments = async () => {
+            try {
+                const response = await axios.get(`${API_BASE_URL}/api/departments`);
+                setDepartment(response.data);
+            } catch (error) {
+                console.error("Error fetching departments:", error);
+            }
+        };
+
+        fetchDepartments();
+
+        axios.get(`${API_BASE_URL}/api/applied_program`)
+            .then(res => {
+                const restrictedCurriculums = restrictToRegistrarCurriculum(res.data);
+                setAllCurriculums(restrictedCurriculums);
+                setCurriculumOptions(restrictedCurriculums);
+            })
+            .catch(console.error);
+    }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
 
     useEffect(() => {
         if (department.length === 0 || selectedDepartmentFilter) return;
@@ -645,41 +647,54 @@ const StudentListForEnrollment = () => {
         if (departmentIds.length !== 1) return;
         if (allCurriculums.length === 0) return;
 
-        const firstDeptId = normalizeDepartmentId(department[0].dprtmnt_id);
+        const firstDeptId = department[0].dprtmnt_id;
         setSelectedDepartmentFilter(firstDeptId);
         handleDepartmentChange(firstDeptId);
     }, [department, allCurriculums, selectedDepartmentFilter, adminData]);
-
-    const handleDepartmentChange = (selectedDept) => {
-        const normalizedDept = normalizeDepartmentId(selectedDept);
-        setSelectedDepartmentFilter(normalizedDept);
-        if (!normalizedDept) {
-            setCurriculumOptions(allCurriculums);
-        } else {
-            setCurriculumOptions(
-                allCurriculums.filter((option) =>
-                    departmentIdsMatch(option.dprtmnt_id, normalizedDept),
-                ),
-            );
-        }
-        if (!isProgramLocked) setSelectedProgramFilter("");
-    };
 
     useEffect(() => {
         if (currentPage > totalPages) {
             setCurrentPage(totalPages || 1);
         }
-    }, [filteredPersons.length, totalPages, currentPage]);
+    }, [filteredPersons.length, totalPages]);
+
+    const [openDialog, setOpenDialog] = useState(false);
+    const [activePerson, setActivePerson] = useState(null);
+    const [selected, setSelected] = useState([]);
+
+    useEffect(() => {
+        if (activePerson?.missing_documents) {
+            try {
+                setSelected(activePerson.missing_documents || []);
+            } catch {
+                setSelected([]);
+            }
+        } else {
+            setSelected([]);
+        }
+    }, [activePerson]);
 
     useEffect(() => {
         if (!isProgramLocked) return;
         const assignedCurriculum = curriculumOptions.find((prog) =>
-            isRegistrarCurriculumMatch(prog.curriculum_id)
+            isRegistrarCurriculumMatch(prog.curriculum_id, curriculumOptions)
         );
         if (assignedCurriculum?.curriculum_id) {
             setSelectedProgramFilter(assignedCurriculum.curriculum_id);
         }
     }, [curriculumOptions, isProgramLocked]);
+
+    const handleDepartmentChange = (selectedDept) => {
+        setSelectedDepartmentFilter(selectedDept);
+        if (!selectedDept) {
+            setCurriculumOptions(allCurriculums);
+        } else {
+            setCurriculumOptions(
+                allCurriculums.filter(opt => opt.dprtmnt_id === selectedDept)
+            );
+        }
+        if (!isProgramLocked) setSelectedProgramFilter("");
+    };
 
     const divToPrintRef = useRef();
     const getPersonKey = (p) => p?.person_id ?? p?.student_number ?? null;
@@ -904,8 +919,8 @@ const StudentListForEnrollment = () => {
     const showAllDepartmentsOption = scopedDepartmentIds.length !== 1;
     const selectedDepartmentFilterValue =
         selectedDepartmentFilter === "" ||
-        department.some((dep) =>
-            departmentIdsMatch(dep.dprtmnt_id, selectedDepartmentFilter),
+        department.some(
+            (dep) => String(dep.dprtmnt_id) === String(selectedDepartmentFilter),
         )
             ? selectedDepartmentFilter
             : "";
@@ -1219,7 +1234,9 @@ const StudentListForEnrollment = () => {
                                             value={selectedDepartmentFilterValue}
                                             onChange={(e) => {
                                                 if (isDeptLocked) return;
-                                                handleDepartmentChange(e.target.value);
+                                                const selectedDept = e.target.value;
+                                                setSelectedDepartmentFilter(selectedDept);
+                                                handleDepartmentChange(selectedDept);
                                             }}
                                             displayEmpty
                                             sx={isDeptLocked ? { backgroundColor: "#f5f5f5", cursor: "not-allowed" } : {}}
@@ -1228,7 +1245,7 @@ const StudentListForEnrollment = () => {
                                                 <MenuItem value="">All Departments</MenuItem>
                                             )}
                                             {department.map((dep) => (
-                                                <MenuItem key={dep.dprtmnt_id} value={normalizeDepartmentId(dep.dprtmnt_id)}>
+                                                <MenuItem key={dep.dprtmnt_id} value={dep.dprtmnt_id}>
                                                     {dep.dprtmnt_name} ({dep.dprtmnt_code})
                                                 </MenuItem>
                                             ))}

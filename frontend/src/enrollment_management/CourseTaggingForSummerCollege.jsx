@@ -34,11 +34,9 @@ import ScoreIcon from "@mui/icons-material/Score";
 import { postAuditEvent } from "../utils/auditEvents";
 import {
   getDepartmentIdsFromAdminData,
-  getDepartmentsFromAdminScopes,
-  getScopedProgramIdsForDepartment,
-  normalizeDepartmentId,
   resolveStudentRegistrarScope,
-  restrictToRegistrarCurriculum,
+  restrictDepartmentsToScope,
+  restrictProgramsToScope,
   syncRegistrarScopeFromAdminData,
 } from "../utils/registrarCurriculumRestriction";
 
@@ -348,8 +346,8 @@ const CourseTaggingForSummerCollege = () => {
   const [departmentLoading, setDepartmentLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState(null);
+  const [searchedStudentProgramId, setSearchedStudentProgramId] = useState(null);
   const [departments, setDepartments] = useState([]);
-  const [searchedStudentProgramId, setSearchedStudentProgramId] = useState("");
   const [yearLevel, setYearLevel] = useState([]);
   const [subjectCounts, setSubjectCounts] = useState({});
   const [isenrolled, setIsEnrolled] = useState(null);
@@ -463,38 +461,17 @@ const CourseTaggingForSummerCollege = () => {
   useEffect(() => {
     if (selectedDepartment) {
       fetchDepartmentSections();
-    } else {
-      setSections([]);
     }
   }, [selectedDepartment, searchedStudentProgramId]);
 
   const fetchDepartmentSections = async () => {
-    if (!selectedDepartment) return;
     try {
       setSectionLoading(true);
       setError(null);
       const response = await axios.get(`${API_BASE_URL}/api/department-sections`, {
         params: { departmentId: selectedDepartment },
       });
-
-      const scopedProgramIds = getScopedProgramIdsForDepartment(selectedDepartment);
-      let nextSections = response.data || [];
-      if (scopedProgramIds) {
-        nextSections = nextSections.filter((section) =>
-          scopedProgramIds.has(String(section.program_id)),
-        );
-      } else {
-        nextSections = restrictToRegistrarCurriculum(nextSections);
-      }
-
-      if (searchedStudentProgramId) {
-        nextSections = nextSections.filter(
-          (section) =>
-            String(section.program_id) === String(searchedStudentProgramId),
-        );
-      }
-
-      setSections(nextSections);
+      setSections(restrictProgramsToScope(response.data));
       setSectionLoading(false);
     } catch (err) {
       console.error("Error fetching department sections:", err);
@@ -658,18 +635,20 @@ const CourseTaggingForSummerCollege = () => {
       if (scopeResult.error) {
         setApplyingAs(""); setUserId(null); setCurr(null); setCourses([]); setEnrolled([]); setCurriculumYear(""); setSectionDescription("");
         setSelectedDepartment(null);
+        setSearchedStudentProgramId(null);
         setSelectedSection("");
         setSections([]);
-        setSearchedStudentProgramId("");
         setSnack({ open: true, message: scopeResult.error, severity: "error" });
         return;
       }
 
-      setSelectedDepartment(
-        scopeResult.dprtmntId ? String(scopeResult.dprtmntId) : null,
+      const nextDepartmentId = scopeResult.dprtmntId;
+      const nextProgramId = scopeResult.programId ?? null;
+      setSelectedDepartment((prev) =>
+        String(prev) === String(nextDepartmentId) ? prev : nextDepartmentId,
       );
-      setSearchedStudentProgramId(
-        scopeResult.programId ? String(scopeResult.programId) : "",
+      setSearchedStudentProgramId((prev) =>
+        String(prev) === String(nextProgramId) ? prev : nextProgramId,
       );
       setSelectedSection("");
       const { token2, isEnrolled, person_id2, studentNumber: studentNum, section, activeCurriculum: effectiveProgram, yearLevel, yearDesc, courseCode: courseCode, courseDescription: courseDescription, firstName: first_name, middleName: middle_name, lastName: last_name, applyingAs: applyingAsValue } = scopeResult.preload;
@@ -694,9 +673,9 @@ const CourseTaggingForSummerCollege = () => {
       setCurriculumYear("");
       setSectionDescription("");
       setSelectedDepartment(null);
+      setSearchedStudentProgramId(null);
       setSelectedSection("");
       setSections([]);
-      setSearchedStudentProgramId("");
       setSnack({ open: true, message: "Student not found or error processing request.", severity: "error" });
     }
   };
@@ -714,10 +693,6 @@ const CourseTaggingForSummerCollege = () => {
         const res = await axios.get(`${API_BASE_URL}/api/admin_data/${email}`);
         syncRegistrarScopeFromAdminData(res.data);
         const departmentIds = getDepartmentIdsFromAdminData(res.data);
-        const seededDepartments = getDepartmentsFromAdminScopes(res.data);
-        if (seededDepartments.length) {
-          setDepartments(seededDepartments);
-        }
 
         if (!departmentIds.length) {
           setSelectedDepartment(null);
@@ -731,28 +706,17 @@ const CourseTaggingForSummerCollege = () => {
             axios.get(`${API_BASE_URL}/api/departments/${departmentId}`),
           ),
         );
-        const mergedDepartments = responses.flatMap((response) => response.data || []);
+        const mergedDepartments = restrictDepartmentsToScope(
+          responses.flatMap((response) => response.data || []),
+        );
         const uniqueDepartments = [
           ...new Map(
-            mergedDepartments.map((dep) => [
-              normalizeDepartmentId(dep.dprtmnt_id),
-              {
-                ...dep,
-                dprtmnt_id: normalizeDepartmentId(dep.dprtmnt_id),
-              },
-            ]),
+            mergedDepartments.map((dep) => [String(dep.dprtmnt_id), dep]),
           ).values(),
         ];
 
         setDepartments(uniqueDepartments);
         setError(null);
-
-        if (departmentIds.length === 1) {
-          const nextDepartment = String(departmentIds[0]);
-          setSelectedDepartment((current) =>
-            current === nextDepartment ? current : nextDepartment,
-          );
-        }
       } catch (err) {
         console.error("Failed to fetch admin data:", err);
         setError("Failed to load your department.");
@@ -768,14 +732,6 @@ const CourseTaggingForSummerCollege = () => {
   const detectedDepartment = departments.find(
     (dep) => String(dep.dprtmnt_id) === String(selectedDepartment),
   );
-
-  const handleDepartmentChange = (event) => {
-    const nextDepartment = String(event.target.value);
-    setSelectedDepartment(nextDepartment || null);
-    setSelectedSection("");
-    setSections([]);
-    setSearchedStudentProgramId("");
-  };
 
   const [selectedFile, setSelectedFile] = useState(null);
 
@@ -1214,41 +1170,12 @@ const CourseTaggingForSummerCollege = () => {
 
           {/* Section picker */}
           <Box sx={{ p: 2, borderBottom: `1px solid ${TOKEN.border}`, backgroundColor: "#fafafa" }}>
-            {departments.length > 1 && (
-              <>
-                <Typography sx={{ fontSize: "11px", textAlign: "left", fontWeight: 700, color: TOKEN.textMid, mb: 0.75, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Department
-                </Typography>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
-                  value={selectedDepartment || ""}
-                  onChange={handleDepartmentChange}
-                  sx={{ mb: 1.5, "& .MuiOutlinedInput-root": { fontSize: "13px" } }}
-                >
-                  <MenuItem value="">
-                    <em>Select a department</em>
-                  </MenuItem>
-                  {departments.map((dep) => (
-                    <MenuItem key={dep.dprtmnt_id} value={String(dep.dprtmnt_id)} sx={{ fontSize: "13px" }}>
-                      {dep.dprtmnt_name} ({dep.dprtmnt_code})
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </>
-            )}
-            {detectedDepartment && departments.length <= 1 && (
-              <Typography sx={{ mb: 1.5, fontSize: "14px", textAlign: "left" }}>
-                {`${detectedDepartment.dprtmnt_name} (${detectedDepartment.dprtmnt_code})`}
-              </Typography>
-            )}
-            {detectedDepartment && departments.length > 1 && (
+            {detectedDepartment && (
               <Chip
                 size="small"
                 color="primary"
                 variant="outlined"
-                label={`Active: ${detectedDepartment.dprtmnt_name} (${detectedDepartment.dprtmnt_code})`}
+                label={`Matched: ${detectedDepartment.dprtmnt_name} (${detectedDepartment.dprtmnt_code})`}
                 sx={{ mb: 1.5 }}
               />
             )}
@@ -1259,10 +1186,6 @@ const CourseTaggingForSummerCollege = () => {
               <Box sx={{ width: "100%", mt: 1 }}><LinearWithValueLabel /></Box>
             ) : error ? (
               <Typography color="error" sx={{ fontSize: "12px" }}>{error}</Typography>
-            ) : !selectedDepartment ? (
-              <Typography color="text.secondary" sx={{ fontSize: "12px" }}>
-                Select a department to load sections.
-              </Typography>
             ) : (
               <TextField
                 select fullWidth value={selectedSection} onChange={handleSectionChange}
@@ -1276,11 +1199,6 @@ const CourseTaggingForSummerCollege = () => {
                   </MenuItem>
                 ))}
               </TextField>
-            )}
-            {searchedStudentProgramId && (
-              <Typography color="text.secondary" sx={{ fontSize: "12px", mt: 1, textAlign: "left" }}>
-                Sections are limited to the searched student&apos;s program.
-              </Typography>
             )}
 
             {/* Year level / bulk buttons */}

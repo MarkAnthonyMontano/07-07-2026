@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useContext, useRef, useMemo } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { SettingsContext } from "../App";
+import { useParams } from "react-router-dom";
 import axios from "axios";
 import {
   Typography,
@@ -28,22 +29,37 @@ import Unauthorized from "../components/Unauthorized";
 import LoadingOverlay from "../components/LoadingOverlay";
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import API_BASE_URL from "../apiConfig";
+import {
+  getScheduleTimeValidationError,
+  validateScheduleTimeRange,
+  SCHEDULE_TIME_INPUT_MIN,
+  SCHEDULE_TIME_INPUT_MAX,
+  SCHEDULE_TIME_INPUT_STEP,
+} from "../utils/scheduleTimeValidation";
+import SearchIcon from "@mui/icons-material/Search";
 import { postAuditEvent } from "../utils/auditEvents";
 import {
-  getDepartmentIdsFromAdminData,
-  isRegistrarProgramScopeMatch,
-  restrictToRegistrarCurriculum,
+  checkProfessorWorkloadWarning,
+  combineScheduleMessage,
+} from "../utils/professorWorkloadWarning";
+import {
+  getScopedProgramIds,
+  restrictProgramsToScope,
   syncRegistrarScopeFromAdminData,
+  resolveRegistrarDepartmentIds,
+  filterCollegeScheduleSections,
+  mergeUniqueByKey,
 } from "../utils/registrarCurriculumRestriction";
 import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
-import {
-  isValidScheduleTimeSlot,
-  getScheduleTimeValidationMessage,
-  validateScheduleTimePair,
-  SCHEDULE_TIME_MIN,
-  SCHEDULE_TIME_MAX,
-  SCHEDULE_TIME_STEP_SECONDS,
-} from "../utils/scheduleTimeValidation";
+import { DEPARTMENT_PLOTTING_ACCESS_EVENT } from "../pages/SchedulePlottingFilter";
+
+const PLOTTING_DISABLED_MESSAGE =
+  "The administrator has turned off schedule plotting for all enrolling officers in this department.";
+
+const isDesignationEntry = (entry) =>
+  entry?.department_section_id == null ||
+  entry?.department_section_id === "" ||
+  Number(entry?.department_section_id) === 0;
 
 const CollegeScheduleChecker = () => {
   const settings = useContext(SettingsContext);
@@ -90,7 +106,22 @@ const CollegeScheduleChecker = () => {
   const [user, setUser] = useState("");
   const [userRole, setUserRole] = useState("");
   const [employeeID, setEmployeeID] = useState("");
-  const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [adminData, setAdminData] = useState({ dprtmnt_id: "", dprtmnt_ids: [] });
+  const scopeDepartmentIds = resolveRegistrarDepartmentIds(adminData);
+  const [departmentAccessMap, setDepartmentAccessMap] = useState({});
+  const allowedDepartmentIds = scopeDepartmentIds.filter(
+    (id) => Number(departmentAccessMap[String(id)]?.is_allowed ?? 1) === 1,
+  );
+  const disabledDepartmentLabels = scopeDepartmentIds
+    .filter((id) => Number(departmentAccessMap[String(id)]?.is_allowed ?? 1) !== 1)
+    .map((id) => {
+      const entry = departmentAccessMap[String(id)];
+      return entry?.dprtmnt_name || entry?.dprtmnt_code || `Department ${id}`;
+    });
+  const hasAnyPlottingAccess = allowedDepartmentIds.length > 0;
+  const isPlottingFullyBlocked =
+    scopeDepartmentIds.length > 0 && allowedDepartmentIds.length === 0;
+  const scopeRevision = useRegistrarScopeRevision();
   const [hasAccess, setHasAccess] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -150,7 +181,7 @@ const CollegeScheduleChecker = () => {
   const [selectedRoom, setSelectedRoom] = useState("");
   const [selectedProf, setSelectedProf] = useState("");
   const [selectedProgram, setSelectedProgram] = useState("");
-  const [registrarScopes, setRegistrarScopes] = useState([]);
+  const [value, setValue] = useState("");
   const [message, setMessage] = useState("");
   const [roomList, setRoomList] = useState([]);
   const [courseList, setCourseList] = useState([]);
@@ -162,11 +193,19 @@ const CollegeScheduleChecker = () => {
   const [schedule, setSchedule] = useState([]);
   const [allschedules, setSchedules] = useState([]);
   const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [openDialogue, setOpenDialogue] = useState(false);
   const [selectedScheduleId, setSelectedScheduleId] = useState(null);
+  const [editingScheduleId, setEditingScheduleId] = useState(null);
+  const [originalScheduleSnapshot, setOriginalScheduleSnapshot] = useState(null);
   const [isDesignationMode, setIsDesignationMode] = useState(false);
   const [isHonorarium, setIsHonorarium] = useState(false);
+  const [isServiceCredit, setIsServiceCredit] = useState(false);
+  const [isTemporarySubstitution, setIsTemporarySubstitution] = useState(false);
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
+  const [openServiceCreditConfirmDialog, setOpenServiceCreditConfirmDialog] =
+    useState(false);
+  const [openUpdateConfirmDialog, setOpenUpdateConfirmDialog] = useState(false);
   const [schoolYears, setSchoolYears] = useState([]);
   const [semesters, setSchoolSemester] = useState([]);
   const [selectedAcademicSchoolYear, setSelectedAcademicSchoolYear] = useState("");
@@ -179,46 +218,134 @@ const CollegeScheduleChecker = () => {
   const [selectedReviewEmployeeId, setSelectedReviewEmployeeId] = useState("");
   const [reviewSchedules, setReviewSchedules] = useState([]);
   const [reviewScheduleLoading, setReviewScheduleLoading] = useState(false);
-  const scopeRevision = useRegistrarScopeRevision();
+  const [professorSchedule, setProfessorSchedule] = useState([]);
 
-  const loadDepartments = async () => {
-    if (!user) return;
+  const filterPlottedScheduleByDepartmentAccess = (entries = []) => {
+    if (!Array.isArray(entries)) return [];
+    if (!hasAnyPlottingAccess) return [];
 
+    const allowedDeptSet = new Set(allowedDepartmentIds.map(String));
+    const allowedSectionSet = new Set(
+      sectionList.map((section) => String(section.dep_section_id)),
+    );
+    const scopedProgramIds = getScopedProgramIds();
+
+    return entries.filter((entry) => {
+      if (entry.dprtmnt_id != null && entry.dprtmnt_id !== "") {
+        return allowedDeptSet.has(String(entry.dprtmnt_id));
+      }
+
+      if (!isDesignationEntry(entry) && allowedSectionSet.size > 0) {
+        return allowedSectionSet.has(String(entry.department_section_id ?? ""));
+      }
+
+      if (scopedProgramIds.length > 0 && entry.program_id != null) {
+        return scopedProgramIds.includes(String(entry.program_id));
+      }
+
+      return isDesignationEntry(entry);
+    });
+  };
+
+  const fetchPersonData = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/api/admin_data/${user}`);
+      setAdminData(res.data);
       syncRegistrarScopeFromAdminData(res.data);
-      const departmentIds = getDepartmentIdsFromAdminData(res.data);
-
-      if (!departmentIds.length) {
-        setSelectedDepartment("");
-        return;
-      }
-
-      setRegistrarScopes(Array.isArray(res.data?.scopes) ? res.data.scopes : []);
-
-      if (departmentIds.length >= 1) {
-        setSelectedDepartment(String(departmentIds[0]));
-      }
     } catch (err) {
       console.error("Error fetching admin data:", err);
     }
   };
 
+  const syncPlottingAccessForDepartments = async (departmentIds = []) => {
+    if (!departmentIds.length) {
+      setDepartmentAccessMap({});
+      return;
+    }
+
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/get_department`);
+      const rows = Array.isArray(res.data) ? res.data : [];
+      const nextMap = {};
+
+      departmentIds.forEach((departmentId) => {
+        const department = rows.find(
+          (row) => String(row.dprtmnt_id) === String(departmentId),
+        );
+        nextMap[String(departmentId)] = {
+          is_allowed: Number(department?.is_allowed ?? 1) === 1,
+          dprtmnt_name: department?.dprtmnt_name || "",
+          dprtmnt_code: department?.dprtmnt_code || "",
+        };
+      });
+
+      setDepartmentAccessMap(nextMap);
+    } catch (err) {
+      console.error("Error fetching department plotting access:", err);
+    }
+  };
+
   useEffect(() => {
     if (user) {
-      loadDepartments();
+      fetchPersonData();
     }
-  }, [user, scopeRevision]);
+  }, [user]);
+
+  useEffect(() => {
+    if (!scopeDepartmentIds.length) {
+      setDepartmentAccessMap({});
+      return;
+    }
+
+    syncPlottingAccessForDepartments(scopeDepartmentIds);
+  }, [scopeDepartmentIds.join("|")]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const refreshPlottingAccess = () => {
+      fetchPersonData();
+      const departmentIds = resolveRegistrarDepartmentIds(adminData);
+      if (departmentIds.length) {
+        syncPlottingAccessForDepartments(departmentIds);
+      }
+    };
+
+    const handleAccessChange = () => {
+      refreshPlottingAccess();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshPlottingAccess();
+      }
+    };
+
+    window.addEventListener(DEPARTMENT_PLOTTING_ACCESS_EVENT, handleAccessChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener(DEPARTMENT_PLOTTING_ACCESS_EVENT, handleAccessChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [user, adminData.dprtmnt_id, adminData.dprtmnt_ids, adminData.scopes]);
 
   const fetchRoom = async () => {
-    if (!selectedDepartment) return;
+    if (!allowedDepartmentIds.length) {
+      setRoomList([]);
+      return;
+    }
+
     try {
-      const response = await axios.get(
-        `${API_BASE_URL}/api/room_list/${selectedDepartment}`
+      const responses = await Promise.all(
+        allowedDepartmentIds.map((departmentId) =>
+          axios.get(`${API_BASE_URL}/api/room_list/${departmentId}`),
+        ),
       );
-      setRoomList(response.data);
+      setRoomList(mergeUniqueByKey(responses.flatMap((res) => res.data || []), "room_id"));
     } catch (error) {
       console.log(error);
+      setRoomList([]);
     }
   };
 
@@ -252,14 +379,21 @@ const CollegeScheduleChecker = () => {
   };
 
   const fetchProfList = async () => {
-    if (!selectedDepartment) return;
+    if (!allowedDepartmentIds.length) {
+      setProfList([]);
+      return;
+    }
+
     try {
-      const res = await axios.get(
-        `${API_BASE_URL}/api/prof_list/${selectedDepartment}`
+      const responses = await Promise.all(
+        allowedDepartmentIds.map((departmentId) =>
+          axios.get(`${API_BASE_URL}/api/prof_list/${departmentId}`),
+        ),
       );
-      setProfList(res.data);
+      setProfList(mergeUniqueByKey(responses.flatMap((res) => res.data || []), "prof_id"));
     } catch (err) {
       console.error("Error fetching professors:", err);
+      setProfList([]);
     }
   };
 
@@ -275,80 +409,62 @@ const CollegeScheduleChecker = () => {
   };
 
   const fetchSectionList = async () => {
-    if (!selectedDepartment) return;
-    try {
-      const response = await axios.get(
-        `${API_BASE_URL}/api/department-sections`,
-        { params: { departmentId: selectedDepartment } },
-      );
+    if (!allowedDepartmentIds.length) {
+      setSectionList([]);
+      return;
+    }
 
-      const mapped = (response.data || []).map((row) => ({
-        dep_section_id: row.department_and_program_section_id,
-        description: row.description,
-        program_code: row.program_code,
-        program_id: row.program_id,
-        program_description: row.program_description,
-        major: row.major,
-      }));
-      setSectionList(mapped);
+    try {
+      const responses = await Promise.all(
+        allowedDepartmentIds.map((departmentId) =>
+          axios.get(`${API_BASE_URL}/api/section_table/${departmentId}`),
+        ),
+      );
+      const rows = mergeUniqueByKey(
+        responses.flatMap((res) => res.data || []),
+        "dep_section_id",
+      );
+      setSectionList(filterCollegeScheduleSections(rows, adminData));
     } catch (error) {
-      console.error("Error fetching sections:", error);
+      console.log(error);
       setSectionList([]);
     }
   };
 
-  const filteredSectionList = useMemo(() => {
-    let list = sectionList;
-
-    const scopedPrograms = registrarScopes
-      .filter(
-        (scope) => String(scope.dprtmnt_id) === String(selectedDepartment),
-      )
-      .map((scope) => String(scope.program_id))
-      .filter(Boolean);
-
-    if (scopedPrograms.length > 0) {
-      const allowedProgramIds = new Set(scopedPrograms);
-      list = list.filter((section) =>
-        allowedProgramIds.has(String(section.program_id)),
-      );
-    }
-
-    return list;
-  }, [sectionList, registrarScopes, selectedDepartment]);
-
-  useEffect(() => {
-    if (!selectedSection) return;
-    const stillVisible = filteredSectionList.some(
-      (section) => String(section.dep_section_id) === String(selectedSection),
-    );
-    if (!stillVisible) {
-      setSelectedSection("");
-    }
-  }, [filteredSectionList, selectedSection]);
-
   const fetchProgramList = async () => {
-    if (!selectedDepartment) return;
-    try {
-      const response = await axios.get(
-        `${API_BASE_URL}/api/program_list/${selectedDepartment}`
-      );
+    if (!allowedDepartmentIds.length) {
+      setProgramList([]);
+      return;
+    }
 
-      setProgramList(
-        restrictToRegistrarCurriculum(response.data || []),
+    try {
+      const responses = await Promise.all(
+        allowedDepartmentIds.map((departmentId) =>
+          axios.get(`${API_BASE_URL}/api/program_list/${departmentId}`),
+        ),
       );
+      const rows = mergeUniqueByKey(
+        responses.flatMap((res) => res.data || []),
+        "program_id",
+      );
+      setProgramList(restrictProgramsToScope(rows));
     } catch (error) {
-      console.error("Error fetching programs:", error);
+      console.log(error);
       setProgramList([]);
     }
   };
 
   const fetchSchedule = async () => {
+    if (!selectedRoom || !hasAnyPlottingAccess) {
+      setSchedule([]);
+      return;
+    }
+
     try {
       const response = await axios.get(
         `${API_BASE_URL}/api/get/all_schedule/${selectedRoom}`
       );
-      setSchedule(response.data);
+      setSchedule(filterPlottedScheduleByDepartmentAccess(response.data || []));
     } catch (error) {
 
       if (error.response && error.response.status === 404) {
@@ -375,11 +491,7 @@ const CollegeScheduleChecker = () => {
       const response = await axios.get(
         `${API_BASE_URL}/api/get_professor_schedule/${employeeId}`
       );
-      setReviewSchedules(
-        (response.data || []).filter((sched) =>
-          isRegistrarProgramScopeMatch(sched.program_id, selectedDepartment),
-        ),
-      );
+      setReviewSchedules(filterPlottedScheduleByDepartmentAccess(response.data || []));
     } catch (error) {
       console.error("Error fetching professor review schedule:", error);
       setReviewSchedules([]);
@@ -389,13 +501,31 @@ const CollegeScheduleChecker = () => {
   };
 
   const fetchAllCollegeSchedule = async () => {
-    if (!selectedDepartment) return;
+    if (!allowedDepartmentIds.length) {
+      setSchedules([]);
+      return;
+    }
+
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/get_college_professor_schedule/${selectedDepartment}`)
-      const scopedSchedules = (res.data || []).filter((sched) =>
-        isRegistrarProgramScopeMatch(sched.program_id, selectedDepartment),
+      const responses = await Promise.all(
+        allowedDepartmentIds.map((departmentId) =>
+          axios.get(`${API_BASE_URL}/api/get_college_professor_schedule/${departmentId}`),
+        ),
       );
-      setSchedules(scopedSchedules);
+      const schedules = mergeUniqueByKey(
+        responses.flatMap((res) => (Array.isArray(res.data) ? res.data : [])),
+        "id",
+      );
+      const scopedProgramIds = getScopedProgramIds();
+
+      let filtered = schedules;
+      if (scopedProgramIds.length) {
+        filtered = filtered.filter((sched) =>
+          scopedProgramIds.includes(String(sched.program_id ?? "")),
+        );
+      }
+
+      setSchedules(filtered);
     } catch (error) {
       if (error.response && error.response.status === 404) {
         setMessage(
@@ -404,8 +534,146 @@ const CollegeScheduleChecker = () => {
       } else {
         setMessage("Failed to fetch schedule. Please try again later.");
       }
+      setSchedules([]);
     }
   }
+  const getScheduleTypeLabel = (row) => {
+    if (Number(row.ishonorarium) === 1) return "Honorarium";
+    if (Number(row.is_servicecredit) === 1) return "Service Credit";
+    if (Number(row.is_temporary_substitution) === 1) {
+      return "Temporary Substitution";
+    }
+    return "Regular Class";
+  };
+
+  const clearScheduleLoadTypes = () => {
+    setIsHonorarium(false);
+    setIsServiceCredit(false);
+    setIsTemporarySubstitution(false);
+  };
+
+  const handleHonorariumToggle = (checked) => {
+    if (checked) {
+      setOpenConfirmDialog(true);
+      return;
+    }
+    setIsHonorarium(false);
+  };
+
+  const handleServiceCreditToggle = (checked) => {
+    if (checked) {
+      if (editingScheduleId) {
+        setOpenServiceCreditConfirmDialog(true);
+        return;
+      }
+      setIsHonorarium(false);
+      setIsServiceCredit(true);
+      setIsTemporarySubstitution(false);
+      return;
+    }
+    setIsServiceCredit(false);
+  };
+
+  const handleTemporarySubstitutionToggle = (checked) => {
+    setIsHonorarium(false);
+    setIsTemporarySubstitution(checked);
+    if (checked) {
+      setIsServiceCredit(false);
+    }
+  };
+
+  const getSelectedScheduleType = () => {
+    if (isHonorarium) return "honorarium";
+    if (isServiceCredit) return "service_credit";
+    if (isTemporarySubstitution) return "temporary_substitution";
+    return "regular";
+  };
+
+  const getEntryLoadType = (row) => {
+    if (!row) return "regular";
+    if (Number(row.ishonorarium) === 1) return "honorarium";
+    if (Number(row.is_servicecredit) === 1) return "service_credit";
+    if (Number(row.is_temporary_substitution) === 1) {
+      return "temporary_substitution";
+    }
+    return "regular";
+  };
+
+  const convert12hTo24h = (time12) => {
+    if (!time12) return "";
+    const match = time12.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!match) return "";
+    let hours = parseInt(match[1], 10);
+    const minutes = match[2];
+    const modifier = match[3].toUpperCase();
+    if (modifier === "PM" && hours < 12) hours += 12;
+    if (modifier === "AM" && hours === 12) hours = 0;
+    return `${String(hours).padStart(2, "0")}:${minutes}`;
+  };
+
+  const clearEditMode = () => {
+    setEditingScheduleId(null);
+    setOriginalScheduleSnapshot(null);
+  };
+
+  const resetScheduleForm = () => {
+    setSelectedDay("");
+    setSelectedSection("");
+    setSelectedSubject("");
+    setSelectedProf("");
+    setSelectedStartTime("");
+    setSelectedEndTime("");
+    if (schoolYearList.length > 0) {
+      setSelectedSchoolYear(schoolYearList[0].id);
+    } else {
+      setSelectedSchoolYear("");
+    }
+  };
+
+  const getSelectedSchoolYearEntry = () =>
+    schoolYearList.find(
+      (sy) => String(sy.id) === String(selectedSchoolYear)
+    );
+
+  const handleSelectScheduleForEdit = (entry) => {
+    if (!hasAnyPlottingAccess) return;
+    if (isDesignationEntry(entry) !== isDesignationMode) return;
+    setEditingScheduleId(entry.id);
+    setOriginalScheduleSnapshot(entry);
+    setSelectedDay(String(entry.room_day));
+    setSelectedSection(String(entry.department_section_id));
+    setSelectedSubject(String(entry.course_id));
+    setSelectedProf(String(entry.professor_id));
+    if (entry.school_year_id) {
+      setSelectedSchoolYear(String(entry.school_year_id));
+    }
+    setSelectedStartTime(convert12hTo24h(entry.school_time_start));
+    setSelectedEndTime(convert12hTo24h(entry.school_time_end));
+    setIsHonorarium(entry.ishonorarium == 1);
+    setIsServiceCredit(entry.is_servicecredit == 1);
+    setIsTemporarySubstitution(entry.is_temporary_substitution == 1);
+  };
+
+  const hasValidUpdate = () => {
+    if (!editingScheduleId || !originalScheduleSnapshot) return false;
+    if (isTemporarySubstitution) {
+      return String(selectedProf) !== String(originalScheduleSnapshot.professor_id);
+    }
+    if (isHonorarium) {
+      return getEntryLoadType(originalScheduleSnapshot) !== "honorarium";
+    }
+    if (isServiceCredit) {
+      return getEntryLoadType(originalScheduleSnapshot) !== "service_credit";
+    }
+    return false;
+  };
+
+  const getProfessorNameById = (profId) => {
+    const prof = profList.find((p) => String(p.prof_id) === String(profId));
+    if (!prof) return "the selected professor";
+    return `${prof.lname || ""}, ${prof.fname || ""} ${prof.mname || ""}`.trim();
+  };
+
   const formatTimeTo12Hour = (time24) => {
     const [hours, minutes] = time24.split(":");
     const h = parseInt(hours);
@@ -414,44 +682,104 @@ const CollegeScheduleChecker = () => {
     return `${hour12}:${minutes} ${suffix}`;
   };
 
-  const handleScheduleTimeChange = (value, setter, label) => {
-    if (!value) {
-      setter("");
-      return;
-    }
-
-    if (!isValidScheduleTimeSlot(value)) {
-      setMessage(getScheduleTimeValidationMessage(value, label));
-      setOpenSnackbar(true);
-      return;
-    }
-
-    setter(value);
+  const showScheduleTimeError = (errorMessage) => {
+    setMessage(errorMessage);
+    setOpenSnackbar(true);
   };
 
-  const assertValidScheduleTimes = () => {
-    const result = validateScheduleTimePair(
+  const ensureValidScheduleTimes = () => {
+    const errorMessage = validateScheduleTimeRange(
       selectedStartTime,
       selectedEndTime,
     );
-    if (!result.valid) {
-      setMessage(result.message);
-      setOpenSnackbar(true);
+    if (errorMessage) {
+      showScheduleTimeError(errorMessage);
       return false;
     }
     return true;
   };
 
+  const ensureScheduleFormComplete = () => {
+    const missingFields = [];
+
+    if (!selectedDay) missingFields.push("Day");
+    if (!selectedSubject) {
+      missingFields.push(isDesignationMode ? "Designation" : "Course");
+    }
+    if (!selectedProf) missingFields.push("Professor");
+    if (!selectedSchoolYear) missingFields.push("School Year");
+    if (!selectedStartTime) missingFields.push("Start Time");
+    if (!selectedEndTime) missingFields.push("End Time");
+
+    if (!isDesignationMode) {
+      if (!selectedSection) missingFields.push("Section");
+      if (!selectedRoom) missingFields.push("Room");
+    }
+
+    if (missingFields.length > 0) {
+      setMessage(`Please complete all fields: ${missingFields.join(", ")}.`);
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleStartTimeChange = (value) => {
+    if (!value) {
+      setSelectedStartTime("");
+      return;
+    }
+
+    const errorMessage = getScheduleTimeValidationError(value, "Start time");
+    if (errorMessage) {
+      showScheduleTimeError(errorMessage);
+      return;
+    }
+
+    setSelectedStartTime(value);
+  };
+
+  const handleEndTimeChange = (value) => {
+    if (!value) {
+      setSelectedEndTime("");
+      return;
+    }
+
+    const errorMessage = getScheduleTimeValidationError(value, "End time");
+    if (errorMessage) {
+      showScheduleTimeError(errorMessage);
+      return;
+    }
+
+    setSelectedEndTime(value);
+  };
+
 
   useEffect(() => {
-    if (!selectedDepartment) return;
+    if (!allowedDepartmentIds.length) {
+      setRoomList([]);
+      setProfList([]);
+      setSectionList([]);
+      setProgramList([]);
+      setSchedules([]);
+      setSelectedRoom("");
+      setSelectedSection("");
+      setSelectedProf("");
+      return;
+    }
 
     fetchRoom();
     fetchProfList();
     fetchSectionList();
     fetchProgramList();
     fetchAllCollegeSchedule();
-  }, [selectedDepartment, scopeRevision]);
+  }, [
+    allowedDepartmentIds.join("|"),
+    scopeRevision,
+    (adminData.allowed_curriculum_ids || []).join("|"),
+  ]);
 
   useEffect(() => {
     fetchCourseList();
@@ -495,19 +823,35 @@ const CollegeScheduleChecker = () => {
 
   useEffect(() => {
     if (roomList.length > 0 && !selectedRoom) {
-      setSelectedRoom(roomList[0].room_id);
+      setSelectedRoom(String(roomList[0].room_id));
     }
   }, [roomList]);
 
   useEffect(() => {
-    if (selectedRoom) {
+    if (selectedRoom && hasAnyPlottingAccess) {
       fetchSchedule();
+    } else {
+      setSchedule([]);
     }
-  }, [selectedRoom]);
+  }, [selectedRoom, allowedDepartmentIds.join("|"), sectionList.length]);
+
+  useEffect(() => {
+    if (!isDesignationMode || !selectedProf) {
+      setProfessorSchedule([]);
+      return;
+    }
+
+    axios
+      .get(`${API_BASE_URL}/api/professor-schedule/${selectedProf}`)
+      .then((res) =>
+        setProfessorSchedule(filterPlottedScheduleByDepartmentAccess(res.data || [])),
+      )
+      .catch(() => setProfessorSchedule([]));
+  }, [isDesignationMode, selectedProf, allowedDepartmentIds.join("|"), sectionList.length]);
 
   useEffect(() => {
     fetchProfessorReviewSchedule(selectedReviewEmployeeId);
-  }, [selectedReviewEmployeeId]);
+  }, [selectedReviewEmployeeId, allowedDepartmentIds.join("|"), sectionList.length]);
 
   useEffect(() => {
     if (schoolYearList.length > 0) {
@@ -523,14 +867,119 @@ const CollegeScheduleChecker = () => {
     }
   };
 
+  const showScheduleSnackbar = (baseMessage, workloadWarning = null) => {
+    const { message: nextMessage, severity } = combineScheduleMessage(
+      baseMessage,
+      workloadWarning
+    );
+    setMessage(nextMessage);
+    setSnackbarSeverity(severity);
+    setOpenSnackbar(true);
+  };
+
+  const rejectPlottingIfDisabled = () => {
+    if (hasAnyPlottingAccess) return false;
+
+    setMessage(PLOTTING_DISABLED_MESSAGE);
+    setSnackbarSeverity("error");
+    setOpenSnackbar(true);
+    return true;
+  };
+
+  const getWorkloadWarning = async ({
+    profId = selectedProf,
+    schoolYearId = selectedSchoolYear,
+    startTime,
+    endTime,
+    excludeScheduleId = null,
+  } = {}) => {
+    if (!profId || !schoolYearId || !startTime || !endTime) {
+      return null;
+    }
+
+    return checkProfessorWorkloadWarning({
+      profId,
+      schoolYearId,
+      startTime,
+      endTime,
+      excludeScheduleId,
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (rejectPlottingIfDisabled()) return;
     setMessage("");
     console.log(selectedSection);
 
-    if (!assertValidScheduleTimes()) return;
+    if (editingScheduleId) {
+      if (isTemporarySubstitution) {
+        if (String(selectedProf) === String(originalScheduleSnapshot?.professor_id)) {
+          setMessage("Select a different professor for substitution.");
+          setOpenSnackbar(true);
+          return;
+        }
+
+        try {
+          const formattedStartTime = formatTimeTo12Hour(selectedStartTime);
+          const formattedEndTime = formatTimeTo12Hour(selectedEndTime);
+          const response = await axios.post(
+            `${API_BASE_URL}/api/check-professor-substitution`,
+            {
+              day: selectedDay,
+              start_time: formattedStartTime,
+              end_time: formattedEndTime,
+              school_year_id: selectedSchoolYear,
+              prof_id: selectedProf,
+              exclude_schedule_id: editingScheduleId,
+            }
+          );
+
+          if (response.data.conflict) {
+            setMessage(response.data.message);
+            setSnackbarSeverity("error");
+            setOpenSnackbar(true);
+          } else {
+            const workloadWarning = await getWorkloadWarning({
+              startTime: formattedStartTime,
+              endTime: formattedEndTime,
+            });
+            showScheduleSnackbar(
+              "Substitute professor is available. Click Update Schedule to save.",
+              workloadWarning
+            );
+          }
+        } catch (error) {
+          const errMsg =
+            error.response?.data?.message ||
+            "Failed to check substitute professor availability.";
+          setMessage(errMsg);
+          setOpenSnackbar(true);
+        }
+        return;
+      }
+
+      if (isHonorarium || isServiceCredit) {
+        setMessage(
+          hasValidUpdate()
+            ? "Load type change is ready. Click Update Schedule to save."
+            : "This entry already has the selected load type."
+        );
+        setOpenSnackbar(true);
+        return;
+      }
+
+      setMessage(
+        "Check temporary substitution, service credit, or honorarium to enable update."
+      );
+      setOpenSnackbar(true);
+      return;
+    }
 
     try {
+      if (!ensureScheduleFormComplete()) return;
+      if (!ensureValidScheduleTimes()) return;
+
       const formattedStartTime = formatTimeTo12Hour(selectedStartTime);
       const formattedEndTime = formatTimeTo12Hour(selectedEndTime);
 
@@ -581,13 +1030,18 @@ const CollegeScheduleChecker = () => {
       );
 
       if (timeResponse.data.conflict) {
-        setMessage(
+        showScheduleSnackbar(
           "Schedule conflict detected! Please choose a different time."
         );
-        setOpenSnackbar(true);
       } else {
-        setMessage("Schedule is available. You can proceed with adding it.");
-        setOpenSnackbar(true);
+        const workloadWarning = await getWorkloadWarning({
+          startTime: formattedStartTime,
+          endTime: formattedEndTime,
+        });
+        showScheduleSnackbar(
+          "Schedule is available. You can proceed with adding it.",
+          workloadWarning
+        );
       }
     } catch (error) {
       console.error("Error checking schedule:", error);
@@ -606,13 +1060,19 @@ const CollegeScheduleChecker = () => {
 
   const handleInsert = async (e) => {
     e.preventDefault();
+    if (rejectPlottingIfDisabled()) return;
     setMessage("");
 
-    if (!assertValidScheduleTimes()) return;
+    if (!ensureScheduleFormComplete()) return;
+    if (!ensureValidScheduleTimes()) return;
 
     try {
       const formattedStartTime = formatTimeTo12Hour(selectedStartTime);
       const formattedEndTime = formatTimeTo12Hour(selectedEndTime);
+      const workloadWarning = await getWorkloadWarning({
+        startTime: formattedStartTime,
+        endTime: formattedEndTime,
+      });
 
       const response = await axios.post(
         `${API_BASE_URL}/api/insert-schedule`,
@@ -626,13 +1086,14 @@ const CollegeScheduleChecker = () => {
           room_id: selectedRoom,
           subject_id: selectedSubject,
           ishonorarium: isHonorarium ? 1 : 0,
+          is_servicecredit: isServiceCredit ? 1 : 0,
+          is_temporary_substitution: isTemporarySubstitution ? 1 : 0,
         }
       );
 
       if (response.status === 200) {
-        setMessage("Schedule inserted successfully.");
-        setOpenSnackbar(true);
-        const scheduleType = isHonorarium ? "honorarium" : "regular";
+        showScheduleSnackbar("Schedule inserted successfully.", workloadWarning);
+        const scheduleType = getSelectedScheduleType();
         await insertAuditLog("schedule_inserted", {
           schedule_type: scheduleType,
           page_name: "College Schedule Checker",
@@ -641,11 +1102,11 @@ const CollegeScheduleChecker = () => {
 
       setSelectedDay("");
       setSelectedSection("");
-      setSelectedRoom("");
       setSelectedSubject("");
       setSelectedProf("");
       setSelectedStartTime("");
       setSelectedEndTime("");
+      clearScheduleLoadTypes();
       fetchSchedule();
     } catch (error) {
       console.error("Error inserting schedule:", error);
@@ -658,14 +1119,93 @@ const CollegeScheduleChecker = () => {
     }
   };
 
+  const handleUpdateSchedule = async (e) => {
+    e.preventDefault();
+    if (rejectPlottingIfDisabled()) return;
+    setMessage("");
+
+    if (!hasValidUpdate()) {
+      setMessage(
+        "No valid changes to update. Check a load type and make the allowed change."
+      );
+      setOpenSnackbar(true);
+      return;
+    }
+
+    if (isTemporarySubstitution) {
+      setOpenUpdateConfirmDialog(true);
+      return;
+    }
+
+    await executeUpdateSchedule();
+  };
+
+  const executeUpdateSchedule = async () => {
+    if (rejectPlottingIfDisabled()) return;
+    setMessage("");
+
+    try {
+      let workloadWarning = null;
+
+      if (isTemporarySubstitution) {
+        if (originalScheduleSnapshot) {
+          workloadWarning = await getWorkloadWarning({
+            startTime: originalScheduleSnapshot.school_time_start,
+            endTime: originalScheduleSnapshot.school_time_end,
+          });
+        }
+
+        await axios.put(
+          `${API_BASE_URL}/api/update-schedule/${editingScheduleId}`,
+          {
+            update_mode: "substitution",
+            prof_id: selectedProf,
+          }
+        );
+        await insertAuditLog("schedule_substituted", {
+          page_name: "College Schedule Checker",
+        });
+      } else {
+        await axios.put(
+          `${API_BASE_URL}/api/update-schedule/${editingScheduleId}`,
+          {
+            update_mode: "load_type",
+            ishonorarium: isHonorarium ? 1 : 0,
+            is_servicecredit: isServiceCredit ? 1 : 0,
+            is_temporary_substitution: 0,
+          }
+        );
+        await insertAuditLog("schedule_load_type_updated", {
+          schedule_type: getSelectedScheduleType(),
+          page_name: "College Schedule Checker",
+        });
+      }
+
+      showScheduleSnackbar("Schedule updated successfully.", workloadWarning);
+      setOpenUpdateConfirmDialog(false);
+      clearEditMode();
+      clearScheduleLoadTypes();
+      fetchSchedule();
+    } catch (error) {
+      console.error("Error updating schedule:", error);
+      showScheduleSnackbar(
+        error.response?.data?.message ||
+          error.response?.data?.error ||
+          "Failed to update schedule."
+      );
+    }
+  };
+
   const handleSubmitDesignation = async (e) => {
     e.preventDefault();
+    if (rejectPlottingIfDisabled()) return;
     setMessage("");
     console.log(selectedSection);
 
-    if (!assertValidScheduleTimes()) return;
-
     try {
+      if (!ensureScheduleFormComplete()) return;
+      if (!ensureValidScheduleTimes()) return;
+
       const formattedStartTime = formatTimeTo12Hour(selectedStartTime);
       const formattedEndTime = formatTimeTo12Hour(selectedEndTime);
 
@@ -698,13 +1238,19 @@ const CollegeScheduleChecker = () => {
       );
 
       if (timeResponse.data.conflict) {
-        setMessage(
-          "Schedule conflict detected! Please choose a different time."
+        showScheduleSnackbar(
+          timeResponse.data.message ||
+            "Schedule conflict detected! Please choose a different time."
         );
-        setOpenSnackbar(true);
       } else {
-        setMessage("Schedule is available. You can proceed with adding it.");
-        setOpenSnackbar(true);
+        const workloadWarning = await getWorkloadWarning({
+          startTime: formattedStartTime,
+          endTime: formattedEndTime,
+        });
+        showScheduleSnackbar(
+          "Schedule is available. You can proceed with adding it.",
+          workloadWarning
+        );
       }
     } catch (error) {
       console.error("Error checking schedule:", error);
@@ -723,13 +1269,19 @@ const CollegeScheduleChecker = () => {
 
   const handleInsertDesignation = async (e) => {
     e.preventDefault();
+    if (rejectPlottingIfDisabled()) return;
     setMessage("");
 
-    if (!assertValidScheduleTimes()) return;
+    if (!ensureScheduleFormComplete()) return;
+    if (!ensureValidScheduleTimes()) return;
 
     try {
       const formattedStartTime = formatTimeTo12Hour(selectedStartTime);
       const formattedEndTime = formatTimeTo12Hour(selectedEndTime);
+      const workloadWarning = await getWorkloadWarning({
+        startTime: formattedStartTime,
+        endTime: formattedEndTime,
+      });
 
       const response = await axios.post(
         `${API_BASE_URL}/api/insert-schedule-designation`,
@@ -746,8 +1298,7 @@ const CollegeScheduleChecker = () => {
       );
 
       if (response.status === 200) {
-        setMessage("Schedule inserted successfully.");
-        setOpenSnackbar(true);
+        showScheduleSnackbar("Schedule inserted successfully.", workloadWarning);
         await insertAuditLog("schedule_designation_inserted", {
           page_name: "College Schedule Checker",
         });
@@ -755,9 +1306,7 @@ const CollegeScheduleChecker = () => {
 
       setSelectedDay("");
       setSelectedSection("");
-      setSelectedRoom("");
       setSelectedSubject("");
-      setSelectedProf("");
       setSelectedStartTime("");
       setSelectedEndTime("");
       fetchSchedule();
@@ -773,6 +1322,8 @@ const CollegeScheduleChecker = () => {
   };
 
   const handleDelete = async (scheduleId) => {
+    if (rejectPlottingIfDisabled()) return;
+
     try {
       const res = await axios.delete(
         `${API_BASE_URL}/api/delete/schedule/${scheduleId}`
@@ -780,9 +1331,11 @@ const CollegeScheduleChecker = () => {
       setMessage(res.data.message);
       setOpenSnackbar(true);
 
-      if (selectedScheduleId === scheduleId) {
+      if (selectedScheduleId === scheduleId || editingScheduleId === scheduleId) {
         setOpenDialogue(false);
         setSelectedScheduleId(null);
+        clearEditMode();
+        resetScheduleForm();
       }
 
       fetchSchedule();
@@ -818,8 +1371,32 @@ const CollegeScheduleChecker = () => {
     return `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
   };
 
-  const getDayScheduleRange = (day) => {
-    const daySchedules = schedule.filter(entry => entry.day_description.toUpperCase() === day.toUpperCase());
+  const getDesignationPlotSchedule = () => {
+    if (!selectedProf) return [];
+
+    const matchesProfessor = (entry) =>
+      String(entry.professor_id) === String(selectedProf);
+
+    const seenIds = new Set();
+    const merged = [];
+
+    const addEntry = (entry) => {
+      if (entry.id && seenIds.has(entry.id)) return;
+      if (entry.id) seenIds.add(entry.id);
+      merged.push(entry);
+    };
+
+    schedule
+      .filter((entry) => isDesignationEntry(entry) && matchesProfessor(entry))
+      .forEach(addEntry);
+
+    professorSchedule.filter(matchesProfessor).forEach(addEntry);
+
+    return filterPlottedScheduleByDepartmentAccess(merged);
+  };
+
+  const getDayScheduleRange = (day, scheduleEntries = schedule) => {
+    const daySchedules = scheduleEntries.filter(entry => entry.day_description.toUpperCase() === day.toUpperCase());
     if (!daySchedules.length) return "";
 
     const parseTime = (timeStr) => {
@@ -845,13 +1422,13 @@ const CollegeScheduleChecker = () => {
     return `${formatTime(earliest)} - ${formatTime(latest)}`;
   };
 
-  const isTimeInSchedule = (start, end, day) => {
+  const isTimeInSchedule = (start, end, day, scheduleEntries = schedule) => {
     const parseTime = (timeStr) => {
       // Converts "5:00 PM" into a Date object
       return new Date(`1970-01-01 ${timeStr}`);
     };
 
-    return schedule.some((entry) => {
+    return scheduleEntries.some((entry) => {
       if (entry.day_description !== day) return false;
 
       const slotStart = parseTime(start);
@@ -867,7 +1444,11 @@ const CollegeScheduleChecker = () => {
 
   const filteredScheduleList = allschedules
     .filter((sched) => {
-      if (!isRegistrarProgramScopeMatch(sched.program_id, selectedDepartment)) {
+      const scopedProgramIds = getScopedProgramIds();
+      if (
+        scopedProgramIds.length > 0 &&
+        !scopedProgramIds.includes(String(sched.program_id ?? ""))
+      ) {
         return false;
       }
 
@@ -993,19 +1574,28 @@ const CollegeScheduleChecker = () => {
     return ""; // default if unmatched
   };
 
-  const getDutyColor = (start, day) => {
+  const getDutyColor = (start, day, scheduleEntries = schedule) => {
     const parseTime = (t) => new Date(`1970-01-01 ${t}`);
     const slotStart = parseTime(start);
 
-    for (const entry of schedule) {
+    for (const entry of scheduleEntries) {
       if (entry.day_description !== day) continue;
 
       const schedStart = parseTime(entry.school_time_start);
       const schedEnd = parseTime(entry.school_time_end);
 
       if (slotStart >= schedStart && slotStart < schedEnd) {
-        if (entry.ishonorarium === 1 || entry.ishonorarium === "1") {
+        if (Number(entry.ishonorarium) === 1) {
           return "#ccffff";
+        }
+        if (Number(entry.is_servicecredit) === 1) {
+          return "#e6ccff";
+        }
+        if (Number(entry.is_temporary_substitution) === 1) {
+          return "#ffd9b3";
+        }
+        if (entry.workload_color) {
+          return entry.workload_color;
         }
         return officeDutyConversionColor(entry.course_code);
       }
@@ -1014,14 +1604,14 @@ const CollegeScheduleChecker = () => {
     return ""; // no color
   };
 
-  const hasAdjacentSchedule = (start, end, day, direction = "top") => {
+  const hasAdjacentSchedule = (start, end, day, direction = "top", scheduleEntries = schedule) => {
     const parseTime = (timeStr) => new Date(`1970-01-01 ${timeStr}`);
 
     const slotStart = parseTime(start);
     const slotEnd = parseTime(end);
 
     // Find the current schedule block
-    const currentEntry = schedule.find((entry) => {
+    const currentEntry = scheduleEntries.find((entry) => {
       if (entry.day_description !== day) return false;
       const schedStart = parseTime(entry.school_time_start);
       const schedEnd = parseTime(entry.school_time_end);
@@ -1042,13 +1632,47 @@ const CollegeScheduleChecker = () => {
     }
   };
 
-  const getCenterText = (start, day) => {
+  const getScheduleEntryForSlot = (start, end, day, scheduleEntries = schedule) => {
+    const parseTime = (timeStr) => new Date(`1970-01-01 ${timeStr}`);
+    const slotStart = parseTime(start);
+    const slotEnd = parseTime(end);
+
+    return scheduleEntries.find((entry) => {
+      if (entry.day_description !== day) return false;
+      const schedStart = parseTime(entry.school_time_start);
+      const schedEnd = parseTime(entry.school_time_end);
+      return slotStart >= schedStart && slotEnd <= schedEnd;
+    });
+  };
+
+  const getScheduleSlotBackground = (
+    start,
+    end,
+    day,
+    scheduleEntries = schedule,
+    maskContinuation = false
+  ) => {
+    if (!isTimeInSchedule(start, end, day, scheduleEntries)) return undefined;
+
+    const entry = getScheduleEntryForSlot(start, end, day, scheduleEntries);
+    if (
+      maskContinuation &&
+      entry &&
+      isDesignationEntry(entry) &&
+      hasAdjacentSchedule(start, end, day, "top", scheduleEntries) === "same"
+    ) {
+      return undefined;
+    }
+    return getDutyColor(start, day, scheduleEntries) || "rgb(253 224 71)";
+  };
+
+  const getCenterText = (start, day, scheduleEntries = schedule, enableGridEdit = !isDesignationMode) => {
     const parseTime = (t) => new Date(`1970-01-01 ${t}`);
     const SLOT_HEIGHT_REM = 2.5;
 
     const slotStart = parseTime(start);
 
-    for (const entry of schedule) {
+    for (const entry of scheduleEntries) {
       if (entry.day_description !== day) continue;
       const schedStart = parseTime(entry.school_time_start);
       const schedEnd = parseTime(entry.school_time_end);
@@ -1057,55 +1681,111 @@ const CollegeScheduleChecker = () => {
 
       const totalHours = (schedEnd - schedStart) / (1000 * 60 * 60);
       const isTopSlot = slotStart.getTime() === schedStart.getTime();
-      const showDeleteButton = isTopSlot;
+      const isBottomSlot =
+        slotStart.getTime() + 30 * 60 * 1000 >= schedEnd.getTime();
+      const showDeleteButton =
+        isTopSlot &&
+        (isDesignationMode
+          ? isDesignationEntry(entry)
+          : !isDesignationEntry(entry));
+      const selectionHighlightClass =
+        editingScheduleId === entry.id
+          ? [
+              "box-border border-blue-600 border-l-2 border-r-2",
+              isTopSlot ? "border-t-2" : "",
+              isBottomSlot ? "border-b-2" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")
+          : "";
+
+      const blockHeightRem = totalHours * SLOT_HEIGHT_REM;
+      const useCompactText = totalHours === 1;
+      const useOverlayCentering = isDesignationEntry(entry);
+      const dutyColor =
+        getDutyColor(entry.school_time_start, day, scheduleEntries) ||
+        "rgb(253 224 71)";
 
       let textContent = null;
-      if (totalHours === 1) {
-        textContent =
-          <>
-            <span className="block truncate text-[10px]">{entry.course_code}</span>
-            {entry.program_code && entry.section_description && (
-              <span className="block truncate text-[8px]">
-                {entry.program_code}-{entry.section_description}
-              </span>
-            )}
-            {entry.section_description && entry.section_description !== 0 && entry.section_description !== "0" && entry.room_description && (
-              <span className="block truncate text-[8px] max-w-[100px]">{entry.room_description}</span>
-            )}
-          </>;
-      } else {
-        const totalHours = (schedEnd - schedStart) / (1000 * 60 * 60);
-        const blockHeightRem = totalHours * SLOT_HEIGHT_REM;
-        const textHeightRem = 0.5;
-        const marginTop = (blockHeightRem - textHeightRem) / 2;
+      if (isTopSlot) {
+        if (useOverlayCentering) {
+          textContent = (
+            <span
+              className={`absolute left-0 right-0 z-[2] box-border border-b border-black flex flex-col items-center justify-center text-center leading-tight pointer-events-none px-0.5 ${
+                useCompactText ? "text-[10px]" : "text-[11px]"
+              }`}
+              style={{
+                top: 0,
+                height: `${blockHeightRem}rem`,
+                backgroundColor: dutyColor,
+              }}
+            >
+              <span className="block truncate max-w-full">{entry.course_code}</span>
+            </span>
+          );
+        } else if (totalHours === 1) {
+          textContent = (
+            <>
+              <span className="block truncate text-[10px]">{entry.course_code}</span>
+              {entry.program_code && entry.section_description && (
+                <span className="block truncate text-[8px]">
+                  {entry.program_code}-{entry.section_description}
+                </span>
+              )}
+              {entry.section_description &&
+                entry.section_description !== 0 &&
+                entry.section_description !== "0" &&
+                entry.room_description && (
+                  <span className="block truncate text-[8px] max-w-[100px]">
+                    {entry.room_description}
+                  </span>
+                )}
+            </>
+          );
+        } else {
+          const textHeightRem = 0.5;
+          const marginTop = (blockHeightRem - textHeightRem) / 2;
 
-        textContent = (
-          <span
-            className="absolute inset-0 flex flex-col items-center justify-center text-center text-[11px] leading-tight cursor-pointer"
-            style={{ top: `${marginTop}rem` }}
-          >
-            {entry.course_code} <br />
-            {(entry.program_code || entry.section_description) && (
-              <>
-                {[entry.program_code, entry.section_description].filter(Boolean).join(" - ")}
-                <br />
-              </>
-            )}
-            {entry.section_description && entry.section_description !== 0 && entry.section_description !== "0" && entry.room_description && (
-              <>({entry.room_description})</>
-            )}
-          </span>
-        );
+          textContent = (
+            <span
+              className="absolute inset-0 flex flex-col items-center justify-center text-center text-[11px] leading-tight cursor-pointer"
+              style={{ top: `${marginTop}rem` }}
+            >
+              {entry.course_code} <br />
+              {(entry.program_code || entry.section_description) && (
+                <>
+                  {[entry.program_code, entry.section_description]
+                    .filter(Boolean)
+                    .join(" - ")}
+                  <br />
+                </>
+              )}
+              {entry.section_description &&
+                entry.section_description !== 0 &&
+                entry.section_description !== "0" &&
+                entry.room_description && (
+                  <>({entry.room_description})</>
+                )}
+            </span>
+          );
+        }
       }
 
       return (
         <div
-          className="schedule-block relative w-full h-full cursor-pointer text-center"
+          className={`schedule-block relative w-full h-full cursor-pointer text-center ${selectionHighlightClass}`}
+          onClick={() => {
+            if (enableGridEdit) {
+              handleSelectScheduleForEdit(entry);
+            }
+          }}
         >
-          {showDeleteButton && (
+          {isTopSlot && textContent}
+          {showDeleteButton && hasAnyPlottingAccess && (
             <button
-              className="absolute top-[-10px] right-[-10px] bg-red-500 text-white rounded-full w-5 h-5 text-[10px] flex items-center justify-center hover:bg-red-700"
-              onClick={() => {
+              className="absolute top-[-10px] right-[-10px] z-[100] bg-red-500 text-white rounded-full w-5 h-5 text-[10px] flex items-center justify-center hover:bg-red-700"
+              onClick={(e) => {
+                e.stopPropagation();
                 setSelectedScheduleId(entry.id);
                 setOpenDialogue(true);
               }}
@@ -1113,7 +1793,6 @@ const CollegeScheduleChecker = () => {
               <HighlightOffIcon />
             </button>
           )}
-          {isTopSlot && textContent}
         </div>
       );
     }
@@ -1123,6 +1802,7 @@ const CollegeScheduleChecker = () => {
 
   const handleSubmitWrapper = (e) => {
     e.preventDefault();
+    if (rejectPlottingIfDisabled()) return;
 
     if (isDesignationMode) {
       return handleSubmitDesignation(e); // your designation check
@@ -1133,12 +1813,15 @@ const CollegeScheduleChecker = () => {
 
   const handleInsertWrapper = (e) => {
     e.preventDefault();
+    if (rejectPlottingIfDisabled()) return;
 
     if (isDesignationMode) {
       return handleInsertDesignation(e); // your designation insert
-    } else {
-      return handleInsert(e); // your regular insert
     }
+    if (editingScheduleId) {
+      return handleUpdateSchedule(e);
+    }
+    return handleInsert(e); // your regular insert
   };
 
   // Put this at the very bottom before the return 
@@ -1171,6 +1854,41 @@ const CollegeScheduleChecker = () => {
       e.stopPropagation();
     }
   });
+
+  const loadTypeSection = !isDesignationMode ? (
+    <div className="flex mb-4">
+      <div className="p-2 w-[12rem]">Load Type:</div>
+      <div className="flex flex-col gap-2 pt-1">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={isHonorarium}
+            onChange={(e) => handleHonorariumToggle(e.target.checked)}
+            className="h-4 w-4"
+          />
+          Honorarium Load
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={isServiceCredit}
+            onChange={(e) => handleServiceCreditToggle(e.target.checked)}
+            className="h-4 w-4"
+          />
+          Service Credit
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={isTemporarySubstitution}
+            onChange={(e) => handleTemporarySubstitutionToggle(e.target.checked)}
+            className="h-4 w-4"
+          />
+          Temporary Substitution
+        </label>
+      </div>
+    </div>
+  ) : null;
 
   const filterControlSX = {
     minWidth: 120,
@@ -1218,6 +1936,29 @@ const CollegeScheduleChecker = () => {
 
       <hr style={{ border: "1px solid #ccc", width: "100%" }} />
       <br />
+
+      {disabledDepartmentLabels.length > 0 && hasAnyPlottingAccess && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Schedule plotting is turned off for: {disabledDepartmentLabels.join(", ")}.
+          You can continue plotting only for your remaining allowed departments.
+        </Alert>
+      )}
+
+      {isPlottingFullyBlocked && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {PLOTTING_DISABLED_MESSAGE}
+        </Alert>
+      )}
+
+      <TableContainer component={Paper} sx={{ width: '100%', border: `1px solid ${borderColor}` }}>
+        <Table>
+          <TableHead sx={{ backgroundColor: settings?.header_color || "#1976d2", }}>
+            <TableRow>
+              <TableCell sx={{ color: 'white', textAlign: "Center" }}>College Schedule Plotting and Management</TableCell>
+            </TableRow>
+          </TableHead>
+        </Table>
+      </TableContainer>
       <br />
 
       {message && (
@@ -1230,28 +1971,33 @@ const CollegeScheduleChecker = () => {
           <Alert
             onClose={handleCloseSnackbar}
             severity={
-              message.includes("success") || message.includes("available") // covers "Schedule is available"
+              snackbarSeverity ||
+              (message.includes("success") || message.includes("available")
                 ? "success"
-                : "error"
+                : "error")
             }
-            sx={{ width: "100%" }}
+            sx={{
+              width: "100%",
+              whiteSpace: "pre-line",
+              alignItems: "center",
+            }}
           >
             {message}
           </Alert>
         </Snackbar>
       )}
-      <TableContainer component={Paper} sx={{ width: '100%', border: `1px solid ${borderColor}` }}>
-        <Table>
-          <TableHead sx={{ backgroundColor: settings?.header_color || "#1976d2", }}>
-            <TableRow>
-              <TableCell sx={{ color: 'white', textAlign: "Center" }}>College Schedule Plotting and Management</TableCell>
-            </TableRow>
-          </TableHead>
-        </Table>
-      </TableContainer>
-      <br />
+
       <Box sx={{ display: "flex", gap: "1rem" }}>
         <Box>
+          <fieldset
+            disabled={!hasAnyPlottingAccess}
+            style={{
+              border: 0,
+              margin: 0,
+              padding: 0,
+              minWidth: 0,
+            }}
+          >
           <form
             onSubmit={handleInsertWrapper}
             style={{
@@ -1269,9 +2015,10 @@ const CollegeScheduleChecker = () => {
             <div className="flex mb-2 mt-2">
               <div className="p-2 w-[12rem]">Day:</div>
               <select
-                className="border border-gray-500 outline-none rounded w-full h-10 px-2"
+                className="border border-gray-500 outline-none rounded w-full h-10 px-2 disabled:bg-gray-100"
                 value={selectedDay}
                 onChange={(e) => setSelectedDay(e.target.value)}
+                disabled={Boolean(editingScheduleId)}
                 required
               >
                 <option value="">Select Day</option>
@@ -1288,13 +2035,14 @@ const CollegeScheduleChecker = () => {
               <div className="flex mb-2">
                 <div className="p-2 w-[12rem]">Section:</div>
                 <Autocomplete
-                  options={filteredSectionList}
+                  options={sectionList}
                   fullWidth
+                  disabled={Boolean(editingScheduleId)}
                   getOptionLabel={(option) =>
-                    `${option.program_code || ""} - ${option.description || ""}`.trim()
+                    `${option.description || ""} ${option.program_code || ""}`.trim()
                   }
                   value={
-                    filteredSectionList.find(
+                    sectionList.find(
                       (section) => String(section.dep_section_id) === String(selectedSection)
                     ) || null
                   }
@@ -1303,11 +2051,6 @@ const CollegeScheduleChecker = () => {
                   }}
                   isOptionEqualToValue={(option, value) =>
                     String(option.dep_section_id) === String(value.dep_section_id)
-                  }
-                  noOptionsText={
-                    selectedDepartment
-                      ? "No sections match your program scope"
-                      : "Select a department first"
                   }
                   filterOptions={(options, { inputValue }) => {
                     const input = inputValue.trim().toLowerCase();
@@ -1344,14 +2087,15 @@ const CollegeScheduleChecker = () => {
               <div className="flex mb-2">
                 <div className="p-2 w-[12rem]">Room:</div>
                 <select
-                  className="border border-gray-500 outline-none rounded w-full h-10 px-2"
+                  className="border border-gray-500 outline-none rounded w-full h-10 px-2 disabled:bg-gray-100"
                   value={selectedRoom}
                   onChange={(e) => setSelectedRoom(e.target.value)}
+                  disabled={Boolean(editingScheduleId)}
                   required
                 >
                   <option value="">Select Room</option>
                   {roomList.map((room) => (
-                    <option key={room.room_id} value={room.room_id}>
+                    <option key={room.room_id} value={String(room.room_id)}>
                       {room.room_description}
                     </option>
                   ))}
@@ -1366,6 +2110,7 @@ const CollegeScheduleChecker = () => {
                 <Autocomplete
                   options={courseList}
                   fullWidth
+                  disabled={Boolean(editingScheduleId)}
                   getOptionLabel={(option) =>
                     `${option.course_code || ""} - ${option.course_description || ""}`.trim()
                   }
@@ -1384,21 +2129,18 @@ const CollegeScheduleChecker = () => {
                     const input = inputValue.trim().toLowerCase();
                     if (!input) return options;
 
-                    // Tier 1: exact match on course_code OR course_description
                     const exact = options.filter((o) =>
                       o.course_code?.toLowerCase() === input ||
                       o.course_description?.toLowerCase() === input
                     );
                     if (exact.length > 0) return exact;
 
-                    // Tier 2: starts-with on the full label
                     const startsWith = options.filter((o) =>
                       o.course_code?.toLowerCase().startsWith(input) ||
                       o.course_description?.toLowerCase().startsWith(input)
                     );
                     if (startsWith.length > 0) return startsWith;
 
-                    // Tier 3: includes anywhere (fallback)
                     return options.filter((o) =>
                       o.course_code?.toLowerCase().includes(input) ||
                       o.course_description?.toLowerCase().includes(input)
@@ -1416,7 +2158,8 @@ const CollegeScheduleChecker = () => {
               </div>
             </div>
 
-            {/* Professor Select */}
+            {editingScheduleId && loadTypeSection}
+
             {/* Professor Select */}
             <div className="flex flex-col mb-2 w-full">
               <div className="flex mb-1 items-center">
@@ -1424,6 +2167,7 @@ const CollegeScheduleChecker = () => {
                 <Autocomplete
                   options={profList}
                   fullWidth
+                  disabled={Boolean(editingScheduleId) && !isTemporarySubstitution}
                   getOptionLabel={(option) =>
                     `${option.lname || ""}, ${option.fname || ""} ${option.mname || ""}`.trim()
                   }
@@ -1444,6 +2188,11 @@ const CollegeScheduleChecker = () => {
                       label="Professor"
                       size="small"
                       required
+                      helperText={
+                        editingScheduleId && !isTemporarySubstitution
+                          ? "Check Temporary Substitution above to change the professor."
+                          : ""
+                      }
                     />
                   )}
                 />
@@ -1454,15 +2203,9 @@ const CollegeScheduleChecker = () => {
             <div className="flex mb-2">
               <div className="p-2 w-[12rem]">School Year:</div>
               <div className="border border-gray-500 rounded w-full h-10 px-2 flex items-center bg-gray-100">
-                {
-                  schoolYearList.find((sy) => sy.id === selectedSchoolYear)
-                    ?.year_description
-                }{" "}
+                {getSelectedSchoolYearEntry()?.year_description}{" "}
                 -{" "}
-                {
-                  schoolYearList.find((sy) => sy.id === selectedSchoolYear)
-                    ?.semester_description
-                }
+                {getSelectedSchoolYearEntry()?.semester_description}
               </div>
             </div>
 
@@ -1470,19 +2213,14 @@ const CollegeScheduleChecker = () => {
             <div className="flex mb-2">
               <div className="p-2 w-[12rem]">Start Time:</div>
               <input
-                className="border border-gray-500 rounded w-full h-10 px-2"
+                className="border border-gray-500 rounded w-full h-10 px-2 disabled:bg-gray-100"
                 type="time"
-                min={SCHEDULE_TIME_MIN}
-                max={SCHEDULE_TIME_MAX}
-                step={SCHEDULE_TIME_STEP_SECONDS}
                 value={selectedStartTime}
-                onChange={(e) =>
-                  handleScheduleTimeChange(
-                    e.target.value,
-                    setSelectedStartTime,
-                    "Start time",
-                  )
-                }
+                min={SCHEDULE_TIME_INPUT_MIN}
+                max={SCHEDULE_TIME_INPUT_MAX}
+                step={SCHEDULE_TIME_INPUT_STEP}
+                onChange={(e) => handleStartTimeChange(e.target.value)}
+                disabled={Boolean(editingScheduleId)}
                 required
               />
             </div>
@@ -1491,63 +2229,68 @@ const CollegeScheduleChecker = () => {
             <div className="flex mb-4">
               <div className="p-2 w-[12rem]">End Time:</div>
               <input
-                className="border border-gray-500 rounded w-full h-10 px-2"
+                className="border border-gray-500 rounded w-full h-10 px-2 disabled:bg-gray-100"
                 type="time"
-                min={SCHEDULE_TIME_MIN}
-                max={SCHEDULE_TIME_MAX}
-                step={SCHEDULE_TIME_STEP_SECONDS}
                 value={selectedEndTime}
-                onChange={(e) =>
-                  handleScheduleTimeChange(
-                    e.target.value,
-                    setSelectedEndTime,
-                    "End time",
-                  )
-                }
+                min={SCHEDULE_TIME_INPUT_MIN}
+                max={SCHEDULE_TIME_INPUT_MAX}
+                step={SCHEDULE_TIME_INPUT_STEP}
+                onChange={(e) => handleEndTimeChange(e.target.value)}
+                disabled={Boolean(editingScheduleId)}
                 required
               />
             </div>
-            {!isDesignationMode && (
-              <div className="flex mb-4 items-center">
-                <div className="p-2 w-[12rem]">Honorarium Load:</div>
-                <input
-                  type="checkbox"
-                  checked={isHonorarium}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setOpenConfirmDialog(true); // open confirmation dialog
-                    } else {
-                      setIsHonorarium(false); // allow uncheck without dialog
-                    }
+            {!editingScheduleId && loadTypeSection}
+            <div className="flex justify-between items-center gap-2">
+              {editingScheduleId && (
+                <button
+                  type="button"
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
+                  onClick={() => {
+                    clearEditMode();
+                    clearScheduleLoadTypes();
+                    resetScheduleForm();
                   }}
-                  className="h-4 w-4"
-                />
+                >
+                  Cancel Edit
+                </button>
+              )}
+              <div className="flex gap-2 ml-auto">
+                <button
+                  type="button"
+                  className="bg-[#800000] hover:bg-red-900 text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: mainButtonColor }}
+                  onClick={handleSubmitWrapper}
+                  disabled={!hasAnyPlottingAccess}
+                >
+                  Check Schedule
+                </button>
+                <button
+                  className="bg-[#1967d2] hover:bg-[#000000] text-white px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  type="submit"
+                  disabled={
+                    !hasAnyPlottingAccess ||
+                    (Boolean(editingScheduleId) && !hasValidUpdate())
+                  }
+                >
+                  {editingScheduleId ? "Update Schedule" : "Insert Schedule"}
+                </button>
               </div>
-            )}
-            <div className="flex justify-between">
-              <button
-                className="bg-[#800000] hover:bg-red-900 text-white px-6 py-2 rounded"
-                style={{ backgroundColor: mainButtonColor }}
-                onClick={handleSubmitWrapper}
-              >
-                Check Schedule
-              </button>
-              <button
-                className="bg-[#1967d2] hover:bg-[#000000] text-white px-6 py-2 rounded"
-                type="submit"
-              >
-                Insert Schedule
-              </button>
             </div>
           </form>
+          </fieldset>
         </Box>
         <Box sx={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
           <Box sx={{ display: "flex", gap: 1 }}>
             <Button
               className="hover:bg-[#000000] text-white px-6 py-2 rounded w-[200px]"
               variant="contained"
+              disabled={!hasAnyPlottingAccess}
               onClick={() => {
                 const newMode = !isDesignationMode;
+                clearEditMode();
+                clearScheduleLoadTypes();
+                setSelectedProf("");
                 setIsDesignationMode(newMode);
 
                 if (newMode) {
@@ -1570,10 +2313,28 @@ const CollegeScheduleChecker = () => {
             </Button>
           </Box>
 
-          <table className="mt-[0.7rem]">
+          {[
+            {
+              key: "regular",
+              plotSchedule: filterPlottedScheduleByDepartmentAccess(
+                schedule.filter((entry) => !isDesignationEntry(entry)),
+              ),
+              title: "Regular Load Schedule Plotted",
+              enableEdit: !isDesignationMode && hasAnyPlottingAccess,
+            },
+            {
+              key: "designation",
+              plotSchedule: getDesignationPlotSchedule(),
+              title: "Designation Schedule Plotted",
+              enableEdit: isDesignationMode && hasAnyPlottingAccess,
+            },
+          ].filter((plot) =>
+            isDesignationMode ? plot.key === "designation" : plot.key === "regular"
+          ).map(({ key, plotSchedule, title, enableEdit }) => (
+          <table key={key} className="mt-[0.7rem] mb-6">
             <thead className="bg-[#c0c0c0]">
               <tr className="min-w-[6.5rem] min-h-[2.2rem] flex items-center justify-center border border-black border-b-0 text-[14px] font-semibold">
-                Professors Schedule Plotted
+                {title}
               </tr>
               <tr className="flex align-center">
                 <td className="min-w-[6.5rem] min-h-[2.2rem] flex items-center justify-center border border-black text-[14px] ">
@@ -1592,7 +2353,7 @@ const CollegeScheduleChecker = () => {
                     MONDAY
                   </div>
                   <p className="h-[20px] min-w-[6.8rem] text-center border border-black border-l-0 text-[11.5px] mt-[-3px]">
-                    {getDayScheduleRange('MON')}
+                    {getDayScheduleRange('MON', plotSchedule)}
                   </p>
                 </td>
                 <td className="p-0 m-0">
@@ -1600,7 +2361,7 @@ const CollegeScheduleChecker = () => {
                     TUESDAY
                   </div>
                   <p className="h-[20px] min-w-[6.8rem] text-center border border-black border-l-0 text-[11.5px] mt-[-3px]">
-                    {getDayScheduleRange('TUE')}
+                    {getDayScheduleRange('TUE', plotSchedule)}
                   </p>
                 </td>
                 <td className="p-0 m-0">
@@ -1608,7 +2369,7 @@ const CollegeScheduleChecker = () => {
                     WEDNESDAY
                   </div>
                   <p className="h-[20px] min-w-[7rem] text-center border border-black border-l-0 text-[11.5px] mt-[-3px]">
-                    {getDayScheduleRange('WED')}
+                    {getDayScheduleRange('WED', plotSchedule)}
                   </p>
                 </td>
                 <td className="p-0 m-0">
@@ -1616,7 +2377,7 @@ const CollegeScheduleChecker = () => {
                     THURSDAY
                   </div>
                   <p className="h-[20px] min-w-[6.9rem] text-center border border-black border-l-0 text-[11.5px] mt-[-3px]">
-                    {getDayScheduleRange('THU')}
+                    {getDayScheduleRange('THU', plotSchedule)}
                   </p>
                 </td>
                 <td className="p-0 m-0">
@@ -1624,7 +2385,7 @@ const CollegeScheduleChecker = () => {
                     FRIDAY
                   </div>
                   <p className="h-[20px] min-w-[6.8rem] text-center border border-black border-l-0 text-[11.5px] mt-[-3px]">
-                    {getDayScheduleRange('FRI')}
+                    {getDayScheduleRange('FRI', plotSchedule)}
                   </p>
                 </td>
                 <td className="p-0 m-0">
@@ -1632,7 +2393,7 @@ const CollegeScheduleChecker = () => {
                     SATUDAY
                   </div>
                   <p className="h-[20px] min-w-[6.8rem] text-center border border-black border-l-0 text-[11.5px] mt-[-3px]">
-                    {getDayScheduleRange('SAT')}
+                    {getDayScheduleRange('SAT', plotSchedule)}
                   </p>
                 </td>
                 <td className="p-0 m-0">
@@ -1640,7 +2401,7 @@ const CollegeScheduleChecker = () => {
                     SUNDAY
                   </div>
                   <p className="h-[20px] min-w-[6.8rem] text-center border border-black border-l-0 text-[11.5px] mt-[-3px]">
-                    {getDayScheduleRange('SUN')}
+                    {getDayScheduleRange('SUN', plotSchedule)}
                   </p>
                 </td>
               </tr>
@@ -1667,47 +2428,43 @@ const CollegeScheduleChecker = () => {
                       <div className="h-[2.5rem] p-0 m-0">
                         <div
                           style={{
-                            backgroundColor: isTimeInSchedule("7:00 AM", "7:30 AM", day)
-                              ? (getDutyColor("7:00 AM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("7:00 AM", "7:30 AM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("7:00 AM", "7:30 AM", day) &&
-                              hasAdjacentSchedule("7:00 AM", "7:30 AM", day, "top") === "same"
+                                                    ${isTimeInSchedule("7:00 AM", "7:30 AM", day, plotSchedule) &&
+                              hasAdjacentSchedule("7:00 AM", "7:30 AM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("7:00 AM", "7:30 AM", day) &&
-                              hasAdjacentSchedule("7:00 AM", "7:30 AM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("7:00 AM", "7:30 AM", day, plotSchedule) &&
+                              hasAdjacentSchedule("7:00 AM", "7:30 AM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("7:00 AM", day)}
+                          {getCenterText("7:00 AM", day, plotSchedule, enableEdit)}
                         </div>
 
                         <div
                           style={{
                             borderTop: "none",
-                            backgroundColor: isTimeInSchedule("7:30 AM", "8:00 AM", day)
-                              ? (getDutyColor("7:30 AM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("7:30 AM", "8:00 AM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("7:30 AM", "8:00 AM", day) &&
-                              hasAdjacentSchedule("7:30 AM", "8:00 AM", day, "top") === "same"
+                                                    ${isTimeInSchedule("7:30 AM", "8:00 AM", day, plotSchedule) &&
+                              hasAdjacentSchedule("7:30 AM", "8:00 AM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("7:30 AM", "8:00 AM", day) &&
-                              hasAdjacentSchedule("7:30 AM", "8:00 AM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("7:30 AM", "8:00 AM", day, plotSchedule) &&
+                              hasAdjacentSchedule("7:30 AM", "8:00 AM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("7:30 AM", day)}
+                          {getCenterText("7:30 AM", day, plotSchedule, enableEdit)}
                         </div>
                       </div>
                     </td>
@@ -1736,46 +2493,42 @@ const CollegeScheduleChecker = () => {
                       <div className="h-[2.5rem] p-0 m-0">
                         <div
                           style={{
-                            backgroundColor: isTimeInSchedule("8:00 AM", "8:30 AM", day)
-                              ? (getDutyColor("8:00 AM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("8:00 AM", "8:30 AM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("8:00 AM", "8:30 AM", day) &&
-                              hasAdjacentSchedule("8:00 AM", "8:30 AM", day, "top") === "same"
+                                                    ${isTimeInSchedule("8:00 AM", "8:30 AM", day, plotSchedule) &&
+                              hasAdjacentSchedule("8:00 AM", "8:30 AM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("8:00 AM", "8:30 AM", day) &&
-                              hasAdjacentSchedule("8:00 AM", "8:30 AM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("8:00 AM", "8:30 AM", day, plotSchedule) &&
+                              hasAdjacentSchedule("8:00 AM", "8:30 AM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("8:00 AM", day)}
+                          {getCenterText("8:00 AM", day, plotSchedule, enableEdit)}
                         </div>
                         <div
                           style={{
                             borderTop: "none",
-                            backgroundColor: isTimeInSchedule("8:30 AM", "9:00 AM", day)
-                              ? (getDutyColor("8:30 AM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("8:30 AM", "9:00 AM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("8:30 AM", "9:00 AM", day) &&
-                              hasAdjacentSchedule("8:30 AM", "9:00 AM", day, "top") === "same"
+                                                    ${isTimeInSchedule("8:30 AM", "9:00 AM", day, plotSchedule) &&
+                              hasAdjacentSchedule("8:30 AM", "9:00 AM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("8:30 AM", "9:00 AM", day) &&
-                              hasAdjacentSchedule("8:30 AM", "9:00 AM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("8:30 AM", "9:00 AM", day, plotSchedule) &&
+                              hasAdjacentSchedule("8:30 AM", "9:00 AM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("8:30 AM", day)}
+                          {getCenterText("8:30 AM", day, plotSchedule, enableEdit)}
                         </div>
                       </div>
                     </td>
@@ -1804,47 +2557,43 @@ const CollegeScheduleChecker = () => {
                       <div className="h-[2.5rem] p-0 m-0">
                         <div
                           style={{
-                            backgroundColor: isTimeInSchedule("9:00 AM", "9:30 AM", day)
-                              ? (getDutyColor("9:00 AM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("9:00 AM", "9:30 AM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("9:00 AM", "9:30 AM", day) &&
-                              hasAdjacentSchedule("9:00 AM", "9:30 AM", day, "top") === "same"
+                                                    ${isTimeInSchedule("9:00 AM", "9:30 AM", day, plotSchedule) &&
+                              hasAdjacentSchedule("9:00 AM", "9:30 AM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("9:00 AM", "9:30 AM", day) &&
-                              hasAdjacentSchedule("9:00 AM", "9:30 AM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("9:00 AM", "9:30 AM", day, plotSchedule) &&
+                              hasAdjacentSchedule("9:00 AM", "9:30 AM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("9:00 AM", day)}
+                          {getCenterText("9:00 AM", day, plotSchedule, enableEdit)}
                         </div>
 
                         <div
                           style={{
                             borderTop: "none",
-                            backgroundColor: isTimeInSchedule("9:30 AM", "10:00 AM", day)
-                              ? (getDutyColor("9:30 AM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("9:30 AM", "10:00 AM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("9:30 AM", "10:00 AM", day) &&
-                              hasAdjacentSchedule("9:30 AM", "10:00 AM", day, "top") === "same"
+                                                    ${isTimeInSchedule("9:30 AM", "10:00 AM", day, plotSchedule) &&
+                              hasAdjacentSchedule("9:30 AM", "10:00 AM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("9:30 AM", "10:00 AM", day) &&
-                              hasAdjacentSchedule("9:30 AM", "10:00 AM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("9:30 AM", "10:00 AM", day, plotSchedule) &&
+                              hasAdjacentSchedule("9:30 AM", "10:00 AM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("9:30 AM", day)}
+                          {getCenterText("9:30 AM", day, plotSchedule, enableEdit)}
                         </div>
                       </div>
                     </td>
@@ -1873,47 +2622,43 @@ const CollegeScheduleChecker = () => {
                       <div className="h-[2.5rem] p-0 m-0">
                         <div
                           style={{
-                            backgroundColor: isTimeInSchedule("10:00 AM", "10:30 AM", day)
-                              ? (getDutyColor("10:00 AM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("10:00 AM", "10:30 AM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("10:00 AM", "10:30 AM", day) &&
-                              hasAdjacentSchedule("10:00 AM", "10:30 AM", day, "top") === "same"
+                                                    ${isTimeInSchedule("10:00 AM", "10:30 AM", day, plotSchedule) &&
+                              hasAdjacentSchedule("10:00 AM", "10:30 AM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("10:00 AM", "10:30 AM", day) &&
-                              hasAdjacentSchedule("10:00 AM", "10:30 AM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("10:00 AM", "10:30 AM", day, plotSchedule) &&
+                              hasAdjacentSchedule("10:00 AM", "10:30 AM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("10:00 AM", day)}
+                          {getCenterText("10:00 AM", day, plotSchedule, enableEdit)}
                         </div>
 
                         <div
                           style={{
                             borderTop: "none",
-                            backgroundColor: isTimeInSchedule("10:30 AM", "11:00 AM", day)
-                              ? (getDutyColor("10:30 AM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("10:30 AM", "11:00 AM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("10:30 AM", "11:00 AM", day) &&
-                              hasAdjacentSchedule("10:30 AM", "11:00 AM", day, "top") === "same"
+                                                    ${isTimeInSchedule("10:30 AM", "11:00 AM", day, plotSchedule) &&
+                              hasAdjacentSchedule("10:30 AM", "11:00 AM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("10:30 AM", "11:00 AM", day) &&
-                              hasAdjacentSchedule("10:30 AM", "11:00 AM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("10:30 AM", "11:00 AM", day, plotSchedule) &&
+                              hasAdjacentSchedule("10:30 AM", "11:00 AM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("10:30 AM", day)}
+                          {getCenterText("10:30 AM", day, plotSchedule, enableEdit)}
                         </div>
                       </div>
                     </td>
@@ -1942,46 +2687,42 @@ const CollegeScheduleChecker = () => {
                       <div className="h-[2.5rem] p-0 m-0">
                         <div
                           style={{
-                            backgroundColor: isTimeInSchedule("11:00 AM", "11:30 AM", day)
-                              ? (getDutyColor("11:00 AM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("11:00 AM", "11:30 AM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("11:00 AM", "11:30 AM", day) &&
-                              hasAdjacentSchedule("11:00 AM", "11:30 AM", day, "top") === "same"
+                                                    ${isTimeInSchedule("11:00 AM", "11:30 AM", day, plotSchedule) &&
+                              hasAdjacentSchedule("11:00 AM", "11:30 AM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("11:00 AM", "11:30 AM", day) &&
-                              hasAdjacentSchedule("11:00 AM", "11:30 AM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("11:00 AM", "11:30 AM", day, plotSchedule) &&
+                              hasAdjacentSchedule("11:00 AM", "11:30 AM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("11:00 AM", day)}
+                          {getCenterText("11:00 AM", day, plotSchedule, enableEdit)}
                         </div>
                         <div
                           style={{
                             borderTop: "none",
-                            backgroundColor: isTimeInSchedule("11:30 AM", "12:00 PM", day)
-                              ? (getDutyColor("11:30 AM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("11:30 AM", "12:00 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("11:30 AM", "12:00 PM", day) &&
-                              hasAdjacentSchedule("11:30 AM", "12:00 PM", day, "top") === "same"
+                                                    ${isTimeInSchedule("11:30 AM", "12:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("11:30 AM", "12:00 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("11:30 AM", "12:00 PM", day) &&
-                              hasAdjacentSchedule("11:30 AM", "12:00 PM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("11:30 AM", "12:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("11:30 AM", "12:00 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("11:30 AM", day)}
+                          {getCenterText("11:30 AM", day, plotSchedule, enableEdit)}
                         </div>
                       </div>
                     </td>
@@ -2010,47 +2751,43 @@ const CollegeScheduleChecker = () => {
                       <div className="h-[2.5rem] p-0 m-0">
                         <div
                           style={{
-                            backgroundColor: isTimeInSchedule("12:00 PM", "12:30 PM", day)
-                              ? (getDutyColor("12:00 PM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("12:00 PM", "12:30 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("12:00 PM", "12:30 PM", day) &&
-                              hasAdjacentSchedule("12:00 PM", "12:30 PM", day, "top") === "same"
+                                                    ${isTimeInSchedule("12:00 PM", "12:30 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("12:00 PM", "12:30 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("12:00 PM", "12:30 PM", day) &&
-                              hasAdjacentSchedule("12:00 PM", "12:30 PM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("12:00 PM", "12:30 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("12:00 PM", "12:30 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("12:00 PM", day)}
+                          {getCenterText("12:00 PM", day, plotSchedule, enableEdit)}
                         </div>
 
                         <div
                           style={{
                             borderTop: "none",
-                            backgroundColor: isTimeInSchedule("12:30 PM", "1:00 PM", day)
-                              ? (getDutyColor("12:30 PM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("12:30 PM", "1:00 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("12:30 PM", "1:00 PM", day) &&
-                              hasAdjacentSchedule("12:30 PM", "1:00 PM", day, "top") === "same"
+                                                    ${isTimeInSchedule("12:30 PM", "1:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("12:30 PM", "1:00 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("12:30 PM", "1:00 PM", day) &&
-                              hasAdjacentSchedule("12:30 PM", "1:00 PM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("12:30 PM", "1:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("12:30 PM", "1:00 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("12:30 PM", day)}
+                          {getCenterText("12:30 PM", day, plotSchedule, enableEdit)}
                         </div>
                       </div>
                     </td>
@@ -2079,47 +2816,43 @@ const CollegeScheduleChecker = () => {
                       <div className="h-[2.5rem] p-0 m-0">
                         <div
                           style={{
-                            backgroundColor: isTimeInSchedule("1:00 PM", "1:30 PM", day)
-                              ? (getDutyColor("1:00 PM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("1:00 PM", "1:30 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("1:00 PM", "1:30 PM", day) &&
-                              hasAdjacentSchedule("1:00 PM", "1:30 PM", day, "top") === "same"
+                                                    ${isTimeInSchedule("1:00 PM", "1:30 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("1:00 PM", "1:30 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("1:00 PM", "1:30 PM", day) &&
-                              hasAdjacentSchedule("1:00 PM", "1:30 PM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("1:00 PM", "1:30 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("1:00 PM", "1:30 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("1:00 PM", day)}
+                          {getCenterText("1:00 PM", day, plotSchedule, enableEdit)}
                         </div>
 
                         <div
                           style={{
                             borderTop: "none",
-                            backgroundColor: isTimeInSchedule("1:30 PM", "2:00 PM", day)
-                              ? (getDutyColor("1:30 PM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("1:30 PM", "2:00 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("1:30 PM", "2:00 PM", day) &&
-                              hasAdjacentSchedule("1:30 PM", "2:00 PM", day, "top") === "same"
+                                                    ${isTimeInSchedule("1:30 PM", "2:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("1:30 PM", "2:00 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("1:30 PM", "2:00 PM", day) &&
-                              hasAdjacentSchedule("1:30 PM", "2:00 PM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("1:30 PM", "2:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("1:30 PM", "2:00 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("1:30 PM", day)}
+                          {getCenterText("1:30 PM", day, plotSchedule, enableEdit)}
                         </div>
                       </div>
                     </td>
@@ -2148,47 +2881,43 @@ const CollegeScheduleChecker = () => {
                       <div className="h-[2.5rem] p-0 m-0">
                         <div
                           style={{
-                            backgroundColor: isTimeInSchedule("2:00 PM", "2:30 PM", day)
-                              ? (getDutyColor("2:00 PM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("2:00 PM", "2:30 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("2:00 PM", "2:30 PM", day) &&
-                              hasAdjacentSchedule("2:00 PM", "2:30 PM", day, "top") === "same"
+                                                    ${isTimeInSchedule("2:00 PM", "2:30 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("2:00 PM", "2:30 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("2:00 PM", "2:30 PM", day) &&
-                              hasAdjacentSchedule("2:00 PM", "2:30 PM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("2:00 PM", "2:30 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("2:00 PM", "2:30 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("2:00 PM", day)}
+                          {getCenterText("2:00 PM", day, plotSchedule, enableEdit)}
                         </div>
 
                         <div
                           style={{
                             borderTop: "none",
-                            backgroundColor: isTimeInSchedule("2:30 PM", "3:00 PM", day)
-                              ? (getDutyColor("2:30 PM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("2:30 PM", "3:00 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("2:30 PM", "3:00 PM", day) &&
-                              hasAdjacentSchedule("2:30 PM", "3:00 PM", day, "top") === "same"
+                                                    ${isTimeInSchedule("2:30 PM", "3:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("2:30 PM", "3:00 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("2:30 PM", "3:00 PM", day) &&
-                              hasAdjacentSchedule("2:30 PM", "3:00 PM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("2:30 PM", "3:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("2:30 PM", "3:00 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("2:30 PM", day)}
+                          {getCenterText("2:30 PM", day, plotSchedule, enableEdit)}
                         </div>
                       </div>
                     </td>
@@ -2217,47 +2946,43 @@ const CollegeScheduleChecker = () => {
                       <div className="h-[2.5rem] p-0 m-0">
                         <div
                           style={{
-                            backgroundColor: isTimeInSchedule("3:00 PM", "3:30 PM", day)
-                              ? (getDutyColor("3:00 PM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("3:00 PM", "3:30 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("3:00 PM", "3:30 PM", day) &&
-                              hasAdjacentSchedule("3:00 PM", "3:30 PM", day, "top") === "same"
+                                                    ${isTimeInSchedule("3:00 PM", "3:30 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("3:00 PM", "3:30 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("3:00 PM", "3:30 PM", day) &&
-                              hasAdjacentSchedule("3:00 PM", "3:30 PM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("3:00 PM", "3:30 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("3:00 PM", "3:30 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("3:00 PM", day)}
+                          {getCenterText("3:00 PM", day, plotSchedule, enableEdit)}
                         </div>
 
                         <div
                           style={{
                             borderTop: "none",
-                            backgroundColor: isTimeInSchedule("3:30 PM", "4:00 PM", day)
-                              ? (getDutyColor("3:30 PM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("3:30 PM", "4:00 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("3:30 PM", "4:00 PM", day) &&
-                              hasAdjacentSchedule("3:30 PM", "4:00 PM", day, "top") === "same"
+                                                    ${isTimeInSchedule("3:30 PM", "4:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("3:30 PM", "4:00 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("3:30 PM", "4:00 PM", day) &&
-                              hasAdjacentSchedule("3:30 PM", "4:00 PM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("3:30 PM", "4:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("3:30 PM", "4:00 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("3:30 PM", day)}
+                          {getCenterText("3:30 PM", day, plotSchedule, enableEdit)}
                         </div>
                       </div>
                     </td>
@@ -2286,47 +3011,43 @@ const CollegeScheduleChecker = () => {
                       <div className="h-[2.5rem] p-0 m-0">
                         <div
                           style={{
-                            backgroundColor: isTimeInSchedule("4:00 PM", "4:30 PM", day)
-                              ? (getDutyColor("4:00 PM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("4:00 PM", "4:30 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("4:00 PM", "4:30 PM", day) &&
-                              hasAdjacentSchedule("4:00 PM", "4:30 PM", day, "top") === "same"
+                                                    ${isTimeInSchedule("4:00 PM", "4:30 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("4:00 PM", "4:30 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("4:00 PM", "4:30 PM", day) &&
-                              hasAdjacentSchedule("4:00 PM", "4:30 PM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("4:00 PM", "4:30 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("4:00 PM", "4:30 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("4:00 PM", day)}
+                          {getCenterText("4:00 PM", day, plotSchedule, enableEdit)}
                         </div>
 
                         <div
                           style={{
                             borderTop: "none",
-                            backgroundColor: isTimeInSchedule("4:30 PM", "5:00 PM", day)
-                              ? (getDutyColor("4:30 PM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("4:30 PM", "5:00 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("4:30 PM", "5:00 PM", day) &&
-                              hasAdjacentSchedule("4:30 PM", "5:00 PM", day, "top") === "same"
+                                                    ${isTimeInSchedule("4:30 PM", "5:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("4:30 PM", "5:00 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("4:30 PM", "5:00 PM", day) &&
-                              hasAdjacentSchedule("4:30 PM", "5:00 PM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("4:30 PM", "5:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("4:30 PM", "5:00 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("4:30 PM", day)}
+                          {getCenterText("4:30 PM", day, plotSchedule, enableEdit)}
                         </div>
                       </div>
                     </td>
@@ -2355,47 +3076,43 @@ const CollegeScheduleChecker = () => {
                       <div className="h-[2.5rem] p-0 m-0">
                         <div
                           style={{
-                            backgroundColor: isTimeInSchedule("5:00 PM", "5:30 PM", day)
-                              ? (getDutyColor("5:00 PM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("5:00 PM", "5:30 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("5:00 PM", "5:30 PM", day) &&
-                              hasAdjacentSchedule("5:00 PM", "5:30 PM", day, "top") === "same"
+                                                    ${isTimeInSchedule("5:00 PM", "5:30 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("5:00 PM", "5:30 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("5:00 PM", "5:30 PM", day) &&
-                              hasAdjacentSchedule("5:00 PM", "5:30 PM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("5:00 PM", "5:30 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("5:00 PM", "5:30 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("5:00 PM", day)}
+                          {getCenterText("5:00 PM", day, plotSchedule, enableEdit)}
                         </div>
 
                         <div
                           style={{
                             borderTop: "none",
-                            backgroundColor: isTimeInSchedule("5:30 PM", "6:00 PM", day)
-                              ? (getDutyColor("5:30 PM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("5:30 PM", "6:00 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("5:30 PM", "6:00 PM", day) &&
-                              hasAdjacentSchedule("5:30 PM", "6:00 PM", day, "top") === "same"
+                                                    ${isTimeInSchedule("5:30 PM", "6:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("5:30 PM", "6:00 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("5:30 PM", "6:00 PM", day) &&
-                              hasAdjacentSchedule("5:30 PM", "6:00 PM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("5:30 PM", "6:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("5:30 PM", "6:00 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("5:30 PM", day)}
+                          {getCenterText("5:30 PM", day, plotSchedule, enableEdit)}
                         </div>
                       </div>
                     </td>
@@ -2424,47 +3141,43 @@ const CollegeScheduleChecker = () => {
                       <div className="h-[2.5rem] p-0 m-0">
                         <div
                           style={{
-                            backgroundColor: isTimeInSchedule("6:00 PM", "6:30 PM", day)
-                              ? (getDutyColor("6:00 PM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("6:00 PM", "6:30 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("6:00 PM", "6:30 PM", day) &&
-                              hasAdjacentSchedule("6:00 PM", "6:30 PM", day, "top") === "same"
+                                                    ${isTimeInSchedule("6:00 PM", "6:30 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("6:00 PM", "6:30 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("6:00 PM", "6:30 PM", day) &&
-                              hasAdjacentSchedule("6:00 PM", "6:30 PM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("6:00 PM", "6:30 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("6:00 PM", "6:30 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("6:00 PM", day)}
+                          {getCenterText("6:00 PM", day, plotSchedule, enableEdit)}
                         </div>
 
                         <div
                           style={{
                             borderTop: "none",
-                            backgroundColor: isTimeInSchedule("6:30 PM", "7:00 PM", day)
-                              ? (getDutyColor("6:30 PM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("6:30 PM", "7:00 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("6:30 PM", "7:00 PM", day) &&
-                              hasAdjacentSchedule("6:30 PM", "7:00 PM", day, "top") === "same"
+                                                    ${isTimeInSchedule("6:30 PM", "7:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("6:30 PM", "7:00 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("6:30 PM", "7:00 PM", day) &&
-                              hasAdjacentSchedule("6:30 PM", "7:00 PM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("6:30 PM", "7:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("6:30 PM", "7:00 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("6:30 PM", day)}
+                          {getCenterText("6:30 PM", day, plotSchedule, enableEdit)}
                         </div>
                       </div>
                     </td>
@@ -2493,47 +3206,43 @@ const CollegeScheduleChecker = () => {
                       <div className="h-[2.5rem] p-0 m-0">
                         <div
                           style={{
-                            backgroundColor: isTimeInSchedule("7:00 PM", "7:30 PM", day)
-                              ? (getDutyColor("7:00 PM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("7:00 PM", "7:30 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("7:00 PM", "7:30 PM", day) &&
-                              hasAdjacentSchedule("7:00 PM", "7:30 PM", day, "top") === "same"
+                                                    ${isTimeInSchedule("7:00 PM", "7:30 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("7:00 PM", "7:30 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("7:00 PM", "7:30 PM", day) &&
-                              hasAdjacentSchedule("7:00 PM", "7:30 PM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("7:00 PM", "7:30 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("7:00 PM", "7:30 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("7:00 PM", day)}
+                          {getCenterText("7:00 PM", day, plotSchedule, enableEdit)}
                         </div>
 
                         <div
                           style={{
                             borderTop: "none",
-                            backgroundColor: isTimeInSchedule("7:30 PM", "8:00 PM", day)
-                              ? (getDutyColor("7:30 PM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("7:30 PM", "8:00 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                                    ${isTimeInSchedule("7:30 PM", "8:00 PM", day) &&
-                              hasAdjacentSchedule("7:30 PM", "8:00 PM", day, "top") === "same"
+                                                    ${isTimeInSchedule("7:30 PM", "8:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("7:30 PM", "8:00 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                    ${isTimeInSchedule("7:30 PM", "8:00 PM", day) &&
-                              hasAdjacentSchedule("7:30 PM", "8:00 PM", day, "bottom") === "same"
+                                                    ${isTimeInSchedule("7:30 PM", "8:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("7:30 PM", "8:00 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                     `}
                         >
-                          {getCenterText("7:30 PM", day)}
+                          {getCenterText("7:30 PM", day, plotSchedule, enableEdit)}
                         </div>
                       </div>
                     </td>
@@ -2562,47 +3271,43 @@ const CollegeScheduleChecker = () => {
                       <div className="h-[2.5rem] p-0 m-0">
                         <div
                           style={{
-                            backgroundColor: isTimeInSchedule("8:00 PM", "8:30 PM", day)
-                              ? (getDutyColor("8:00 PM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("8:00 PM", "8:30 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-t-0 border-l-0 flex items-center justify-center
-                                                        ${isTimeInSchedule("8:00 PM", "8:30 PM", day) &&
-                              hasAdjacentSchedule("8:00 PM", "8:30 PM", day, "top") === "same"
+                                                        ${isTimeInSchedule("8:00 PM", "8:30 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("8:00 PM", "8:30 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                        ${isTimeInSchedule("8:00 PM", "8:30 PM", day) &&
-                              hasAdjacentSchedule("8:00 PM", "8:30 PM", day, "bottom") === "same"
+                                                        ${isTimeInSchedule("8:00 PM", "8:30 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("8:00 PM", "8:30 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                         `}
                         >
-                          {getCenterText("8:00 PM", day)}
+                          {getCenterText("8:00 PM", day, plotSchedule, enableEdit)}
                         </div>
 
                         <div
                           style={{
                             borderTop: "none",
-                            backgroundColor: isTimeInSchedule("8:30 PM", "9:00 PM", day)
-                              ? (getDutyColor("8:30 PM", day) || "rgb(253 224 71)")
-                              : undefined
+                            backgroundColor: getScheduleSlotBackground("8:30 PM", "9:00 PM", day, plotSchedule, key === "designation")
                           }}
                           className={`h-[1.25rem] border border-black border-l-0 flex items-center justify-center
-                                                        ${isTimeInSchedule("8:30 PM", "9:00 PM", day) &&
-                              hasAdjacentSchedule("8:30 PM", "9:00 PM", day, "top") === "same"
+                                                        ${isTimeInSchedule("8:30 PM", "9:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("8:30 PM", "9:00 PM", day, "top", plotSchedule) === "same"
                               ? "border-t-0"
                               : ""
                             }
-                                                        ${isTimeInSchedule("8:30 PM", "9:00 PM", day) &&
-                              hasAdjacentSchedule("8:30 PM", "9:00 PM", day, "bottom") === "same"
+                                                        ${isTimeInSchedule("8:30 PM", "9:00 PM", day, plotSchedule) &&
+                              hasAdjacentSchedule("8:30 PM", "9:00 PM", day, "bottom", plotSchedule) === "same"
                               ? "border-b-0"
                               : ""
                             }
                                                         `}
                         >
-                          {getCenterText("8:30 PM", day)}
+                          {getCenterText("8:30 PM", day, plotSchedule, enableEdit)}
                         </div>
                       </div>
                     </td>
@@ -2611,6 +3316,7 @@ const CollegeScheduleChecker = () => {
               </tr>
             </tbody>
           </table>
+          ))}
         </Box>
       </Box>
 
@@ -2688,7 +3394,7 @@ const CollegeScheduleChecker = () => {
                     <td style={{ textAlign: "center", border: "solid black 1px", padding: "4px", fontSize: "0.85rem" }}>{row.school_time_end}</td>
                     <td style={{ textAlign: "center", border: "solid black 1px", padding: "4px", fontSize: "0.85rem" }}>{row.room_description}</td>
                     <td style={{ textAlign: "center", border: "solid black 1px", padding: "4px", fontSize: "0.85rem" }}>
-                      {row.ishonorarium === 1 ? "Honorarium" : "Regular Class"}
+                      {getScheduleTypeLabel(row)}
                     </td>
                     <td style={{ textAlign: "center", border: "solid black 1px", padding: "4px", fontSize: "0.85rem" }}>
                       {row.current_year}-{row.next_year}, {row.semester_description}
@@ -2751,6 +3457,28 @@ const CollegeScheduleChecker = () => {
         </DialogActions>
       </Dialog>
       <Dialog
+        open={openUpdateConfirmDialog}
+        onClose={() => setOpenUpdateConfirmDialog(false)}
+      >
+        <DialogTitle>Confirm Professor Change</DialogTitle>
+        <DialogContent>
+          Are you sure you want to change the professor of the selected schedule to{" "}
+          <strong>{getProfessorNameById(selectedProf)}</strong>?
+        </DialogContent>
+        <DialogActions>
+          <Button
+            color="error"
+            variant="outlined"
+            onClick={() => setOpenUpdateConfirmDialog(false)}
+          >
+            Cancel
+          </Button>
+          <Button onClick={executeUpdateSchedule} variant="contained">
+            Yes, Update
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
         open={openConfirmDialog}
         onClose={() => setOpenConfirmDialog(false)}
       >
@@ -2768,7 +3496,38 @@ const CollegeScheduleChecker = () => {
           <Button
             onClick={() => {
               setIsHonorarium(true);
+              setIsServiceCredit(false);
+              setIsTemporarySubstitution(false);
               setOpenConfirmDialog(false);
+            }}
+            variant="contained"
+          >
+            Yes
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={openServiceCreditConfirmDialog}
+        onClose={() => setOpenServiceCreditConfirmDialog(false)}
+      >
+        <DialogTitle>Confirm Service Credit</DialogTitle>
+        <DialogContent>
+          Are you sure you want to assign this schedule as Service Credit?
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setOpenServiceCreditConfirmDialog(false)}
+            color="error"
+            variant="outlined"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              setIsHonorarium(false);
+              setIsServiceCredit(true);
+              setIsTemporarySubstitution(false);
+              setOpenServiceCreditConfirmDialog(false);
             }}
             variant="contained"
           >

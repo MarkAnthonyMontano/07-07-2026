@@ -191,8 +191,12 @@ const SectionSlotManagement = () => {
             .get(`${API_BASE_URL}/api/active_school_year`)
             .then((res) => {
                 if (res.data.length > 0) {
-                    setSelectedSchoolYear(res.data[0].year_id);
-                    setSelectedSchoolSemester(res.data[0].semester_id);
+                    const active = res.data[0];
+                    setSelectedSchoolYear(active.year_id);
+                    setSelectedSchoolSemester(active.semester_id);
+                    if (active.school_year_id) {
+                        setSelectedActiveSchoolYear(active.school_year_id);
+                    }
                 }
             })
             .catch((err) => console.error(err));
@@ -205,6 +209,8 @@ const SectionSlotManagement = () => {
                 .then((res) => {
                     if (res.data.length > 0) {
                         setSelectedActiveSchoolYear(res.data[0].school_year_id);
+                    } else {
+                        setSelectedActiveSchoolYear("");
                     }
                 })
                 .catch((err) => console.error(err));
@@ -231,6 +237,12 @@ const SectionSlotManagement = () => {
     }, [programs, selectedProgram]);
 
     useEffect(() => {
+        if (!selectedDepartmentFilter || !campusFilter || hasAccess !== true) return;
+        setSelectedProgram("");
+        fetchPrograms(selectedDepartmentFilter);
+    }, [campusFilter]);
+
+    useEffect(() => {
         if (yearLevels.length > 0 && !selectedYearLevel) {
             setSelectedYearLevel(yearLevels[0].year_level_id);
         }
@@ -252,9 +264,20 @@ const SectionSlotManagement = () => {
         if (!dprtmnt_id) return;
         try {
             const res = await axios.get(`${API_BASE_URL}/api/applied_program/${dprtmnt_id}`);
-            setPrograms(res.data);
+            const allPrograms = Array.isArray(res.data) ? res.data : [];
+            const filteredPrograms = campusFilter
+                ? allPrograms.filter(
+                    (prog) => String(prog.components) === String(campusFilter),
+                )
+                : allPrograms;
+            setPrograms(filteredPrograms);
+            if (filteredPrograms.length === 0) {
+                setSelectedProgram("");
+            }
         } catch (err) {
             console.error("❌ Department fetch error:", err);
+            setPrograms([]);
+            setSelectedProgram("");
         }
     };
 
@@ -262,6 +285,35 @@ const SectionSlotManagement = () => {
         (prog) => String(prog.program_id) === String(selectedProgram),
     );
     const selectedCurriculumId = selectedProgramMeta?.curriculum_id;
+    const resolvedCampus = selectedProgramMeta?.components ?? campusFilter;
+
+    const getSectionSlotHeaders = () => ({
+        headers: {
+            "x-employee-id": employeeID || localStorage.getItem("employee_id") || "",
+        },
+    });
+
+    const buildSectionSlotParams = (extraParams = {}) => ({
+        departmentId: selectedDepartmentFilter,
+        programId: selectedProgram,
+        curriculumId: selectedCurriculumId,
+        yearLevelId: selectedYearLevel,
+        yearId: selectedSchoolYear,
+        semesterId: selectedSchoolSemester,
+        campus: resolvedCampus,
+        activeSchoolYearId: selectedActiveSchoolYear,
+        ...extraParams,
+    });
+
+    const hasSectionSlotFilters =
+        selectedDepartmentFilter &&
+        selectedProgram &&
+        selectedCurriculumId &&
+        selectedYearLevel &&
+        selectedSchoolYear &&
+        selectedSchoolSemester &&
+        selectedActiveSchoolYear &&
+        resolvedCampus;
 
     useEffect(() => {
         if (!selectedCurriculumId) {
@@ -295,37 +347,20 @@ const SectionSlotManagement = () => {
 
     useEffect(() => {
         const fetchSectionOptions = async () => {
-            if (
-                !selectedDepartmentFilter ||
-                !selectedProgram ||
-                !selectedCurriculumId ||
-                !selectedYearLevel ||
-                !selectedSchoolYear ||
-                !selectedSchoolSemester ||
-                !selectedActiveSchoolYear ||
-                !campusFilter
-            ) {
+            if (!hasSectionSlotFilters) {
                 setSectionOptionRows([]);
                 setSelectedSectionFilter("");
                 return;
             }
 
-            setSectionOptionRows([]);
-            setSelectedSectionFilter("");
-
             try {
-                const sectionResponse = await axios.get(`${API_BASE_URL}/api/section-slot/sections`, {
-                    params: {
-                        departmentId: selectedDepartmentFilter,
-                        programId: selectedProgram,
-                        curriculumId: selectedCurriculumId,
-                        yearLevelId: selectedYearLevel,
-                        yearId: selectedSchoolYear,
-                        semesterId: selectedSchoolSemester,
-                        campus: campusFilter,
-                        activeSchoolYearId: selectedActiveSchoolYear,
+                const sectionResponse = await axios.get(
+                    `${API_BASE_URL}/api/section-slot/sections`,
+                    {
+                        params: buildSectionSlotParams(),
+                        ...getSectionSlotHeaders(),
                     },
-                });
+                );
 
                 setSectionOptionRows(sectionResponse.data || []);
             } catch (err) {
@@ -342,40 +377,27 @@ const SectionSlotManagement = () => {
         selectedSchoolYear,
         selectedSchoolSemester,
         selectedActiveSchoolYear,
-        campusFilter,
+        resolvedCampus,
         selectedCurriculumId,
     ]);
 
     useEffect(() => {
         const fetchSlotMonitoringSections = async () => {
-            if (
-                !selectedDepartmentFilter ||
-                !selectedProgram ||
-                !selectedCurriculumId ||
-                !selectedYearLevel ||
-                !selectedSchoolYear ||
-                !selectedSchoolSemester ||
-                !selectedActiveSchoolYear ||
-                !campusFilter
-            ) {
+            if (!hasSectionSlotFilters) {
                 setSlotRows([]);
                 return;
             }
 
             try {
-                const slotResponse = await axios.get(`${API_BASE_URL}/api/section-slot/sections`, {
-                    params: {
-                        departmentId: selectedDepartmentFilter,
-                        programId: selectedProgram,
-                        curriculumId: selectedCurriculumId,
-                        yearLevelId: selectedYearLevel,
-                        yearId: selectedSchoolYear,
-                        semesterId: selectedSchoolSemester,
-                        campus: campusFilter,
-                        activeSchoolYearId: selectedActiveSchoolYear,
-                        ...(selectedCourse ? { courseId: selectedCourse } : {}),
+                const slotResponse = await axios.get(
+                    `${API_BASE_URL}/api/section-slot/sections`,
+                    {
+                        params: buildSectionSlotParams(
+                            selectedCourse ? { courseId: selectedCourse } : {},
+                        ),
+                        ...getSectionSlotHeaders(),
                     },
-                });
+                );
                 const rows = slotResponse.data || [];
 
                 if (rows.length === 0) {
@@ -438,7 +460,7 @@ const SectionSlotManagement = () => {
         selectedSchoolYear,
         selectedSchoolSemester,
         selectedActiveSchoolYear,
-        campusFilter,
+        resolvedCampus,
         selectedCurriculumId,
         dataRefreshKey,
     ]);
@@ -479,7 +501,7 @@ const SectionSlotManagement = () => {
         selectedYearLevel,
         selectedSchoolYear,
         selectedSchoolSemester,
-        campusFilter,
+        resolvedCampus,
     ]);
 
     const sectionOptions = [
@@ -634,6 +656,20 @@ const SectionSlotManagement = () => {
 
     const handleSchoolSemesterChange = (event) => {
         setSelectedSchoolSemester(event.target.value);
+    };
+
+    const handleCampusChange = (event) => {
+        setCampusFilter(event.target.value);
+        setSelectedProgram("");
+        setPrograms([]);
+        setCourses([]);
+        setSelectedCourse("");
+        setSlotRows([]);
+        setSectionOptionRows([]);
+        setSelectedSectionFilter("");
+        if (selectedDepartmentFilter) {
+            fetchPrograms(selectedDepartmentFilter);
+        }
     };
 
     const handleCollegeChange = (e) => {
@@ -1193,7 +1229,7 @@ const SectionSlotManagement = () => {
                                         <Select
                                             name="campus"
                                             value={campusFilter}
-                                            onChange={(e) => setCampusFilter(e.target.value)}
+                                            onChange={handleCampusChange}
                                             MenuProps={{
                                                 PaperProps: {
                                                     sx: {

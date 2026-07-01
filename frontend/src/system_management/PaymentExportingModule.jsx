@@ -255,7 +255,7 @@ const PaymentExportingModule = () => {
 
     const fetchDepartments = async () => {
         try {
-            const res = await axios.get(`${API_BASE_URL}/get_department`);
+            const res = await axios.get(`${API_BASE_URL}/api/get_department`);
             setDepartment(res.data);
             console.log(res.data);
         } catch (err) {

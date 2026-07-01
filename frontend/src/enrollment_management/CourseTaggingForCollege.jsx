@@ -478,10 +478,6 @@ const CourseTaggingForCollege = () => {
 
         setDepartments(uniqueDepartments);
         setError(null);
-
-        if (departmentIds.length === 1) {
-          setSelectedDepartment(String(departmentIds[0]));
-        }
       } catch (err) {
         console.error("Failed to fetch admin data:", err);
         setError("Failed to load your department.");
@@ -501,13 +497,6 @@ const CourseTaggingForCollege = () => {
   const detectedDepartment = departments.find(
     (dep) => String(dep.dprtmnt_id) === String(selectedDepartment),
   );
-
-  const handleDepartmentChange = (event) => {
-    const nextDepartment = String(event.target.value);
-    setSelectedDepartment(nextDepartment || null);
-    setSelectedSection("");
-    setSections([]);
-  };
 
   const fetchDepartmentSections = async () => {
     try {
@@ -1043,43 +1032,10 @@ const CourseTaggingForCollege = () => {
 
           {/* Section picker */}
           <Box sx={{ p: 2, borderBottom: `1px solid ${TOKEN.border}`, backgroundColor: "#fafafa" }}>
-            {departments.length > 1 && (
-              <>
-                <Typography sx={{ fontSize: "11px", textAlign: "left", fontWeight: 700, color: TOKEN.textMid, mb: 0.75, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Department
-                </Typography>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
-                  value={selectedDepartment || ""}
-                  onChange={handleDepartmentChange}
-                  sx={{ mb: 1.5, "& .MuiOutlinedInput-root": { fontSize: "13px" } }}
-                >
-                  <MenuItem value="">
-                    <em>Select a department</em>
-                  </MenuItem>
-                  {departments.map((dep) => (
-                    <MenuItem key={dep.dprtmnt_id} value={String(dep.dprtmnt_id)} sx={{ fontSize: "13px" }}>
-                      {dep.dprtmnt_name} ({dep.dprtmnt_code})
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </>
-            )}
-            {detectedDepartment && departments.length <= 1 && (
+            {detectedDepartment && (
               <span style={{ mb: 1.5, fontSize: "32px", width: "100%", display: "flex", alignItems: "center", justifyContent: "start" }}>
                 {`${detectedDepartment.dprtmnt_name} (${detectedDepartment.dprtmnt_code})`}
               </span>
-            )}
-            {detectedDepartment && departments.length > 1 && (
-              <Chip
-                size="small"
-                color="primary"
-                variant="outlined"
-                label={`Active: ${detectedDepartment.dprtmnt_name} (${detectedDepartment.dprtmnt_code})`}
-                sx={{ mb: 1.5 }}
-              />
             )}
             <Typography sx={{ fontSize: "11px", textAlign: "left", fontWeight: 700, color: TOKEN.textMid, mb: 0.75, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Department Section
@@ -1088,10 +1044,6 @@ const CourseTaggingForCollege = () => {
               <Box sx={{ width: "100%", mt: 1 }}><LinearWithValueLabel /></Box>
             ) : error ? (
               <Typography color="error" sx={{ fontSize: "12px" }}>{error}</Typography>
-            ) : !selectedDepartment ? (
-              <Typography color="text.secondary" sx={{ fontSize: "12px" }}>
-                Select a department to load sections.
-              </Typography>
             ) : (
               <TextField
                 select fullWidth value={selectedSection} onChange={handleSectionChange}

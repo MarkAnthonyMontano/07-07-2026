@@ -150,15 +150,15 @@ const ApplicantDashboard = (props) => {
 
   const fetchProctorSchedule = async (applicantNumber) => {
     if (!applicantNumber) return;
-    console.log("fetchProctorSchedule called with:", applicantNumber);
     try {
       const { data } = await axios.get(`${API_BASE_URL}/api/applicant-schedule/${applicantNumber}`);
-      console.log("proctor data:", data);
-      if (Number(data?.email_sent ?? 0) !== 1) {
+      
+      if (Number(data?.email_sent) === 1) {
+        setProctor(normalizeSchedule(data));
+      } else {
         setProctor(null);
-        return;
       }
-      setProctor(normalizeSchedule(data));
+      
     } catch (err) {
       console.error("Error fetching schedule:", err);
       try {

@@ -34,6 +34,14 @@ import SearchIcon from "@mui/icons-material/Search";
 
 import API_BASE_URL from "../apiConfig";
 import CloseIcon from "@mui/icons-material/Close";
+import {
+  isRegistrarCurriculumMatch,
+  isRegistrarProgramSelectionLocked,
+  refreshRegistrarCurriculumId,
+  restrictToRegistrarCurriculum,
+  syncRegistrarScopeFromAdminData,
+} from "../utils/registrarCurriculumRestriction";
+import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
 
 const StudentNumbering = () => {
   const socket = useRef(null);
@@ -495,25 +503,29 @@ const StudentNumbering = () => {
     : "";
 
   const [department, setDepartment] = useState([]);
-
   const [curriculumOptions, setCurriculumOptions] = useState([]);
-
-  useEffect(() => {
-    axios.get(`${API_BASE_URL}/api/applied_program`).then((res) => {
-      setAllCurriculums(res.data);
-      setCurriculumOptions(res.data);
-    });
-  }, []);
-
-  {
-    curriculumOptions.find(
-      (item) =>
-        item?.curriculum_id?.toString() === (person?.program ?? "").toString(),
-    )?.program_description ||
-      (person?.program ?? "");
-  }
-
   const [allCurriculums, setAllCurriculums] = useState([]);
+  const [adminData, setAdminData] = useState({
+    dprtmnt_id: "",
+    dprtmnt_ids: [],
+    scopes: [],
+  });
+  const scopeRevision = useRegistrarScopeRevision();
+  const isProgramLocked = isRegistrarProgramSelectionLocked();
+  const selectedDepartmentFilterValue =
+    selectedDepartmentFilter === "" ||
+    department.some(
+      (dep) => String(dep.dprtmnt_name) === String(selectedDepartmentFilter),
+    )
+      ? selectedDepartmentFilter
+      : "";
+  const selectedProgramFilterValue =
+    selectedProgramFilter === "" ||
+    curriculumOptions.some(
+      (prog) => String(prog.program_code) === String(selectedProgramFilter),
+    )
+      ? selectedProgramFilter
+      : "";
   const normalize = (value) =>
     String(value ?? "")
       .trim()
@@ -523,49 +535,50 @@ const StudentNumbering = () => {
   );
 
   const filteredPersons = persons.filter((personData) => {
-    const query = searchQuery.toLowerCase();
-    const fullName =
-      `${personData.first_name ?? ""} ${personData.middle_name ?? ""} ${personData.last_name ?? ""}`.toLowerCase();
-
-    const matchesApplicantID = personData.applicant_number
-      ?.toString()
-      .toLowerCase()
-      .includes(query);
-    const matchesName = fullName.includes(query);
-    const matchesEmail = personData.emailAddress?.toLowerCase().includes(query);
+    const fullText =
+      `${personData.first_name ?? ""} ${personData.middle_name ?? ""} ${personData.last_name ?? ""} ${personData.emailAddress ?? ""} ${personData.applicant_number ?? ""}`.toLowerCase();
+    const matchesSearch = fullText.includes(searchQuery.toLowerCase());
     const matchesCampus =
       !selectedCampus || String(personData.campus) === String(selectedCampus);
 
     const programInfo = allCurriculums.find(
       (opt) => opt.curriculum_id?.toString() === personData.program?.toString(),
     );
+    const matchesRegistrarCurriculum = isRegistrarCurriculumMatch(
+      personData.program,
+      allCurriculums,
+    );
 
     const matchesDepartment =
-      !selectedDepartmentFilter ||
+      selectedDepartmentFilter === "" ||
       programInfo?.dprtmnt_name === selectedDepartmentFilter;
 
     const matchesProgramFilter =
-      !selectedProgramFilter ||
+      selectedProgramFilter === "" ||
       programInfo?.program_code === selectedProgramFilter;
 
     const applicantAppliedYear = new Date(personData.created_at).getFullYear();
     const schoolYear = schoolYears.find(
       (sy) => sy.year_id === selectedSchoolYear,
     );
+    const overrideBySearch = searchQuery.trim() !== "";
 
     const matchesSchoolYear =
-      !selectedSchoolYear ||
-      !schoolYear ||
-      String(applicantAppliedYear) === String(schoolYear.current_year);
+      overrideBySearch ||
+      selectedSchoolYear === "" ||
+      (schoolYear &&
+        String(applicantAppliedYear) === String(schoolYear.current_year));
 
     const matchesSemester =
-      !selectedSchoolSemester ||
+      overrideBySearch ||
+      selectedSchoolSemester === "" ||
       normalize(personData.middle_code) ===
-      normalize(selectedSemester?.semester_code);
+        normalize(selectedSemester?.semester_code);
 
     return (
-      (matchesApplicantID || matchesName || matchesEmail) &&
+      matchesSearch &&
       matchesCampus &&
+      matchesRegistrarCurriculum &&
       matchesDepartment &&
       matchesProgramFilter &&
       matchesSchoolYear &&
@@ -609,17 +622,110 @@ const StudentNumbering = () => {
   const currentPersons = sortedPersons.slice(indexOfFirstItem, indexOfLastItem);
 
   useEffect(() => {
+    if (!user) return;
+
+    const fetchAdminData = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/admin_data/${user}`);
+        setAdminData(res.data);
+        syncRegistrarScopeFromAdminData(res.data);
+      } catch (err) {
+        console.error("Error fetching admin data:", err);
+      }
+    };
+
+    fetchAdminData();
+  }, [user]);
+
+  useEffect(() => {
+    if (userRole !== "registrar" || !employeeID) return;
+    refreshRegistrarCurriculumId(employeeID).catch((err) => {
+      console.error("Error refreshing registrar scope:", err);
+    });
+  }, [userRole, employeeID]);
+
+  useEffect(() => {
+    const departmentIds =
+      Array.isArray(adminData.dprtmnt_ids) && adminData.dprtmnt_ids.length
+        ? adminData.dprtmnt_ids
+        : adminData.dprtmnt_id
+          ? [adminData.dprtmnt_id]
+          : [];
+
+    if (!departmentIds.length) return;
+
     const fetchDepartments = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/departments`); // ✅ Update if needed
-        setDepartment(response.data);
+        const responses = await Promise.all(
+          departmentIds.map((departmentId) =>
+            axios.get(`${API_BASE_URL}/api/departments/${departmentId}`),
+          ),
+        );
+        const mergedDepartments = responses.flatMap(
+          (response) => response.data || [],
+        );
+        const uniqueDepartments = [
+          ...new Map(
+            mergedDepartments.map((dep) => [String(dep.dprtmnt_id), dep]),
+          ).values(),
+        ];
+        setDepartment(uniqueDepartments);
       } catch (error) {
         console.error("Error fetching departments:", error);
       }
     };
 
     fetchDepartments();
-  }, []);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
+
+  useEffect(() => {
+    const departmentIds =
+      Array.isArray(adminData.dprtmnt_ids) && adminData.dprtmnt_ids.length
+        ? adminData.dprtmnt_ids
+        : adminData.dprtmnt_id
+          ? [adminData.dprtmnt_id]
+          : [];
+
+    if (!departmentIds.length) return;
+
+    const fetchCurriculums = async () => {
+      try {
+        const responses = await Promise.all(
+          departmentIds.map((departmentId) =>
+            axios.get(`${API_BASE_URL}/api/applied_program/${departmentId}`),
+          ),
+        );
+        const merged = responses.flatMap((response) => response.data || []);
+        const restrictedCurriculums = restrictToRegistrarCurriculum(merged);
+        setAllCurriculums(restrictedCurriculums);
+        setCurriculumOptions(restrictedCurriculums);
+      } catch (error) {
+        console.error("Error fetching curriculum options:", error);
+      }
+    };
+
+    fetchCurriculums();
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
+
+  useEffect(() => {
+    const departmentIds =
+      Array.isArray(adminData.dprtmnt_ids) && adminData.dprtmnt_ids.length
+        ? adminData.dprtmnt_ids
+        : adminData.dprtmnt_id
+          ? [adminData.dprtmnt_id]
+          : [];
+
+    if (departmentIds.length) return;
+
+    axios
+      .get(`${API_BASE_URL}/api/applied_program`)
+      .then((res) => {
+        const restrictedCurriculums = restrictToRegistrarCurriculum(res.data);
+        setAllCurriculums(restrictedCurriculums);
+        setCurriculumOptions(restrictedCurriculums);
+      })
+      .catch((err) => console.error("Error fetching curriculum options:", err));
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
 
   const maxButtonsToShow = 5;
   let startPage = Math.max(1, currentPage - Math.floor(maxButtonsToShow / 2));
@@ -658,6 +764,35 @@ const StudentNumbering = () => {
     setAssignedNumber("");
     setError("");
   };
+
+  const handleDepartmentChange = (selectedDept) => {
+    setSelectedDepartmentFilter(selectedDept);
+    if (!selectedDept) {
+      setCurriculumOptions(allCurriculums);
+    } else {
+      setCurriculumOptions(
+        allCurriculums.filter((opt) => opt.dprtmnt_name === selectedDept),
+      );
+    }
+    if (!isProgramLocked) setSelectedProgramFilter("");
+  };
+
+  useEffect(() => {
+    if (!isProgramLocked) return;
+    const assignedCurriculum = curriculumOptions.find((prog) =>
+      isRegistrarCurriculumMatch(prog.curriculum_id),
+    );
+    if (assignedCurriculum?.program_code) {
+      setSelectedProgramFilter(assignedCurriculum.program_code);
+    }
+  }, [curriculumOptions, isProgramLocked]);
+
+  useEffect(() => {
+    if (department.length === 0 || selectedDepartmentFilter) return;
+    const firstDept = department[0].dprtmnt_name;
+    setSelectedDepartmentFilter(firstDept);
+    handleDepartmentChange(firstDept);
+  }, [department, selectedDepartmentFilter]);
 
 
 
@@ -1333,7 +1468,7 @@ const StudentNumbering = () => {
               </Typography>
               <FormControl size="small" sx={{ width: "400px" }}>
                 <Select
-                  value={selectedDepartmentFilter}
+                  value={selectedDepartmentFilterValue}
                   onChange={(e) => {
                     const selectedDept = e.target.value;
                     setSelectedDepartmentFilter(selectedDept);
@@ -1357,11 +1492,12 @@ const StudentNumbering = () => {
               </Typography>
               <FormControl size="small" sx={{ width: "350px" }}>
                 <Select
-                  value={selectedProgramFilter}
+                  value={selectedProgramFilterValue}
                   onChange={(e) => setSelectedProgramFilter(e.target.value)}
+                  disabled={isProgramLocked}
                   displayEmpty
                 >
-                  <MenuItem value="">All Programs</MenuItem>
+                  {!isProgramLocked && <MenuItem value="">All Programs</MenuItem>}
                   {curriculumOptions.map((prog) => (
                     <MenuItem
                       key={prog.curriculum_id}

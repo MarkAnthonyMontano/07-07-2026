@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import {
   Alert,
@@ -25,7 +25,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { Delete, FileUpload, PersonAdd, Search } from "@mui/icons-material";
+import { Delete, FileUpload, PersonAdd, Save, Search } from "@mui/icons-material";
 import API_BASE_URL from "../apiConfig";
 import { SettingsContext } from "../App";
 import Unauthorized from "../components/Unauthorized";
@@ -78,6 +78,15 @@ const UploadApplicants = () => {
 
 
   const fileInputRef = useRef(null);
+  const assignCheckTimerRef = useRef(null);
+  const editCheckTimerRef = useRef(null);
+
+  const auditActorId =
+    localStorage.getItem("employee_id") ||
+    localStorage.getItem("person_id") ||
+    localStorage.getItem("email") ||
+    "unknown";
+  const auditActorRole = localStorage.getItem("role") || "registrar";
 
   const pageId = 166;
 
@@ -147,18 +156,20 @@ const UploadApplicants = () => {
 
   const [selectedFile, setSelectedFile] = useState(null);
   const [applicants, setApplicants] = useState([]);
-  const [totalApplicants, setTotalApplicants] = useState(0);
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortOption, setSortOption] = useState("id_desc");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(50);
-  const [totalPages, setTotalPages] = useState(1);
-  const [fetchingApplicants, setFetchingApplicants] = useState(false);
   const [importing, setImporting] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [assignTarget, setAssignTarget] = useState(null);
+  const [customStudentNumber, setCustomStudentNumber] = useState("");
+  const [studentNumberError, setStudentNumberError] = useState("");
+  const [checkingStudentNumber, setCheckingStudentNumber] = useState(false);
+  const [studentNumberEdits, setStudentNumberEdits] = useState({});
+  const [editStudentNumberErrors, setEditStudentNumberErrors] = useState({});
+  const [checkingEditStudentNumberId, setCheckingEditStudentNumberId] = useState(null);
+  const [changeWarningTarget, setChangeWarningTarget] = useState(null);
   const [skippedDialogOpen, setSkippedDialogOpen] = useState(false);
   const [skippedRows, setSkippedRows] = useState([]);
   const [snackbar, setSnackbar] = useState({
@@ -175,58 +186,150 @@ const UploadApplicants = () => {
   }, [settings]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
-    return () => clearTimeout(timer);
-  }, [search]);
+    fetchApplicants();
+  }, []);
+
+  const filteredApplicants = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    const rows = query
+      ? applicants.filter((row) =>
+        [
+          row.applicant_number,
+          row.last_name,
+          row.first_name,
+          row.middle_name,
+          row.program,
+          row.email_address,
+          row.contact_num,
+          row.address,
+          row.date_applied,
+          row.program_display,
+          row.student_number,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(query),
+      )
+      : applicants;
+
+    return [...rows].sort((a, b) => {
+      if (sortOption === "lname_asc") {
+        return String(a.last_name || "").localeCompare(String(b.last_name || ""), undefined, {
+          sensitivity: "base",
+        });
+      }
+      if (sortOption === "lname_desc") {
+        return String(b.last_name || "").localeCompare(String(a.last_name || ""), undefined, {
+          sensitivity: "base",
+        });
+      }
+      return Number(b.id || 0) - Number(a.id || 0);
+    });
+  }, [applicants, search, sortOption]);
+
+  const itemsPerPage = 10;
+  const totalPages = Math.max(1, Math.ceil(filteredApplicants.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedApplicants = filteredApplicants.slice(startIndex, startIndex + itemsPerPage);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, sortOption, itemsPerPage]);
+  }, [search, sortOption, applicants.length]);
 
   useEffect(() => {
-    if (hasAccess) {
-      fetchApplicants();
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    if (!assignTarget) {
+      setCustomStudentNumber("");
+      setStudentNumberError("");
+      setCheckingStudentNumber(false);
+      return undefined;
     }
-  }, [hasAccess, currentPage, debouncedSearch, sortOption, itemsPerPage]);
 
-  const fetchApplicants = async (pageOverride) => {
-    const page = pageOverride ?? currentPage;
+    const value = customStudentNumber.trim();
+    if (!value) {
+      setStudentNumberError("");
+      setCheckingStudentNumber(false);
+      return undefined;
+    }
 
-    try {
-      setFetchingApplicants(true);
-      const res = await axios.get(`${API_BASE_URL}/api/get_uploaded_applicants`, {
-        params: {
-          page,
-          limit: itemsPerPage,
-          sort: sortOption,
-          ...(debouncedSearch ? { search: debouncedSearch } : {}),
-        },
-      });
-
-      const payload = res.data;
-      const rows = Array.isArray(payload) ? payload : payload?.data;
-      const nextTotal = Number(payload?.total || 0);
-      const nextTotalPages = Math.max(1, Number(payload?.totalPages || 1));
-
-      setApplicants(Array.isArray(rows) ? rows : []);
-      setTotalApplicants(nextTotal);
-      setTotalPages(nextTotalPages);
-
-      if (page > nextTotalPages) {
-        setCurrentPage(nextTotalPages);
+    setCheckingStudentNumber(true);
+    assignCheckTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await axios.get(
+          `${API_BASE_URL}/api/uploaded-applicants/check-student-number`,
+          { params: { student_number: value } },
+        );
+        setStudentNumberError(res.data?.exists ? "This student number already exists." : "");
+      } catch {
+        setStudentNumberError("Unable to verify student number.");
+      } finally {
+        setCheckingStudentNumber(false);
       }
+    }, 400);
+
+    return () => clearTimeout(assignCheckTimerRef.current);
+  }, [assignTarget, customStudentNumber]);
+
+  useEffect(() => {
+    if (checkingEditStudentNumberId == null) return undefined;
+
+    const row = applicants.find((item) => item.id === checkingEditStudentNumberId);
+    const draftValue = studentNumberEdits[checkingEditStudentNumberId];
+    const value = String(draftValue ?? "").trim();
+    const currentValue = String(row?.student_number ?? "").trim();
+
+    if (!value || value === currentValue) {
+      setEditStudentNumberErrors((prev) => ({
+        ...prev,
+        [checkingEditStudentNumberId]: "",
+      }));
+      return undefined;
+    }
+
+    editCheckTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await axios.get(
+          `${API_BASE_URL}/api/uploaded-applicants/check-student-number`,
+          {
+            params: {
+              student_number: value,
+              exclude_student_number: currentValue || undefined,
+            },
+          },
+        );
+        setEditStudentNumberErrors((prev) => ({
+          ...prev,
+          [checkingEditStudentNumberId]: res.data?.exists
+            ? "This student number already exists."
+            : "",
+        }));
+      } catch {
+        setEditStudentNumberErrors((prev) => ({
+          ...prev,
+          [checkingEditStudentNumberId]: "Unable to verify student number.",
+        }));
+      }
+    }, 400);
+
+    return () => clearTimeout(editCheckTimerRef.current);
+  }, [checkingEditStudentNumberId, studentNumberEdits, applicants]);
+
+  const fetchApplicants = async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/get_uploaded_applicants`);
+      const rows = Array.isArray(res.data) ? res.data : res.data?.data;
+      setApplicants(Array.isArray(rows) ? rows : []);
     } catch (err) {
       setSnackbar({
         open: true,
         message: err.response?.data?.error || "Failed to fetch uploaded applicants.",
         severity: "error",
       });
-    } finally {
-      setFetchingApplicants(false);
     }
   };
-
-  const startIndex = (currentPage - 1) * itemsPerPage;
 
   const handleDeleteApplicant = async () => {
     if (!deleteTarget) return;
@@ -234,19 +337,13 @@ const UploadApplicants = () => {
     try {
       setActionLoadingId(deleteTarget.id);
       await axios.delete(`${API_BASE_URL}/api/uploaded-applicants/${deleteTarget.id}`);
+      setApplicants((prev) => prev.filter((row) => row.id !== deleteTarget.id));
       setSnackbar({
         open: true,
         message: "Uploaded applicant deleted successfully.",
         severity: "success",
       });
       setDeleteTarget(null);
-      const nextPage =
-        applicants.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
-      if (nextPage !== currentPage) {
-        setCurrentPage(nextPage);
-      } else {
-        await fetchApplicants(nextPage);
-      }
     } catch (err) {
       setSnackbar({
         open: true,
@@ -261,16 +358,16 @@ const UploadApplicants = () => {
   const handleAssignStudentNumber = async () => {
     if (!assignTarget) return;
 
+    const studentNumber = customStudentNumber.trim();
+    if (!studentNumber || studentNumberError || checkingStudentNumber) return;
+
     try {
       setActionLoadingId(assignTarget.id);
       const res = await axios.post(`${API_BASE_URL}/api/uploaded-applicants/assign-student-number`, {
         uploaded_applicant_id: assignTarget.id,
-        audit_actor_id:
-          localStorage.getItem("employee_id") ||
-          localStorage.getItem("person_id") ||
-          localStorage.getItem("email") ||
-          "unknown",
-        audit_actor_role: localStorage.getItem("role") || "registrar",
+        student_number: studentNumber,
+        audit_actor_id: auditActorId,
+        audit_actor_role: auditActorRole,
       });
       const result = res.data?.assigned?.[0];
 
@@ -284,11 +381,88 @@ const UploadApplicants = () => {
         severity: result?.email_sent ? "success" : "warning",
       });
       setAssignTarget(null);
+      setCustomStudentNumber("");
+      setStudentNumberError("");
       await fetchApplicants();
     } catch (err) {
       setSnackbar({
         open: true,
-        message: err.message || "Failed to assign student number.",
+        message: err.response?.data?.error || err.message || "Failed to assign student number.",
+        severity: "error",
+      });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleStudentNumberEditChange = (row, value) => {
+    setStudentNumberEdits((prev) => ({ ...prev, [row.id]: value }));
+    setEditStudentNumberErrors((prev) => ({ ...prev, [row.id]: "" }));
+    setCheckingEditStudentNumberId(row.id);
+  };
+
+  const handleCancelStudentNumberEdit = (row) => {
+    setStudentNumberEdits((prev) => {
+      const next = { ...prev };
+      delete next[row.id];
+      return next;
+    });
+    setEditStudentNumberErrors((prev) => {
+      const next = { ...prev };
+      delete next[row.id];
+      return next;
+    });
+    if (checkingEditStudentNumberId === row.id) {
+      setCheckingEditStudentNumberId(null);
+    }
+  };
+
+  const handleSaveStudentNumberEdit = (row) => {
+    const draftValue = String(studentNumberEdits[row.id] ?? "").trim();
+    const currentValue = String(row.student_number ?? "").trim();
+
+    if (!draftValue || draftValue === currentValue || editStudentNumberErrors[row.id]) return;
+
+    setChangeWarningTarget({
+      ...row,
+      currentStudentNumber: currentValue,
+      nextStudentNumber: draftValue,
+    });
+  };
+
+  const handleConfirmStudentNumberChange = async () => {
+    if (!changeWarningTarget) return;
+
+    try {
+      setActionLoadingId(changeWarningTarget.id);
+      const res = await axios.put(`${API_BASE_URL}/api/uploaded-applicants/change-student-number`, {
+        uploaded_applicant_id: changeWarningTarget.id,
+        student_number: changeWarningTarget.nextStudentNumber,
+        audit_actor_id: auditActorId,
+        audit_actor_role: auditActorRole,
+      });
+
+      setSnackbar({
+        open: true,
+        message: res.data?.message || "Student number updated successfully.",
+        severity: "success",
+      });
+      setChangeWarningTarget(null);
+      setStudentNumberEdits((prev) => {
+        const next = { ...prev };
+        delete next[changeWarningTarget.id];
+        return next;
+      });
+      setEditStudentNumberErrors((prev) => {
+        const next = { ...prev };
+        delete next[changeWarningTarget.id];
+        return next;
+      });
+      await fetchApplicants();
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.error || "Failed to change student number.",
         severity: "error",
       });
     } finally {
@@ -427,7 +601,7 @@ const UploadApplicants = () => {
       <hr style={{ border: "1px solid #ccc", width: "100%" }} />
 
       <Paper sx={{ p: 2, my: 2, border: `1px solid ${borderColor}` }}>
-        <Box display="grid" gridTemplateColumns={{ xs: "1fr", md: "1fr 180px 180px" }} gap={2}>
+        <Box display="grid" gridTemplateColumns={{ xs: "1fr", md: "1fr 220px" }} gap={2}>
           <TextField
             size="small"
             value={search}
@@ -442,21 +616,8 @@ const UploadApplicants = () => {
               <MenuItem value="lname_desc">Last Name (Z-A)</MenuItem>
             </Select>
           </FormControl>
-          <FormControl size="small">
-            <Select
-              value={itemsPerPage}
-              onChange={(event) => setItemsPerPage(Number(event.target.value))}
-            >
-              <MenuItem value={25}>25 per page</MenuItem>
-              <MenuItem value={50}>50 per page</MenuItem>
-              <MenuItem value={100}>100 per page</MenuItem>
-              <MenuItem value={200}>200 per page</MenuItem>
-            </Select>
-          </FormControl>
         </Box>
       </Paper>
-
-      <LoadingOverlay open={fetchingApplicants} message="Loading applicants..." />
 
       <TableContainer component={Paper} sx={{ border: `1px solid ${borderColor}` }}>
         <Table size="small">
@@ -483,7 +644,7 @@ const UploadApplicants = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {applicants.map((row, index) => (
+            {paginatedApplicants.map((row, index) => (
               <TableRow key={`${row.id}-${row.applicant_number}`}>
                 <TableCell sx={{ color: "black", fontWeight: "bold", border: `1px solid ${borderColor}` }}>{startIndex + index + 1}</TableCell>
                 <TableCell sx={{ color: "black", fontWeight: "bold", border: `1px solid ${borderColor}` }}>{row.applicant_number}</TableCell>
@@ -497,36 +658,100 @@ const UploadApplicants = () => {
                 <TableCell sx={{ color: "black", fontWeight: "bold", border: `1px solid ${borderColor}` }}>{row.date_applied}</TableCell>
                 <TableCell sx={{ color: "black", fontWeight: "bold", border: `1px solid ${borderColor}` }}>
                   {row.student_number ? (
-                    row.student_number
+                    <Box display="flex" flexDirection="column" gap={0.5} minWidth={180}>
+                      <TextField
+                        size="small"
+                        value={
+                          studentNumberEdits[row.id] !== undefined
+                            ? studentNumberEdits[row.id]
+                            : row.student_number
+                        }
+                        onChange={(event) => handleStudentNumberEditChange(row, event.target.value)}
+                        error={Boolean(editStudentNumberErrors[row.id])}
+                        helperText={editStudentNumberErrors[row.id] || ""}
+                        disabled={actionLoadingId === row.id}
+                        sx={{ minWidth: 160 }}
+                      />
+                      {(() => {
+                        const draftValue = String(
+                          studentNumberEdits[row.id] !== undefined
+                            ? studentNumberEdits[row.id]
+                            : row.student_number,
+                        ).trim();
+                        const savedValue = String(row.student_number ?? "").trim();
+                        const hasDraftChange = draftValue !== savedValue;
+
+                        if (!hasDraftChange) return null;
+
+                        return (
+                          <Box display="flex" gap={0.5}>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              startIcon={<Save />}
+                              disabled={
+                                actionLoadingId === row.id ||
+                                !draftValue ||
+                                Boolean(editStudentNumberErrors[row.id])
+                              }
+                              onClick={() => handleSaveStudentNumberEdit(row)}
+                              sx={{ textTransform: "none", backgroundColor: mainButtonColor }}
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              disabled={actionLoadingId === row.id}
+                              onClick={() => handleCancelStudentNumberEdit(row)}
+                              sx={{ textTransform: "none" }}
+                            >
+                              Cancel
+                            </Button>
+                          </Box>
+                        );
+                      })()}
+                    </Box>
                   ) : (
-                    <Button
-                      size="small"
-                      variant="contained"
-                      startIcon={<PersonAdd />}
-                      disabled={actionLoadingId === row.id}
-                      onClick={() => setAssignTarget(row)}
-                      sx={{ textTransform: "none", backgroundColor: mainButtonColor }}
-                    >
-                      Assign
-                    </Button>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                      Not assigned
+                    </Typography>
                   )}
                 </TableCell>
                 <TableCell>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    color="error"
-                    startIcon={<Delete />}
-                    disabled={actionLoadingId === row.id}
-                    onClick={() => setDeleteTarget(row)}
-                    sx={{ textTransform: "none" }}
-                  >
-                    Delete
-                  </Button>
+                  <Box display="flex" gap={0.5} flexWrap="wrap">
+                    {!row.student_number && (
+                      <Button
+                        size="small"
+                        variant="contained"
+                        startIcon={<PersonAdd />}
+                        disabled={actionLoadingId === row.id}
+                        onClick={() => {
+                          setCustomStudentNumber("");
+                          setStudentNumberError("");
+                          setAssignTarget(row);
+                        }}
+                        sx={{ textTransform: "none", backgroundColor: mainButtonColor }}
+                      >
+                        Assign
+                      </Button>
+                    )}
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="error"
+                      startIcon={<Delete />}
+                      disabled={actionLoadingId === row.id}
+                      onClick={() => setDeleteTarget(row)}
+                      sx={{ textTransform: "none" }}
+                    >
+                      Delete
+                    </Button>
+                  </Box>
                 </TableCell>
               </TableRow>
             ))}
-            {applicants.length === 0 && !fetchingApplicants && (
+            {paginatedApplicants.length === 0 && (
               <TableRow>
                 <TableCell colSpan={12} align="center" sx={{ height: 120 }}>
                   No uploaded applicants found.
@@ -539,8 +764,7 @@ const UploadApplicants = () => {
 
       <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1} mt={2}>
         <Typography fontSize="14px" fontWeight="bold">
-          Total Applicants: {totalApplicants.toLocaleString()}
-          {debouncedSearch ? " (filtered)" : ""}
+          Total Applicants: {filteredApplicants.length}
         </Typography>
         <Box display="flex" alignItems="center" gap={1}>
           <Button size="small" variant="outlined" disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>
@@ -601,18 +825,47 @@ const UploadApplicants = () => {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={Boolean(assignTarget)} onClose={() => setAssignTarget(null)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={Boolean(assignTarget)}
+        onClose={() => setAssignTarget(null)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Assign Student Number</DialogTitle>
         <DialogContent dividers>
-          <Typography>
-            Assign a student number to{" "}
-            <strong>
-              {assignTarget?.first_name} {assignTarget?.middle_name} {assignTarget?.last_name}
-            </strong>
-            ?
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            <strong>Applicant Number:</strong> {assignTarget?.applicant_number || "N/A"}
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            This will create the student account and send the student number email using the existing student-numbering workflow.
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            <strong>Name:</strong> {assignTarget?.first_name} {assignTarget?.middle_name}{" "}
+            {assignTarget?.last_name}
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            <strong>Program:</strong> {assignTarget?.program_display || assignTarget?.program || "N/A"}
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            <strong>Email:</strong> {assignTarget?.email_address || "N/A"}
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            <strong>Contact:</strong> {assignTarget?.contact_num || "N/A"}
+          </Typography>
+          <TextField
+            fullWidth
+            size="small"
+            label="Student Number"
+            value={customStudentNumber}
+            onChange={(event) => setCustomStudentNumber(event.target.value)}
+            error={Boolean(studentNumberError)}
+            helperText={
+              checkingStudentNumber
+                ? "Checking availability..."
+                : studentNumberError || "Enter the student number to assign."
+            }
+            disabled={actionLoadingId === assignTarget?.id}
+          />
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            This will create the student account, enrollment records, QR code, and send the student
+            number email.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -622,10 +875,53 @@ const UploadApplicants = () => {
           <Button
             onClick={handleAssignStudentNumber}
             variant="contained"
-            disabled={actionLoadingId === assignTarget?.id}
+            disabled={
+              actionLoadingId === assignTarget?.id ||
+              !customStudentNumber.trim() ||
+              Boolean(studentNumberError) ||
+              checkingStudentNumber
+            }
             sx={{ backgroundColor: mainButtonColor }}
           >
             Assign
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(changeWarningTarget)}
+        onClose={() => setChangeWarningTarget(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Confirm Student Number Change</DialogTitle>
+        <DialogContent dividers>
+          <Typography sx={{ mb: 2 }}>
+            Changing a student number may affect enrollment records, course tagging, payments,
+            medical records, QR codes, and other modules that reference the old number.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Only continue if you are sure the new student number is correct and you understand the
+            possible consequences during the enrollment process.
+          </Typography>
+          <Typography variant="body2">
+            <strong>Current:</strong> {changeWarningTarget?.currentStudentNumber}
+          </Typography>
+          <Typography variant="body2">
+            <strong>New:</strong> {changeWarningTarget?.nextStudentNumber}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setChangeWarningTarget(null)} color="error" variant="outlined">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmStudentNumberChange}
+            variant="contained"
+            color="warning"
+            disabled={actionLoadingId === changeWarningTarget?.id}
+          >
+            Confirm Change
           </Button>
         </DialogActions>
       </Dialog>

@@ -278,6 +278,7 @@ router.get("/exam_schedules_with_count", async (req, res) => {
         s.proctor,
         s.room_quota,
         COUNT(ea.applicant_id) AS current_occupancy,
+        SUM(CASE WHEN COALESCE(ea.email_sent, 0) = 1 THEN 1 ELSE 0 END) AS official_occupancy,
         (s.room_quota - COUNT(ea.applicant_id)) AS remaining_slots
       FROM admission.entrance_exam_schedule s
       LEFT JOIN admission.exam_applicants ea
@@ -325,12 +326,12 @@ router.get("/exam_schedules_with_count/:yearId/:semesterId", async (req, res) =>
         sy.year_id,
         sy.semester_id,
         SUBSTRING(ea.applicant_id, 5, 1) AS middle_code,
-        COUNT(ea.applicant_id) AS current_occupancy
+        COUNT(ea.applicant_id) AS current_occupancy,
+        SUM(CASE WHEN COALESCE(ea.email_sent, 0) = 1 THEN 1 ELSE 0 END) AS official_occupancy
       FROM admission.entrance_exam_schedule ees
       JOIN enrollment.active_school_year_table sy ON ees.active_school_year_id = sy.id
       LEFT JOIN admission.exam_applicants ea
         ON ees.schedule_id = ea.schedule_id
-        AND COALESCE(ea.email_sent, 0) = 1
       WHERE sy.year_id = ? AND sy.semester_id = ?${branchClause}
       GROUP BY ees.schedule_id
       ORDER BY ees.day_description, ees.start_time;

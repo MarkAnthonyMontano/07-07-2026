@@ -270,6 +270,7 @@ const StudentScholarshipList = lazy(() => import("./system_management/StudentSch
 const TOSFCrud = lazy(() => import("./system_management/TOSFCrud"));
 const YearLevelPanel = lazy(() => import("./system_management/YearLevelPanel"));
 const YearPanel = lazy(() => import("./system_management/YearPanel"));
+const WorkloadManagement = lazy(() => import("./system_management/WorkloadManagement"));
 
 function App() {
   const getCachedSettings = () => {
@@ -774,7 +775,7 @@ function App() {
                       <Route path="/faculty_evaluation" element={<ProtectedRoute><FacultyEvaluation /></ProtectedRoute>} />
                       <Route path="/faculty_masterlist" element={<ProtectedRoute><FacultyMasterList /></ProtectedRoute>} />
                       <Route path="/student_dashboard" element={<GuardedRoute allowedRoles={"student"}><StudentDashboard profileImage={profileImage} setProfileImage={setProfileImage} /></GuardedRoute>} />
-
+                      <Route path="/workload_management" element={<ProtectedRoute><WorkloadManagement /></ProtectedRoute>} />
                       <Route path="/student_schedule" element={<ProtectedRoute allowedRoles={"student"}><StudentSchedule /></ProtectedRoute>} />
                       <Route path="/student_account_balance" element={<ProtectedRoute allowedRoles={"student"}><StudentBalanceManagement /></ProtectedRoute>} />
                       <Route path="/student_account_balance/info" element={<ProtectedRoute allowedRoles={"student"}><StudentBalanceInfo /></ProtectedRoute>} />

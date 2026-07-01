@@ -193,7 +193,7 @@ const buildUploadedApplicantPersonData = ({
 }) => ({
   campus: programMetadata.components,
   academicProgram: programMetadata.academic_program,
-  program: programMetadata.program_id,
+  program: uploadedApplicant.program,
   yearLevel: yearLevelId,
   last_name: uploadedApplicant.last_name,
   first_name: uploadedApplicant.first_name,
@@ -463,8 +463,198 @@ const assignStudentNumberFromApplicantPersonCore = async ({
   }
 };
 
+const getActiveSchoolYearId = async (connection) => {
+  const [rows] = await connection.query(
+    "SELECT id FROM active_school_year_table WHERE astatus = 1 LIMIT 1",
+  );
+  return Number(rows?.[0]?.id || 0);
+};
+
+const assertUploadedApplicantCurriculumIsActive = async (connection, curriculumId) => {
+  const [rows] = await connection.query(
+    "SELECT curriculum_id, lock_status FROM curriculum_table WHERE curriculum_id = ? LIMIT 1",
+    [curriculumId],
+  );
+
+  if (!rows.length) {
+    const error = new Error("Curriculum was not found for this applicant.");
+    error.status = 404;
+    throw error;
+  }
+
+  if (Number(rows[0].lock_status) !== 1) {
+    const error = new Error(
+      "Applicant curriculum is not active. Only locked curricula (lock_status = 1) can be assigned.",
+    );
+    error.status = 400;
+    throw error;
+  }
+
+  return rows[0];
+};
+
+const getAssignedStudentNumberForUploadedApplicant = async (connection, emailAddress) => {
+  const [rows] = await connection.query(
+    `SELECT snt.student_number, snt.person_id
+     FROM person_table pt
+     INNER JOIN student_numbering_table snt ON snt.person_id = pt.person_id
+     WHERE LOWER(TRIM(pt.emailAddress)) = LOWER(TRIM(?))
+     LIMIT 1`,
+    [emailAddress],
+  );
+
+  return rows[0] || null;
+};
+
+const isStudentNumberTaken = async (
+  connection,
+  studentNumber,
+  { excludeStudentNumber } = {},
+) => {
+  const normalized = normalizeText(studentNumber);
+  if (!normalized) return false;
+
+  const exclude = normalizeText(excludeStudentNumber);
+  if (exclude && normalized === exclude) return false;
+
+  const [rows] = await connection.query(
+    "SELECT student_number FROM student_numbering_table WHERE student_number = ? LIMIT 1",
+    [normalized],
+  );
+
+  return rows.length > 0;
+};
+
+const getTablesWithStudentNumberColumn = async (connection) => {
+  const [dbRows] = await connection.query("SELECT DATABASE() AS dbName");
+  const dbName = dbRows[0]?.dbName;
+  const [tables] = await connection.query(
+    `SELECT TABLE_NAME AS tableName
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = ? AND COLUMN_NAME = 'student_number'`,
+    [dbName],
+  );
+
+  return tables.map((row) => row.tableName);
+};
+
+const updateStudentNumberReferences = async (
+  connection,
+  oldStudentNumber,
+  newStudentNumber,
+  personId,
+) => {
+  const updatedTables = [];
+
+  await connection.query("SET FOREIGN_KEY_CHECKS = 0");
+
+  try {
+    const tables = await getTablesWithStudentNumberColumn(connection);
+
+    for (const table of tables) {
+      const [result] = await connection.query(
+        `UPDATE \`${table}\` SET student_number = ? WHERE student_number = ?`,
+        [newStudentNumber, oldStudentNumber],
+      );
+
+      if (result.affectedRows > 0) {
+        updatedTables.push({ table, rows: result.affectedRows });
+      }
+    }
+
+    const pathUpdates = [
+      { table: "person_table", column: "profile_img", where: "person_id = ?", whereParams: [personId] },
+      { table: "user_accounts", column: "profile_picture", where: "person_id = ?", whereParams: [personId] },
+      { table: "requirement_uploads", column: "file_path", where: "person_id = ?", whereParams: [personId] },
+      { table: "requirement_uploads", column: "submitted_documents", where: "person_id = ?", whereParams: [personId] },
+    ];
+
+    for (const { table, column, where, whereParams } of pathUpdates) {
+      const [cols] = await connection.query(`SHOW COLUMNS FROM \`${table}\` LIKE ?`, [column]);
+      if (!cols.length) continue;
+
+      const [result] = await connection.query(
+        `UPDATE \`${table}\`
+         SET \`${column}\` = REPLACE(\`${column}\`, ?, ?)
+         WHERE ${where} AND \`${column}\` LIKE ?`,
+        [oldStudentNumber, newStudentNumber, ...whereParams, `%${oldStudentNumber}%`],
+      );
+
+      if (result.affectedRows > 0) {
+        const existing = updatedTables.find((entry) => entry.table === `${table}.${column}`);
+        if (existing) {
+          existing.rows += result.affectedRows;
+        } else {
+          updatedTables.push({ table: `${table}.${column}`, rows: result.affectedRows });
+        }
+      }
+    }
+  } finally {
+    await connection.query("SET FOREIGN_KEY_CHECKS = 1");
+  }
+
+  return updatedTables;
+};
+
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const renameStudentNumberAssets = async (oldStudentNumber, newStudentNumber) => {
+  const renamedAssets = [];
+  const dirs = [
+    path.join(backendRoot, "uploads", "QrCodeGenerated"),
+    path.join(backendRoot, "uploads", "Student1by1"),
+    path.join(backendRoot, "uploads", "StudentOnlineDocuments"),
+    path.join(backendRoot, "uploads"),
+  ];
+
+  const shouldRename = (filename) =>
+    filename === `${oldStudentNumber}_qrcode.png` ||
+    filename.startsWith(`${oldStudentNumber}_`);
+
+  const newFilename = (filename) => {
+    if (filename === `${oldStudentNumber}_qrcode.png`) {
+      return `${newStudentNumber}_qrcode.png`;
+    }
+
+    return filename.replace(
+      new RegExp(`^${escapeRegex(oldStudentNumber)}_`),
+      `${newStudentNumber}_`,
+    );
+  };
+
+  for (const dir of dirs) {
+    if (!fs.existsSync(dir)) continue;
+
+    const entries = await fs.promises.readdir(dir);
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry);
+      const stat = await fs.promises.stat(fullPath).catch(() => null);
+      if (!stat?.isFile() || !shouldRename(entry)) continue;
+
+      const destPath = path.join(dir, newFilename(entry));
+      await fs.promises.rename(fullPath, destPath);
+      renamedAssets.push({ from: entry, to: path.basename(destPath) });
+    }
+  }
+
+  const newQrPath = path.join(
+    backendRoot,
+    "uploads",
+    "QrCodeGenerated",
+    `${newStudentNumber}_qrcode.png`,
+  );
+
+  if (!fs.existsSync(newQrPath)) {
+    await createQrCode(newStudentNumber);
+    renamedAssets.push({ from: null, to: `${newStudentNumber}_qrcode.png`, generated: true });
+  }
+
+  return renamedAssets;
+};
+
 const assignStudentNumberFromUploadedApplicantCore = async ({
   uploadedApplicant,
+  studentNumber: requestedStudentNumber,
   auditActorId = "unknown",
   auditActorRole = "registrar",
 }) => {
@@ -479,16 +669,24 @@ const assignStudentNumberFromUploadedApplicantCore = async ({
     throw error;
   }
 
+  const studentNumber = normalizeText(requestedStudentNumber);
+  if (!studentNumber) {
+    const error = new Error("Student number is required.");
+    error.status = 400;
+    throw error;
+  }
+
   const connection = await db3.getConnection();
   let emailSent = false;
   let emailErrorMessage = "";
   let enrollmentPersonId = null;
-  let studentNumber = "";
   let temporaryPassword = "";
   let personData = null;
 
   try {
     await connection.beginTransaction();
+
+    await assertUploadedApplicantCurriculumIsActive(connection, uploadedApplicant.program);
 
     const programMetadata = await getProgramMetadataForUploadedApplicant(
       connection,
@@ -498,41 +696,32 @@ const assignStudentNumberFromUploadedApplicantCore = async ({
       connection,
       programMetadata.academic_program,
     );
+    const activeSchoolYearId = await getActiveSchoolYearId(connection);
 
     const [latestRows] = await connection.query(
       "SELECT person_id AS latest_person_id FROM person_table ORDER BY person_id DESC LIMIT 1 FOR UPDATE",
     );
 
-    const [alreadyAssignedRows] = await connection.query(
-      `SELECT snt.student_number
-       FROM person_table pt
-       INNER JOIN student_numbering_table snt ON snt.person_id = pt.person_id
-       WHERE LOWER(TRIM(pt.emailAddress)) = LOWER(TRIM(?))
-       LIMIT 1`,
-      [uploadedApplicant.email_address],
+    const alreadyAssigned = await getAssignedStudentNumberForUploadedApplicant(
+      connection,
+      uploadedApplicant.email_address,
     );
 
-    if (alreadyAssignedRows.length) {
+    if (alreadyAssigned) {
       const error = new Error(
-        `Student number is already assigned: ${alreadyAssignedRows[0].student_number}`,
+        `Student number is already assigned: ${alreadyAssigned.student_number}`,
       );
       error.status = 409;
       throw error;
     }
 
-    enrollmentPersonId = Number(latestRows?.[0]?.latest_person_id || 0) + 1;
-    studentNumber = `${new Date().getFullYear()}${String(enrollmentPersonId).padStart(5, "0")}`;
-
-    const [existingStudentRows] = await connection.query(
-      "SELECT student_number FROM student_numbering_table WHERE student_number = ? LIMIT 1",
-      [studentNumber],
-    );
-
-    if (existingStudentRows.length) {
-      const error = new Error("Generated student number is already assigned.");
+    if (await isStudentNumberTaken(connection, studentNumber)) {
+      const error = new Error("This student number already exists.");
       error.status = 409;
       throw error;
     }
+
+    enrollmentPersonId = Number(latestRows?.[0]?.latest_person_id || 0) + 1;
 
     temporaryPassword = generateTemporaryPassword();
     const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
@@ -566,7 +755,7 @@ const assignStudentNumberFromUploadedApplicantCore = async ({
       `INSERT INTO student_status_table
         (student_number, active_curriculum, enrolled_status, year_level_id, active_school_year_id, control_status)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [studentNumber, uploadedApplicant.program, 0, yearLevelId, 0, 0],
+      [studentNumber, uploadedApplicant.program, 1, yearLevelId, activeSchoolYearId, 0],
     );
 
     await connection.query(
@@ -636,7 +825,115 @@ const assignStudentNumberFromUploadedApplicantCore = async ({
   }
 };
 
+const changeStudentNumberFromUploadedApplicantCore = async ({
+  uploadedApplicant,
+  newStudentNumber: requestedNewStudentNumber,
+  auditActorId = "unknown",
+  auditActorRole = "registrar",
+}) => {
+  if (!uploadedApplicant?.id) {
+    const error = new Error("Uploaded applicant is required.");
+    error.status = 400;
+    throw error;
+  }
+  if (!normalizeText(uploadedApplicant.email_address)) {
+    const error = new Error("Uploaded applicant email address is required.");
+    error.status = 400;
+    throw error;
+  }
+
+  const newStudentNumber = normalizeText(requestedNewStudentNumber);
+  if (!newStudentNumber) {
+    const error = new Error("Student number is required.");
+    error.status = 400;
+    throw error;
+  }
+
+  const connection = await db3.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const assigned = await getAssignedStudentNumberForUploadedApplicant(
+      connection,
+      uploadedApplicant.email_address,
+    );
+
+    if (!assigned) {
+      const error = new Error("No student number is assigned to this uploaded applicant.");
+      error.status = 404;
+      throw error;
+    }
+
+    const oldStudentNumber = assigned.student_number;
+    const personId = assigned.person_id;
+
+    if (newStudentNumber === oldStudentNumber) {
+      await connection.commit();
+      return {
+        success: true,
+        unchanged: true,
+        old_student_number: oldStudentNumber,
+        student_number: newStudentNumber,
+        updated_tables: [],
+        renamed_assets: [],
+        message: "Student number is unchanged.",
+      };
+    }
+
+    if (await isStudentNumberTaken(connection, newStudentNumber, { excludeStudentNumber: oldStudentNumber })) {
+      const error = new Error("This student number already exists.");
+      error.status = 409;
+      throw error;
+    }
+
+    const updatedTables = await updateStudentNumberReferences(
+      connection,
+      oldStudentNumber,
+      newStudentNumber,
+      personId,
+    );
+
+    const roleLabel = formatAuditActorRole(auditActorRole);
+    const studentName = [
+      uploadedApplicant.last_name,
+      uploadedApplicant.first_name,
+      uploadedApplicant.middle_name,
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    await insertAuditLogEnrollment({
+      actorId: auditActorId,
+      role: auditActorRole,
+      action: "STUDENT_NUMBER_CHANGE",
+      severity: "WARNING",
+      message: `${roleLabel} (${auditActorId}) changed student number from ${oldStudentNumber} to ${newStudentNumber} for uploaded applicant ${studentName || uploadedApplicant.applicant_number || uploadedApplicant.id}.`,
+    });
+
+    await connection.commit();
+
+    const renamedAssets = await renameStudentNumberAssets(oldStudentNumber, newStudentNumber);
+
+    return {
+      success: true,
+      old_student_number: oldStudentNumber,
+      student_number: newStudentNumber,
+      updated_tables: updatedTables,
+      renamed_assets: renamedAssets,
+      message: `Student number changed from ${oldStudentNumber} to ${newStudentNumber}. Updated ${updatedTables.length} table reference(s), processed ${renamedAssets.length} asset(s).`,
+    };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+};
+
 module.exports = {
+  isStudentNumberTaken: async (connection, studentNumber, options) =>
+    isStudentNumberTaken(connection, studentNumber, options),
   assignStudentNumberFromApplicantPerson: (payload) =>
     enqueueStudentNumberAssignment(() =>
       assignStudentNumberFromApplicantPersonCore(payload),
@@ -644,5 +941,9 @@ module.exports = {
   assignStudentNumberFromUploadedApplicant: (payload) =>
     enqueueStudentNumberAssignment(() =>
       assignStudentNumberFromUploadedApplicantCore(payload),
+    ),
+  changeStudentNumberFromUploadedApplicant: (payload) =>
+    enqueueStudentNumberAssignment(() =>
+      changeStudentNumberFromUploadedApplicantCore(payload),
     ),
 };

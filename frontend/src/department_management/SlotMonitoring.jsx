@@ -39,8 +39,6 @@ const SlotMonitoring = () => {
     const [loading, setLoading] = useState(false);
     const [hasAccess, setHasAccess] = useState(null);
     const [employeeID, setEmployeeID] = useState("");
-    const [employeeScopes, setEmployeeScopes] = useState([]);
-    const [isScopeRestricted, setIsScopeRestricted] = useState(false);
 
     const [schoolYears, setSchoolYears] = useState([]);
     const [semesters, setSchoolSemester] = useState([]);
@@ -102,30 +100,10 @@ const SlotMonitoring = () => {
         if (storedUser && storedRole && storedID && storedEmployeeID) {
             setEmployeeID(storedEmployeeID);
             checkAccess(storedEmployeeID);
-            loadEmployeeScope(storedEmployeeID);
         } else {
             window.location.href = "/login";
         }
     }, []);
-
-    const loadEmployeeScope = async (employeeIDValue) => {
-        try {
-            const response = await axios.get(`${API_BASE_URL}/api/employee/${employeeIDValue}`);
-            const scopes = response.data?.scopes || [];
-            setEmployeeScopes(scopes);
-            setIsScopeRestricted(scopes.length > 0);
-        } catch (err) {
-            console.error("Error loading employee scope:", err);
-        }
-    };
-
-    const scopedDepartmentIds = [
-        ...new Set(employeeScopes.map((scope) => String(scope.dprtmnt_id))),
-    ];
-    const scopedProgramsForDepartment = (departmentId) =>
-        employeeScopes
-            .filter((scope) => String(scope.dprtmnt_id) === String(departmentId))
-            .map((scope) => String(scope.program_id));
 
     const checkAccess = async (employeeIDValue) => {
         setLoading(true);
@@ -199,10 +177,10 @@ const SlotMonitoring = () => {
     useEffect(() => {
         if (hasAccess !== true) return;
         fetchDepartments();
-    }, [hasAccess, employeeScopes]);
+    }, [hasAccess]);
 
     useEffect(() => {
-        if (department.length > 0 && !selectedDepartmentFilter && scopedDepartmentIds.length === 0) {
+        if (department.length > 0 && !selectedDepartmentFilter) {
             const firstDeptId = department[0].dprtmnt_id;
             setSelectedDepartmentFilter(firstDeptId);
             fetchPrograms(firstDeptId);
@@ -210,10 +188,10 @@ const SlotMonitoring = () => {
     }, [department, selectedDepartmentFilter]);
 
     useEffect(() => {
-        if (programs.length > 0 && !selectedProgram && scopedProgramsForDepartment(selectedDepartmentFilter).length === 0) {
+        if (programs.length > 0 && !selectedProgram) {
             setSelectedProgram(programs[0].program_id);
         }
-    }, [programs, selectedProgram, selectedDepartmentFilter, employeeScopes]);
+    }, [programs, selectedProgram, selectedDepartmentFilter]);
 
     useEffect(() => {
         if (yearLevels.length > 0 && !selectedYearLevel) {
@@ -226,18 +204,7 @@ const SlotMonitoring = () => {
         try {
             const res = await axios.get(`${API_BASE_URL}/api/get_department`);
             const allDepartments = res.data || [];
-            if (scopedDepartmentIds.length > 0) {
-                const scoped = allDepartments.filter((dep) =>
-                    scopedDepartmentIds.includes(String(dep.dprtmnt_id)),
-                );
-                setDepartment(scoped);
-                if (scoped.length > 0) {
-                    setSelectedDepartmentFilter(scoped[0].dprtmnt_id);
-                    fetchPrograms(scoped[0].dprtmnt_id);
-                }
-            } else {
-                setDepartment(allDepartments);
-            }
+            setDepartment(allDepartments);
         } catch (err) {
             console.error("Fetch error:", err);
         }
@@ -248,19 +215,7 @@ const SlotMonitoring = () => {
         if (!dprtmnt_id) return;
         try {
             const res = await axios.get(`${API_BASE_URL}/api/applied_program/${dprtmnt_id}`);
-            const allPrograms = res.data || [];
-            const allowedProgramIds = scopedProgramsForDepartment(dprtmnt_id);
-            if (allowedProgramIds.length > 0) {
-                const scoped = allPrograms.filter((prog) =>
-                    allowedProgramIds.includes(String(prog.program_id)),
-                );
-                setPrograms(scoped);
-                if (scoped.length > 0) {
-                    setSelectedProgram(scoped[0].program_id);
-                }
-            } else {
-                setPrograms(allPrograms);
-            }
+            setPrograms(res.data || []);
         } catch (err) {
             console.error("Department fetch error:", err);
         }
@@ -328,7 +283,6 @@ const SlotMonitoring = () => {
                         semesterId: selectedSchoolSemester,
                         campus: campusFilter,
                         activeSchoolYearId: selectedActiveSchoolYear,
-                        enforceScope: "1",
                     },
                     headers: {
                         "x-employee-id": employeeID || localStorage.getItem("employee_id") || "",
@@ -381,7 +335,6 @@ const SlotMonitoring = () => {
                         semesterId: selectedSchoolSemester,
                         campus: campusFilter,
                         activeSchoolYearId: selectedActiveSchoolYear,
-                        enforceScope: "1",
                         ...(selectedCourse ? { courseId: selectedCourse } : {}),
                     },
                     headers: {
@@ -1050,7 +1003,6 @@ const SlotMonitoring = () => {
                                             name="college"
                                             value={selectedDepartmentFilter}
                                             onChange={handleCollegeChange}
-                                            disabled={scopedDepartmentIds.length === 1}
                                             sx={{ width: "485px", textAlign: "left" }}
                                             MenuProps={{
                                                 PaperProps: {
@@ -1076,7 +1028,6 @@ const SlotMonitoring = () => {
                                             name="program"
                                             value={selectedProgram}
                                             onChange={(e) => setSelectedProgram(e.target.value)}
-                                            disabled={scopedProgramsForDepartment(selectedDepartmentFilter).length === 1}
                                             sx={{ width: "485px", textAlign: "left" }}
                                             MenuProps={{
                                                 PaperProps: {

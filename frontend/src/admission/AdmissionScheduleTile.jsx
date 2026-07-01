@@ -141,6 +141,9 @@ const ScheduleHoverTile = () => {
         if (settings.border_color) setBorderColor(settings.border_color);
     }, [settings]);
 
+    const getOfficialOccupancy = (schedule) =>
+        Number(schedule?.official_occupancy ?? schedule?.current_occupancy ?? 0);
+
     // Fetch school years, semesters, and active selection in order
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -681,19 +684,19 @@ const ScheduleHoverTile = () => {
 
                                 <Typography fontSize="14px" mb={0.5} fontWeight="bold">
                                     <strong>Applicants:</strong>{" "}
-                                    {schedule.current_occupancy}/{schedule.room_quota}
+                                    {getOfficialOccupancy(schedule)}/{schedule.room_quota}
                                 </Typography>
 
                                 <LinearProgress
                                     variant="determinate"
-                                    value={(schedule.current_occupancy / schedule.room_quota) * 100}
+                                    value={(getOfficialOccupancy(schedule) / schedule.room_quota) * 100}
                                     sx={{
                                         height: 8,
                                         borderRadius: 4,
                                         backgroundColor: "#eee",
                                         "& .MuiLinearProgress-bar": {
                                             backgroundColor: getOccupancyColor(
-                                                schedule.current_occupancy,
+                                                getOfficialOccupancy(schedule),
                                                 schedule.room_quota
                                             ),
                                         },
@@ -701,9 +704,9 @@ const ScheduleHoverTile = () => {
                                 />
 
                                 <Box sx={{ mt: 1 }}>
-                                    {schedule.current_occupancy >= schedule.room_quota ? (
+                                    {getOfficialOccupancy(schedule) >= schedule.room_quota ? (
                                         <Chip label="Full" color="error" size="small" />
-                                    ) : schedule.current_occupancy / schedule.room_quota >= 0.7 ? (
+                                    ) : getOfficialOccupancy(schedule) / schedule.room_quota >= 0.7 ? (
                                         <Chip label="Almost Full" color="warning" size="small" />
                                     ) : (
                                         <Chip label="Available" color="success" size="small" />

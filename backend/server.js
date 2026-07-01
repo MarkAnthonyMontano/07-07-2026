@@ -35,9 +35,9 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://192.168.50.211:5173",
   "http://136.239.248.62:5173",
-  "http://192.168.50.63:5173",
+  "http://192.168.50.50:5173",
   "http://192.168.1.9:5173",
-  "http://192.168.50.63:5173",
+  "http://192.168.50.50:5173",
 ];
 
 app.use(
@@ -2394,7 +2394,7 @@ app.get("/api/person_with_applicant/:id", async (req, res) => {
       JOIN applicant_numbering_table ant ON pt.person_id = ant.person_id
       LEFT JOIN interview_applicants ia ON ia.applicant_id = ant.applicant_number
       LEFT JOIN person_status_table ps ON ps.person_id = pt.person_id
-      LEFT JOIN exam_applicants ea ON ant.applicant_number = ea.applicant_id
+      LEFT JOIN exam_applicants ea ON ant.applicant_number = ea.applicant_id AND COALESCE(ea.email_sent, 0) = 1
       LEFT JOIN entrance_exam_schedule ees
         ON ea.schedule_id = ees.schedule_id
         AND COALESCE(ea.email_sent, 0) = 1

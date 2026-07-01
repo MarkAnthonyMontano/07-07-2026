@@ -230,13 +230,15 @@ router.get("/section_table/:dprtmnt_id", async (req, res) => {
 
   try {
     const query = `
-      SELECT dst.id as dep_section_id, st.*, pt.*
+      SELECT dst.id AS dep_section_id, dst.curriculum_id, st.*, pt.*
       FROM dprtmnt_curriculum_table AS dct
       INNER JOIN dprtmnt_section_table AS dst ON dct.curriculum_id = dst.curriculum_id
       INNER JOIN section_table AS st ON dst.section_id = st.id
       INNER JOIN curriculum_table AS ct ON dct.curriculum_id = ct.curriculum_id
       INNER JOIN program_table AS pt ON ct.program_id = pt.program_id
-      WHERE dct.dprtmnt_id = ? GROUP BY dst.id;
+      WHERE dct.dprtmnt_id = ?
+        AND ct.lock_status = 1
+      GROUP BY dst.id, dst.curriculum_id, st.id, pt.program_id;
     `;
 
     const [results] = await db3.query(query, [dprtmnt_id]);

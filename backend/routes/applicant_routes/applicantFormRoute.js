@@ -188,8 +188,6 @@ router.put("/person/:id", async (req, res) => {
       .filter(([_, value]) => value !== undefined)
       .map(([key, value]) => [key, value === "" ? null : value]);
 
-    console.log("Entry: ", Object.fromEntries(cleanedEntries));
-
     if (cleanedEntries.length === 0) {
       return res.status(400).json({ error: "No valid fields to update" });
     }
@@ -231,6 +229,7 @@ router.put("/person/:id", async (req, res) => {
       return res.status(404).json({ error: "Person not found or no changes made" });
     }
 
+    
     // Keep user_accounts email in sync when applicant email changes.
     // We only update applicant role accounts to avoid touching staff emails.
     if (emailEntry) {
@@ -451,8 +450,9 @@ router.post("/add-applicant", async (req, res) => {
     );
 
     await db.query(
-      `INSERT INTO interview_applicants (schedule_id, applicant_id, email_sent, status)
-       VALUES (?, ?, 0, 0)`,
+      `INSERT INTO interview_applicants
+       (schedule_id, applicant_id, email_sent, status, qualifying_status, interview_status)
+       VALUES (?, ?, 0, 0, NULL, NULL)`,
       [null, applicant_number]
     );
 

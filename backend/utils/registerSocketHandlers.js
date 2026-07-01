@@ -2268,14 +2268,14 @@ Click the link below to log in:
                 skipped.push(applicant_number); // already in this schedule
               } else {
                 await db.query(
-                  `UPDATE exam_applicants SET schedule_id = ? WHERE applicant_id = ?`,
+                  `UPDATE exam_applicants SET schedule_id = ?, email_sent = 0 WHERE applicant_id = ?`,
                   [schedule_id, applicant_number],
                 );
                 updated.push(applicant_number);
               }
             } else {
               await db.query(
-                `INSERT INTO exam_applicants (applicant_id, schedule_id) VALUES (?, ?)`,
+                `INSERT INTO exam_applicants (applicant_id, schedule_id, email_sent) VALUES (?, ?, 0)`,
                 [applicant_number, schedule_id],
               );
               assigned.push(applicant_number);
@@ -3360,6 +3360,210 @@ Click the link below to log in:
     }
   });
 
+  app.post("/api/check-professor-substitution", async (req, res) => {
+    const {
+      day,
+      start_time,
+      end_time,
+      school_year_id,
+      prof_id,
+      exclude_schedule_id,
+    } = req.body;
+
+    if (!day || !start_time || !end_time || !school_year_id || !prof_id) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    try {
+      const start_time_m = timeToMinutes(start_time);
+      const end_time_m = timeToMinutes(end_time);
+
+      const checkTimeQuery = `
+      SELECT * FROM time_table
+      WHERE room_day = ?
+        AND school_year_id = ?
+        AND professor_id = ?
+        AND id != ?
+        AND (
+          (? > TIME_TO_SEC(STR_TO_DATE(school_time_start, '%l:%i %p'))/60
+          AND ? < TIME_TO_SEC(STR_TO_DATE(school_time_end, '%l:%i %p'))/60)
+          OR
+          (? > TIME_TO_SEC(STR_TO_DATE(school_time_start, '%l:%i %p'))/60
+          AND ? < TIME_TO_SEC(STR_TO_DATE(school_time_end, '%l:%i %p'))/60)
+          OR
+          (TIME_TO_SEC(STR_TO_DATE(school_time_start, '%l:%i %p'))/60 > ?
+          AND TIME_TO_SEC(STR_TO_DATE(school_time_start, '%l:%i %p'))/60 < ?)
+          OR
+          (TIME_TO_SEC(STR_TO_DATE(school_time_end, '%l:%i %p'))/60 > ?
+          AND TIME_TO_SEC(STR_TO_DATE(school_time_end, '%l:%i %p'))/60 < ?)
+          OR
+          (TIME_TO_SEC(STR_TO_DATE(school_time_start, '%l:%i %p'))/60 = ?
+          AND TIME_TO_SEC(STR_TO_DATE(school_time_end, '%l:%i %p'))/60 = ?)
+        )
+    `;
+
+      const [timeResult] = await db3.query(checkTimeQuery, [
+        day,
+        school_year_id,
+        prof_id,
+        exclude_schedule_id || 0,
+        start_time_m,
+        start_time_m,
+        end_time_m,
+        end_time_m,
+        start_time_m,
+        end_time_m,
+        start_time_m,
+        end_time_m,
+        start_time_m,
+        end_time_m,
+      ]);
+
+      if (timeResult.length > 0) {
+        return res.status(409).json({
+          conflict: true,
+          message:
+            "Schedule conflict detected! The substitute professor is already booked at this time.",
+        });
+      }
+
+      return res.status(200).json({
+        conflict: false,
+        message: "Substitute professor is available at this time.",
+      });
+    } catch (error) {
+      console.error("Professor substitution check error:", error);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.put("/api/update-schedule/:id", async (req, res) => {
+    const { id } = req.params;
+    const {
+      update_mode,
+      prof_id,
+      ishonorarium,
+      is_servicecredit,
+      is_temporary_substitution,
+    } = req.body;
+
+    try {
+      const [existingRows] = await db3.query(
+        `SELECT * FROM time_table WHERE id = ?`,
+        [id]
+      );
+
+      if (!existingRows.length) {
+        return res.status(404).json({ error: "Schedule not found." });
+      }
+
+      const existing = existingRows[0];
+
+      if (update_mode === "substitution") {
+        if (!prof_id) {
+          return res.status(400).json({ error: "Professor is required for substitution." });
+        }
+
+        if (String(prof_id) === String(existing.professor_id)) {
+          return res.status(409).json({
+            conflict: true,
+            message: "Select a different professor for substitution.",
+          });
+        }
+
+        const startMinutes = timeToMinutes(existing.school_time_start);
+        const endMinutes = timeToMinutes(existing.school_time_end);
+
+        const checkTimeQuery = `
+        SELECT * FROM time_table
+        WHERE room_day = ?
+          AND school_year_id = ?
+          AND professor_id = ?
+          AND id != ?
+          AND (
+            (? > TIME_TO_SEC(STR_TO_DATE(school_time_start, '%l:%i %p'))/60
+            AND ? < TIME_TO_SEC(STR_TO_DATE(school_time_end, '%l:%i %p'))/60)
+            OR
+            (? > TIME_TO_SEC(STR_TO_DATE(school_time_start, '%l:%i %p'))/60
+            AND ? < TIME_TO_SEC(STR_TO_DATE(school_time_end, '%l:%i %p'))/60)
+            OR
+            (TIME_TO_SEC(STR_TO_DATE(school_time_start, '%l:%i %p'))/60 > ?
+            AND TIME_TO_SEC(STR_TO_DATE(school_time_start, '%l:%i %p'))/60 < ?)
+            OR
+            (TIME_TO_SEC(STR_TO_DATE(school_time_end, '%l:%i %p'))/60 > ?
+            AND TIME_TO_SEC(STR_TO_DATE(school_time_end, '%l:%i %p'))/60 < ?)
+            OR
+            (TIME_TO_SEC(STR_TO_DATE(school_time_start, '%l:%i %p'))/60 = ?
+            AND TIME_TO_SEC(STR_TO_DATE(school_time_end, '%l:%i %p'))/60 = ?)
+          )
+      `;
+
+        const [timeResult] = await db3.query(checkTimeQuery, [
+          existing.room_day,
+          existing.school_year_id,
+          prof_id,
+          id,
+          startMinutes,
+          startMinutes,
+          endMinutes,
+          endMinutes,
+          startMinutes,
+          endMinutes,
+          startMinutes,
+          endMinutes,
+          startMinutes,
+          endMinutes,
+        ]);
+
+        if (timeResult.length > 0) {
+          return res.status(409).json({
+            conflict: true,
+            message:
+              "Schedule conflict detected! The substitute professor is already booked at this time.",
+          });
+        }
+
+        await db3.query(
+          `UPDATE time_table
+           SET professor_id = ?, ishonorarium = 0, is_servicecredit = 0, is_temporary_substitution = 1
+           WHERE id = ?`,
+          [prof_id, id]
+        );
+      } else if (update_mode === "load_type") {
+        const hon = Number(ishonorarium) === 1 ? 1 : 0;
+        const sc = Number(is_servicecredit) === 1 ? 1 : 0;
+        const ts = Number(is_temporary_substitution) === 1 ? 1 : 0;
+        const activeCount = [hon, sc, ts].filter((flag) => flag === 1).length;
+
+        if (activeCount > 1) {
+          return res.status(400).json({
+            error: "Only one load type can be active at a time.",
+          });
+        }
+
+        if (activeCount === 0) {
+          return res.status(400).json({
+            error: "Select honorarium or service credit to update load type.",
+          });
+        }
+
+        await db3.query(
+          `UPDATE time_table
+           SET ishonorarium = ?, is_servicecredit = ?, is_temporary_substitution = ?
+           WHERE id = ?`,
+          [hon, sc, ts, id]
+        );
+      } else {
+        return res.status(400).json({ error: "Invalid update mode." });
+      }
+
+      res.status(200).json({ message: "Schedule updated successfully." });
+    } catch (error) {
+      console.error("Error updating schedule:", error);
+      res.status(500).json({ error: "Failed to update schedule." });
+    }
+  });
+
   //  Check conflict API
   app.post("/api/check-time", async (req, res) => {
     const { start_time, end_time } = req.body;
@@ -3418,6 +3622,8 @@ Click the link below to log in:
       room_id,
       school_year_id,
       ishonorarium,
+      is_servicecredit,
+      is_temporary_substitution,
     } = req.body;
 
     if (
@@ -3529,7 +3735,7 @@ Click the link below to log in:
       // Insert schedule
       const insertQuery = `
       INSERT INTO time_table
-      (room_day, school_time_start, school_time_end, department_section_id, course_id, ishonorarium, professor_id, department_room_id, school_year_id)
+      (room_day, school_time_start, school_time_end, department_section_id, course_id, ishonorarium, is_servicecredit, is_temporary_substitution, professor_id, department_room_id, school_year_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
       await db3.query(insertQuery, [
@@ -3538,7 +3744,9 @@ Click the link below to log in:
         end_time,
         section_id,
         subject_id,
-        ishonorarium,
+        Number(ishonorarium) === 1 ? 1 : 0,
+        Number(is_servicecredit) === 1 ? 1 : 0,
+        Number(is_temporary_substitution) === 1 ? 1 : 0,
         prof_id,
         room_id,
         school_year_id,
@@ -3877,14 +4085,24 @@ Click the link below to log in:
 
   ///////---------------------------- DUPLICATE ----------------------------//////////
   app.get("/api/departments", async (req, res) => {
-    const sql = "SELECT dprtmnt_id, dprtmnt_code, dprtmnt_name FROM dprtmnt_table";
+    const {
+      ensureDepartmentIsAllowedColumn,
+    } = require("../routes/system_routes/dprmntRoute");
 
     try {
-      const [result] = await db3.query(sql);
-      res.json(result);
+      await ensureDepartmentIsAllowedColumn();
+      const [departments] = await db3.execute(`
+      SELECT
+        dt.dprtmnt_id,
+        dt.dprtmnt_name,
+        dt.dprtmnt_code,
+        COALESCE(dt.is_allowed, 1) AS is_allowed
+      FROM dprtmnt_table AS dt
+    `);
+      res.json(departments);
     } catch (err) {
       console.error("Error fetching departments:", err);
-      return res.status(500).json({ error: err.message });
+      res.status(500).json({ error: "Internal Server Error" });
     }
   });
 
@@ -4482,16 +4700,22 @@ Click the link below to log in:
       const [results] = await db3.execute(
         `
       SELECT
+        t.id,
         t.room_day,
+        t.professor_id,
         d.description as day_description,
         t.school_time_start AS school_time_start,
         t.school_time_end AS school_time_end,
         pgt.program_code,
         st.description AS section_description,
         rt.room_description,
-        cst.course_code,
+        COALESCE(cst.course_code, wt.workload_code) AS course_code,
+        wt.workload_color,
         cst.course_id,
         t.department_section_id,
+        t.ishonorarium,
+        t.is_servicecredit,
+        t.is_temporary_substitution,
         st.id as section_id,
         t.school_year_id
       FROM time_table t
@@ -4502,7 +4726,8 @@ Click the link below to log in:
       LEFT JOIN curriculum_table AS cct ON dst.curriculum_id = cct.curriculum_id
       LEFT JOIN program_table AS pgt ON cct.program_id = pgt.program_id
       LEFT JOIN room_table AS rt ON t.department_room_id = rt.room_id
-      LEFT JOIN course_table AS cst ON t.course_id = cst.course_id
+      LEFT JOIN course_table AS cst ON t.course_id = cst.course_id AND t.department_section_id IS NOT NULL
+      LEFT JOIN workload_type AS wt ON t.course_id = wt.id AND t.department_section_id IS NULL
       WHERE t.professor_id = ? AND asy.astatus = 1;
     `,
         [profId],
@@ -4821,15 +5046,25 @@ Click the link below to log in:
     }
   });
 
-  app.get("/api/departments", async (req, res) => {
+ app.get("/api/departments", async (req, res) => {
+    const {
+      ensureDepartmentIsAllowedColumn,
+    } = require("../routes/system_routes/dprmntRoute");
+
     try {
-      const [departments] = await db3.execute(`
-      SELECT dt.dprtmnt_id, dt.dprtmnt_name, dt.dprtmnt_code FROM dprtmnt_table AS dt
-    `);
-      res.json(departments);
+      await ensureDepartmentIsAllowedColumn();
+      const [result] = await db3.query(
+        `SELECT
+           dprtmnt_id,
+           dprtmnt_code,
+           dprtmnt_name,
+           COALESCE(is_allowed, 1) AS is_allowed
+         FROM dprtmnt_table`,
+      );
+      res.json(result);
     } catch (err) {
       console.error("Error fetching departments:", err);
-      res.status(500).json({ error: "Internal Server Error" });
+      return res.status(500).json({ error: err.message });
     }
   });
 
@@ -5013,16 +5248,26 @@ Click the link below to log in:
       SELECT
         tt.id,
         tt.room_day,
+        tt.department_section_id,
+        tt.course_id,
+        tt.professor_id,
+        tt.department_room_id,
+        tt.school_year_id,
         rdt.description AS day_description,
         tt.school_time_start,
         tt.school_time_end,
         pft.lname AS prof_lastname,
         pft.fname AS prof_firstname,
-        cst.course_code,
+        COALESCE(cst.course_code, wt.workload_code) AS course_code,
+        wt.workload_color,
         rmt.room_description,
         pgt.program_code,
+        pgt.program_id,
+        dct.dprtmnt_id,
         pft.employee_id,
         tt.ishonorarium,
+        tt.is_servicecredit,
+        tt.is_temporary_substitution,
         yt.year_description AS current_year,
         yt.year_description + 1 AS next_year,
         smt.semester_description,
@@ -5031,8 +5276,10 @@ Click the link below to log in:
         LEFT JOIN room_day_table AS rdt ON tt.room_day = rdt.id
         LEFT JOIN dprtmnt_section_table AS dst ON tt.department_section_id = dst.id
         LEFT JOIN curriculum_table AS cct ON dst.curriculum_id = cct.curriculum_id
+        LEFT JOIN dprtmnt_curriculum_table AS dct ON dst.curriculum_id = dct.curriculum_id
         LEFT JOIN program_table AS pgt ON cct.program_id = pgt.program_id
-        LEFT JOIN course_table AS cst ON tt.course_id = cst.course_id
+        LEFT JOIN course_table AS cst ON tt.course_id = cst.course_id AND tt.department_section_id IS NOT NULL
+        LEFT JOIN workload_type AS wt ON tt.course_id = wt.id AND tt.department_section_id IS NULL
         LEFT JOIN prof_table AS pft ON tt.professor_id = pft.prof_id
         LEFT JOIN active_school_year_table AS syt ON tt.school_year_id = syt.id
         LEFT JOIN room_table AS rmt ON tt.department_room_id = rmt.room_id
@@ -7264,6 +7511,29 @@ Click the link below to log in:
   app.get("/api/applicant-scores/:applicant_number", async (req, res) => {
     const { applicant_number } = req.params;
 
+    const resolveProfileResultStatus = (status, { scheduleId, resultScore } = {}) => {
+      if (status === null || status === undefined) return null;
+
+      const numericStatus = Number(status);
+      if (Number.isNaN(numericStatus)) return null;
+
+      // Failed is only set intentionally by staff.
+      if (numericStatus === 1) return 1;
+
+      // Passed (0) should not appear until interview/qualifying progress exists.
+      if (numericStatus === 0) {
+        const hasProgress =
+          scheduleId !== null &&
+          scheduleId !== undefined &&
+          String(scheduleId).trim() !== "" ||
+          Number(resultScore) > 0;
+
+        return hasProgress ? 0 : null;
+      }
+
+      return null;
+    };
+
     try {
       // Get person_id
       const [personRow] = await db.query(
@@ -7277,52 +7547,72 @@ Click the link below to log in:
 
       const person_id = personRow[0].person_id;
 
-      // 1  Get Admission Exam Score
-      // 1 Get Admission Exam Status
       const [examRow] = await db.query(
         `
-  SELECT status
-  FROM exam_results
-  WHERE person_id = ?
-  LIMIT 1
-  `,
-        [person_id],
-      );
-
-      const entrance_exam_status = examRow.length ? examRow[0].status : null;
-
-      // 2  Get Qualifying & Interview Results
-      const [statusRow] = await db.query(
-        `
-  SELECT 
-      pst.qualifying_result,
-      pst.interview_result,
-      ia.qualifying_status,
-      ia.interview_status
-  FROM person_status_table pst
-  LEFT JOIN interview_applicants ia 
-      ON ia.applicant_id = ?
-  WHERE pst.person_id = ?
-  LIMIT 1
-  `,
+        SELECT er.status, er.total_score, ea.schedule_id, ea.email_sent
+        FROM exam_results er
+        LEFT JOIN exam_applicants ea ON ea.applicant_id = ?
+        WHERE er.person_id = ?
+        LIMIT 1
+        `,
         [applicant_number, person_id],
       );
 
-      const qualifying_result = statusRow.length
-        ? statusRow[0].qualifying_result
-        : null;
-      const interview_result = statusRow.length
-        ? statusRow[0].interview_result
-        : null;
+      let entrance_exam_status = null;
+      if (
+        examRow.length &&
+        examRow[0].status !== null &&
+        examRow[0].status !== undefined
+      ) {
+        const examStatus = Number(examRow[0].status);
+        const hasExamProgress =
+          examRow[0].schedule_id != null ||
+          Number(examRow[0].email_sent) === 1 ||
+          Number(examRow[0].total_score) > 0;
+
+        if (examStatus === 1 || hasExamProgress) {
+          entrance_exam_status = examRow[0].status;
+        }
+      }
+
+      const [statusRow] = await db.query(
+        `
+        SELECT
+          pst.qualifying_result,
+          pst.interview_result,
+          ia.qualifying_status,
+          ia.interview_status,
+          ia.schedule_id
+        FROM person_status_table pst
+        LEFT JOIN interview_applicants ia
+          ON ia.applicant_id = ?
+        WHERE pst.person_id = ?
+        LIMIT 1
+        `,
+        [applicant_number, person_id],
+      );
+
+      const row = statusRow[0];
+
+      const qualifying_result = row ? row.qualifying_result : null;
+      const interview_result = row ? row.interview_result : null;
 
       res.json({
         entrance_exam_status,
         qualifying_result,
         interview_result,
-        qualifying_status: statusRow.length
-          ? statusRow[0].qualifying_status
-          : 0,
-        interview_status: statusRow.length ? statusRow[0].interview_status : 0,
+        qualifying_status: row
+          ? resolveProfileResultStatus(row.qualifying_status, {
+              scheduleId: row.schedule_id,
+              resultScore: row.qualifying_result,
+            })
+          : null,
+        interview_status: row
+          ? resolveProfileResultStatus(row.interview_status, {
+              scheduleId: row.schedule_id,
+              resultScore: row.interview_result,
+            })
+          : null,
       });
     } catch (err) {
       console.error(err);
@@ -8470,7 +8760,8 @@ Click the link below to log in:
         pt.fname,
         pt.mname,
         pt.lname,
-        ct.course_code,
+        COALESCE(ct.course_code, wt.workload_code) AS course_code,
+        wt.workload_color,
         pgt.program_id,
         pgt.program_code,
         sct.description AS section_description,
@@ -8480,6 +8771,8 @@ Click the link below to log in:
         COALESCE(rt_from_mapping.room_id, rt_direct.room_id) AS room_id,
         COALESCE(rt_from_mapping.room_description, rt_direct.room_description) AS room_description,
         tt.ishonorarium,
+        tt.is_servicecredit,
+        tt.is_temporary_substitution,
         yt.year_id,
         yt.year_description AS current_year,
         yt.year_description + 1 AS next_year,
@@ -8487,7 +8780,8 @@ Click the link below to log in:
         st.semester_description
       FROM time_table tt
       INNER JOIN prof_table pt ON tt.professor_id = pt.prof_id
-      LEFT JOIN course_table ct ON tt.course_id = ct.course_id
+      LEFT JOIN course_table ct ON tt.course_id = ct.course_id AND tt.department_section_id IS NOT NULL
+      LEFT JOIN workload_type wt ON tt.course_id = wt.id AND tt.department_section_id IS NULL
       LEFT JOIN dprtmnt_section_table dst ON tt.department_section_id = dst.id
       LEFT JOIN section_table sct ON dst.section_id = sct.id
       LEFT JOIN curriculum_table cct ON dst.curriculum_id = cct.curriculum_id

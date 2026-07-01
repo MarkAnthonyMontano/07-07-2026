@@ -233,6 +233,7 @@ const SectionPanel = () => {
   if (loading || hasAccess === null) return <LoadingOverlay open={loading} message="Loading..." />;
   if (!hasAccess) return <Unauthorized />;
   const showActionColumn = canEdit || canDelete;
+  const showCreateActions = canCreate;
 
      // 🔒 Disable right-click
     document.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -456,10 +457,13 @@ const SectionPanel = () => {
                       Last
                     </Button>
 
-                    {canCreate && (
                     <Button
                       variant="contained"
                       onClick={() => {
+                        if (!canCreate) {
+                          setSnackbar({ open: true, message: "You do not have permission to create sections", severity: "error" });
+                          return;
+                        }
                         setEditId(null);
                         setDescription("");
                         setOpenFormDialog(true);
@@ -473,14 +477,14 @@ const SectionPanel = () => {
                         textTransform: "none",
                         px: 2,
                         mr: "15px",
+                        display: showCreateActions ? "inline-flex" : "none",
                         '&:hover': {
                           backgroundColor: "#1565c0" // darker blue hover
                         }
                       }}
                     >
-                      + Add Section
+                      + Add Schedule
                     </Button>
-                    )}
                   </Box>
                 </Box>
               </TableCell>
@@ -504,7 +508,7 @@ const SectionPanel = () => {
               <TableCell sx={{ fontWeight: "bold", textAlign: "center", border: `1px solid ${borderColor}`, backgroundColor: "#f5f5f5", color: "#000" }}>ID</TableCell>
               <TableCell sx={{ fontWeight: "bold", textAlign: "center", border: `1px solid ${borderColor}`, backgroundColor: "#f5f5f5", color: "#000" }}>Section Description</TableCell>
               {showActionColumn && (
-              <TableCell sx={{ fontWeight: "bold", textAlign: "center", border: `1px solid ${borderColor}`, backgroundColor: "#f5f5f5", color: "#000" }}>Action</TableCell>
+                <TableCell sx={{ fontWeight: "bold", textAlign: "center", border: `1px solid ${borderColor}`, backgroundColor: "#f5f5f5", color: "#000" }}>Action</TableCell>
               )}
             </TableRow>
           </TableHead>
@@ -835,11 +839,11 @@ const SectionPanel = () => {
 
           <Button
             variant="contained"
-            disabled={editId ? !canEdit : !canCreate}
             sx={{
               px: 4,
               fontWeight: 600,
-              textTransform: "none"
+              textTransform: "none",
+              display: (editId ? canEdit : canCreate) ? "inline-flex" : "none",
             }}
             onClick={handleSubmit}
           >
@@ -898,7 +902,6 @@ const SectionPanel = () => {
           <Button
             variant="contained"
             color="error"
-            disabled={!canDelete}
             onClick={handleConfirmDelete}
           >
             Yes, Delete

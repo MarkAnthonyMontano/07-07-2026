@@ -57,6 +57,46 @@ export const getRegistrarScopes = () => {
   return parseJsonArray(localStorage.getItem(SCOPES_STORAGE_KEY));
 };
 
+export const getScopedProgramIds = () => {
+  if (typeof window === "undefined") return [];
+  return [
+    ...new Set(
+      getRegistrarScopes()
+        .map((scope) => String(scope.program_id))
+        .filter(Boolean),
+    ),
+  ];
+};
+
+export const restrictDepartmentsToScope = (departments = []) => {
+  const scopedDeptIds = getScopedDepartmentIds();
+  const scopeDeptIds =
+    scopedDeptIds.length > 0
+      ? scopedDeptIds
+      : [
+          ...new Set(
+            getRegistrarScopes()
+              .map((scope) => String(scope.dprtmnt_id))
+              .filter(Boolean),
+          ),
+        ];
+
+  if (!scopeDeptIds.length) return departments;
+
+  return departments.filter((department) =>
+    scopeDeptIds.includes(String(department.dprtmnt_id ?? "")),
+  );
+};
+
+export const restrictProgramsToScope = (programs = []) => {
+  const scopedProgramIds = getScopedProgramIds();
+  if (!scopedProgramIds.length) return programs;
+
+  return programs.filter((program) =>
+    scopedProgramIds.includes(String(program.program_id ?? "")),
+  );
+};
+
 export const getScopedDepartmentIds = () => {
   if (typeof window === "undefined") return [];
   return parseJsonArray(localStorage.getItem(DEPARTMENT_IDS_STORAGE_KEY))
@@ -76,37 +116,6 @@ export const getDepartmentIdsFromAdminData = (adminData = {}) => {
     return [adminData.dprtmnt_id];
   }
   return [];
-};
-
-export const normalizeDepartmentId = (value) => {
-  if (value === null || value === undefined || value === "") return "";
-  return String(value);
-};
-
-export const departmentIdsMatch = (left, right) =>
-  normalizeDepartmentId(left) === normalizeDepartmentId(right);
-
-export const getDepartmentsFromAdminScopes = (adminData = {}) => {
-  const departmentIds = getDepartmentIdsFromAdminData(adminData).map((id) =>
-    normalizeDepartmentId(id),
-  );
-  const scopes = Array.isArray(adminData.scopes) ? adminData.scopes : [];
-  const scopeById = new Map(
-    scopes.map((scope) => [normalizeDepartmentId(scope.dprtmnt_id), scope]),
-  );
-
-  const ids = departmentIds.length
-    ? departmentIds
-    : [...scopeById.keys()].filter(Boolean);
-
-  return ids.map((id) => {
-    const scope = scopeById.get(id) || {};
-    return {
-      dprtmnt_id: id,
-      dprtmnt_name: scope.dprtmnt_name || `Department ${id}`,
-      dprtmnt_code: scope.dprtmnt_code || "",
-    };
-  });
 };
 
 export const getAllowedCurriculumIds = () => {
@@ -151,6 +160,63 @@ export const syncRegistrarScopeFromPayload = ({
   );
 
   return cache;
+};
+
+export const mergeUniqueByKey = (items = [], key) => {
+  const map = new Map();
+  items.forEach((item) => {
+    const itemKey = item?.[key];
+    if (itemKey === null || itemKey === undefined || itemKey === "") return;
+    map.set(String(itemKey), item);
+  });
+  return [...map.values()];
+};
+
+export const resolveRegistrarDepartmentIds = (adminData = {}) => {
+  const fromAdmin = getDepartmentIdsFromAdminData(adminData);
+  if (fromAdmin.length) {
+    return [...new Set(fromAdmin.map((id) => String(id)).filter(Boolean))];
+  }
+
+  const fromScopes = (adminData?.scopes || [])
+    .map((scope) => scope?.dprtmnt_id)
+    .filter((id) => id !== null && id !== undefined && id !== "")
+    .map((id) => String(id));
+
+  if (fromScopes.length) {
+    return [...new Set(fromScopes)];
+  }
+
+  return getScopedDepartmentIds();
+};
+
+export const resolveRegistrarLockedCurriculumIds = (adminData = {}) => {
+  const fromAdmin = Array.isArray(adminData?.allowed_curriculum_ids)
+    ? adminData.allowed_curriculum_ids
+    : [];
+  const fromCache = getAllowedCurriculumIds();
+  const source = fromAdmin.length ? fromAdmin : fromCache;
+
+  return [...new Set(source.map((id) => String(id)).filter(Boolean))];
+};
+
+export const filterCollegeScheduleSections = (sections = [], adminData = {}) => {
+  const lockedCurriculumIds = resolveRegistrarLockedCurriculumIds(adminData);
+  const scopedProgramIds = getScopedProgramIds();
+
+  if (lockedCurriculumIds.length) {
+    return sections.filter((section) =>
+      lockedCurriculumIds.includes(String(section.curriculum_id ?? "")),
+    );
+  }
+
+  if (scopedProgramIds.length) {
+    return sections.filter((section) =>
+      scopedProgramIds.includes(String(section.program_id ?? "")),
+    );
+  }
+
+  return restrictProgramsToScope(sections);
 };
 
 export const syncRegistrarScopeFromAdminData = (adminData = {}) =>
@@ -206,17 +272,27 @@ export const isRegistrarProgramSelectionLocked = () => {
   return hasRegistrarCurriculumRestriction();
 };
 
-export const isRegistrarCurriculumMatch = (value) => {
+export const isRegistrarCurriculumMatch = (value, curriculumItems = []) => {
   const allowedCurriculumIds = getAllowedCurriculumIds();
-  const scopes = getRegistrarScopes();
+  const scopedProgramIds = getScopedProgramIds();
+
+  if (scopedProgramIds.length > 0) {
+    const matchedCurriculum = curriculumItems.find(
+      (item) => String(item.curriculum_id) === String(value),
+    );
+    if (matchedCurriculum?.program_id) {
+      return scopedProgramIds.includes(String(matchedCurriculum.program_id));
+    }
+    if (allowedCurriculumIds.length > 0) {
+      if (value === null || value === undefined || value === "") return false;
+      return allowedCurriculumIds.includes(String(value));
+    }
+    return false;
+  }
 
   if (allowedCurriculumIds.length > 0) {
     if (value === null || value === undefined || value === "") return false;
     return allowedCurriculumIds.includes(String(value));
-  }
-
-  if (scopes.length > 0) {
-    return false;
   }
 
   const curriculumId = getRegistrarCurriculumId();
@@ -226,120 +302,55 @@ export const isRegistrarCurriculumMatch = (value) => {
   return String(value) === String(curriculumId);
 };
 
-export const getScopedProgramIdsForDepartment = (departmentId = "") => {
-  const scopes = getRegistrarScopes();
-  if (!scopes.length) return null;
+export const resolveStudentProgramId = (
+  { program_id, curriculum_id, program, active_curriculum } = {},
+  curriculumItems = [],
+) => {
+  if (program_id !== null && program_id !== undefined && program_id !== "") {
+    return String(program_id);
+  }
 
-  const normalizedDept = normalizeDepartmentId(departmentId);
-  const relevantScopes = normalizedDept
-    ? scopes.filter((scope) => departmentIdsMatch(scope.dprtmnt_id, normalizedDept))
-    : scopes;
+  const curriculumKey = curriculum_id ?? program ?? active_curriculum;
+  if (!curriculumKey) return "";
 
-  return new Set(
-    relevantScopes.map((scope) => String(scope.program_id)).filter(Boolean),
+  const matchedCurriculum = curriculumItems.find(
+    (item) => String(item.curriculum_id) === String(curriculumKey),
   );
+
+  return matchedCurriculum?.program_id
+    ? String(matchedCurriculum.program_id)
+    : "";
 };
 
-export const isRegistrarStudentScopeMatch = (student = {}) => {
-  if (!hasRegistrarCurriculumRestriction()) return true;
-
+export const isRegistrarStudentScopeMatch = (
+  student = {},
+  curriculumItems = [],
+) => {
   const allowedCurriculumIds = getAllowedCurriculumIds();
+  const scopedProgramIds = getScopedProgramIds();
+  const studentProgramId = resolveStudentProgramId(student, curriculumItems);
   const curriculumId =
-    student.curriculum_id ??
-    student.active_curriculum ??
-    student.program ??
-    "";
+    student.curriculum_id ?? student.program ?? student.active_curriculum;
+
+  if (scopedProgramIds.length > 0) {
+    if (!studentProgramId) return false;
+    return scopedProgramIds.includes(studentProgramId);
+  }
 
   if (allowedCurriculumIds.length > 0) {
-    if (!curriculumId) return false;
+    if (curriculumId === null || curriculumId === undefined || curriculumId === "") {
+      return false;
+    }
     return allowedCurriculumIds.includes(String(curriculumId));
   }
 
-  const scopes = getRegistrarScopes();
-  if (scopes.length > 0) {
-    const programId = String(student.program_id ?? "");
-    const departmentId = normalizeDepartmentId(
-      student.dprtmnt_id ?? student.department_id ?? "",
-    );
-
-    if (programId) {
-      return scopes.some(
-        (scope) =>
-          String(scope.program_id) === programId &&
-          (!departmentId || departmentIdsMatch(scope.dprtmnt_id, departmentId)),
-      );
-    }
-
-    if (curriculumId) {
-      return restrictToRegistrarCurriculum(
-        [{ curriculum_id: curriculumId }],
-        (item) => item.curriculum_id,
-      ).length > 0;
-    }
-
+  const curriculumIdSetting = getRegistrarCurriculumId();
+  if (!curriculumIdSetting) return true;
+  if (curriculumId === null || curriculumId === undefined || curriculumId === "") {
     return false;
   }
 
-  const lockedCurriculumId = getRegistrarCurriculumId();
-  if (!lockedCurriculumId) return true;
-  if (!curriculumId) return false;
-  return String(curriculumId) === String(lockedCurriculumId);
-};
-
-export const isRegistrarApplicantScopeMatch = (
-  applicant = {},
-  { curriculumId, programId } = {},
-) => {
-  if (!hasRegistrarCurriculumRestriction()) return true;
-
-  const resolvedCurriculumId =
-    curriculumId ??
-    applicant.program ??
-    applicant.curriculum_id ??
-    applicant.active_curriculum ??
-    "";
-  const resolvedProgramId = programId ?? applicant.program_id ?? "";
-
-  const allowedCurriculumIds = getAllowedCurriculumIds();
-  if (allowedCurriculumIds.length > 0) {
-    if (!resolvedCurriculumId) return false;
-    return allowedCurriculumIds.includes(String(resolvedCurriculumId));
-  }
-
-  const scopes = getRegistrarScopes();
-  if (scopes.length > 0) {
-    if (resolvedProgramId) {
-      return scopes.some(
-        (scope) => String(scope.program_id) === String(resolvedProgramId),
-      );
-    }
-
-    if (resolvedCurriculumId) {
-      return restrictToRegistrarCurriculum(
-        [{ curriculum_id: resolvedCurriculumId }],
-        (item) => item.curriculum_id,
-      ).length > 0;
-    }
-
-    return false;
-  }
-
-  return isRegistrarCurriculumMatch(resolvedCurriculumId);
-};
-
-export const isRegistrarProgramScopeMatch = (
-  programId,
-  departmentId = "",
-) => {
-  if (!hasRegistrarCurriculumRestriction()) return true;
-
-  const scopedProgramIds = getScopedProgramIdsForDepartment(departmentId);
-  if (scopedProgramIds) {
-    if (!programId) return false;
-    return scopedProgramIds.has(String(programId));
-  }
-
-  return true;
+  return String(curriculumId) === String(curriculumIdSetting);
 };
 
 export const restrictToRegistrarCurriculum = (items = [], getValue) => {
@@ -372,6 +383,63 @@ export const restrictToRegistrarCurriculum = (items = [], getValue) => {
       : item?.curriculum_id ?? item?.program ?? item?.active_curriculum;
     return String(value ?? "") === String(curriculumId);
   });
+};
+
+export const normalizeDepartmentId = (value) => {
+  if (value === null || value === undefined || value === "") return "";
+  return String(value).trim();
+};
+
+export const departmentIdsMatch = (left, right) => {
+  const normalizedLeft = normalizeDepartmentId(left);
+  const normalizedRight = normalizeDepartmentId(right);
+  if (!normalizedLeft || !normalizedRight) return false;
+  return normalizedLeft === normalizedRight;
+};
+
+export const getDepartmentsFromAdminScopes = (adminData = {}) => {
+  const scopes = Array.isArray(adminData.scopes) ? adminData.scopes : [];
+  const departments = new Map();
+
+  scopes.forEach((scope) => {
+    const departmentId = normalizeDepartmentId(scope?.dprtmnt_id);
+    if (!departmentId || departments.has(departmentId)) return;
+
+    departments.set(departmentId, {
+      dprtmnt_id: departmentId,
+      dprtmnt_name: scope?.dprtmnt_name || "",
+      dprtmnt_code: scope?.dprtmnt_code || "",
+    });
+  });
+
+  return [...departments.values()];
+};
+
+export const isRegistrarApplicantScopeMatch = (
+  applicant = {},
+  { curriculumId, programId } = {},
+) => {
+  const scopedProgramIds = getScopedProgramIds();
+  const allowedCurriculumIds = getAllowedCurriculumIds();
+  const resolvedCurriculumId =
+    curriculumId ?? applicant.program ?? applicant.curriculum_id;
+  const resolvedProgramId = programId ?? applicant.program_id ?? "";
+
+  if (scopedProgramIds.length > 0) {
+    if (!resolvedProgramId) return false;
+    return scopedProgramIds.includes(String(resolvedProgramId));
+  }
+
+  if (allowedCurriculumIds.length > 0) {
+    if (!resolvedCurriculumId) return false;
+    return allowedCurriculumIds.includes(String(resolvedCurriculumId));
+  }
+
+  const curriculumIdSetting = getRegistrarCurriculumId();
+  if (!curriculumIdSetting) return true;
+  if (!resolvedCurriculumId) return false;
+
+  return String(resolvedCurriculumId) === String(curriculumIdSetting);
 };
 
 export const resolveStudentRegistrarScope = async (
