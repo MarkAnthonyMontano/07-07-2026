@@ -194,19 +194,41 @@ const CurriculumCourseMap = () => {
   };
 
   const fetchTaggedPrograms = async () => {
-    const res = await axios.get(`${API_BASE_URL}/api/program_tagging_list`);
-    // map to include is_nstp, iscomputer_lab, isnon_computer_lab
-    // Directly use the flags from the API
-    const tagged = res.data.map(p => ({
-      ...p,
-      is_nstp: p.is_nstp,
-      iscomputer_lab: p.iscomputer_lab,
-      islaboratory_fee: p.islaboratory_fee,
-    }));
-    const unique = Array.from(
-      new Map(tagged.map(item => [item.program_tagging_id, item])).values()
-    );
-    setTaggedPrograms(unique);
+    try {
+      const res = await axios.get(
+        `${API_BASE_URL}/api/program_tagging_list`
+      );
+
+      const tagged = res.data.map((p) => ({
+        ...p,
+
+        // force numbers
+        lec_fee: Number(p.lec_fee ?? 0),
+        lab_fee: Number(p.lab_fee ?? 0),
+
+        is_nstp: Number(p.is_nstp ?? 0),
+        iscomputer_lab: Number(p.iscomputer_lab ?? 0),
+        islaboratory_fee: Number(p.islaboratory_fee ?? 0),
+
+        amount: Number(p.amount ?? 0),
+        category: p.category,
+      }));
+
+      const unique = Array.from(
+        new Map(
+          tagged.map((item) => [
+            item.program_tagging_id,
+            item,
+          ])
+        ).values()
+      );
+
+      console.log("FETCHED PROGRAMS:", unique);
+
+      setTaggedPrograms(unique);
+    } catch (err) {
+      console.error("Error fetching tagged programs:", err);
+    }
   };
 
   const [tosf, setTosf] = useState(null);
@@ -232,7 +254,7 @@ const CurriculumCourseMap = () => {
       })
       .catch(err => console.error("Fee rules error:", err));
   }, []);
- 
+
 
   const computeExtraFees = (semesterCourses) => {
     if (!feeRules.length) return [];
@@ -342,17 +364,22 @@ const CurriculumCourseMap = () => {
     if (!canEdit) {
       setSnackbar({
         open: true,
-        message: "You do not have permission to edit program payments",
+        message:
+          "You do not have permission to edit program payments",
         severity: "error",
       });
       return;
     }
-    setEditedFees(prev => ({
+
+    setEditedFees((prev) => ({
       ...prev,
       [id]: {
-        ...prev[id],
-        [field]: value === "" ? "" : Number(value)
-      }
+        ...(prev[id] || {}),
+        [field]:
+          value === "" || value === null
+            ? ""
+            : Number(value),
+      },
     }));
   };
 
@@ -985,13 +1012,13 @@ const CurriculumCourseMap = () => {
                                     <td style={cellStyle}>
                                       <FormControl size="small" fullWidth>
                                         <Select
-                                          value={edit.is_nstp ?? course.is_nstp ?? 0}
+                                          value={Number(edit.is_nstp ?? course.is_nstp ?? 0)}
                                           disabled={!canEdit}
                                           onChange={(e) =>
                                             handleFeeChange(
                                               course.program_tagging_id,
                                               "is_nstp",
-                                              Number(e.target.value)
+                                              e.target.value
                                             )
                                           }
                                         >
@@ -1005,13 +1032,17 @@ const CurriculumCourseMap = () => {
                                     <td style={cellStyle}>
                                       <FormControl size="small" fullWidth>
                                         <Select
-                                          value={edit.iscomputer_lab ?? course.iscomputer_lab ?? 0}
+                                          value={Number(
+                                            edit.iscomputer_lab ??
+                                            course.iscomputer_lab ??
+                                            0
+                                          )}
                                           disabled={!canEdit}
                                           onChange={(e) =>
                                             handleFeeChange(
                                               course.program_tagging_id,
                                               "iscomputer_lab",
-                                              Number(e.target.value)
+                                              e.target.value
                                             )
                                           }
                                         >
@@ -1025,13 +1056,17 @@ const CurriculumCourseMap = () => {
                                     <td style={cellStyle}>
                                       <FormControl size="small" fullWidth>
                                         <Select
-                                          value={edit.islaboratory_fee ?? course.islaboratory_fee ?? 0}
+                                          value={Number(
+                                            edit.islaboratory_fee ??
+                                            course.islaboratory_fee ??
+                                            0
+                                          )}
                                           disabled={!canEdit}
                                           onChange={(e) =>
                                             handleFeeChange(
                                               course.program_tagging_id,
                                               "islaboratory_fee",
-                                              Number(e.target.value)
+                                              e.target.value
                                             )
                                           }
                                         >
@@ -1286,21 +1321,21 @@ const CurriculumCourseMap = () => {
                           </table>
                           {/* SAVE BUTTON */}
                           {canEdit && (
-                          <button
-                            onClick={() => handleSaveSemester(semesterCourses)}
-                            style={{
-                              marginTop: 10,
-                              padding: "6px 14px",
-                              background: "#1976d2",
-                              color: "#fff",
-                              border: "none",
-                              borderRadius: 5,
-                              cursor: "pointer",
-                              float: "right",
-                            }}
-                          >
-                            Save
-                          </button>
+                            <button
+                              onClick={() => handleSaveSemester(semesterCourses)}
+                              style={{
+                                marginTop: 10,
+                                padding: "6px 14px",
+                                background: "#1976d2",
+                                color: "#fff",
+                                border: "none",
+                                borderRadius: 5,
+                                cursor: "pointer",
+                                float: "right",
+                              }}
+                            >
+                              Save
+                            </button>
                           )}
                         </Box>
                       </Box>

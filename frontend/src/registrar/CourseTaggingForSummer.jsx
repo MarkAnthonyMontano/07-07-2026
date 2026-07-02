@@ -46,6 +46,11 @@ import API_BASE_URL from "../apiConfig";
 import { useNavigate } from "react-router-dom";
 import ScoreIcon from "@mui/icons-material/Score";
 import { postAuditEvent } from "../utils/auditEvents";
+import {
+  formatCourseHistoryLabel,
+  formatStudentDisplayName,
+  logBulkCourseEnrollmentHistory,
+} from "../utils/studentHistoryLogs";
 
 /* ─── Design tokens ─── */
 const TOKEN = {
@@ -465,14 +470,19 @@ const CourseTaggingForSummer = () => {
     }
   }, [userId, currId, activeSchoolYearId]);
 
-  useEffect(() => { fetchDepartmentSections(); }, []);
-  useEffect(() => { if (selectedDepartment) fetchDepartmentSections(); }, [selectedDepartment]);
+  useEffect(() => {
+    setSelectedSection("");
+    setSections([]);
+    setError(null);
+    if (selectedDepartment) fetchDepartmentSections(selectedDepartment);
+  }, [selectedDepartment]);
 
-  const fetchDepartmentSections = async () => {
+  const fetchDepartmentSections = async (departmentId) => {
+    if (!departmentId) return;
     try {
       setLoading(true);
       const response = await axios.get(`${API_BASE_URL}/api/department-sections`, {
-        params: { departmentId: selectedDepartment },
+        params: { departmentId },
       });
       setTimeout(() => {
         setSections(response.data);
@@ -584,6 +594,18 @@ const CourseTaggingForSummer = () => {
     }
   };
 
+  const getSelectedSectionLabel = () => {
+    const section = sections.find(
+      (item) =>
+        String(item.department_and_program_section_id) === String(selectedSection),
+    );
+    if (!section) return "Unknown Section";
+    return [section.program_description, section.major, section.description]
+      .map((value) => cleanDisplayValue(value))
+      .filter(Boolean)
+      .join(" ");
+  };
+
   const addAllToCart = async (yearLevelId) => {
     if (!canCreate) { setSnack({ open: true, message: "You do not have permission to bulk enroll subjects.", severity: "error" }); return; }
     const newCourses = courses.filter(
@@ -594,6 +616,7 @@ const CourseTaggingForSummer = () => {
     if (!userId) { setSnack({ open: true, message: "Please search and select a student first.", severity: "warning" }); return; }
     if (newCourses.length === 0) return;
     let enrolledCount = 0;
+    const enrolledCourses = [];
     try {
       await Promise.all(
         newCourses.map(async (course) => {
@@ -603,7 +626,10 @@ const CourseTaggingForSummer = () => {
               departmentSectionID: selectedSection, year_level: yearLevelId,
               active_school_year_id: activeSchoolYearId, active_semester_id: activeSemesterId,
             }, auditConfig);
-            if (res.data?.enrolled) enrolledCount++;
+            if (res.data?.enrolled) {
+              enrolledCount++;
+              enrolledCourses.push(formatCourseHistoryLabel(course));
+            }
             setDisableYearButtons(true);
           } catch (err) { console.error("Error enrolling course in bulk:", err); }
         })
@@ -611,6 +637,25 @@ const CourseTaggingForSummer = () => {
       const { data } = await axios.get(`${API_BASE_URL}/api/enrolled_courses/${userId}/${currId}`, { params: { activeSchoolYearId } });
       setEnrolled(data);
       if (data.length > 0) { setCourseCode(cleanDisplayValue(data[0].program_code)); setCourseDescription(cleanDisplayValue(data[0].program_description)); setSectionDescription(cleanDisplayValue(data[0].section)); }
+      if (enrolledCount > 0) {
+        try {
+          await logBulkCourseEnrollmentHistory({
+            studentNumber: userId,
+            studentName: formatStudentDisplayName({
+              first_name,
+              middle_name,
+              last_name,
+            }),
+            sectionLabel: getSelectedSectionLabel(),
+            schoolYearLabel: [curriculumYear, formatSemester(activeSemester)]
+              .filter(Boolean)
+              .join(" "),
+            courses: enrolledCourses,
+          });
+        } catch (historyErr) {
+          console.error("Student history log failed:", historyErr);
+        }
+      }
       setSnack({ open: true, message: enrolledCount > 0 ? "Bulk enroll finished. All available subjects were enrolled." : "No new subjects were enrolled.", severity: enrolledCount > 0 ? "success" : "info" });
     } catch (err) {
       console.error("Unexpected error during enrollment:", err);
@@ -665,7 +710,7 @@ const CourseTaggingForSummer = () => {
 
   useEffect(() => {
     const fetchDepartments = async () => {
-      try { const res = await axios.get(`${API_BASE_URL}/api/departments`); setDepartments(res.data); }
+      try { const res = await axios.get(`${API_BASE_URL}/api/get_department`); setDepartments(res.data); }
       catch (err) { console.error("Error fetching departments:", err); }
     };
     fetchDepartments();

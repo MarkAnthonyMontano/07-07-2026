@@ -42,6 +42,11 @@ import PersonIcon from "@mui/icons-material/Person";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import { postAuditEvent } from "../utils/auditEvents";
+import {
+  formatCourseHistoryLabel,
+  formatStudentDisplayName,
+  logBulkCourseEnrollmentHistory,
+} from "../utils/studentHistoryLogs";
 
 /* ─── Design tokens ─── */
 const TOKEN = {
@@ -604,6 +609,18 @@ const CourseTaggingForCollege = () => {
     } catch (err) { setSnack({ open: true, message: "Error unenrolling subject. Please check the console.", severity: "error" }); }
   };
 
+  const getSelectedSectionLabel = () => {
+    const section = sections.find(
+      (item) =>
+        String(item.department_and_program_section_id) === String(selectedSection),
+    );
+    if (!section) return "Unknown Section";
+    return [section.program_description, section.major, section.description]
+      .map((value) => cleanDisplayValue(value))
+      .filter(Boolean)
+      .join(" ");
+  };
+
   const addAllToCart = async (yearLevelId) => {
     if (!canCreate) { setSnack({ open: true, message: "You do not have permission to bulk enroll subjects.", severity: "error" }); return; }
     const newCourses = courses.filter((c) => !isEnrolled(c.course_id) && Number(c.year_level_id) === Number(yearLevelId) && (activeSemesterId ? Number(c.semester_id) === Number(activeSemesterId) : true));
@@ -611,16 +628,39 @@ const CourseTaggingForCollege = () => {
     if (!userId) { setSnack({ open: true, message: "Please search and select a student first.", severity: "warning" }); return; }
     if (newCourses.length === 0) return;
     let enrolledCount = 0;
+    const enrolledCourses = [];
     try {
       await Promise.all(newCourses.map(async (course) => {
         try {
           const res = await axios.post(`${API_BASE_URL}/api/add-all-to-enrolled-courses`, { subject_id: course.course_id, user_id: userId, curriculumID: currId, departmentSectionID: selectedSection, year_level: yearLevelId }, auditConfig);
-          if (res.data?.enrolled) enrolledCount++;
+          if (res.data?.enrolled) {
+            enrolledCount++;
+            enrolledCourses.push(formatCourseHistoryLabel(course));
+          }
           setDisableYearButtons(true);
         } catch (err) { console.error("Error enrolling course in bulk:", err); }
       }));
       const data = await refreshEnrolledCourses();
       if (data.length > 0) { setCourseCode(cleanDisplayValue(data[0].program_code)); setCourseDescription(cleanDisplayValue(data[0].program_description)); setSectionDescription(cleanDisplayValue(data[0].section)); }
+      if (enrolledCount > 0) {
+        try {
+          await logBulkCourseEnrollmentHistory({
+            studentNumber: userId,
+            studentName: formatStudentDisplayName({
+              first_name,
+              middle_name,
+              last_name,
+            }),
+            sectionLabel: getSelectedSectionLabel(),
+            schoolYearLabel: [curriculumYear, formatSemester(activeSemester)]
+              .filter(Boolean)
+              .join(" "),
+            courses: enrolledCourses,
+          });
+        } catch (historyErr) {
+          console.error("Student history log failed:", historyErr);
+        }
+      }
       setSnack({ open: true, message: enrolledCount > 0 ? "Bulk enroll finished. All available subjects were enrolled." : "No new subjects were enrolled.", severity: enrolledCount > 0 ? "success" : "info" });
     } catch (err) { setSnack({ open: true, message: "Unexpected error during bulk enrollment.", severity: "error" }); }
   };

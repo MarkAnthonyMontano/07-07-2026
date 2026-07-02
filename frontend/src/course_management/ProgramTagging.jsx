@@ -176,12 +176,6 @@ const ProgramTagging = () => {
     year_level_id: "",
     semester_id: "",
     course_id: "",
-    lec_fee: "",
-    lab_fee: "",
-    iscomputer_lab: 0,
-    islaboratory_fee: 0,
-    is_nstp: 0,
-    amount: 0,
   });
 
   const [courseList, setCourseList] = useState([]);
@@ -340,12 +334,7 @@ const ProgramTagging = () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/api/program_tagging_list`);
 
-      const normalized = res.data.map((p) => ({
-        ...p,
-        iscomputer_lab: Number(p.iscomputer_lab ?? 0),
-        islaboratory_fee: Number(p.islaboratory_fee ?? 0),
-        is_nstp: Number(p.is_nstp ?? 0),
-      }));
+      const normalized = res.data;
 
       // ✅ REMOVE DUPLICATES BASED ON UNIQUE PROGRAM KEY
       const unique = [];
@@ -400,23 +389,11 @@ const ProgramTagging = () => {
       year_level_id,
       semester_id,
       course_id,
-      lec_fee,
-      lab_fee,
-      iscomputer_lab,
-      islaboratory_fee,
-      is_nstp,
-      amount,
     } = progTag;
 
     // ✅ Required fields
     if (!curriculum_id || !year_level_id || !semester_id || !course_id) {
       showSnackbar("Please fill all fields", "error");
-      return false;
-    }
-
-    // ✅ Fee validation
-    if (lec_fee < 0 || lab_fee < 0) {
-      showSnackbar("Fees cannot be negative", "error");
       return false;
     }
 
@@ -445,11 +422,6 @@ const ProgramTagging = () => {
             year_level_id,
             semester_id,
             course_id,
-            lec_fee: Number(lec_fee) || 0,
-            lab_fee: Number(lab_fee) || 0,
-            iscomputer_lab: Number(iscomputer_lab),
-            islaboratory_fee: Number(islaboratory_fee),
-            is_nstp: Number(is_nstp),
           },
           getPermissionHeaders(),
         );
@@ -478,11 +450,6 @@ const ProgramTagging = () => {
             year_level_id,
             semester_id,
             course_id,
-            lec_fee: Number(lec_fee) || 0,
-            lab_fee: Number(lab_fee) || 0,
-            iscomputer_lab: Number(iscomputer_lab),
-            islaboratory_fee: Number(islaboratory_fee),
-            is_nstp: Number(is_nstp),
           },
           getPermissionHeaders(),
         );
@@ -496,12 +463,6 @@ const ProgramTagging = () => {
             year_level_id,
             semester_id,
             course_id,
-            lec_fee: Number(lec_fee) || 0,
-            lab_fee: Number(lab_fee) || 0,
-            iscomputer_lab: Number(iscomputer_lab),
-            islaboratory_fee: Number(islaboratory_fee),
-            is_nstp: Number(is_nstp),
-            amount: Number(amount) || 0,
           },
         ]);
 
@@ -515,12 +476,6 @@ const ProgramTagging = () => {
         year_level_id: "",
         semester_id: "",
         course_id: "",
-        lec_fee: "",
-        lab_fee: "",
-        iscomputer_lab: 0,
-        islaboratory_fee: 0,
-        is_nstp: 0,
-        amount: 0,
       });
 
       setEditingId(null);
@@ -540,12 +495,6 @@ const ProgramTagging = () => {
       year_level_id: program.year_level_id,
       semester_id: program.semester_id,
       course_id: program.course_id,
-      lec_fee: program.lec_fee ?? "",
-      lab_fee: program.lab_fee ?? "",
-      iscomputer_lab: program.iscomputer_lab ?? 0,
-      islaboratory_fee: program.islaboratory_fee ?? 0,
-      is_nstp: program.is_nstp ?? 0,
-      amount: program.amount ?? 0,
     });
   };
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
@@ -711,7 +660,7 @@ const ProgramTagging = () => {
     const branch = branches.find(
       (item) => Number(item.id) === Number(branchId),
     );
-    return branch?.branch || "�";
+    return branch?.branch || " ";
   };
 
   const filteredCurriculumList = Array.from(
@@ -929,12 +878,6 @@ const ProgramTagging = () => {
                               year_level_id: "",
                               semester_id: "",
                               course_id: "",
-                              lec_fee: "",
-                              lab_fee: "",
-                              iscomputer_lab: 0,
-                              islaboratory_fee: 0,
-                              is_nstp: 0,
-                              amount: 0,
                             });
 
                             setOpenFormDialog(true);
@@ -1224,7 +1167,67 @@ const ProgramTagging = () => {
                       fontSize: "13px",
                     }}
                   >
-                    Course
+                    Course Code
+                  </th>
+                  <th
+                    style={{
+                      ...styles.th,
+                      backgroundColor: "#f5f5f5",
+                      border: `1px solid ${borderColor}`,
+                      color: "black",
+                      textAlign: "center",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Course Description
+                  </th>
+                  <th
+                    style={{
+                      ...styles.th,
+                      backgroundColor: "#f5f5f5",
+                      border: `1px solid ${borderColor}`,
+                      color: "black",
+                      textAlign: "center",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Prerequisite
+                  </th>
+                  <th
+                    style={{
+                      ...styles.th,
+                      backgroundColor: "#f5f5f5",
+                      border: `1px solid ${borderColor}`,
+                      color: "black",
+                      textAlign: "center",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Lecture Unit
+                  </th>
+                  <th
+                    style={{
+                      ...styles.th,
+                      backgroundColor: "#f5f5f5",
+                      border: `1px solid ${borderColor}`,
+                      color: "black",
+                      textAlign: "center",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Laboratory Unit
+                  </th>
+                  <th
+                    style={{
+                      ...styles.th,
+                      backgroundColor: "#f5f5f5",
+                      border: `1px solid ${borderColor}`,
+                      color: "black",
+                      textAlign: "center",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Course Unit
                   </th>
                   <th
                     style={{
@@ -1249,66 +1252,6 @@ const ProgramTagging = () => {
                     }}
                   >
                     Semester
-                  </th>
-                  <th
-                    style={{
-                      ...styles.th,
-                      backgroundColor: "#f5f5f5",
-                      border: `1px solid ${borderColor}`,
-                      color: "black",
-                      textAlign: "center",
-                      fontSize: "13px",
-                    }}
-                  >
-                    Lec Fee
-                  </th>
-                  <th
-                    style={{
-                      ...styles.th,
-                      backgroundColor: "#f5f5f5",
-                      border: `1px solid ${borderColor}`,
-                      color: "black",
-                      textAlign: "center",
-                      fontSize: "13px",
-                    }}
-                  >
-                    Lab Fee
-                  </th>
-                  <th
-                    style={{
-                      ...styles.th,
-                      backgroundColor: "#f5f5f5",
-                      border: `1px solid ${borderColor}`,
-                      color: "black",
-                      textAlign: "center",
-                      fontSize: "13px",
-                    }}
-                  >
-                    Computer Fee
-                  </th>
-                  <th
-                    style={{
-                      ...styles.th,
-                      backgroundColor: "#f5f5f5",
-                      border: `1px solid ${borderColor}`,
-                      color: "black",
-                      textAlign: "center",
-                      fontSize: "13px",
-                    }}
-                  >
-                    Laboratory Fee
-                  </th>
-                  <th
-                    style={{
-                      ...styles.th,
-                      backgroundColor: "#f5f5f5",
-                      border: `1px solid ${borderColor}`,
-                      color: "black",
-                      textAlign: "center",
-                      fontSize: "13px",
-                    }}
-                  >
-                    NSTP Fee
                   </th>
                   {showActionColumn && (
                     <th
@@ -1361,10 +1304,67 @@ const ProgramTagging = () => {
                         ...styles.td,
                         border: `1px solid ${borderColor}`,
                         fontSize: "13px",
+                        textAlign: "center"
                       }}
                     >
-                      ({program.course_code}) - {program.course_description} -
-                      ({program.prereq})
+                      {program.course_code}
+
+                    </td>
+                    <td
+                      style={{
+                        ...styles.td,
+                        border: `1px solid ${borderColor}`,
+                        fontSize: "13px",
+                      }}
+                    >
+                      {program.course_description}
+
+                    </td>
+
+
+                    <td
+                      style={{
+                        ...styles.td,
+                        border: `1px solid ${borderColor}`,
+                        fontSize: "13px",
+                        textAlign: "center"
+                      }}
+                    >
+                      {program.prereq}
+
+                    </td>
+                    <td
+                      style={{
+                        ...styles.td,
+                        border: `1px solid ${borderColor}`,
+                        fontSize: "13px",
+                        textAlign: "center"
+                      }}
+                    >
+                      {program.lec_unit}
+
+                    </td>
+                    <td
+                      style={{
+                        ...styles.td,
+                        border: `1px solid ${borderColor}`,
+                        fontSize: "13px",
+                        textAlign: "center"
+                      }}
+                    >
+                      {program.lab_unit}
+
+                    </td>
+                    <td
+                      style={{
+                        ...styles.td,
+                        border: `1px solid ${borderColor}`,
+                        fontSize: "13px",
+                        textAlign: "center"
+                      }}
+                    >
+                      {program.course_unit}
+
                     </td>
                     <td
                       style={{
@@ -1386,71 +1386,6 @@ const ProgramTagging = () => {
                     >
                       {program.semester_description}
                     </td>
-                    <td
-                      style={{
-                        ...styles.td,
-                        border: `1px solid ${borderColor}`,
-                        textAlign: "center",
-                        fontSize: "13px",
-                      }}
-                    >
-                      {program.lec_fee ?? "—"}
-                    </td>
-                    <td
-                      style={{
-                        ...styles.td,
-                        border: `1px solid ${borderColor}`,
-                        textAlign: "center",
-                        fontSize: "13px",
-                      }}
-                    >
-                      {program.lab_fee ?? "—"}
-                    </td>
-
-                    <td
-                      style={{
-                        ...styles.td,
-                        border: `1px solid ${borderColor}`,
-                        textAlign: "center",
-                        fontSize: "13px",
-                      }}
-                    >
-                      {Number(program.iscomputer_lab) === 1 ? "Yes" : "No"}
-                    </td>
-
-                    <td
-                      style={{
-                        ...styles.td,
-                        border: `1px solid ${borderColor}`,
-                        textAlign: "center",
-                        fontSize: "13px",
-                      }}
-                    >
-                      {Number(program.islaboratory_fee) === 1 ? "Yes" : "No"}
-                    </td>
-
-                    <td
-                      style={{
-                        ...styles.td,
-                        border: `1px solid ${borderColor}`,
-                        textAlign: "center",
-                        fontSize: "13px",
-                      }}
-                    >
-                      {Number(program.is_nstp) === 1 ? "Yes" : "No"}
-                    </td>
-
-                    {/* <td
-                        style={{
-                          ...styles.td,
-                          border: `1px solid ${borderColor}`,
-                          textAlign: "right",
-                          fontWeight: "bold",
-                          textAlign: "center"
-                        }}
-                      >
-                        ₱ {Number(program.amount || 0).toLocaleString()}
-                      </td> */}
 
                     {showActionColumn && (
                       <td
@@ -1929,113 +1864,6 @@ const ProgramTagging = () => {
                   </MenuItem>
                 ))}
               </TextField>
-            </Grid>
-
-            {/* FEES */}
-            <Grid item xs={6}>
-              <Typography fontWeight={700} sx={{ mb: 1 }}>
-                Lecture Fee
-              </Typography>
-              <TextField
-                fullWidth
-                type="number"
-                label="Lecture Fee"
-                name="lec_fee"
-                value={progTag.lec_fee}
-                onChange={handleChangesForEverything}
-              />
-            </Grid>
-
-            <Grid item xs={6}>
-              <Typography fontWeight={700} sx={{ mb: 1 }}>
-                Laboratory Fee
-              </Typography>
-              <TextField
-                fullWidth
-                type="number"
-                label="Laboratory Fee"
-                name="lab_fee"
-                value={progTag.lab_fee}
-                onChange={handleChangesForEverything}
-              />
-            </Grid>
-
-            {/* BULLET */}
-            <Grid item xs={12}>
-              <Typography fontWeight={700} sx={{ mb: 1 }}>
-                Fee Type
-              </Typography>
-
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-                <label
-                  style={{ display: "flex", alignItems: "center", gap: "10px" }}
-                >
-                  <input
-                    type="radio"
-                    style={{
-                      width: "25px",
-                      height: "25px",
-                      cursor: "pointer",
-                    }}
-                    checked={progTag.iscomputer_lab === 1}
-                    onChange={() =>
-                      setProgTag((prev) => ({
-                        ...prev,
-                        iscomputer_lab: 1,
-                        islaboratory_fee: 0,
-                        is_nstp: 0,
-                      }))
-                    }
-                  />
-                  Computer Lab
-                </label>
-
-                <label
-                  style={{ display: "flex", alignItems: "center", gap: "10px" }}
-                >
-                  <input
-                    type="radio"
-                    style={{
-                      width: "25px",
-                      height: "25px",
-                      cursor: "pointer",
-                    }}
-                    checked={progTag.islaboratory_fee === 1}
-                    onChange={() =>
-                      setProgTag((prev) => ({
-                        ...prev,
-                        iscomputer_lab: 0,
-                        islaboratory_fee: 1,
-                        is_nstp: 0,
-                      }))
-                    }
-                  />
-                  Laboratory Fee
-                </label>
-
-                <label
-                  style={{ display: "flex", alignItems: "center", gap: "10px" }}
-                >
-                  <input
-                    type="radio"
-                    style={{
-                      width: "25px",
-                      height: "25px",
-                      cursor: "pointer",
-                    }}
-                    checked={progTag.is_nstp === 1}
-                    onChange={() =>
-                      setProgTag((prev) => ({
-                        ...prev,
-                        iscomputer_lab: 0,
-                        islaboratory_fee: 0,
-                        is_nstp: 1,
-                      }))
-                    }
-                  />
-                  NSTP Subject
-                </label>
-              </Box>
             </Grid>
           </Grid>
         </DialogContent>

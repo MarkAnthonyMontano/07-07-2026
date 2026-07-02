@@ -5,6 +5,7 @@ const path = require("path");
 const QRCode = require("qrcode");
 const { db, db3 } = require("../routes/database/database");
 const { insertAuditLogEnrollment } = require("../utils/auditLogger");
+const { logStudentHistoryFromActor } = require("../utils/studentHistoryLogger");
 
 const backendRoot = path.join(__dirname, "..");
 const STUDENT_NUMBER_ASSIGNMENT_LOCK_NAME = "student_number_assignment";
@@ -409,6 +410,18 @@ const assignStudentNumberFromApplicantPersonCore = async ({
       message: `${roleLabel} (${auditActorId}) assigned student number ${studentNumber} to ${studentName || `person_id ${normalizedApplicantPersonId}`}.`,
     });
 
+    await logStudentHistoryFromActor({
+      actorId: auditActorId,
+      studentNumber,
+      action: "assign_student_number",
+      details: {
+        student_name: [personData.first_name, personData.middle_name, personData.last_name]
+          .filter(Boolean)
+          .join(" "),
+        generated_number: studentNumber,
+      },
+    });
+
     await connection.commit();
 
     try {
@@ -780,6 +793,18 @@ const assignStudentNumberFromUploadedApplicantCore = async ({
       action: "STUDENT_NUMBER_ASSIGN",
       severity: "INFO",
       message: `${roleLabel} (${auditActorId}) assigned student number ${studentNumber} to uploaded applicant ${studentName || uploadedApplicant.applicant_number || uploadedApplicant.id}.`,
+    });
+
+    await logStudentHistoryFromActor({
+      actorId: auditActorId,
+      studentNumber,
+      action: "assign_student_number",
+      details: {
+        student_name: [uploadedApplicant.first_name, uploadedApplicant.middle_name, uploadedApplicant.last_name]
+          .filter(Boolean)
+          .join(" "),
+        generated_number: studentNumber,
+      },
     });
 
     await connection.commit();

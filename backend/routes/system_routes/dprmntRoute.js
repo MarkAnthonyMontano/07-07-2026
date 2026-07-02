@@ -8,6 +8,25 @@ const {
 const { insertAuditLogEnrollment } = require("../../utils/auditLogger");
 const router = express.Router();
 
+let isAllowedColumnReady = false;
+
+const ensureDepartmentIsAllowedColumn = async () => {
+  if (isAllowedColumnReady) return;
+
+  try {
+    await db3.query(`
+      ALTER TABLE dprtmnt_table
+      ADD COLUMN is_allowed tinyint(1) NOT NULL DEFAULT 1
+    `);
+  } catch (err) {
+    if (err?.code !== "ER_DUP_FIELDNAME") {
+      throw err;
+    }
+  }
+
+  isAllowedColumnReady = true;
+};
+
 const formatAuditActorRole = (role) => {
   const safeRole = String(role || "registrar").trim();
   if (!safeRole) return "Registrar";
@@ -105,6 +124,7 @@ if (deptNumberRows.length > 0) {
 // -------------------- GET DEPARTMENTS --------------------
 router.get("/get_department", async (req, res) => {
   try {
+    await ensureDepartmentIsAllowedColumn();
     const [result] = await db3.query("SELECT * FROM dprtmnt_table");
     res.status(200).json(result);
   } catch (err) {
@@ -230,4 +250,53 @@ router.delete("/department/:id", CanDelete, async (req, res) => {
   }
 });
 
+router.put("/department/:id/is-allowed", CanEdit, async (req, res) => {
+  const { id } = req.params;
+  const isAllowed = Number(req.body?.is_allowed) === 1 ? 1 : 0;
+
+  try {
+    await ensureDepartmentIsAllowedColumn();
+
+    const [departmentRows] = await db3.query(
+      "SELECT dprtmnt_name, dprtmnt_code FROM dprtmnt_table WHERE dprtmnt_id = ?",
+      [id],
+    );
+
+    if (!departmentRows.length) {
+      return res.status(404).json({ message: "Department not found" });
+    }
+
+    const [result] = await db3.query(
+      "UPDATE dprtmnt_table SET is_allowed = ? WHERE dprtmnt_id = ?",
+      [isAllowed, id],
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Department not found" });
+    }
+
+    const department = departmentRows[0];
+    const { actorId, actorRole } = getAuditActor(req);
+    const roleLabel = formatAuditActorRole(actorRole);
+    await insertDepartmentAuditLog({
+      req,
+      action: "DEPARTMENT_PLOTTING_ACCESS",
+      message: `${roleLabel} (${actorId}) ${isAllowed ? "enabled" : "disabled"} schedule plotting for ${department.dprtmnt_name} (${department.dprtmnt_code}).`,
+    });
+
+    res.json({
+      success: true,
+      dprtmnt_id: Number(id),
+      is_allowed: isAllowed,
+      message: isAllowed
+        ? "Department schedule plotting enabled."
+        : "Department schedule plotting disabled.",
+    });
+  } catch (err) {
+    console.error("Error updating department plotting access:", err);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
 module.exports = router;
+module.exports.ensureDepartmentIsAllowedColumn = ensureDepartmentIsAllowedColumn;

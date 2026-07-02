@@ -2,6 +2,14 @@
 const webtoken = require("jsonwebtoken");
 const { db3 } = require("../database/database");
 const { insertAuditLogEnrollment } = require("../../utils/auditLogger");
+const {
+  formatCourseList,
+  getCourseLabel,
+  getDepartmentSectionLabel,
+  getSchoolYearLabel,
+  getStudentNameByNumber,
+  logStudentHistoryFromRequest,
+} = require("../../utils/studentHistoryLogger");
 const { resolveStudentScopeForEmployee } = require("../../utils/registrarScopeService");
 
 const router = express.Router();
@@ -40,14 +48,53 @@ const insertCourseTaggingAuditLog = async ({ req, action, message }) => {
   });
 };
 
-const getCourseLabel = async (courseId) => {
+const getRemainingEnrolledCourseLabels = async (studentNumber, activeSchoolYearId) => {
   const [rows] = await db3.query(
-    "SELECT course_code, course_description FROM course_table WHERE course_id = ? LIMIT 1",
-    [courseId],
+    `
+    SELECT c.course_code, c.course_description
+    FROM enrolled_subject es
+    LEFT JOIN course_table c ON c.course_id = es.course_id
+    WHERE es.student_number = ? AND es.active_school_year_id = ?
+    ORDER BY c.course_code ASC
+    `,
+    [studentNumber, activeSchoolYearId],
   );
-  const course = rows?.[0];
-  if (!course) return `Course ${courseId}`;
-  return `${course.course_code || "N/A"} - ${course.course_description || "Unknown Course"}`;
+
+  return rows.map(
+    (row) => `${row.course_code || "N/A"} (${row.course_description || "Unknown Course"})`,
+  );
+};
+
+const logCourseTaggingStudentHistory = async ({
+  req,
+  action,
+  studentNumber,
+  courseId,
+  departmentSectionId,
+  activeSchoolYearId,
+  courses = [],
+  remainingCourses = [],
+}) => {
+  const [studentName, sectionLabel, schoolYearLabel, courseLabel] = await Promise.all([
+    getStudentNameByNumber(studentNumber),
+    getDepartmentSectionLabel(departmentSectionId),
+    getSchoolYearLabel(activeSchoolYearId),
+    courseId ? getCourseLabel(courseId) : Promise.resolve(""),
+  ]);
+
+  await logStudentHistoryFromRequest({
+    req,
+    studentNumber,
+    action,
+    details: {
+      student_name: studentName,
+      section_label: sectionLabel,
+      school_year_label: schoolYearLabel,
+      course_label: courseLabel,
+      courses,
+      remaining_courses: remainingCourses,
+    },
+  });
 };
 
 const getEnrolledSubjectLabel = async (enrolledSubjectId) => {
@@ -582,6 +629,15 @@ router.post("/add-to-enrolled-courses/:userId/:currId/", async (req, res) => {
       message: `${roleLabel} (${actorId}) enrolled ${courseLabel} to Student (${userId}).`,
     });
 
+    await logCourseTaggingStudentHistory({
+      req,
+      action: "enroll_course",
+      studentNumber: userId,
+      courseId: subject_id,
+      departmentSectionId: department_section_id,
+      activeSchoolYearId,
+    });
+
     res.json({ message: "Course enrolled successfully" });
   } catch (err) {
     return res.status(500).json(err);
@@ -681,6 +737,17 @@ router.delete("/courses/delete/:id", async (req, res) => {
 
   try {
     const enrolledBefore = await getEnrolledSubjectLabel(id);
+    const [enrolledMetaRows] = await db3.query(
+      `
+      SELECT es.student_number, es.active_school_year_id, es.department_section_id, es.course_id
+      FROM enrolled_subject es
+      WHERE es.id = ?
+      LIMIT 1
+      `,
+      [id],
+    );
+    const enrolledMeta = enrolledMetaRows?.[0];
+
     const sql = "DELETE FROM enrolled_subject WHERE id = ?";
     const [result] = await db3.query(sql, [id]);
 
@@ -695,6 +762,23 @@ router.delete("/courses/delete/:id", async (req, res) => {
       action: "COURSE_TAGGING_UNENROLL",
       message: `${roleLabel} (${actorId}) unenrolled ${enrolledBefore?.courseLabel || `enrolled_subject ${id}`} from Student (${enrolledBefore?.studentNumber || "unknown"}).`,
     });
+
+    if (enrolledMeta?.student_number && enrolledMeta?.active_school_year_id) {
+      const remainingCourses = await getRemainingEnrolledCourseLabels(
+        enrolledMeta.student_number,
+        enrolledMeta.active_school_year_id,
+      );
+
+      await logCourseTaggingStudentHistory({
+        req,
+        action: "unenroll_course",
+        studentNumber: enrolledMeta.student_number,
+        courseId: enrolledMeta.course_id,
+        departmentSectionId: enrolledMeta.department_section_id,
+        activeSchoolYearId: enrolledMeta.active_school_year_id,
+        remainingCourses,
+      });
+    }
 
     res.json({
       message: "Course and related evaluations removed successfully",
@@ -751,6 +835,18 @@ router.delete("/courses/user/:userId", async (req, res) => {
         action: "COURSE_TAGGING_UNENROLL_ALL",
         message: `${roleLabel} (${actorId}) unenrolled ${result.affectedRows} course(s) from Student (${userId}). Course(s): ${sampleCourses || "N/A"}${extraCount}.`,
       });
+
+      const unenrolledCourses = enrolledBefore.map(
+        (row) => `${row.course_code || "N/A"} (${row.course_description || "Unknown Course"})`,
+      );
+
+      await logCourseTaggingStudentHistory({
+        req,
+        action: "unenroll_all",
+        studentNumber: userId,
+        activeSchoolYearId: effectiveActiveSchoolYearId,
+        courses: unenrolledCourses,
+      });
     }
 
     res.json({ message: "All courses unenrolled successfully" });
@@ -762,7 +858,6 @@ router.delete("/courses/user/:userId", async (req, res) => {
 // SEARCH STUDENT (REGISTRAR)
 router.post("/student-tagging", async (req, res) => {
   const { studentNumber, active_school_year_id } = req.body;
-  console.log("Student NUmber", studentNumber);
   if (!studentNumber) {
     return res.status(400).json({ message: "All fields are required" });
   }
@@ -904,32 +999,6 @@ router.post("/student-tagging", async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "24h" }
     );
-
-    console.log("Search response:", {
-      token2,
-      totalNstpCount,
-      studentNumber: student.student_number,
-      person_id2: student.person_id,
-      activeCurriculum: student.active_curriculum,
-      section: student.section_description,
-      major: student.major,
-      yearLevel: student.year_level_id,
-      yearLevelDescription: student.year_level_description,
-      courseCode: student.program_code,
-      courseDescription: student.program_description,
-      departmentName: student.dprtmnt_name,
-      yearDesc: student.year_description,
-      firstName: student.first_name,
-      middleName: student.middle_name,
-      lastName: student.last_name,
-      age: student.age,
-      gender: student.gender,
-      applyingAs: student.applyingAs,
-      email: student.emailAddress,
-      program: student.program,
-      profile_img: student.profile_img,
-      extension: student.extension,
-    });
 
     res.json({
       message: "Search successful",

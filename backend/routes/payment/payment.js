@@ -1,5 +1,6 @@
 const express = require("express");
 const { db, db3 } = require("../database/database");
+const { logStudentHistoryFromRequest } = require("../../utils/studentHistoryLogger");
 
 const router = express.Router();
 
@@ -148,6 +149,21 @@ router.post("/save_to_unifast", async (req, res) => {
     const [result] = await db3.query(query, values);
     const unifast_id = result.insertId;
 
+    const studentName = [last_name, given_name, middle_initial]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+      .join(" ");
+
+    await logStudentHistoryFromRequest({
+      req,
+      studentNumber: student_number,
+      action: "save_unifast",
+      details: {
+        student_name: studentName || "Unknown Student",
+        payment_target: remark || "UNIFAST",
+      },
+    });
+
     res.json({
       success: true,
       unifast_id,
@@ -255,6 +271,21 @@ router.post("/save_to_matriculation", async (req, res) => {
     const [result] = await db3.query(query, values);
 
     const matriculation_id = result.insertId;
+
+    const studentName = [last_name, given_name, middle_initial]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+      .join(" ");
+
+    await logStudentHistoryFromRequest({
+      req,
+      studentNumber: student_number,
+      action: "save_matriculation",
+      details: {
+        student_name: studentName || "Unknown Student",
+        payment_target: matriculation_remark || remark || "Matriculation",
+      },
+    });
 
     res.json({
       success: true,

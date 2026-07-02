@@ -3,6 +3,7 @@ const {
   insertAuditLogAdmission,
   insertAuditLogEnrollment,
 } = require("./auditLogger");
+const { logStudentHistoryFromActor } = require("./studentHistoryLogger");
 
 const getConfiguredSenderAccounts = () =>
   [
@@ -1136,6 +1137,16 @@ WHERE proctor LIKE ?
           action: "STUDENT_NUMBER_ASSIGN",
           severity: "INFO",
           message: `${roleLabel} (${auditActorId}) assigned student number ${student_number} to ${studentName || `person_id ${person_id}`}.`,
+        });
+
+        await logStudentHistoryFromActor({
+          actorId: auditActorId,
+          studentNumber: student_number,
+          action: "assign_student_number",
+          details: {
+            student_name: [first_name, middle_name, last_name].filter(Boolean).join(" "),
+            generated_number: student_number,
+          },
         });
 
         // ── Send welcome email ───────────────────────────────────────────────────

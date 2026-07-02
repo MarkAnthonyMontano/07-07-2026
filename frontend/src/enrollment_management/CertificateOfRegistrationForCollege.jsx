@@ -31,7 +31,7 @@ import LoadingOverlay from "../components/LoadingOverlay";
 import { MdOutlinePayment } from "react-icons/md";
 import { IoMdSchool } from "react-icons/io";
 import API_BASE_URL from "../apiConfig";
-import { postAuditEvent } from "../utils/auditEvents";
+import { postAuditEvent, getAuditHeaders } from "../utils/auditEvents";
 import {
   filterCollegeScheduleSections,
   getDepartmentIdsFromAdminData,
@@ -1036,7 +1036,7 @@ const CertificateOfRegistrationForCollege = forwardRef(
         const res = await axios.post(`${API_BASE_URL}/api/save_to_unifast`, {
           ...requestedData,
           status: 1,
-        });
+        }, { headers: getAuditHeaders() });
         if (res.data.success) {
           setSavedUnifast(true);
           showSnackbar(
@@ -1072,7 +1072,7 @@ const CertificateOfRegistrationForCollege = forwardRef(
         }, scholarship);
         const res = await axios.post(`${API_BASE_URL}/api/save_to_matriculation`, {
           ...payload,
-        });
+        }, { headers: getAuditHeaders() });
         if (res.data.success) {
           setSavedMatriculation(true);
           showSnackbar(

@@ -80,6 +80,207 @@ const getSchoolYearLabelFromIds = async (yearId, semesterId) => {
   return `${rows[0].year_description} ${rows[0].semester_description}`;
 };
 
+const buildCurriculumStepMap = (programRows) => {
+  const map = new Map();
+
+  for (const row of programRows) {
+    const curriculumId = Number(row.curriculum_id);
+    if (!curriculumId || !row.year_level_id || !row.semester_id) continue;
+
+    if (!map.has(curriculumId)) map.set(curriculumId, []);
+    const steps = map.get(curriculumId);
+    const exists = steps.some(
+      (step) =>
+        Number(step.year_level_id) === Number(row.year_level_id) &&
+        Number(step.semester_id) === Number(row.semester_id),
+    );
+
+    if (!exists) {
+      steps.push({
+        year_level_id: Number(row.year_level_id),
+        semester_id: Number(row.semester_id),
+      });
+    }
+  }
+
+  for (const steps of map.values()) {
+    steps.sort(
+      (a, b) =>
+        Number(a.year_level_id) - Number(b.year_level_id) ||
+        Number(a.semester_id) - Number(b.semester_id),
+    );
+  }
+
+  return map;
+};
+
+const generateStudentStatusesForActivatedSchoolYear = async ({
+  connection,
+  targetSchoolYearId,
+  targetSemesterId,
+  previousActiveSchoolYearId,
+}) => {
+  const summary = {
+    generatedRows: 0,
+    skippedExistingRows: 0,
+    skippedNoCurriculumSequence: 0,
+    skippedNoNextStep: 0,
+    skippedTargetSemesterMismatch: 0,
+  };
+
+  const [lockedCurricula] = await connection.query(
+    "SELECT curriculum_id FROM curriculum_table WHERE lock_status = 1",
+  );
+  const lockedCurriculumIds = lockedCurricula
+    .map((row) => Number(row.curriculum_id))
+    .filter(Boolean);
+
+  if (lockedCurriculumIds.length === 0) return summary;
+
+  const curriculumPlaceholders = lockedCurriculumIds.map(() => "?").join(", ");
+  const [programRows] = await connection.query(
+    `
+    SELECT curriculum_id, year_level_id, semester_id
+    FROM program_tagging_table
+    WHERE curriculum_id IN (${curriculumPlaceholders})
+      AND year_level_id IS NOT NULL
+      AND semester_id IS NOT NULL
+    GROUP BY curriculum_id, year_level_id, semester_id
+    ORDER BY curriculum_id, year_level_id, semester_id
+    `,
+    lockedCurriculumIds,
+  );
+  const curriculumStepMap = buildCurriculumStepMap(programRows);
+
+  if (curriculumStepMap.size === 0) return summary;
+
+  let studentRows = [];
+  if (previousActiveSchoolYearId) {
+    [studentRows] = await connection.query(
+      `
+      SELECT
+        sst.student_number,
+        sst.active_curriculum,
+        sst.year_level_id,
+        sst.active_school_year_id,
+        asyt.semester_id
+      FROM student_status_table AS sst
+      INNER JOIN active_school_year_table AS asyt
+        ON asyt.id = sst.active_school_year_id
+      WHERE sst.active_school_year_id = ?
+        AND sst.active_curriculum IN (${curriculumPlaceholders})
+      `,
+      [previousActiveSchoolYearId, ...lockedCurriculumIds],
+    );
+  } else {
+    [studentRows] = await connection.query(
+      `
+      SELECT
+        sst.student_number,
+        sst.active_curriculum,
+        sst.year_level_id,
+        sst.active_school_year_id,
+        asyt.semester_id
+      FROM student_status_table AS sst
+      INNER JOIN (
+        SELECT student_number, MAX(id) AS latest_id
+        FROM student_status_table
+        WHERE active_curriculum IN (${curriculumPlaceholders})
+        GROUP BY student_number
+      ) AS latest
+        ON latest.latest_id = sst.id
+      LEFT JOIN active_school_year_table AS asyt
+        ON asyt.id = sst.active_school_year_id
+      `,
+      lockedCurriculumIds,
+    );
+  }
+
+  if (studentRows.length === 0) return summary;
+
+  const [existingRows] = await connection.query(
+    `
+    SELECT student_number, active_curriculum, year_level_id
+    FROM student_status_table
+    WHERE active_school_year_id = ?
+      AND active_curriculum IN (${curriculumPlaceholders})
+    `,
+    [targetSchoolYearId, ...lockedCurriculumIds],
+  );
+  const existingStatusKeys = new Set(
+    existingRows.map(
+      (row) =>
+        `${row.student_number}|${Number(row.active_curriculum)}|${Number(row.year_level_id)}`,
+    ),
+  );
+
+  const rowsToInsert = [];
+  const plannedStatusKeys = new Set();
+
+  for (const student of studentRows) {
+    const curriculumId = Number(student.active_curriculum);
+    const steps = curriculumStepMap.get(curriculumId);
+
+    if (!steps) {
+      summary.skippedNoCurriculumSequence += 1;
+      continue;
+    }
+
+    const currentYearLevelId = Number(student.year_level_id || 0);
+    const currentSemesterId = Number(student.semester_id || 0);
+    let currentIndex = -1;
+
+    if (currentYearLevelId && currentSemesterId) {
+      currentIndex = steps.findIndex(
+        (step) =>
+          Number(step.year_level_id) === currentYearLevelId &&
+          Number(step.semester_id) === currentSemesterId,
+      );
+    }
+
+    const nextStep = currentIndex >= 0 ? steps[currentIndex + 1] : steps[0];
+    if (!nextStep) {
+      summary.skippedNoNextStep += 1;
+      continue;
+    }
+
+    if (Number(nextStep.semester_id) !== Number(targetSemesterId)) {
+      summary.skippedTargetSemesterMismatch += 1;
+      continue;
+    }
+
+    const statusKey = `${student.student_number}|${curriculumId}|${Number(nextStep.year_level_id)}`;
+    if (existingStatusKeys.has(statusKey) || plannedStatusKeys.has(statusKey)) {
+      summary.skippedExistingRows += 1;
+      continue;
+    }
+
+    plannedStatusKeys.add(statusKey);
+    rowsToInsert.push([
+      student.student_number,
+      curriculumId,
+      0,
+      Number(nextStep.year_level_id),
+      Number(targetSchoolYearId),
+      0,
+    ]);
+  }
+
+  if (rowsToInsert.length > 0) {
+    await connection.query(
+      `
+      INSERT INTO student_status_table
+        (student_number, active_curriculum, enrolled_status, year_level_id, active_school_year_id, control_status)
+      VALUES ?
+      `,
+      [rowsToInsert],
+    );
+    summary.generatedRows = rowsToInsert.length;
+  }
+
+  return summary;
+};
+
 // YEAR TABLE (UPDATED!)
 router.post("/years", async (req, res) => {
   const { year_description } = req.body;
@@ -398,30 +599,57 @@ router.put("/school_years/deactivate_all", async (req, res) => {
 router.put("/school_years/:id", async (req, res) => {
   const { id } = req.params;
   const { activator } = req.body;
+  let connection;
 
   try {
     const schoolYearLabel = await getSchoolYearLabel(id);
     const [yearRows] = await db3.query(
-      "SELECT year_id FROM active_school_year_table WHERE id = ? LIMIT 1",
+      "SELECT id, year_id, semester_id FROM active_school_year_table WHERE id = ? LIMIT 1",
       [id],
     );
-    const yearId = yearRows[0]?.year_id;
+    const selectedSchoolYear = yearRows[0];
+
+    if (!selectedSchoolYear) {
+      return res.status(404).json({ error: "School year not found" });
+    }
+
+    const yearId = selectedSchoolYear.year_id;
 
     if (parseInt(activator) === 1) {
-      await db3.query("UPDATE active_school_year_table SET astatus = 0");
+      connection = await db3.getConnection();
+      await connection.beginTransaction();
+
+      const [previousActiveRows] = await connection.query(
+        "SELECT id FROM active_school_year_table WHERE astatus = 1 AND id != ? LIMIT 1",
+        [id],
+      );
+      const previousActiveSchoolYearId = previousActiveRows[0]?.id || null;
+
+      await connection.query("UPDATE active_school_year_table SET astatus = 0");
 
       // Activate selected
-      await db3.query(
+      await connection.query(
         "UPDATE active_school_year_table SET astatus = 1 WHERE id = ?",
         [id],
       );
 
       if (yearId) {
-        await db3.query("UPDATE year_table SET status = 0");
-        await db3.query("UPDATE year_table SET status = 1 WHERE year_id = ?", [
+        await connection.query("UPDATE year_table SET status = 0");
+        await connection.query("UPDATE year_table SET status = 1 WHERE year_id = ?", [
           yearId,
         ]);
       }
+
+      const studentStatusGeneration = await generateStudentStatusesForActivatedSchoolYear({
+        connection,
+        targetSchoolYearId: id,
+        targetSemesterId: selectedSchoolYear.semester_id,
+        previousActiveSchoolYearId,
+      });
+
+      await connection.commit();
+      connection.release();
+      connection = null;
 
       await db.query(
         "UPDATE user_accounts SET status = 0 WHERE school_year_id IS NOT NULL AND school_year_id != ?",
@@ -440,10 +668,16 @@ router.put("/school_years/:id", async (req, res) => {
         message: `${roleLabel} (${actorId}) activated school year ${schoolYearLabel}.`,
       });
 
-      return res.status(200).json({ message: "School year activated" });
+      return res.status(200).json({
+        message: "School year activated",
+        studentStatusGeneration,
+      });
     } else {
+      connection = await db3.getConnection();
+      await connection.beginTransaction();
+
       // Deactivate selected
-      await db3.query(
+      await connection.query(
         "UPDATE active_school_year_table SET astatus = 0 WHERE id = ?",
         [id],
       );
@@ -454,16 +688,20 @@ router.put("/school_years/:id", async (req, res) => {
       );
 
       // Unenroll all students tied to the deactivated school year
-      await db3.query(
+      await connection.query(
         "UPDATE student_status_table SET enrolled_status = 0 WHERE active_school_year_id = ?",
         [id],
       );
 
       if (yearId) {
-        await db3.query("UPDATE year_table SET status = 0 WHERE year_id = ?", [
+        await connection.query("UPDATE year_table SET status = 0 WHERE year_id = ?", [
           yearId,
         ]);
       }
+
+      await connection.commit();
+      connection.release();
+      connection = null;
 
       const { actorId, roleLabel } = getActorLabel(req);
       await insertSchoolYearAuditLog({
@@ -475,6 +713,14 @@ router.put("/school_years/:id", async (req, res) => {
       return res.status(200).json({ message: "School year deactivated" });
     }
   } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+        connection.release();
+      } catch (rollbackErr) {
+        console.error("Rollback error:", rollbackErr);
+      }
+    }
     console.error("Error:", err);
     res
       .status(500)

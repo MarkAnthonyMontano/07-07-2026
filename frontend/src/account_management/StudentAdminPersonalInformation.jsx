@@ -455,6 +455,7 @@ const SuperAdminStudentDashboard1 = () => {
       await axios.put(
         `${API_BASE_URL}/api/enrollment/person/${userID}`,
         updatedPerson,
+        getAuditHeaders(),
       );
       console.log("✅ Auto-saved to ENROLLMENT DB3");
     } catch (error) {

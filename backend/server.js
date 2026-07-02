@@ -19,6 +19,11 @@ const {
   insertAuditLogAdmission,
   insertAuditLogEnrollment,
 } = require("./utils/auditLogger");
+const {
+  getCourseLabel,
+  getStudentNameByNumber,
+  logStudentHistoryFromRequest,
+} = require("./utils/studentHistoryLogger");
 const nodemailer = require("nodemailer");
 const { error } = require("console");
 const app = express();
@@ -35,7 +40,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://192.168.50.211:5173",
   "http://136.239.248.62:5173",
-  "http://192.168.50.37:5173",
+  "http://192.168.50.50:5173",
   "http://192.168.1.9:5173",
 ];
 
@@ -145,6 +150,7 @@ const honorRoutes = require("./routes/system_routes/honorRoutes");
 const nstpTagging = require("./routes/system_routes/nstpTagging");
 const departmentSectionTagging = require("./routes/system_routes/departmentSectionTagging");
 const auditLogsRoute = require("./routes/system_routes/auditLogsRoute");
+const studentHistoryLogsRoute = require("./routes/system_routes/studentHistoryLogsRoute");
 const applicantAdminRequirements = require("./routes/admission_routes/applicantAdminRequirements");
 const studentAdminRequirements = require("./routes/admission_routes/studentAdminRequirements");
 const uploadApplicants = require("./routes/admission_routes/uploadApplicants");
@@ -195,6 +201,7 @@ app.use("/api", templateRoute);
 app.use("/api", nstpTagging);
 app.use("/api", departmentSectionTagging)
 app.use("/api", auditLogsRoute);
+app.use("/api", studentHistoryLogsRoute);
 app.use("/api", applicantRoutesResetPassword);
 app.use("/api", studentRoutesResetPassword);
 app.use("/api", facultyRoutesResetPassword);
@@ -2226,6 +2233,22 @@ app.post("/api/update-grade", async (req, res) => {
         severity: "INFO",
         message: `${roleLabel} (${actorId}) updated grade of Student (${student_number}) in ${courseLabel} to ${final_grade}.`,
       });
+
+      const [studentName, courseHistoryLabel] = await Promise.all([
+        getStudentNameByNumber(student_number),
+        getCourseLabel(course_id),
+      ]);
+
+      await logStudentHistoryFromRequest({
+        req,
+        studentNumber: student_number,
+        action: "program_evaluation_grade",
+        details: {
+          student_name: studentName,
+          course_label: courseHistoryLabel,
+          grade: final_grade,
+        },
+      });
     }
 
     res.json({ success: true, message: "Grade updated" });
@@ -3071,6 +3094,85 @@ const insertApplicantCourseChangeAuditLog = async ({
   });
 };
 
+const updateActiveStudentCurriculumForCurrentSchoolYear = async ({
+  req,
+  personId,
+  previousCurriculumId,
+  nextCurriculumId,
+}) => {
+  const previousId = Number(previousCurriculumId || 0);
+  const nextId = Number(nextCurriculumId || 0);
+
+  if (!previousId || !nextId || previousId === nextId) {
+    return {
+      changed: false,
+      reason: "No curriculum change detected",
+    };
+  }
+
+  const [[studentRow]] = await db3.query(
+    `
+    SELECT student_number
+    FROM student_numbering_table
+    WHERE person_id = ?
+    LIMIT 1
+    `,
+    [personId],
+  );
+
+  if (!studentRow?.student_number) {
+    return {
+      changed: false,
+      reason: "Student number not found",
+    };
+  }
+
+  const [[activeSchoolYear]] = await db3.query(
+    `
+    SELECT id
+    FROM active_school_year_table
+    WHERE astatus = 1
+    LIMIT 1
+    `,
+  );
+
+  if (!activeSchoolYear?.id) {
+    return {
+      changed: false,
+      reason: "Active school year not found",
+    };
+  }
+
+  const [statusResult] = await db3.query(
+    `
+    UPDATE student_status_table
+    SET active_curriculum = ?
+    WHERE student_number = ?
+      AND active_school_year_id = ?
+    `,
+    [nextId, studentRow.student_number, activeSchoolYear.id],
+  );
+
+  const [fromLabel, toLabel, studentName] = await Promise.all([
+    getApplicantCurriculumLabel(previousId),
+    getApplicantCurriculumLabel(nextId),
+    getStudentNameByNumber(studentRow.student_number),
+  ]);
+
+  await logStudentHistoryFromRequest({
+    req,
+    studentNumber: studentRow.student_number,
+    message: `Student (${studentRow.student_number}) ${studentName} shifted curriculum from ${fromLabel} to ${toLabel}.`,
+  });
+
+  return {
+    changed: true,
+    studentNumber: studentRow.student_number,
+    activeSchoolYearId: activeSchoolYear.id,
+    updatedStatusRows: statusResult.affectedRows || 0,
+  };
+};
+
 const requirementStatusLabel = (status) => {
   if (Number(status) === 1) return "Verified";
   if (Number(status) === 2) return "Rejected";
@@ -3272,7 +3374,7 @@ app.put("/api/enrollment/person/:person_id", async (req, res) => {
   const { person_id } = req.params;
   const updatedData = req.body;
 
-  const excludedFields = ["document_status", "evaluator"];
+  const excludedFields = ["document_status", "evaluator", "program"];
   const sanitizedData = Object.fromEntries(
     Object.entries(updatedData).filter(([key]) => !excludedFields.includes(key))
   );
@@ -3281,6 +3383,22 @@ app.put("/api/enrollment/person/:person_id", async (req, res) => {
   }
 
   try {
+    const [[personBefore]] = await db3.query(
+      `
+      SELECT person_id, program
+      FROM person_table
+      WHERE person_id = ?
+      LIMIT 1
+      `,
+      [person_id],
+    );
+
+    if (!personBefore) {
+      return res
+        .status(404)
+        .json({ message: "Person not found in ENROLLMENT" });
+    }
+
     if (sanitizedData.emailAddress) {
       const [duplicateEmail] = await db3.query(
         `
@@ -3308,6 +3426,20 @@ app.put("/api/enrollment/person/:person_id", async (req, res) => {
       return res
         .status(404)
         .json({ message: "Person not found in ENROLLMENT" });
+
+    let curriculumShift = {
+      changed: false,
+      reason: "Program field was not updated",
+    };
+
+    if (Object.prototype.hasOwnProperty.call(sanitizedData, "program")) {
+      curriculumShift = await updateActiveStudentCurriculumForCurrentSchoolYear({
+        req,
+        personId: person_id,
+        previousCurriculumId: personBefore.program,
+        nextCurriculumId: sanitizedData.program,
+      });
+    }
 
     if (sanitizedData.emailAddress) {
       await db3.query(
@@ -3345,6 +3477,7 @@ app.put("/api/enrollment/person/:person_id", async (req, res) => {
     res.json({
       success: true,
       message: "Person updated successfully in ENROLLMENT DB3",
+      curriculumShift,
     });
   } catch (err) {
     console.error(" Error updating person in ENROLLMENT DB:", err);

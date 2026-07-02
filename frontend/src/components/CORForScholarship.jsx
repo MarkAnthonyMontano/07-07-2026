@@ -33,7 +33,7 @@ import LoadingOverlay from "../components/LoadingOverlay";
 import { MdOutlinePayment } from "react-icons/md";
 import { IoMdSchool } from "react-icons/io";
 import API_BASE_URL from "../apiConfig";
-import { postAuditEvent } from "../utils/auditEvents";
+import { postAuditEvent, getAuditHeaders } from "../utils/auditEvents";
 
 const CertificateOfRegistration = forwardRef(
 
@@ -1040,7 +1040,7 @@ const CertificateOfRegistration = forwardRef(
           ...payload,
           matriculation_remark: selectedScholarship.scholarship_name,
           status: 1,
-        });
+        }, { headers: getAuditHeaders() });
         if (res.data.success) {
           setSavedMatriculation(true);
           showSnackbar(

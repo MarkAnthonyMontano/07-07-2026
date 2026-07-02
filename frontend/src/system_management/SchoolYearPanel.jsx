@@ -264,15 +264,20 @@ const SchoolYearPanel = () => {
     });
 
     try {
-      await axios.put(
+      const response = await axios.put(
         `${API_BASE_URL}/api/school_years/${schoolYearId}`,
         { activator: updatedStatus },
         getAuditHeaders()
       );
 
+      const generatedRows =
+        response.data?.studentStatusGeneration?.generatedRows ?? 0;
       setSnackbar({
         open: true,
-        message: updatedStatus === 1 ? "School year activated!" : "School year deactivated!",
+        message:
+          updatedStatus === 1
+            ? `School year activated! Generated ${generatedRows} student status row${generatedRows === 1 ? "" : "s"}.`
+            : "School year deactivated!",
         severity: "success",
       });
       fetchSchoolYears();

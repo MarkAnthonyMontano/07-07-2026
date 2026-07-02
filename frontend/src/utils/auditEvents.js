@@ -19,7 +19,7 @@ const getAuditActorRole = () => {
   return localStorage.getItem("access_description") || role || "";
 };
 
-const getAuditHeaders = () => {
+export const getAuditHeaders = () => {
   const token = localStorage.getItem("token") || "";
 
   return {

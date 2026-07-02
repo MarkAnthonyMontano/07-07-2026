@@ -40,6 +40,11 @@ import GradeIcon from "@mui/icons-material/Grade";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import { useNavigate } from "react-router-dom";
 import { postAuditEvent } from "../utils/auditEvents";
+import {
+  formatCourseHistoryLabel,
+  formatStudentDisplayName,
+  logBulkCourseEnrollmentHistory,
+} from "../utils/studentHistoryLogs";
 
 /* ─── Design tokens ─── */
 const TOKEN = {
@@ -437,13 +442,18 @@ const CourseTagging = () => {
     if (userId && currId) refreshEnrolledCourses().catch((err) => console.error(err));
   }, [userId, currId]);
 
-  useEffect(() => { fetchDepartmentSections(); }, []);
-  useEffect(() => { if (selectedDepartment) fetchDepartmentSections(); }, [selectedDepartment]);
+  useEffect(() => {
+    setSelectedSection("");
+    setSections([]);
+    setError(null);
+    if (selectedDepartment) fetchDepartmentSections(selectedDepartment);
+  }, [selectedDepartment]);
 
-  const fetchDepartmentSections = async () => {
+  const fetchDepartmentSections = async (departmentId) => {
+    if (!departmentId) return;
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/api/department-sections`, { params: { departmentId: selectedDepartment } });
+      const response = await axios.get(`${API_BASE_URL}/api/department-sections`, { params: { departmentId } });
       setSections(response.data);
       setLoading(false);
     } catch (err) {
@@ -561,6 +571,18 @@ const CourseTagging = () => {
     } catch (err) { setSnack({ open: true, message: "Error unenrolling subject.", severity: "error" }); }
   };
 
+  const getSelectedSectionLabel = () => {
+    const section = sections.find(
+      (item) =>
+        String(item.department_and_program_section_id) === String(selectedSection),
+    );
+    if (!section) return sectionDescription || "Unknown Section";
+    return [section.program_description, section.major, section.description]
+      .map((value) => cleanDisplayValue(value))
+      .filter(Boolean)
+      .join(" ");
+  };
+
   const addAllToCart = async (yearLevelId) => {
     if (!canCreate) { setSnack({ open: true, message: "You do not have permission to bulk enroll subjects.", severity: "error" }); return; }
     const newCourses = courses.filter((c) => !isEnrolledCourse(c.course_id) && Number(c.year_level_id) === Number(yearLevelId) && (activeSemesterId ? Number(c.semester_id) === Number(activeSemesterId) : true));
@@ -568,16 +590,39 @@ const CourseTagging = () => {
     if (!userId) { setSnack({ open: true, message: "Please search and select a student first.", severity: "warning" }); return; }
     if (newCourses.length === 0) return;
     let enrolledCount = 0;
+    const enrolledCourses = [];
     try {
       await Promise.all(newCourses.map(async (course) => {
         try {
           const res = await axios.post(`${API_BASE_URL}/api/add-all-to-enrolled-courses`, { subject_id: course.course_id, user_id: userId, curriculumID: currId, departmentSectionID: selectedSection, year_level: yearLevelId }, auditConfig);
-          if (res.data?.enrolled) enrolledCount++;
+          if (res.data?.enrolled) {
+            enrolledCount++;
+            enrolledCourses.push(formatCourseHistoryLabel(course));
+          }
           setDisableYearButtons(true);
         } catch (err) { console.error("Error enrolling course in bulk:", err); }
       }));
       const data = await refreshEnrolledCourses();
       if (data.length > 0) { setCourseCode(cleanDisplayValue(data[0].program_code)); setCourseDescription(cleanDisplayValue(data[0].program_description)); setSectionDescription(cleanDisplayValue(data[0].section)); }
+      if (enrolledCount > 0) {
+        try {
+          await logBulkCourseEnrollmentHistory({
+            studentNumber: userId,
+            studentName: formatStudentDisplayName({
+              first_name,
+              middle_name,
+              last_name,
+            }),
+            sectionLabel: getSelectedSectionLabel(),
+            schoolYearLabel: [curriculumYear, formatSemester(activeSemester)]
+              .filter(Boolean)
+              .join(" "),
+            courses: enrolledCourses,
+          });
+        } catch (historyErr) {
+          console.error("Student history log failed:", historyErr);
+        }
+      }
       setSnack({ open: true, message: enrolledCount > 0 ? "Bulk enroll finished. All available subjects were enrolled." : "No new subjects were enrolled.", severity: enrolledCount > 0 ? "success" : "info" });
     } catch (err) { setSnack({ open: true, message: "Unexpected error during bulk enrollment.", severity: "error" }); }
   };
@@ -608,7 +653,7 @@ const CourseTagging = () => {
 
   useEffect(() => {
     const fetchDepartments = async () => {
-      try { const res = await axios.get(`${API_BASE_URL}/api/departments`); setDepartments(res.data); }
+      try { const res = await axios.get(`${API_BASE_URL}/api/get_department`); setDepartments(res.data); }
       catch (err) { console.error("Error fetching departments:", err); }
     };
     fetchDepartments();
@@ -702,28 +747,27 @@ const CourseTagging = () => {
   const totalUnits = enrolled.reduce((sum, item) => sum + (parseFloat(item.course_unit) || 0), 0)
     + enrolled.reduce((sum, item) => sum + (parseFloat(item.lab_unit) || 0), 0);
 
-  if (loading || hasAccess === null) return <LoadingOverlay open={loading} message="Loading..." />;
   if (!hasAccess) return <Unauthorized />;
 
      // 🔒 Disable right-click
-    document.addEventListener("contextmenu", (e) => e.preventDefault());
+    // document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-    // 🔒 Block DevTools shortcuts + Ctrl+P silently
-    document.addEventListener("keydown", (e) => {
-        const isBlockedKey =
-            e.key === "F12" ||
-            e.key === "F11" ||
-            (e.ctrlKey &&
-                e.shiftKey &&
-                (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-            (e.ctrlKey && e.key.toLowerCase() === "u") ||
-            (e.ctrlKey && e.key.toLowerCase() === "p");
+    // // 🔒 Block DevTools shortcuts + Ctrl+P silently
+    // document.addEventListener("keydown", (e) => {
+    //     const isBlockedKey =
+    //         e.key === "F12" ||
+    //         e.key === "F11" ||
+    //         (e.ctrlKey &&
+    //             e.shiftKey &&
+    //             (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+    //         (e.ctrlKey && e.key.toLowerCase() === "u") ||
+    //         (e.ctrlKey && e.key.toLowerCase() === "p");
 
-        if (isBlockedKey) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-    });
+    //     if (isBlockedKey) {
+    //         e.preventDefault();
+    //         e.stopPropagation();
+    //     }
+    // });
 
   /* ════════════════════════════════════════════════════
      RENDER

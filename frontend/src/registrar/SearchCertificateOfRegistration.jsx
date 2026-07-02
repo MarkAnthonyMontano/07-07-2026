@@ -34,6 +34,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import Unauthorized from "../components/Unauthorized";
 import LoadingOverlay from "../components/LoadingOverlay";
+import StudentHistoryDialog from "../components/StudentHistoryDialog";
 import { postAuditEvent } from "../utils/auditEvents";
 import AddIcon from '@mui/icons-material/Add';
 
@@ -493,25 +494,31 @@ const SearchCertificateOfRegistration = () => {
           SEARCH CERTIFICATE OF REGISTRATION
         </Typography>
 
-        <TextField
-          variant="outlined"
-          placeholder="Enter Student Number"
-          size="small"
-          value={studentNumber}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+          <TextField
+            variant="outlined"
+            placeholder="Enter Student Number"
+            size="small"
+            value={studentNumber}
 
-          onChange={(e) => setStudentNumber(e.target.value)}
-          sx={{
-            width: 450,
-            backgroundColor: "#fff",
-            borderRadius: 1,
-            "& .MuiOutlinedInput-root": {
-              borderRadius: "10px",
-            },
-          }}
-          InputProps={{
-            startAdornment: <SearchIcon sx={{ mr: 1, color: "gray" }} />,
-          }}
-        />
+            onChange={(e) => setStudentNumber(e.target.value)}
+            sx={{
+              width: 450,
+              backgroundColor: "#fff",
+              borderRadius: 1,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "10px",
+              },
+            }}
+            InputProps={{
+              startAdornment: <SearchIcon sx={{ mr: 1, color: "gray" }} />,
+            }}
+          />
+          <StudentHistoryDialog
+            studentNumber={debouncedStudentNumber || studentNumber}
+            buttonColor={mainButtonColor}
+          />
+        </Box>
       </Box>
 
       <hr style={{ border: "1px solid #ccc", width: "100%" }} />

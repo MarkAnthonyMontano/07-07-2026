@@ -31,6 +31,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import API_BASE_URL from "../apiConfig";
 import Unauthorized from "../components/Unauthorized";
 import LoadingOverlay from "../components/LoadingOverlay"
+import StudentHistoryDialog from "../components/StudentHistoryDialog";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
@@ -628,6 +629,11 @@ const SearchCorForCollege = () => {
                         InputProps={{
                             startAdornment: <SearchIcon sx={{ mr: 1, color: "gray" }} />,
                         }}
+                    />
+                    <StudentHistoryDialog
+                        studentNumber={debouncedStudentNumber || studentNumber}
+                        buttonColor={mainButtonColor}
+                        disabled={departmentLoading}
                     />
                 </Box>
             </Box>
