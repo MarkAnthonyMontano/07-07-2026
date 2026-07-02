@@ -331,7 +331,7 @@ const ApplicantFamilyBackgroundMobile = (props) => {
   const keys = JSON.parse(localStorage.getItem("dashboardKeys") || "{}");
 
   const stepsWithPaths = [
-{ label: "Personal Information", icon: <PersonIcon />, path: `/applicant_personal_information/${keys.step1}` },
+    { label: "Personal Information", icon: <PersonIcon />, path: `/applicant_personal_information/${keys.step1}` },
     { label: "Family Background", icon: <FamilyRestroomIcon />, path: `/applicant_family_background/${keys.step2}` },
     { label: "Educational Attainment", icon: <SchoolIcon />, path: `/applicant_educational_attainment/${keys.step3}` },
     { label: "Health Medical Records", icon: <HealthAndSafetyIcon />, path: `/applicant_health_medical_records/${keys.step4}` },
@@ -646,7 +646,7 @@ const ApplicantFamilyBackgroundMobile = (props) => {
     { label: "Examination Permit", onClick: handleExamPermitClick },
   ];
 
-    // 🔒 Disable right-click
+  // 🔒 Disable right-click
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
   // 🔒 Block DevTools shortcuts + Ctrl+P silently
@@ -748,13 +748,36 @@ const ApplicantFamilyBackgroundMobile = (props) => {
           </Box>
 
           {/* Text */}
-          <Typography sx={{ fontSize: 12, color: "#3e3e3e", lineHeight: 1.6 }}>
-            <strong style={{ color: "maroon" }}>Notice:</strong>{" "}
-            <span style={{ fontSize: "1.1em", margin: "0 6px" }}>➔</span>
-            Please indicate "NA" or "N/A" in fields where the requested information is not applicable or no response can be provided.
+          <Typography
+            sx={{
+              fontSize: "20px",
+              fontFamily: "Poppins, sans-serif",
+              color: "#3e3e3e",
+              lineHeight: 1.3,
+              whiteSpace: "normal",
+              overflow: "hidden",
+            }}
+          >
+            <strong style={{ color: "maroon" }}>Important Notice:</strong>
             <br />
-            <span style={{ marginLeft: 16, fontSize: "1.1em", marginRight: 6 }}>➔</span>
-            To enter the letter "Ñ", press and hold the ALT key while typing "165". For "ñ", press and hold the ALT key while typing "164".
+
+
+
+            <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+            Please indicate <strong>“NA”</strong> or <strong>“N/A”</strong> in fields where the
+            requested information is not applicable or no response can be provided.
+            <br />
+
+            <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+            To enter the letter <strong>“Ñ”</strong>, press and hold the ALT key while typing
+            <strong> 165</strong>. For <strong>“ñ”</strong>, press and hold the ALT key while
+            typing <strong> 164</strong>.
+            <br />
+
+            <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+            Please complete all information from <strong>Personal Information</strong> up to
+            <strong> Other Information</strong> before printing your documents.
+            <br />
           </Typography>
         </Box>
         {/* Printable Documents */}
@@ -1654,7 +1677,7 @@ const ApplicantFamilyBackgroundMobile = (props) => {
             Family Annual Income
           </div>
           <div style={S.cardBody}>
-          
+
             <Field label="Annual Income Bracket" required error={errors.annual_income} helperText="This field is required.">
               <MSelect
                 name="annual_income"
@@ -1675,7 +1698,7 @@ const ApplicantFamilyBackgroundMobile = (props) => {
               </MSelect>
             </Field>
 
-                 <Box display="flex" justifyContent="space-between" mt={4}>
+            <Box display="flex" justifyContent="space-between" mt={4}>
               <Button
                 variant="contained"
                 onClick={() => {
@@ -1715,7 +1738,7 @@ const ApplicantFamilyBackgroundMobile = (props) => {
 
           </div>
 
-          
+
 
           {/* Exam Permit Modal (mobile uses a simpler inline alert) */}
           {examPermitModalOpen && (
@@ -1751,13 +1774,13 @@ const ApplicantFamilyBackgroundMobile = (props) => {
             </div>
           )}
 
-       
+
         </div>
       </div>
     );
   }
 
- 
+
 };
 
 export default ApplicantFamilyBackgroundMobile;

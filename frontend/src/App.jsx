@@ -34,7 +34,7 @@ import { refreshRegistrarCurriculumId } from "./utils/registrarCurriculumRestric
 
 import StudentAccounts from "./account_management/StudentAccounts";
 import ApplicationProcessAdmin from "./admission/ApplicationProcessAdmin";
-import CourseTaggingForSummerCollege from "./enrollment_management/CourseTaggingForSummerCollege";
+import CollegeCourseTaggingSummer from "./enrollment_management/CollegeCourseTaggingSummer";
 import CollegeStudentList from "./enrollment_management/CollegeStudentList";
 import GradeConversionAdmin from "./system_management/GradeConversionAdmin";
 import HonorsReport from "./system_management/HonorsReport";
@@ -86,20 +86,20 @@ const AdminECATApplicationForm = lazy(() => import("./admission/AdminECATApplica
 const AdminOfficeOfTheRegistrar = lazy(() => import("./admission/AdminOfficeOfTheRegistrar"));
 const AdminPersonalDataForm = lazy(() => import("./admission/AdminPersonalDataForm"));
 const AdmissionScheduleTile = lazy(() => import("./admission/AdmissionScheduleTile"));
-const AnnouncementForAdmission = lazy(() => import("./admission/AnnouncementForAdmission"));
+const AdmissionAnnouncement = lazy(() => import("./admission/AdmissionAnnouncement"));
 const ApplicantExamSubjects = lazy(() => import("./admission/ApplicantExamSubjects"));
 const AdmissionApplicantList = lazy(() => import("./admission/AdmissionApplicantList"));
 const ApplicantEntranceExamScore = lazy(() => import("./admission/ApplicantEntranceExamScore"));
-const AssignEntranceExam = lazy(() => import("./admission/AssignEntranceExam"));
-const AssignScheduleToApplicants = lazy(() => import("./admission/AssignScheduleToApplicants"));
+const EntranceExamRoomAssignment = lazy(() => import("./admission/EntranceExamRoomAssignment"));
+const EntranceExamScheduleManagement = lazy(() => import("./admission/EntranceExamScheduleManagement"));
 const EvaluatorApplicantList = lazy(() => import("./admission/EvaluatorApplicantList"));
 const EvaluatorScheduleTile = lazy(() => import("./admission/EvaluatorScheduleTile"));
 const ProctorApplicantList = lazy(() => import("./admission/ProctorApplicantList"));
-const RegistrarExaminationProfile = lazy(() => import("./admission/RegistrarExaminationProfile"));
+const ExaminationPermitChangeCourse = lazy(() => import("./admission/ExaminationPermitChangeCourse"));
 const RoomRegistration = lazy(() => import("./system_management/RoomRegistration"));
 const AdmissionOnlineRequirements = lazy(() => import("./admission/AdmissionOnlineRequirements"));
-const VerifyDocumentsSchedule = lazy(() => import("./admission/VerifyDocumentsSchedule"));
-const VerifyApplicantDocumentSchedule = lazy(() => import("./admission/VerifySchedule"));
+const VerifyDocumentScheduleManagement = lazy(() => import("./admission/VerifyDocumentScheduleManagement"));
+const VerifyDocumentRoomAssignment = lazy(() => import("./admission/VerifyDocumentRoomAssignment"));
 const AdmissionFormProcess = lazy(() => import("./applicant/AdmissionFormProcess"));
 const AdmissionServices = lazy(() => import("./applicant/AdmissionServices"));
 const ApplicantResetPassword = lazy(() => import("./applicant/ApplicantResetPassword"));
@@ -148,19 +148,19 @@ const ApplicantListCollege = lazy(() => import("./enrollment_management/Applican
 const CollegeEntranceExamScore = lazy(() => import("./enrollment_management/CollegeEntranceExamScore"));
 const RegistrarEntranceExamScore = lazy(() => import("./registrar/RegistrarEntranceExamScore"));
 
-const AssignQualifyingInterviewExam = lazy(() => import("./enrollment_management/AssignQualifyingInterviewExam"));
-const AssignScheduleToApplicantsQualifyingInterviewer = lazy(() => import("./enrollment_management/AssignScheduleToApplicantsQualifyingInterviewer"));
-const CertificateOfRegistrationForCollege = lazy(() => import("./enrollment_management/CertificateOfRegistrationForCollege"));
-const ClassRosterForEnrollment = lazy(() => import("./enrollment_management/ClassRosterForEnrollment"));
-const CourseTaggingForCollege = lazy(() => import("./enrollment_management/CourseTaggingForCollege"));
-const EnrollmentScheduleTile = lazy(() => import("./enrollment_management/EnrollmentScheduleTile"));
+const CollegeQualifyingInterviewRoomAssignment = lazy(() => import("./enrollment_management/CollegeQualifyingInterviewRoomAssignment"));
+const CollegeQualifyingInterviewScheduleManagement = lazy(() => import("./enrollment_management/CollegeQualifyingInterviewScheduleManagement"));
+const CollegeCertificateOfRegistration = lazy(() => import("./enrollment_management/CollegeCertificateOfRegistration"));
+const CollegeClassList = lazy(() => import("./enrollment_management/CollegeClassList"));
+const CollegeCourseTagging = lazy(() => import("./enrollment_management/CollegeCourseTagging"));
+const QualifyingInterviewRoomAssignment = lazy(() => import("./enrollment_management/QualifyingInterviewRoomAssignment"));
 const StudentOnlineRequirementsCollege = lazy(() => import("./enrollment_management/StudentOnlineRequirementsCollege"));
 const StudentCollegePersonalInformation = lazy(() => import("./enrollment_management/StudentCollegePersonalInformation"));
 const StudentCollegeFamilyBackground = lazy(() => import("./enrollment_management/StudentCollegeFamilyBackground"));
 const StudentCollegeEducationalAttainment = lazy(() => import("./enrollment_management/StudentCollegeEducationalAttainment"));
 const StudentCollegeHealthMedicalRecords = lazy(() => import("./enrollment_management/StudentCollegeHealthMedicalRecords"));
 const StudentCollegeOtherInformation = lazy(() => import("./enrollment_management/StudentCollegeOtherInformation"));
-const QualifyingInterviewerApplicantList = lazy(() => import("./enrollment_management/QualifyingInterviewerApplicantList"));
+const CollegeQualifyingInterviewerApplicantList = lazy(() => import("./enrollment_management/CollegeQualifyingInterviewerApplicantList"));
 const CollegeQualifyingInterviewExamScore = lazy(() => import("./enrollment_management/CollegeQualifyingInterviewExamScore"));
 const RegistrarQualifyingInterviewExamScore = lazy(() => import("./registrar/RegistrarQualifyingInterviewExamScore"));
 const ApplicantCollegePersonalInformation = lazy(() => import("./enrollment_management/ApplicantCollegePersonalInformation"));
@@ -170,8 +170,8 @@ const ApplicantCollegeHealthMedicalRecords = lazy(() => import("./enrollment_man
 const ApplicantCollegeOtherInformation = lazy(() => import("./enrollment_management/ApplicantCollegeOtherInformation"));
 const ApplicantOnlineRequirementsCollege = lazy(() => import("./enrollment_management/ApplicantOnlineRequirementsCollege"));
 const ApplicantOnlineRequirementsRegistrar = lazy(() => import("./registrar/ApplicantOnlineRequirementsRegistrar"));
-const SearchCorForCollege = lazy(() => import("./enrollment_management/SearchCorForCollege"));
-const StudentNumberingPerCollege = lazy(() => import("./enrollment_management/StudentNumberingPerCollege"));
+const CollegeSearchCertificateOfRegistration = lazy(() => import("./enrollment_management/CollegeSearchCertificateOfRegistration"));
+const CollegeStudentNumbering = lazy(() => import("./enrollment_management/CollegeStudentNumbering"));
 const FacultyEvaluation = lazy(() => import("./faculty/FacultyEvaluation"));
 const FacultyMasterList = lazy(() => import("./faculty/FacultyMasterlist"));
 const FacultyResetPassword = lazy(() => import("./faculty/FacultyResetPassword"));
@@ -202,12 +202,12 @@ const ScheduleFilterer = lazy(() => import("./pages/SchedulePlottingFilter"));
 const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
 const StudentQrInfo = lazy(() => import("./pages/StudentQrInfo"));
 const SystemDashboardPanel = lazy(() => import("./pages/SystemDashboard"));
-const ClassRoster = lazy(() => import("./registrar/ClassRoster"));
+const RegistrarClassList = lazy(() => import("./registrar/RegistrarClassList"));
 const CollegeScheduleChecker = lazy(() => import("./department_management/CollegeScheduleChecker"));
 const CORExportingModule = lazy(() => import("./registrar/CORExportingModule"));
 const CORExportRender = lazy(() => import("./registrar/CORExportRender"));
-const CourseTagging = lazy(() => import("./registrar/CourseTagging"));
-const CourseTaggingForSummer = lazy(() => import("./registrar/CourseTaggingForSummer"));
+const RegistrarCourseTagging = lazy(() => import("./registrar/RegistrarCourseTagging"));
+const RegistrarCourseTaggingSummer = lazy(() => import("./registrar/RegistrarCourseTaggingSummer"));
 const GradingEvaluationForRegistrar = lazy(() => import("./registrar/GradingEvaluationForRegistrar"));
 const ApplicantRegistrarPersonalInformation = lazy(() => import("./registrar/ApplicantRegistrarPersonalInformation"));
 const ApplicantRegistrarFamilyBackground = lazy(() => import("./registrar/ApplicantRegistrarFamilyBackground"));
@@ -743,34 +743,34 @@ function App() {
                       <Route path="/account_dashboard" element={<ProtectedRoute><AccountDashboard /></ProtectedRoute>} />
                       <Route path="/student_numbering" element={<ProtectedRoute><StudentNumbering /></ProtectedRoute>} />
                       <Route path="/student_number_admin" element={<ProtectedRoute><StudentNumberAdmin /></ProtectedRoute>} />
-                      <Route path="/student_numbering_per_college" element={<ProtectedRoute><StudentNumberingPerCollege /></ProtectedRoute>} />
-                      <Route path="/course_tagging" element={<ProtectedRoute><CourseTagging /></ProtectedRoute>} />
-                      <Route path="/course_tagging_for_college" element={<ProtectedRoute><CourseTaggingForCollege /></ProtectedRoute>} />
-                      <Route path="/course_tagging_for_summer" element={<ProtectedRoute><CourseTaggingForSummer /></ProtectedRoute>} />
-                      <Route path="/summer_tagging_for_college" element={<ProtectedRoute><CourseTaggingForSummerCollege /></ProtectedRoute>} />
-                      <Route path="/nstp_tagging" element={<ProtectedRoute><NSTPTagging /></ProtectedRoute>} />
+                      <Route path="/college_student_numbering" element={<ProtectedRoute><CollegeStudentNumbering /></ProtectedRoute>} />
+                      <Route path="/registrar_course_tagging" element={<ProtectedRoute><RegistrarCourseTagging /></ProtectedRoute>} />
+                      <Route path="/registrar_course_tagging_summer" element={<ProtectedRoute><RegistrarCourseTaggingSummer /></ProtectedRoute>} />
+
+                      <Route path="/college_course_tagging" element={<ProtectedRoute><CollegeCourseTagging /></ProtectedRoute>} />
+                      <Route path="/college_course_tagging_summer" element={<ProtectedRoute><CollegeCourseTaggingSummer /></ProtectedRoute>} />                      <Route path="/nstp_tagging" element={<ProtectedRoute><NSTPTagging /></ProtectedRoute>} />
                       <Route path="/department_section_tagging" element={<ProtectedRoute><DepartmentSectionTagging /></ProtectedRoute>} />
                       <Route path="/schedule_checker/:dprtmnt_id" element={<ProtectedRoute><ScheduleChecker /></ProtectedRoute>} />
                       <Route path="/change_grade_period" element={<ProtectedRoute><ChangeGradingPeriod /></ProtectedRoute>} />
                       <Route path="/department_room" element={<ProtectedRoute><DepartmentRoom /></ProtectedRoute>} />
-                      <Route path="/search_cor" element={<ProtectedRoute><SearchCertificateOfRegistration /></ProtectedRoute>} />
-                      <Route path="/search_cor_for_college" element={<ProtectedRoute><SearchCorForCollege /></ProtectedRoute>} />
+                      <Route path="/registrar_course_tagging_summer" element={<ProtectedRoute><SearchCertificateOfRegistration /></ProtectedRoute>} />
+                      <Route path="/college_search_certification_of_registration" element={<ProtectedRoute><CollegeSearchCertificateOfRegistration /></ProtectedRoute>} />
                       <Route path="/cor" element={<ProtectedRoute><CertificateOfRegistration /></ProtectedRoute>} />
-                      <Route path="/cor_for_college" element={<ProtectedRoute><CertificateOfRegistrationForCollege /></ProtectedRoute>} />
+                      <Route path="/college_certificate_of_registration" element={<ProtectedRoute><CollegeCertificateOfRegistration /></ProtectedRoute>} />
                       <Route path="/select_college" element={<ProtectedRoute><ScheduleFilterer /></ProtectedRoute>} />
                       <Route path="/college_schedule_plotting" element={<ProtectedRoute><CollegeScheduleChecker /></ProtectedRoute>} />
-                      <Route path="/assign_entrance_exam" element={<ProtectedRoute><AssignEntranceExam /></ProtectedRoute>} />
-                      <Route path="/assign_schedule_applicant" element={<ProtectedRoute><AssignScheduleToApplicants /></ProtectedRoute>} />
-                      <Route path="/verify_schedule" element={<ProtectedRoute><VerifyApplicantDocumentSchedule /></ProtectedRoute>} />
+                      <Route path="/entrance_exam_room_assignment" element={<ProtectedRoute><EntranceExamRoomAssignment /></ProtectedRoute>} />
+                      <Route path="/entrance_exam_schedule_management" element={<ProtectedRoute><EntranceExamScheduleManagement /></ProtectedRoute>} />
+
                       <Route path="/admission_schedule_room_list" element={<ProtectedRoute><AdmissionScheduleTile /></ProtectedRoute>} />
-                      <Route path="/enrollment_schedule_room_list" element={<ProtectedRoute><EnrollmentScheduleTile /></ProtectedRoute>} />
+                      <Route path="/qualifying_interview_room_assignment" element={<ProtectedRoute><QualifyingInterviewRoomAssignment /></ProtectedRoute>} />
                       <Route path="/applicant_entrance_exam_score" element={<ProtectedRoute><ApplicantEntranceExamScore /></ProtectedRoute>} />
                       <Route path="/applicant_exam_subjects" element={<ProtectedRoute><ApplicantExamSubjects /></ProtectedRoute>} />
                       <Route path="/evaluator_schedule_room_list" element={<ProtectedRoute><EvaluatorScheduleTile /></ProtectedRoute>} />
                       <Route path="/evaluator_applicant_list" element={<ProtectedRoute><EvaluatorApplicantList /></ProtectedRoute>} />
-                      <Route path="/assign_qualifying_interview_exam" element={<ProtectedRoute><AssignQualifyingInterviewExam /></ProtectedRoute>} />
-                      <Route path="/assign_schedule_applicants_qualifying_interview" element={<ProtectedRoute><AssignScheduleToApplicantsQualifyingInterviewer /></ProtectedRoute>} />
-                      <Route path="/qualifying_interviewer_applicant_list" element={<ProtectedRoute><QualifyingInterviewerApplicantList /></ProtectedRoute>} />
+                      <Route path="/college_qualifying_interview_room_assignment" element={<ProtectedRoute><CollegeQualifyingInterviewRoomAssignment /></ProtectedRoute>} />
+                      <Route path="/college_qualifying_interview_schedule_management" element={<ProtectedRoute><CollegeQualifyingInterviewScheduleManagement /></ProtectedRoute>} />
+                      <Route path="/qualifying_interviewer_applicant_list" element={<ProtectedRoute><CollegeQualifyingInterviewerApplicantList /></ProtectedRoute>} />
                       <Route path="/grading_sheet" element={<ProtectedRoute><GradingSheet /></ProtectedRoute>} />
                       <Route path="/registrar_student_list" element={<ProtectedRoute><RegistrarStudentList /></ProtectedRoute>} />
                       <Route path="/college_student_list" element={<ProtectedRoute><CollegeStudentList /></ProtectedRoute>} />
@@ -876,11 +876,13 @@ function App() {
                       <Route path="/admission_form_process" element={<ProtectedRoute allowedRoles={["applicant", "registrar", "student"]}><AdmissionFormProcess /></ProtectedRoute>} />
                       <Route path="/admission_services" element={<ProtectedRoute allowedRoles={["applicant", "registrar"]}><AdmissionServices /></ProtectedRoute>} />
                       <Route path="/office_of_the_registrar" element={<ProtectedRoute allowedRoles={["applicant"]}><OfficeOfTheRegistrar /></ProtectedRoute>} />
-                      <Route path="/verify_document_schedule" element={<ProtectedRoute allowedRoles={["registrar"]}><VerifyDocumentsSchedule /></ProtectedRoute>} />
+                      <Route path="/verify_document_schedule_management" element={<ProtectedRoute allowedRoles={["registrar"]}><VerifyDocumentRoomAssignment /></ProtectedRoute>} />
+                      <Route path="/verify_document_room_assignment" element={<ProtectedRoute allowedRoles={["registrar"]}><VerifyDocumentScheduleManagement /></ProtectedRoute>} />
+
                       <Route path="/department_curriculum_panel" element={<ProtectedRoute><DepartmentCurriculumPanel /></ProtectedRoute>} />
                       <Route path="/program_slot_limit" element={<ProtectedRoute><ProgramSlotLimit /></ProtectedRoute>} />
-                      <Route path="/class_roster" element={<ProtectedRoute><ClassRoster /></ProtectedRoute>} />
-                      <Route path="/class_roster_enrollment" element={<ProtectedRoute><ClassRosterForEnrollment /></ProtectedRoute>} />
+                      <Route path="/registrar_class_list" element={<ProtectedRoute><RegistrarClassList /></ProtectedRoute>} />
+                      <Route path="/college_class_list" element={<ProtectedRoute><CollegeClassList /></ProtectedRoute>} />
                       <Route path="/transcript_of_records" element={<ProtectedRoute><TranscriptOfRecords /></ProtectedRoute>} />
                       <Route path="/tosf_crud" element={<ProtectedRoute><TOSFCrud /></ProtectedRoute>} />
                       <Route path="/program_payment" element={<ProtectedRoute><ProgramPayment /></ProtectedRoute>} />
@@ -888,7 +890,7 @@ function App() {
                       <Route path="/program_unit" element={<ProtectedRoute><ProgramUnit /></ProtectedRoute>} />
                       <Route path="/email_template_manager" element={<ProtectedRoute><EmailTemplateManager /></ProtectedRoute>} />
                       <Route path="/announcement" element={<ProtectedRoute><Announcement /></ProtectedRoute>} />
-                      <Route path="/announcement_for_admission" element={<ProtectedRoute><AnnouncementForAdmission /></ProtectedRoute>} />
+                      <Route path="/admission_announcement" element={<ProtectedRoute><AdmissionAnnouncement /></ProtectedRoute>} />
                       <Route path="/exam-permit/:applicant_number" element={<ExamPermit />} />
                       <Route path="/student_ecat_application_form" element={<ProtectedRoute allowedRoles={["student"]}><StudentECATApplicationForm /></ProtectedRoute>} />
                       <Route path="/student_personal_data_form" element={<ProtectedRoute allowedRoles={["student"]}><StudentPersonalDataForm /></ProtectedRoute>} />
@@ -904,7 +906,7 @@ function App() {
                       <Route path="/applicant_profile/:applicantNumber" element={<ApplicantProfile />} />
                       <Route path="/student_qr_information/:studentNumber" element={<StudentQrInfo />} />
                       <Route path="/registrar_exam_permit" element={<ProtectedRoute><RegistrarExamPermit /></ProtectedRoute>} />
-                      <Route path="/registrar_examination_profile" element={<ProtectedRoute><RegistrarExaminationProfile /></ProtectedRoute>} />
+                      <Route path="/examination_permit_change_course" element={<ProtectedRoute><ExaminationPermitChangeCourse /></ProtectedRoute>} />
                       <Route path="/registrar_examination_profile/:personId" element={<ApplicantProfile />} />
                       <Route path="/page_crud" element={<ProtectedRoute><PageCRUD /></ProtectedRoute>} />
                       <Route path="/report_of_grades" element={<ProtectedRoute><ReportOfGrade /></ProtectedRoute>} />

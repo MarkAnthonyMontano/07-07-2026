@@ -123,8 +123,8 @@ const ReadmissionDashboard1 = () => {
     { label: "Student List", to: "/registrar_student_list", icon: <SchoolIcon fontSize="large" /> },
     { label: "Student Profile", to: "/student_registrar_personal_information", icon: <PersonIcon fontSize="large" /> },
     { label: "Student Online Requirements Registrar", to: "/student_online_requirements_registrar", icon: <AssignmentIcon fontSize="large" /> },
-    { label: "Course Tagging", to: "/course_tagging", icon: <AddIcon fontSize="large" /> },
-    { label: "Search Certificate of Registration", to: "/search_cor", icon: <ListAltIcon fontSize="large" /> },
+    { label: "Course Tagging", to: "/registrar_class_list", icon: <AddIcon fontSize="large" /> },
+    { label: "Search Certificate of Registration", to: "/registrar_course_tagging_summer", icon: <ListAltIcon fontSize="large" /> },
     { label: "Report of Grades", to: "/report_of_grades", icon: <GradeIcon fontSize="large" /> },
     { label: "Transcript of Records", to: "/transcript_of_records", icon: <ReceiptLongIcon fontSize="large" /> },
   ];
@@ -1607,25 +1607,25 @@ const ReadmissionDashboard1 = () => {
     return <Unauthorized />;
   }
 
-     // 🔒 Disable right-click
-    document.addEventListener("contextmenu", (e) => e.preventDefault());
+  // 🔒 Disable right-click
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-    // 🔒 Block DevTools shortcuts + Ctrl+P silently
-    document.addEventListener("keydown", (e) => {
-        const isBlockedKey =
-            e.key === "F12" ||
-            e.key === "F11" ||
-            (e.ctrlKey &&
-                e.shiftKey &&
-                (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-            (e.ctrlKey && e.key.toLowerCase() === "u") ||
-            (e.ctrlKey && e.key.toLowerCase() === "p");
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
 
-        if (isBlockedKey) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-    });
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   // dot not alter
   return (
@@ -1870,30 +1870,31 @@ const ReadmissionDashboard1 = () => {
               fontSize: "20px",
               fontFamily: "Poppins, sans-serif",
               color: "#3e3e3e",
-              lineHeight: 1.3, // slightly tighter to fit in fewer rows
+              lineHeight: 1.3,
               whiteSpace: "normal",
               overflow: "hidden",
             }}
           >
-            <strong style={{ color: "maroon" }}>Notice:</strong> &nbsp;
-            <strong></strong>
-            <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
-            Please indicate “NA” or “N/A” in fields where the requested
-            information is not applicable or no response can be provided.
-            &nbsp;&nbsp;
+            <strong style={{ color: "maroon" }}>Important Notice:</strong>
             <br />
-            <strong></strong>
-            <span
-              style={{
-                fontSize: "1.2em",
-                margin: "0 15px",
-                marginLeft: "100px",
-              }}
-            >
-              ➔
-            </span>
-            To enter the letter “Ñ”, press and hold the ALT key while typing
-            “165”. For “ñ”, press and hold the ALT key while typing “164”.
+
+
+
+            <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+            Please indicate <strong>“NA”</strong> or <strong>“N/A”</strong> in fields where the
+            requested information is not applicable or no response can be provided.
+            <br />
+
+            <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+            To enter the letter <strong>“Ñ”</strong>, press and hold the ALT key while typing
+            <strong> 165</strong>. For <strong>“ñ”</strong>, press and hold the ALT key while
+            typing <strong> 164</strong>.
+            <br />
+
+            <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+            Please complete all information from <strong>Personal Information</strong> up to
+            <strong> Other Information</strong> before printing your documents.
+            <br />
           </Typography>
         </Box>
       </Box>

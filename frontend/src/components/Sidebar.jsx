@@ -42,8 +42,7 @@ import {
 
 const GLOBAL_PAGE_IDS = [13, 15, 17, 38, 39, 40, 41, 42, 50, 56, 59, 62, 73, 80, 92, 96, 101, 104, 105, 106, 117];
 const GLOBAL_ACCESS_THRESHOLD = 10;
-const CLASS_ROSTER_DEPT = "/class_roster_enrollment";
-const CLASS_ROSTER_GLOBAL = "/class_roster";
+
 
 /* ─────────────────────────────────────────
    Style builder
@@ -203,16 +202,15 @@ function buildStyles(s = {}, hasDept = true, collapsed = false, isMobile = false
   transform:translateX(${effectiveCollapsed ? "-6px" : "0"});
   transition:max-width .3s cubic-bezier(.22,1,.36,1), opacity .18s ease, transform .28s ease, padding .34s cubic-bezier(.22,1,.36,1);
 }
-
 .sb-item {
-  display:flex; align-items:center;
+  display:flex; align-items:flex-start;
   gap:${effectiveCollapsed ? "0" : "10px"};
   padding:${effectiveCollapsed ? "3px 0" : "8px 10px"};
   border-radius:8px; cursor:pointer;
   color:#111; font-size:13px; font-weight:400;
   transition:background .18s ease, color .18s ease, padding .34s cubic-bezier(.22,1,.36,1), gap .34s cubic-bezier(.22,1,.36,1);
   text-decoration:none; margin-bottom:2px;
-  white-space:nowrap; overflow:hidden; line-height:1.25;
+  line-height:1.25;
   justify-content:${effectiveCollapsed ? "center" : "flex-start"};
   min-height: 44px;
 }
@@ -226,16 +224,18 @@ function buildStyles(s = {}, hasDept = true, collapsed = false, isMobile = false
 .sb-item.active { background:${accent}; color:#fff !important; }
 .sb-item.active .sb-icon { color:#fff !important; }
 .sb-item-label {
-  flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  flex:1; min-width:0;
+  white-space:normal;
+  word-break:break-word;
+  overflow:visible;
   max-width:${effectiveCollapsed ? "0" : "190px"};
   opacity:${effectiveCollapsed ? "0" : "1"};
   transform:translateX(${effectiveCollapsed ? "-6px" : "0"});
   transition:max-width .3s cubic-bezier(.22,1,.36,1), opacity .18s ease, transform .28s ease;
 }
 .sb-sub-item { padding-left:${effectiveCollapsed ? "0" : "20px"}; }
-
 .sb-group-btn {
-  display:flex; align-items:center;
+  display:flex; align-items:flex-start;
   gap:${effectiveCollapsed ? "0" : "10px"};
   width:100%; padding:${effectiveCollapsed ? "3px 0" : "8px 10px"};
   border-radius:8px; border:none; background:transparent; cursor:pointer;
@@ -252,7 +252,10 @@ function buildStyles(s = {}, hasDept = true, collapsed = false, isMobile = false
 .sb-group-btn.open { color:${accent}; background:${subBtnColor}; }
 .sb-group-btn.open .sb-icon { color:${accent}; }
 .sb-group-label {
-  flex:1; overflow:hidden; white-space:nowrap;
+  flex:1; min-width:0;
+  white-space:normal;
+  word-break:break-word;
+  overflow:visible;
   max-width:${effectiveCollapsed ? "0" : "190px"};
   opacity:${effectiveCollapsed ? "0" : "1"};
   transform:translateX(${effectiveCollapsed ? "-6px" : "0"});
@@ -669,8 +672,7 @@ const SideBar = ({
 
     const avatarSrc = profileImage || (personData?.profile_image ? `${API_BASE_URL}/uploads/${dir}/${personData.profile_image}?t=${Date.now()}` : null);
     const showUploadFor = ["registrar", "applicant", "faculty", "student"].includes(role);
-    const classRosterEnrollmentLink = CLASS_ROSTER_DEPT;
-    const classRosterRegistrarLink = CLASS_ROSTER_GLOBAL;
+
 
     const handleNavClick = () => {
         if (isMobile) onMobileClose?.();
@@ -690,16 +692,16 @@ const SideBar = ({
             { title: "Applicant List", link: "/admission_applicant_list", icon: ListAltOutlined, page_id: 7 },
             { title: "Applicant Profile", link: "/admission_personal_information", icon: AccountCircle, page_id: 1 },
             { title: "Applicant Online Requirements", link: "/admission_online_requirements", icon: FolderCopy, page_id: 61 },
-            { title: "Verify Document Schedule Mgmt", link: "/verify_schedule", icon: EditCalendar, page_id: 118 },
-            { title: "Entrance Exam Schedule Mgmt", link: "/assign_schedule_applicant", icon: EditCalendar, page_id: 11 },
-            { title: "Examination Permit", link: "/registrar_examination_profile", icon: Badge, page_id: 48 },
+            { title: "Verify Document Schedule Management", link: "/verify_document_schedule_management", icon: EditCalendar, page_id: 115 },
+            { title: "Entrance Exam Schedule Management", link: "/entrance_exam_schedule_management", icon: EditCalendar, page_id: 11 },
+            { title: "Examination Permit / Change Course", link: "/examination_permit_change_course", icon: Badge, page_id: 48 },
             { title: "Entrance Examination Scoring", link: "/applicant_entrance_exam_score", icon: Score, page_id: 8 },
-            { title: "Verify Schedule Assignment", link: "/verify_document_schedule", icon: AccessTimeIcon, page_id: 115 },
+            { title: "Verify Document Room Assignment", link: "/verify_document_room_assignment ", icon: AccessTimeIcon, page_id: 118 },
             { title: "Evaluator Applicant List", link: "/evaluator_schedule_room_list", icon: People, page_id: 120 },
-            { title: "Entrance Exam Room Assignment", link: "/assign_entrance_exam", icon: AccessTimeIcon, page_id: 9 },
+            { title: "Entrance Exam Room Assignment", link: "/entrance_exam_room_assignment", icon: AccessTimeIcon, page_id: 9 },
             { title: "Proctor's Applicant List", link: "/admission_schedule_room_list", icon: People, page_id: 33 },
             { title: "Subject Management", link: "/applicant_exam_subjects", icon: SchoolIcon, page_id: 145 },
-            { title: "Announcement", link: "/announcement_for_admission", icon: Campaign, page_id: 98 },
+            { title: "Announcement", link: "/admission_announcement", icon: Campaign, page_id: 98 },
             { title: "Request Account Deletion", link: "/application_process_admin", icon: PersonAdd, page_id: 139 },
         ]
     }];
@@ -709,18 +711,18 @@ const SideBar = ({
             { title: "Applicant Profile", link: "/applicant_college_personal_information", icon: AccountCircle, page_id: 43 },
             { title: "Applicant Online Requirements", link: "/applicant_online_requirements_college", icon: FolderCopy, page_id: 49 },
             { title: "Entrance Examination Score", link: "/college_entrance_examination_score", icon: Assessment, page_id: 151 },
-            { title: "Qualifying Schedule Mgmt", link: "/assign_schedule_applicants_qualifying_interview", icon: EditCalendar, page_id: 12 },
-            { title: "Qualifying / Interview Scores", link: "/college_qualifying_interview_score", icon: Assessment, page_id: 37 },
+            { title: "Qualifying / Interview Schedule Management", link: "/college_qualifying_interview_schedule_management", icon: EditCalendar, page_id: 12 },
+            { title: "Qualifying / Interview Exam Score", link: "/college_qualifying_interview_score", icon: Assessment, page_id: 37 },
             // { title: "Student Numbering", link: "/student_numbering_per_college", icon: FormatListNumbered, page_id: 60 },
             { title: "Student List", link: "/college_student_list", icon: ListAlt, page_id: 137 },
             { title: "Student Profile", link: "/student_college_personal_information", icon: AccountCircle, page_id: 43 },
             { title: "Student Online Requirements", link: "/student_online_requirements_college", icon: FolderCopy, page_id: 124 },
-            { title: "Course Tagging", link: "/course_tagging_for_college", icon: Class, page_id: 124 },
-            { title: "Course Tagging For Summer", link: "/summer_tagging_for_college", icon: Class, page_id: 141 },
-            { title: "Search COR", link: "/search_cor_for_college", icon: Search, page_id: 125 },
-            { title: "Class List", link: classRosterEnrollmentLink, icon: Class, page_id: 152, activeCheck: () => isClassRosterActive(classRosterEnrollmentLink) },
-            { title: "Qualifying Room Mgmt", link: "/assign_qualifying_interview_exam", icon: AccessTimeIcon, page_id: 10 },
-            { title: "Interviewer Applicant List", link: "/enrollment_schedule_room_list", icon: People, page_id: 36 },
+            { title: "Course Tagging", link: "/college_course_tagging", icon: Class, page_id: 124 },
+            { title: "Course Tagging For Summer", link: "/college_course_tagging_summer", icon: Class, page_id: 141 },
+            { title: "Search Certificate of Registration", link: "/college_search_certification_of_registration", icon: Search, page_id: 125 },
+            { title: "College Class List", link: "/college_class_list", icon: Class, page_id: 152 },
+            { title: "Qualifying / Interview Room Assignment", link: "/college_qualifying_interview_room_assignment", icon: AccessTimeIcon, page_id: 10 },
+            { title: "Qualfying / Interviewer Applicant List", link: "/qualifying_interview_room_assignment", icon: People, page_id: 36 },
         ]
     }];
 
@@ -741,21 +743,18 @@ const SideBar = ({
             { title: "Applicant Profile", link: "/applicant_registrar_personal_information", icon: AccountCircle, page_id: 161 },
             { title: "Applicant Online Requirements", link: "/applicant_online_requirements_registrar", icon: FolderCopy, page_id: 160 },
             { title: "Entrance Examination Score", link: "/registrar_entrance_examination_score", icon: Assessment, page_id: 169 },
-
             { title: "Qualifying / Interview Scores", link: "/registrar_qualifying_interview_score", icon: Assessment, page_id: 168 },
-
             { title: "Student Numbering Panel", link: "/student_numbering", icon: Numbers, page_id: 59 },
             { title: "Student Number Admin", link: "/student_number_admin", icon: AdminPanelSettings, page_id: 167 },
-
             { title: "Student List", link: "/registrar_student_list", icon: ListAltOutlined, page_id: 104 },
             { title: "Student Profile", link: "/student_registrar_personal_information", icon: AccountCircle, page_id: 38 },
             { title: "Student Online Requirements", link: "/student_online_requirements_registrar", icon: FolderCopy, page_id: 106 },
-            { title: "Course Tagging", link: "/course_tagging", icon: Class, page_id: 17 },
-            { title: "Course Tagging For Summer", link: "/course_tagging_for_summer", icon: Class, page_id: 140 },
-            { title: "Search COR", link: "/search_cor", icon: Search, page_id: 153 },
+            { title: "Registrar Course Tagging", link: "/registrar_course_tagging", icon: Class, page_id: 17 },
+            { title: "Registrar Course Tagging Summer", link: "/registrar_course_tagging_summer", icon: Class, page_id: 140 },
+            { title: "Registrar Search Certificate of Registration", link: "/registrar_search_certificate_of_registration", icon: Search, page_id: 153 },
             { title: "Report of Grades", link: "/report_of_grades", icon: Assessment, page_id: 50 },
             { title: "Transcript of Records", link: "/transcript_of_records", icon: HistoryEdu, page_id: 62 },
-            { title: "Class List", link: classRosterRegistrarLink, icon: Class, page_id: 15, activeCheck: () => isClassRosterActive(classRosterRegistrarLink) },
+            { title: "Registrar Class List", link: "/registrar_class_list", icon: Class, page_id: 15 },
             { title: "Grading Evaluation", link: "/grading_evaluation_for_registrar", icon: FactCheck, page_id: 105 },
             { title: "COR Exporting Module", link: "/cor_exporting_module", icon: FolderCopy, page_id: 117 },
         ]

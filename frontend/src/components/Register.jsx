@@ -558,6 +558,119 @@ const MobileAnnouncementBanner = ({ slides }) => {
 };
 
 /* ═══════════════════════════════════════════════════════════
+   PASSWORD RULES
+   Applicants are unfamiliar with password requirements, so the
+   rules are shown up front (English + Tagalog) and validated
+   live as they type.
+════════════════════════════════════════════════════════════ */
+const passwordRules = [
+  {
+    label: "Minimum of 8 characters",
+    labelTl: "Dapat hindi bababa sa 8 na letra o karakter",
+    test: (pw) => pw.length >= 8,
+  },
+  {
+    label: "At least one lowercase letter (e.g. abc)",
+    labelTl: "Dapat may isa mang maliit na letra (halimbawa: abc)",
+    test: (pw) => /[a-z]/.test(pw),
+  },
+  {
+    label: "At least one uppercase letter (e.g. ABC)",
+    labelTl: "Dapat may isa mang malaking letra (halimbawa: ABC)",
+    test: (pw) => /[A-Z]/.test(pw),
+  },
+  {
+    label: "At least one number (e.g. 123)",
+    labelTl: "Dapat may isa mang numero (halimbawa: 123)",
+    test: (pw) => /\d/.test(pw),
+  },
+  {
+    label: "At least one special character (! # $ ^ * @ - . < > _ & % + = ?)",
+    labelTl: "Dapat may isa mang espesyal na karakter (! # $ ^ * @ - . < > _ & % + = ?)",
+    test: (pw) => /[!#$^*@\-.<>_&%+=?]/.test(pw),
+  },
+];
+
+const getPasswordRuleResults = (pw = "") =>
+  passwordRules.map((rule) => ({ ...rule, passed: rule.test(pw) }));
+
+/* ─── Bilingual password requirements notice + live checklist ─── */
+const PasswordRulesNotice = ({ password, isMobile, mainButtonColor, showChecklist }) => {
+  const results = getPasswordRuleResults(password);
+
+  return (
+    <Box sx={{ mt: 1.5, mb: 1 }}>
+      {/* Bilingual "important notice" explaining WHY, in plain terms */}
+      <Box sx={{
+        display: "flex", gap: 1.25, alignItems: "flex-start",
+        bgcolor: "#fff8e6", border: "1.5px solid #f5a623",
+        borderRadius: "10px", p: 1.5, mb: showChecklist ? 1.25 : 0,
+      }}>
+        <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>🔐</span>
+        <Box>
+          <Typography sx={{ fontSize: isMobile ? "12px" : "13px", color: "#5d4037", fontWeight: 700, lineHeight: 1.5 }}>
+            IMPORTANT: Your password MUST follow all the rules below.
+          </Typography>
+          <Typography sx={{ fontSize: isMobile ? "11.5px" : "12.5px", color: "#5d4037", lineHeight: 1.6, mt: 0.4 }}>
+            We're showing this now so you get familiar with it early — the same rules will be
+            required every time you make or change a password on this system.
+          </Typography>
+          <Typography sx={{ fontSize: isMobile ? "12px" : "13px", color: "#7a4a00", fontWeight: 700, lineHeight: 1.5, mt: 1 }}>
+            MAHALAGA: Kailangang sundin ang LAHAT ng patakaran sa ibaba para sa iyong password.
+          </Typography>
+          <Typography sx={{ fontSize: isMobile ? "11.5px" : "12.5px", color: "#7a4a00", lineHeight: 1.6, mt: 0.4 }}>
+            Ipinapakita namin ito ngayon para masanay ka na — ang parehong mga patakaran ay
+            gagamitin din sa tuwing gagawa o magbabago ka ng password sa sistemang ito.
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* Live checklist */}
+      {showChecklist && (
+        <Box sx={{
+          border: "1.5px solid #ddd", borderRadius: "10px",
+          p: 1.5, bgcolor: "#fafafa",
+        }}>
+          <Typography sx={{ fontSize: isMobile ? "11px" : "12px", color: "#666", fontWeight: 700, mb: 1, letterSpacing: "0.03em" }}>
+            PASSWORD REQUIREMENTS / MGA KINAKAILANGAN SA PASSWORD
+          </Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.9 }}>
+            {results.map((rule, i) => (
+              <Box key={i} sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+                <span style={{
+                  flexShrink: 0, marginTop: 1, fontSize: 14,
+                  color: rule.passed ? "#2e7d32" : "#bdbdbd",
+                }}>
+                  {rule.passed ? "✅" : "⬜"}
+                </span>
+                <Box>
+                  <Typography sx={{
+                    fontSize: isMobile ? "12px" : "12.5px",
+                    color: rule.passed ? "#2e7d32" : "#000000",
+                    fontWeight: rule.passed ? 700 : 500,
+                    lineHeight: 1.45,
+                  }}>
+                    {rule.label}
+                  </Typography>
+                  <Typography sx={{
+                    fontSize: isMobile ? "11px" : "12px",
+                    color: rule.passed ? "#2e7d32" : "#000000",
+                    fontStyle: "italic",
+                    lineHeight: 1.45,
+                  }}>
+                    {rule.labelTl}
+                  </Typography>
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      )}
+    </Box>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════
    TOTP SETUP MODAL
    - Step 1: show QR code for user to scan
    - Step 2: user enters the 6-digit code to confirm setup,
@@ -1067,8 +1180,13 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const [snack, setSnack] = useState({ open: false, message: "", severity: "info" });
   const navigate = useNavigate();
+
+  const passwordRuleResults = getPasswordRuleResults(usersData.password);
+  const allPasswordRulesPassed = passwordRuleResults.every((r) => r.passed);
+  const passwordTouched = passwordFocused || usersData.password.length > 0;
 
   const handleChanges = (e) => {
     const { name, value } = e.target;
@@ -1221,6 +1339,7 @@ const Register = () => {
     if (!selectedCurriculum) { newErrors.selectedCurriculum = true; isValid = false; }
     if (!usersData.email) { newErrors.email = true; isValid = false; }
     if (!usersData.password) { newErrors.password = true; isValid = false; }
+    else if (!allPasswordRulesPassed) { newErrors.password = true; newErrors.passwordRules = true; isValid = false; }
     if (!confirmPassword) { newErrors.confirmPassword = true; isValid = false; }
     setErrors(newErrors);
     return isValid;
@@ -1251,6 +1370,14 @@ const Register = () => {
 
     if (!reminderChecked) {
       setSnack({ open: true, message: "You must agree to the Terms and Conditions before registering.", severity: "warning" });
+      return;
+    }
+    if (usersData.password && !allPasswordRulesPassed) {
+      setSnack({
+        open: true,
+        message: "Your password doesn't meet all the requirements yet. Please check the checklist below the password field. / Hindi pa kompleto ang password mo — pakitingnan ang checklist sa ibaba ng password field.",
+        severity: "warning",
+      });
       return;
     }
     if (!isFormValid()) {
@@ -1693,19 +1820,38 @@ const Register = () => {
                 </span>
               </div>
 
+              {/* Bilingual password requirements notice — shown BEFORE the fields
+                  so applicants get familiar with the rule before they start typing */}
+              <PasswordRulesNotice
+                password={usersData.password}
+                isMobile={isMobile}
+                mainButtonColor={mainButtonColor}
+                showChecklist={passwordTouched}
+              />
+
               <div style={{ display: "flex", gap: "1rem", flexDirection: isMobile ? "column" : "row" }}>
                 <div className="TextField" style={{ position: "relative", flex: 1 }}>
                   <label style={{ color: "black" }}>Password<span style={{ color: "red" }}> *</span></label>
                   <input type={showPassword ? "text" : "password"} className="border" id="password" disabled={fieldDisabled}
                     name="password" placeholder="Enter your password" value={usersData.password}
-                    onChange={handleChanges} onKeyDown={handleKeyDownRegister} required
+                    onChange={handleChanges}
+                    onFocus={() => setPasswordFocused(true)}
+                    onBlur={() => setPasswordFocused(false)}
+                    onKeyDown={handleKeyDownRegister} required
                     style={{ paddingLeft: "2.5rem", height: inputH, border: errors.password ? "2px solid red" : "2px solid black", width: "100%" }} />
                   <LockIcon style={{ position: "absolute", top: "2.5rem", left: "0.7rem", color: "rgba(0,0,0,0.4)", fontSize: "22px" }} />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
                     style={{ position: "absolute", top: "2.5rem", right: "1rem", background: "none", border: "none", cursor: "pointer" }}>
                     {showPassword ? <Visibility /> : <VisibilityOff />}
                   </button>
-                  {errors.password && <span style={{ color: "red", fontSize: "12px" }}>This field is required</span>}
+                  {errors.passwordRules && (
+                    <span style={{ color: "red", fontSize: "12px" }}>
+                      Password does not meet all requirements / Hindi pa kumpleto ang password
+                    </span>
+                  )}
+                  {!errors.passwordRules && errors.password && (
+                    <span style={{ color: "red", fontSize: "12px" }}>This field is required</span>
+                  )}
                 </div>
 
                 <div className="TextField" style={{ position: "relative", flex: 1 }}>

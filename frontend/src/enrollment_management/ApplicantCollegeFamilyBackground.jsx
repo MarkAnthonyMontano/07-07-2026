@@ -73,36 +73,36 @@ const RegistrarDashboard2 = () => {
 
   const stepsData = [
     {
-         label: "Applicant List",
-         to: "/applicant_list_college",
-         icon: <SchoolIcon fontSize="large" />,
-       },
-       {
-         label: "Applicant Profile",
-         to: "/applicant_college_personal_information",
-         icon: <PersonIcon fontSize="large" />,
-       },
-       {
-         label: "Applicant Online Requirements",
-         to: "/applicant_online_requirements_college",
-         icon: <AssignmentIcon fontSize="large" />,
-       },
-       {
-         label: "Entrance Examination Score",
-         to: "/college_entrance_examination_score",
-         icon: <ScoreIcon fontSize="large" />,
-       },
-       {
-         label: "Qualifying / Interview Schedule Management",
-         to: "/assign_schedule_applicants_qualifying_interview",
-         icon: <ScheduleIcon fontSize="large" />,
-       },
-       {
-         label: "Qualifying / Interview Exam Score",
-         to: "/college_qualifying_interview_score",
-         icon: <ScoreIcon fontSize="large" />,
-       },
-     
+      label: "Applicant List",
+      to: "/applicant_list_college",
+      icon: <SchoolIcon fontSize="large" />,
+    },
+    {
+      label: "Applicant Profile",
+      to: "/applicant_college_personal_information",
+      icon: <PersonIcon fontSize="large" />,
+    },
+    {
+      label: "Applicant Online Requirements",
+      to: "/applicant_online_requirements_college",
+      icon: <AssignmentIcon fontSize="large" />,
+    },
+    {
+      label: "Entrance Examination Score",
+      to: "/college_entrance_examination_score",
+      icon: <ScoreIcon fontSize="large" />,
+    },
+    {
+      label: "Qualifying / Interview Schedule Management",
+      to: "/college_qualifying_interview_schedule_management",
+      icon: <ScheduleIcon fontSize="large" />,
+    },
+    {
+      label: "Qualifying / Interview Exam Score",
+      to: "/college_qualifying_interview_score",
+      icon: <ScoreIcon fontSize="large" />,
+    },
+
   ];
   const [currentStep, setCurrentStep] = useState(1);
   const [visitedSteps, setVisitedSteps] = useState(Array(stepsData.length).fill(false));
@@ -940,15 +940,31 @@ const RegistrarDashboard2 = () => {
               fontSize: "20px",
               fontFamily: "Poppins, sans-serif",
               color: "#3e3e3e",
-              lineHeight: 1.3, // slightly tighter to fit in fewer rows
+              lineHeight: 1.3,
               whiteSpace: "normal",
               overflow: "hidden",
             }}
           >
-            <strong style={{ color: "maroon" }}>Notice:</strong> &nbsp;
-            <strong></strong> <span style={{ fontSize: '1.2em', margin: '0 15px' }}>➔</span> Kindly type 'NA' in boxes where there are no possible answers to the information being requested. &nbsp;  &nbsp; <br />
-            <strong></strong> <span style={{ fontSize: '1.2em', margin: '0 15px', marginLeft: "100px", }}>➔</span> To make use of the letter 'Ñ', please press ALT while typing "165", while for 'ñ', please press ALT while typing "164"
+            <strong style={{ color: "maroon" }}>Important Notice:</strong>
+            <br />
 
+
+
+            <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+            Please indicate <strong>“NA”</strong> or <strong>“N/A”</strong> in fields where the
+            requested information is not applicable or no response can be provided.
+            <br />
+
+            <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+            To enter the letter <strong>“Ñ”</strong>, press and hold the ALT key while typing
+            <strong> 165</strong>. For <strong>“ñ”</strong>, press and hold the ALT key while
+            typing <strong> 164</strong>.
+            <br />
+
+            <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+            Please complete all information from <strong>Personal Information</strong> up to
+            <strong> Other Information</strong> before printing your documents.
+            <br />
           </Typography>
         </Box>
       </Box>

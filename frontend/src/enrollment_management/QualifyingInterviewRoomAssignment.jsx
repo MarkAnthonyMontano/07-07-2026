@@ -53,8 +53,8 @@ const InterviewScheduleHoverTile = () => {
   // const tabs = [
 
   //     { label: "Qualifying / Interview Room Assignment", to: "/assign_qualifying_interview_exam", icon: <MeetingRoomIcon fontSize="large" /> },
-  //     // { label: "Qualifying / Interview Schedule Management", to: "/assign_schedule_applicants_qualifying_interview", icon: <ScheduleIcon fontSize="large" /> },
-  //     { label: "Qualifying / Interviewer Applicant's List", to: "/enrollment_schedule_room_list", icon: <PeopleIcon fontSize="large" /> },
+  //     // { label: "Qualifying / Interview Schedule Management", to: "/college_qualifying_interview_schedule_management", icon: <ScheduleIcon fontSize="large" /> },
+  //     { label: "Qualifying / Interviewer Applicant's List", to: "/qualifying_interview_room_assignment", icon: <PeopleIcon fontSize="large" /> },
 
   // ];
 

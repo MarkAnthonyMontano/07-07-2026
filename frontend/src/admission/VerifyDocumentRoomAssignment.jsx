@@ -139,18 +139,18 @@ const AssignScheduleToApplicants = () => {
         },
         {
             label: "Verify Schedule Management",
-            to: "/verify_schedule",
+            to: "/verify_document_room_assignment",
             icon: <ScheduleIcon fontSize="large" />,
         },
         {
             label: "Entrance Exam Schedule Management",
-            to: "/assign_schedule_applicant",
+            to: "/entrance_exam_schedule_management",
             icon: <ScheduleIcon fontSize="large" />,
         },
 
         {
             label: "Examination Permit",
-            to: "/registrar_examination_profile",
+            to: "/examination_permit_change_course",
             icon: <PersonSearchIcon fontSize="large" />,
         },
 

@@ -72,13 +72,13 @@ const OfficialStudentDashboard2 = () => {
     }, [settings]);
 
     const stepsData = [
-      { label: "Student List", to: "/college_student_list", icon: <SchoolIcon fontSize="large" /> },
-         { label: "Student Profile", to: "/student_college_personal_information", icon: <PersonIcon fontSize="large" /> },
-         { label: "Student Online Requirements", to: "/student_online_requirements_college", icon: <AssignmentIcon fontSize="large" /> },
-         { label: "Course Tagging", to: "/course_tagging_for_college", icon: <UploadFileIcon fontSize="large" /> },
-         { label: "Search COR", to: "/search_cor_for_college", icon: <MenuBookIcon fontSize="large" /> },
-         { label: "Class List", to: "/class_roster_enrollment", icon: <PersonSearchIcon fontSize="large" /> },
- 
+        { label: "Student List", to: "/college_student_list", icon: <SchoolIcon fontSize="large" /> },
+        { label: "Student Profile", to: "/student_college_personal_information", icon: <PersonIcon fontSize="large" /> },
+        { label: "Student Online Requirements", to: "/student_online_requirements_college", icon: <AssignmentIcon fontSize="large" /> },
+        { label: "Course Tagging", to: "/college_course_tagging", icon: <UploadFileIcon fontSize="large" /> },
+        { label: "Search COR", to: "/college_search_certification_of_registration", icon: <MenuBookIcon fontSize="large" /> },
+        { label: "Class List", to: "/college_class_list", icon: <PersonSearchIcon fontSize="large" /> },
+
     ];
 
     const [currentStep, setCurrentStep] = useState(1);
@@ -252,11 +252,11 @@ const OfficialStudentDashboard2 = () => {
     const [clickedSteps, setClickedSteps] = useState([]);
 
     const steps = [
-       { label: "Personal Information", icon: <PersonIcon />, path: `/student_college_personal_information?person_id=${userID}` },
-      { label: "Family Background", icon: <FamilyRestroomIcon />, path: `/student_college_family_background?person_id=${userID}` },
-      { label: "Educational Attainment", icon: <SchoolIcon />, path: `/student_college_educational_attainment?person_id=${userID}` },
-      { label: "Health Medical Records", icon: <HealthAndSafetyIcon />, path: `/student_college_health_medical_records?person_id=${userID}` },
-      { label: "Other Information", icon: <InfoIcon />, path: `/student_college_other_information?person_id=${userID}` },
+        { label: "Personal Information", icon: <PersonIcon />, path: `/student_college_personal_information?person_id=${userID}` },
+        { label: "Family Background", icon: <FamilyRestroomIcon />, path: `/student_college_family_background?person_id=${userID}` },
+        { label: "Educational Attainment", icon: <SchoolIcon />, path: `/student_college_educational_attainment?person_id=${userID}` },
+        { label: "Health Medical Records", icon: <HealthAndSafetyIcon />, path: `/student_college_health_medical_records?person_id=${userID}` },
+        { label: "Other Information", icon: <InfoIcon />, path: `/student_college_other_information?person_id=${userID}` },
     ];
 
     const handleStepClick = (index) => {
@@ -588,7 +588,7 @@ const OfficialStudentDashboard2 = () => {
         );
     }
 
-   // 🔒 Disable right-click
+    // 🔒 Disable right-click
     document.addEventListener("contextmenu", (e) => e.preventDefault());
 
     // 🔒 Block DevTools shortcuts + Ctrl+P silently
@@ -793,15 +793,31 @@ const OfficialStudentDashboard2 = () => {
                             fontSize: "20px",
                             fontFamily: "Poppins, sans-serif",
                             color: "#3e3e3e",
-                            lineHeight: 1.3, // slightly tighter to fit in fewer rows
+                            lineHeight: 1.3,
                             whiteSpace: "normal",
                             overflow: "hidden",
                         }}
                     >
-                        <strong style={{ color: "maroon" }}>Notice:</strong> &nbsp;
-                        <strong></strong> <span style={{ fontSize: '1.2em', margin: '0 15px' }}>➔</span> Kindly type 'NA' in boxes where there are no possible answers to the information being requested. &nbsp;  &nbsp; <br />
-                        <strong></strong> <span style={{ fontSize: '1.2em', margin: '0 15px', marginLeft: "100px", }}>➔</span> To make use of the letter 'Ñ', please press ALT while typing "165", while for 'ñ', please press ALT while typing "164"
+                        <strong style={{ color: "maroon" }}>Important Notice:</strong>
+                        <br />
 
+
+
+                        <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+                        Please indicate <strong>“NA”</strong> or <strong>“N/A”</strong> in fields where the
+                        requested information is not applicable or no response can be provided.
+                        <br />
+
+                        <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+                        To enter the letter <strong>“Ñ”</strong>, press and hold the ALT key while typing
+                        <strong> 165</strong>. For <strong>“ñ”</strong>, press and hold the ALT key while
+                        typing <strong> 164</strong>.
+                        <br />
+
+                        <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+                        Please complete all information from <strong>Personal Information</strong> up to
+                        <strong> Other Information</strong> before printing your documents.
+                        <br />
                     </Typography>
                 </Box>
             </Box>
@@ -912,13 +928,13 @@ const OfficialStudentDashboard2 = () => {
 
 
                 <Container>
-                         <h1 style={{ fontSize: "50px", fontWeight: "bold", textAlign: "center", color: subtitleColor, marginTop: "25px" }}>
-            STUDENT FORM
-          </h1>
-          <div style={{ textAlign: "center" }}>
-            Please update your personal information to keep your student records accurate and up to date for the upcoming academic year at{" "}
-            {shortTerm ? <><strong>{shortTerm.toUpperCase()}</strong> - {companyName || ""}</> : companyName || ""}.
-          </div>
+                    <h1 style={{ fontSize: "50px", fontWeight: "bold", textAlign: "center", color: subtitleColor, marginTop: "25px" }}>
+                        STUDENT FORM
+                    </h1>
+                    <div style={{ textAlign: "center" }}>
+                        Please update your personal information to keep your student records accurate and up to date for the upcoming academic year at{" "}
+                        {shortTerm ? <><strong>{shortTerm.toUpperCase()}</strong> - {companyName || ""}</> : companyName || ""}.
+                    </div>
 
                 </Container>
 

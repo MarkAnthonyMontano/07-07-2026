@@ -1895,30 +1895,31 @@ const MedicalDashboard1 = () => {
               fontSize: "20px",
               fontFamily: "Poppins, sans-serif",
               color: "#3e3e3e",
-              lineHeight: 1.3, // slightly tighter to fit in fewer rows
+              lineHeight: 1.3,
               whiteSpace: "normal",
               overflow: "hidden",
             }}
           >
-            <strong style={{ color: "maroon" }}>Notice:</strong> &nbsp;
-            <strong></strong>
-            <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
-            Please indicate “NA” or “N/A” in fields where the requested
-            information is not applicable or no response can be provided.
-            &nbsp;&nbsp;
+            <strong style={{ color: "maroon" }}>Important Notice:</strong>
             <br />
-            <strong></strong>
-            <span
-              style={{
-                fontSize: "1.2em",
-                margin: "0 15px",
-                marginLeft: "100px",
-              }}
-            >
-              ➔
-            </span>
-            To enter the letter “Ñ”, press and hold the ALT key while typing
-            “165”. For “ñ”, press and hold the ALT key while typing “164”.
+
+
+
+            <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+            Please indicate <strong>“NA”</strong> or <strong>“N/A”</strong> in fields where the
+            requested information is not applicable or no response can be provided.
+            <br />
+
+            <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+            To enter the letter <strong>“Ñ”</strong>, press and hold the ALT key while typing
+            <strong> 165</strong>. For <strong>“ñ”</strong>, press and hold the ALT key while
+            typing <strong> 164</strong>.
+            <br />
+
+            <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+            Please complete all information from <strong>Personal Information</strong> up to
+            <strong> Other Information</strong> before printing your documents.
+            <br />
           </Typography>
         </Box>
       </Box>

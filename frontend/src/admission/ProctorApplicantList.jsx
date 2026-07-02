@@ -124,7 +124,7 @@ const ProctorApplicantList = () => {
   const tabs = [
     {
       label: "Verify Documents Room Assignment",
-      to: "/verify_document_schedule",
+      to: "/verify_document_room_assignment",
       icon: <MeetingRoomIcon fontSize="large" />,
     },
 
@@ -135,7 +135,7 @@ const ProctorApplicantList = () => {
     },
     {
       label: "Entrance Exam Room Assignment",
-      to: "/assign_entrance_exam",
+      to: "/entrance_exam_room_assignment",
       icon: <MeetingRoomIcon fontSize="large" />,
     },
 
@@ -153,7 +153,7 @@ const ProctorApplicantList = () => {
 
     {
       label: "Announcement",
-      to: "/announcement_for_admission",
+      to: "/admission_announcement",
       icon: <CampaignIcon fontSize="large" />,
     },
   ];

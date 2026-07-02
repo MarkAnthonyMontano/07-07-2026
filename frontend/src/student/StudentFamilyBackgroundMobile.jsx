@@ -424,23 +424,36 @@ const StudentDashboard2Mobile = () => {
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#800000", borderRadius: "6px", width: 36, height: 36, flexShrink: 0 }}>
           <ErrorIcon sx={{ color: "white", fontSize: 22 }} />
         </Box>
-        <Typography sx={{ fontSize: 12, color: "#3e3e3e", lineHeight: 1.6 }}>
-          <strong style={{ color: "maroon" }}>Notice:</strong>{" "}
-          <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>{" "}
-          Kindly type 'NA' in boxes where there are no possible answers to the
-          information being requested. &nbsp; &nbsp; <br />
-          <strong></strong>{" "}
-          <span
-            style={{
-              fontSize: "1.2em",
-              margin: "0 15px",
-              marginLeft: "100px",
-            }}
-          >
-            ➔
-          </span>{" "}
-          To make use of the letter 'Ñ', please press ALT while typing "165",
-          while for 'ñ', please press ALT while typing "164"
+        <Typography
+          sx={{
+            fontSize: "20px",
+            fontFamily: "Poppins, sans-serif",
+            color: "#3e3e3e",
+            lineHeight: 1.3,
+            whiteSpace: "normal",
+            overflow: "hidden",
+          }}
+        >
+          <strong style={{ color: "maroon" }}>Important Notice:</strong>
+          <br />
+
+
+
+          <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+          Please indicate <strong>“NA”</strong> or <strong>“N/A”</strong> in fields where the
+          requested information is not applicable or no response can be provided.
+          <br />
+
+          <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+          To enter the letter <strong>“Ñ”</strong>, press and hold the ALT key while typing
+          <strong> 165</strong>. For <strong>“ñ”</strong>, press and hold the ALT key while
+          typing <strong> 164</strong>.
+          <br />
+
+          <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+          Please complete all information from <strong>Personal Information</strong> up to
+          <strong> Other Information</strong> before printing your documents.
+          <br />
         </Typography>
       </Box>
 

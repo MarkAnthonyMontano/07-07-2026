@@ -1094,6 +1094,7 @@ WHERE proctor LIKE ?
         );
 
         // ── Insert or update login credentials in ENROLLMENT user_accounts ───────
+        // ── Insert or update login credentials in ENROLLMENT user_accounts ───────
         const [existingUser] = await conn.query(
           `SELECT id FROM user_accounts WHERE person_id = ?`,
           [personIdForStudent],
@@ -1101,14 +1102,14 @@ WHERE proctor LIKE ?
 
         if (existingUser.length === 0) {
           await conn.query(
-            `INSERT INTO user_accounts (person_id, email, password, role, status)
-         VALUES (?, ?, ?, 'student', 1)`,
+            `INSERT INTO user_accounts (person_id, email, password, role, status, force_password_change)
+ VALUES (?, ?, ?, 'student', 1, 1)`,
             [personIdForStudent, person_data.emailAddress, hashedPassword],
           );
         } else {
           await conn.query(
-            `UPDATE user_accounts SET email = ?, password = ?, role = 'student', status = 1
-         WHERE person_id = ?`,
+            `UPDATE user_accounts SET email = ?, password = ?, role = 'student', status = 1, force_password_change = 1
+ WHERE person_id = ?`,
             [person_data.emailAddress, hashedPassword, personIdForStudent],
           );
         }
@@ -5057,7 +5058,7 @@ Click the link below to log in:
     }
   });
 
- app.get("/api/departments", async (req, res) => {
+  app.get("/api/departments", async (req, res) => {
     const {
       ensureDepartmentIsAllowedColumn,
     } = require("../routes/system_routes/dprmntRoute");
@@ -7614,15 +7615,15 @@ Click the link below to log in:
         interview_result,
         qualifying_status: row
           ? resolveProfileResultStatus(row.qualifying_status, {
-              scheduleId: row.schedule_id,
-              resultScore: row.qualifying_result,
-            })
+            scheduleId: row.schedule_id,
+            resultScore: row.qualifying_result,
+          })
           : null,
         interview_status: row
           ? resolveProfileResultStatus(row.interview_status, {
-              scheduleId: row.schedule_id,
-              resultScore: row.interview_result,
-            })
+            scheduleId: row.schedule_id,
+            resultScore: row.interview_result,
+          })
           : null,
       });
     } catch (err) {

@@ -1189,7 +1189,7 @@ const CourseTaggingForSummer = () => {
             <Button
               size="small"
               onClick={() => {
-                if (studentNumber) { localStorage.setItem("studentNumberForCOR", studentNumber); window.open("/search_cor", "_blank"); }
+                if (studentNumber) { localStorage.setItem("studentNumberForCOR", studentNumber); window.open("/registrar_course_tagging_summer", "_blank"); }
                 else { setSnack({ open: true, message: "Please select or provide a student number first", severity: "warning" }); }
               }}
               sx={{

@@ -36,7 +36,7 @@ const passwordRules = [
   { label: "At least one lowercase letter (e.g. abc)", test: (pw) => /[a-z]/.test(pw) },
   { label: "At least one uppercase letter (e.g. ABC)", test: (pw) => /[A-Z]/.test(pw) },
   { label: "At least one number (e.g. 123)", test: (pw) => /\d/.test(pw) },
-  { label: "At least one special character (! # $ ^ * @)", test: (pw) => /[!#$^*@]/.test(pw) },
+   { label: "At least one special character (! # $ ^ * @ - . < > _ & % + = ?)", test: (pw) => /[!#$^*@\-.<>_&%+=?]/.test(pw) },
 ];
 
 const ApplicantResetPassword = () => {

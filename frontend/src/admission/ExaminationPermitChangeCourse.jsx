@@ -118,9 +118,9 @@ const ExaminationProfile = () => {
     { label: "Applicant List", to: "/admission_applicant_list", icon: <SchoolIcon fontSize="large" /> },
     { label: "Applicant Profile", to: "/admission_personal_information", icon: <PersonIcon fontSize="large" /> },
     { label: "Applicant Online Requirements", to: "/admission_online_requirements", icon: <AssignmentIcon fontSize="large" /> },
-    { label: "Verify Schedule Management", to: "/verify_schedule", icon: <ScheduleIcon fontSize="large" /> },
-    { label: "Entrance Exam Schedule Management", to: "/assign_schedule_applicant", icon: <ScheduleIcon fontSize="large" /> },
-    { label: "Examination Permit", to: "/registrar_examination_profile", icon: <PersonSearchIcon fontSize="large" /> },
+    { label: "Verify Schedule Management", to: "/verify_document_schedule_management", icon: <ScheduleIcon fontSize="large" /> },
+    { label: "Entrance Exam Schedule Management", to: "/entrance_exam_schedule_management", icon: <ScheduleIcon fontSize="large" /> },
+    { label: "Examination Permit", to: "/examination_permit_change_course", icon: <PersonSearchIcon fontSize="large" /> },
     { label: "Entrance Examination Score", to: "/applicant_entrance_exam_score", icon: <ScoreIcon fontSize="large" /> },
   ];
 
@@ -1129,7 +1129,7 @@ const ExaminationProfile = () => {
       {/* Title + Search */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
         <Typography variant="h4" sx={{ fontWeight: "bold", color: titleColor, fontSize: "36px" }}>
-          EXAMINATION PROFILE
+      EXAMINATION PERMIT CHANGE COURSE
         </Typography>
         <Autocomplete
           options={persons}

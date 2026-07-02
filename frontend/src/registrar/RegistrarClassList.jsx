@@ -434,7 +434,7 @@ const ClassRoster = () => {
       {/* ── Header ── */}
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
         <Typography variant="h4" sx={{ fontWeight: "bold", color: titleColor, fontSize: "36px" }}>
-          CLASS LIST
+          REGISTRAR CLASS LIST
         </Typography>
       </Box>
 

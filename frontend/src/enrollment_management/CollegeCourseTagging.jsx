@@ -303,9 +303,9 @@ const CourseTaggingForCollege = () => {
     { label: "Student List", to: "/college_student_list", icon: <SchoolIcon fontSize="large" /> },
     { label: "Student Profile", to: "/student_college_personal_information", icon: <PersonIcon fontSize="large" /> },
     { label: "Student Online Requirements", to: "/student_online_requirements_college", icon: <AssignmentIcon fontSize="large" /> },
-    { label: "Course Tagging", to: "/course_tagging_for_college", icon: <UploadFileIcon fontSize="large" /> },
-    { label: "Search COR", to: "/search_cor_for_college", icon: <MenuBookIcon fontSize="large" /> },
-    { label: "Class List", to: "/class_roster_enrollment", icon: <PersonSearchIcon fontSize="large" /> },
+    { label: "Course Tagging", to: "/college_course_tagging", icon: <UploadFileIcon fontSize="large" /> },
+    { label: "Search COR", to: "/college_search_certification_of_registration", icon: <MenuBookIcon fontSize="large" /> },
+    { label: "Class List", to: "/college_class_list", icon: <PersonSearchIcon fontSize="large" /> },
 
   ];
 
@@ -1061,7 +1061,7 @@ const CourseTaggingForCollege = () => {
             <Button
               size="small"
               onClick={() => {
-                if (studentNumber) { localStorage.setItem("studentNumberForCOR", studentNumber); window.open("/search_cor_for_college", "_blank"); }
+                if (studentNumber) { localStorage.setItem("studentNumberForCOR", studentNumber); window.open("/college_search_certification_of_registration", "_blank"); }
                 else setSnack({ open: true, message: "Please select or provide a student number first", severity: "warning" });
               }}
               sx={{ backgroundColor: TOKEN.gold, color: headerColor, fontWeight: 800, fontSize: "11px", textTransform: "none", height: 28, px: 1.5, boxShadow: "none", "&:hover": { backgroundColor: "#d97706", boxShadow: "none" } }}

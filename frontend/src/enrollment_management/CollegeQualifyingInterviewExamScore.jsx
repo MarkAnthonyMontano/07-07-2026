@@ -182,7 +182,7 @@ const QualifyingExamScore = () => {
     },
     {
       label: "Qualifying / Interview Schedule Management",
-      to: "/assign_schedule_applicants_qualifying_interview",
+      to: "/college_qualifying_interview_schedule_management",
       icon: <ScheduleIcon fontSize="large" />,
     },
     {

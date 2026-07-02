@@ -16,39 +16,49 @@ import {
   DialogActions,
   Table,
   TableRow,
-  Card,
   FormControl,
   InputLabel,
   Select,
   TableContainer,
   TableCell,
   TableBody,
+  Card,
   TableHead,
+  IconButton,
   Snackbar,
   Alert,
-  IconButton,
 } from "@mui/material";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Search } from "@mui/icons-material";
+import { Link, useNavigate } from "react-router-dom";
+import CloseIcon from "@mui/icons-material/Close"; // or use the custom SVG below
+
 import SchoolIcon from "@mui/icons-material/School";
-import DashboardIcon from "@mui/icons-material/Dashboard";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import MeetingRoomIcon from "@mui/icons-material/MeetingRoom";
 import ScheduleIcon from "@mui/icons-material/Schedule";
-import PersonSearchIcon from "@mui/icons-material/PersonSearch";
 import PeopleIcon from "@mui/icons-material/People";
-import FactCheckIcon from "@mui/icons-material/FactCheck";
+import PersonSearchIcon from "@mui/icons-material/PersonSearch";
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
 import Unauthorized from "../components/Unauthorized";
 import LoadingOverlay from "../components/LoadingOverlay";
 import SearchIcon from "@mui/icons-material/Search";
-import KeyIcon from "@mui/icons-material/Key";
 import API_BASE_URL from "../apiConfig";
-import CampaignIcon from "@mui/icons-material/Campaign";
-import { Toc } from "@mui/icons-material";
+import {
+  getRegistrarCurriculumId,
+  isRegistrarProgramSelectionLocked,
+  isRegistrarStudentScopeMatch,
+  restrictDepartmentsToScope,
+  restrictToRegistrarCurriculum,
+  syncRegistrarScopeFromAdminData,
+  getDepartmentIdsFromAdminData,
+} from "../utils/registrarCurriculumRestriction";
+import useRegistrarScopeRevision from "../hooks/useRegistrarScopeRevision";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
 import ScoreIcon from "@mui/icons-material/Score";
 import PersonIcon from "@mui/icons-material/Person";
-import CloseIcon from "@mui/icons-material/Close"; // or use the custom SVG below
-
-const AssignScheduleToApplicants = () => {
+import EaristLogo from "../assets/EaristLogo.png";
+const AssignScheduleToApplicantsInterviewer = () => {
   const socket = useRef(null);
   const settings = useContext(SettingsContext);
 
@@ -105,126 +115,38 @@ const AssignScheduleToApplicants = () => {
     }
   }, [settings]);
 
-  const tabs = [
-    {
-      label: "Applicant List",
-      to: "/admission_applicant_list",
-      icon: <SchoolIcon fontSize="large" />,
-    },
-    {
-      label: "Applicant Profile",
-      to: "/admission_personal_information",
-      icon: <PersonIcon fontSize="large" />,
-    },
-    {
-      label: "Applicant Online Requirements",
-      to: "/admission_online_requirements",
-      icon: <AssignmentIcon fontSize="large" />,
-    },
-    {
-      label: "Verify Schedule Management",
-      to: "/verify_schedule",
-      icon: <ScheduleIcon fontSize="large" />,
-    },
-    {
-      label: "Entrance Exam Schedule Management",
-      to: "/assign_schedule_applicant",
-      icon: <ScheduleIcon fontSize="large" />,
-    },
-
-    {
-      label: "Examination Permit",
-      to: "/registrar_examination_profile",
-      icon: <PersonSearchIcon fontSize="large" />,
-    },
-
-    {
-      label: "Entrance Examination Score",
-      to: "/applicant_entrance_exam_score",
-      icon: <ScoreIcon fontSize="large" />,
-    },
-  ];
-
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [activeStep, setActiveStep] = useState(4);
-  const [clickedSteps, setClickedSteps] = useState(
-    Array(tabs.length).fill(false),
-  );
-
-  const handleStepClick = (index, to) => {
-    setActiveStep(index);
-    const pid = sessionStorage.getItem("admin_edit_person_id");
-
-    if (pid && to !== "/admission_applicant_list") {
-      navigate(`${to}?person_id=${pid}`);
-    } else {
-      navigate(to);
-    }
-  };
-
-  const queryParams = new URLSearchParams(location.search);
-  const queryPersonId = queryParams.get("person_id")?.trim() || "";
+  const [user, setUser] = useState(null);
+  const [adminData, setAdminData] = useState({ dprtmnt_id: "", dprtmnt_ids: [] });
+  const [emailSender, setEmailSender] = useState("");
+  const [loggedInPersonId, setLoggedInPersonId] = useState(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("email");
-    const storedRole = localStorage.getItem("role");
-    const loggedInPersonId = localStorage.getItem("person_id");
+    socket.current = io(API_BASE_URL, {
+      path: "/api/socket.io",
+      transports: ["websocket", "polling"],
+    });
 
-    if (!storedUser || !storedRole || !loggedInPersonId) {
-      window.location.href = "/login";
-      return;
-    }
+    return () => {
+      socket.current.disconnect();
+    };
+  }, []);
 
-    setUser(storedUser);
-    setUserRole(storedRole);
+  useEffect(() => {
+    const storedEmail = localStorage.getItem("email");
+    const storedPersonId =
+      localStorage.getItem("person_id") || sessionStorage.getItem("person_id");
 
-    const allowedRoles = ["registrar", "applicant", "superadmin"];
-    if (!allowedRoles.includes(storedRole)) {
-      window.location.href = "/login";
-      return;
-    }
-
-    const lastSelected = sessionStorage.getItem("admin_edit_person_id");
-
-    // ⭐ CASE 1: URL HAS ?person_id=
-    if (queryPersonId !== "") {
-      sessionStorage.setItem("admin_edit_person_id", queryPersonId);
-      setUserID(queryPersonId);
-      return;
-    }
-
-    // ⭐ CASE 3: No URL ID and no last selected → start blank
-    setUserID("");
-  }, [queryPersonId]);
-
-  const [applicants, setApplicants] = useState([]);
-  const [selectedSchedule, setSelectedSchedule] = useState("");
-  const [selectedApplicants, setSelectedApplicants] = useState(new Set());
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [persons, setPersons] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [loading2, setLoading2] = useState(false);
-  const [person, setPerson] = useState({
-    campus: "",
-    last_name: "",
-    first_name: "",
-    middle_name: "",
-    document_status: "",
-    extension: "",
-    emailAddress: "",
-    program: "",
-    created_at: "",
-  });
-
-  const [curriculumOptions, setCurriculumOptions] = useState([]);
+    if (storedEmail) setUser(storedEmail);
+    if (storedPersonId) setLoggedInPersonId(storedPersonId);
+  }, []);
   const [userID, setUserID] = useState("");
-  const [user, setUser] = useState("");
   const [userRole, setUserRole] = useState("");
   const [hasAccess, setHasAccess] = useState(null);
+  const [canCreate, setCanCreate] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
+  const [canDelete, setCanDelete] = useState(false);
 
-  const pageId = 11;
+  const pageId = 12;
 
   const [employeeID, setEmployeeID] = useState("");
 
@@ -266,12 +188,21 @@ const AssignScheduleToApplicants = () => {
       );
       if (response.data && response.data.page_privilege === 1) {
         setHasAccess(true);
+        setCanCreate(response.data?.can_create === 1);
+        setCanEdit(response.data?.can_edit === 1);
+        setCanDelete(response.data?.can_delete === 1);
       } else {
         setHasAccess(false);
+        setCanCreate(false);
+        setCanEdit(false);
+        setCanDelete(false);
       }
     } catch (error) {
       console.error("Error checking access:", error);
       setHasAccess(false);
+      setCanCreate(false);
+      setCanEdit(false);
+      setCanDelete(false);
       if (error.response && error.response.data.message) {
         console.log(error.response.data.message);
       } else {
@@ -281,27 +212,175 @@ const AssignScheduleToApplicants = () => {
     }
   };
 
+  const fetchPersonData = async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/admin_data/${user}`);
+      setAdminData(res.data);
+      syncRegistrarScopeFromAdminData(res.data); // { dprtmnt_id: "..." }
+    } catch (err) {
+      console.error("Error fetching admin data:", err);
+    }
+  };
+
   useEffect(() => {
+    if (user) {
+      fetchPersonData();
+    }
+  }, [user]);
+
+  const resolveSenderForApplicant = async (applicant) => {
+    const currentEmployeeId = employeeID || localStorage.getItem("employee_id");
+    const programId = applicant?.program; // curriculum_id from admission.person_table
+
+    const curriculumMatch =
+      curriculumLookup.find(
+        (c) => String(c.curriculum_id) === String(programId),
+      ) ||
+      curriculumLookup.find(
+        (c) => String(c.program_id) === String(programId),
+      );
+
+    const departmentId =
+      curriculumMatch?.dprtmnt_id ||
+      getDepartmentIdsFromAdminData(adminData)[0] ||
+      adminData.dprtmnt_id;
+
+    const programLabel =
+      [
+        curriculumMatch?.program_code,
+        curriculumMatch?.program_description,
+      ]
+        .filter(Boolean)
+        .join(" - ") || "the selected program";
+
+    const departmentLabel =
+      curriculumMatch?.dprtmnt_name ||
+      department.find(
+        (dep) => String(dep.dprtmnt_id) === String(departmentId),
+      )?.dprtmnt_name ||
+      "the selected department";
+
+    if (!currentEmployeeId) {
+      throw new Error("No employee ID found. Please log out and log in again.");
+    }
+    if (!programId) {
+      throw new Error("Program is missing for this applicant.");
+    }
+
+    const res = await axios.get(
+      `${API_BASE_URL}/api/email-templates/active-senders`,
+      {
+        params: {
+          department_id: departmentId,
+          program_id: programId,
+          employee_id: currentEmployeeId,
+        },
+      },
+    );
+
+    if (!Array.isArray(res.data) || res.data.length === 0) {
+      throw new Error(
+        `No active email account is assigned for ${programLabel} in ${departmentLabel}.`,
+      );
+    }
+
+    return res.data[0].sender_name;
+  };
+
+  const tabs = [
+    {
+             label: "Applicant List",
+             to: "/applicant_list_college",
+             icon: <SchoolIcon fontSize="large" />,
+           },
+           {
+             label: "Applicant Profile",
+             to: "/applicant_college_personal_information",
+             icon: <PersonIcon fontSize="large" />,
+           },
+           {
+             label: "Applicant Online Requirements",
+             to: "/applicant_online_requirements_college",
+             icon: <AssignmentIcon fontSize="large" />,
+           },
+           {
+             label: "Entrance Examination Score",
+             to: "/college_entrance_examination_score",
+             icon: <ScoreIcon fontSize="large" />,
+           },
+           {
+             label: "Qualifying / Interview Schedule Management",
+             to: "/college_qualifying_interview_schedule_management",
+             icon: <ScheduleIcon fontSize="large" />,
+           },
+           {
+             label: "Qualifying / Interview Exam Score",
+             to: "/college_qualifying_interview_score",
+             icon: <ScoreIcon fontSize="large" />,
+           },
+         
+  ];
+
+  const handleStepClick = (index, to) => {
+    setActiveStep(index);
+    navigate(to); // this will actually change the page
+  };
+
+  const navigate = useNavigate();
+  const [activeStep, setActiveStep] = useState(4);
+  const [clickedSteps, setClickedSteps] = useState(
+    Array(tabs.length).fill(false),
+  );
+  const [applicants, setApplicants] = useState([]);
+  const [selectedSchedule, setSelectedSchedule] = useState("");
+  const [selectedApplicants, setSelectedApplicants] = useState(new Set());
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [persons, setPersons] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [loading2, setLoading2] = useState(false);
+  const [selectedApplicantStatus, setSelectedApplicantStatus] = useState("");
+  const [curriculumOptions, setCurriculumOptions] = useState([]);
+  const scopeRevision = useRegistrarScopeRevision();
+  const [allCurriculums, setAllCurriculums] = useState([]);
+  const [curriculumLookup, setCurriculumLookup] = useState([]);
+
+  useEffect(() => {
+    const departmentIds = getDepartmentIdsFromAdminData(adminData);
+    if (!departmentIds.length) return;
+
     const fetchCurriculums = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/applied_program`);
-        setCurriculumOptions(response.data);
+        const responses = await Promise.all(
+          departmentIds.map((departmentId) =>
+            axios.get(`${API_BASE_URL}/api/applied_program/${departmentId}`),
+          ),
+        );
+        const merged = responses.flatMap((response) => response.data || []);
+        setCurriculumLookup(merged);
+        const restricted = restrictToRegistrarCurriculum(merged);
+        setAllCurriculums(restricted);
+        setCurriculumOptions(restricted);
       } catch (error) {
         console.error("Error fetching curriculum options:", error);
       }
     };
-
     fetchCurriculums();
-  }, []);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
 
   useEffect(() => {
-    axios.get(`${API_BASE_URL}/api/applied_program`).then((res) => {
-      setAllCurriculums(res.data);
-      setCurriculumOptions(res.data);
-    });
-  }, []);
+    const departmentIds = getDepartmentIdsFromAdminData(adminData);
+    if (departmentIds.length) return;
 
-  const [allCurriculums, setAllCurriculums] = useState([]);
+    axios.get(`${API_BASE_URL}/api/applied_program`).then((res) => {
+      const merged = res.data || [];
+      setCurriculumLookup(merged);
+      const restrictedCurriculums = restrictToRegistrarCurriculum(merged);
+      setAllCurriculums(restrictedCurriculums);
+      setCurriculumOptions(restrictedCurriculums);
+    });
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
+
   const [schoolYears, setSchoolYears] = useState([]);
   const [semesters, setSchoolSemester] = useState([]);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState("");
@@ -356,6 +435,7 @@ const AssignScheduleToApplicants = () => {
   const getSelectedScheduleData = () =>
     schedules.find((s) => Number(s.schedule_id) === Number(selectedSchedule));
 
+  // ⬇️ Always use the interview schedules source with occupancy counts
   const handleScheduleChange = (scheduleId) => {
     setSelectedSchedule(scheduleId);
 
@@ -365,16 +445,16 @@ const AssignScheduleToApplicants = () => {
     const branchId = schedule?.branch ? String(schedule.branch) : "";
 
     setSelectedCampusFilter(branchId);
-    setSelectedDepartmentFilter("");
+    const firstDeptId = getDepartmentIdsFromAdminData(adminData)[0];
+    setSelectedDepartmentFilter(firstDeptId ? String(firstDeptId) : "");
     setSelectedProgramFilter("");
     setCurrentPage(1);
   };
 
-  // ✅ Always use the schedule source with occupancy counts
   const fetchSchedulesWithCount = async () => {
     try {
       const res = await axios.get(
-        `${API_BASE_URL}/api/exam_schedules_with_count`,
+        `${API_BASE_URL}/api/interview_schedules_with_count`,
       );
       setSchedules(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
@@ -382,35 +462,25 @@ const AssignScheduleToApplicants = () => {
     }
   };
 
-  // ⬇️ Initial load
   useEffect(() => {
     fetchSchedulesWithCount();
     fetchAllApplicants();
-  }, []);
-
-  useEffect(() => {
-    socket.current = io(API_BASE_URL, {
-      path: "/api/socket.io",
-      transports: ["websocket", "polling"],
-    });
-
-    return () => {
-      socket.current.disconnect();
-    };
   }, []);
 
   // ⬇️ Socket update refreshes the "with_count" one
   useEffect(() => {
     if (!socket.current) return;
 
-    socket.current.on("schedule_updated", ({ schedule_id }) => {
+    const handleScheduleUpdated = ({ schedule_id }) => {
       console.log("📢 Schedule updated:", schedule_id);
       fetchSchedulesWithCount();
       fetchAllApplicants();
-    });
+    };
+
+    socket.current.on("schedule_updated", handleScheduleUpdated);
 
     return () => {
-      socket.current?.off("schedule_updated");
+      socket.current.off("schedule_updated", handleScheduleUpdated);
     };
   }, []);
 
@@ -418,12 +488,72 @@ const AssignScheduleToApplicants = () => {
   const fetchAllApplicants = async () => {
     try {
       const res = await axios.get(
-        `${API_BASE_URL}/api/verified-ecat-applicants`,
+        `${API_BASE_URL}/api/interview/not-emailed-applicants`,
       );
-      setPersons(res.data);
+
+      const fetchedSubjects = Array.isArray(res.data?.subjects)
+        ? res.data.subjects
+        : [];
+
+      // Safely normalize response: handle array, wrapped object, or unexpected shapes
+      const data = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.data)
+          ? res.data.data
+          : [];
+
+      setPersons(data);
+      setSubjects(fetchedSubjects);
+      setSelectedApplicants((prev) => {
+        const newSet = new Set(prev);
+        data.forEach((a) => {
+          if (a.schedule_id !== null) newSet.delete(a.applicant_number);
+        });
+        return newSet;
+      });
     } catch (err) {
-      console.error("Error fetching verified ECAT applicants:", err);
+      console.error("Error fetching all-applicants:", err);
     }
+  };
+
+  const [subjects, setSubjects] = useState([]);
+
+  const fetchSubjects = async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/subjects`);
+
+      setSubjects(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchSubjects();
+  }, []);
+
+  const handleRowClick = (applicant) => {
+    const personId = applicant?.person_id;
+    if (!personId) return;
+
+    const searchValue =
+      applicant?.applicant_number ||
+      `${applicant?.last_name ?? ""}, ${applicant?.first_name ?? ""}`.trim();
+
+    sessionStorage.setItem("admin_edit_person_id", String(personId));
+    sessionStorage.setItem("edit_person_id", String(personId));
+    sessionStorage.setItem("admin_edit_person_id_source", "applicant_list_college");
+    sessionStorage.setItem("admin_edit_person_id_ts", String(Date.now()));
+
+    // ✅ Always pass person_id in the URL
+    sessionStorage.setItem("admin_edit_person_data", JSON.stringify(applicant));
+
+    if (searchValue) {
+      sessionStorage.setItem("admin_edit_search_query", String(searchValue));
+      sessionStorage.setItem("edit_applicant_number", String(searchValue));
+    }
+
+    navigate(`/applicant_college_personal_information?person_id=${personId}`);
   };
 
   // ================= FUNCTIONS =================
@@ -431,6 +561,15 @@ const AssignScheduleToApplicants = () => {
 
   // toggleSelectApplicant
   const handleAssignSingle = (id) => {
+    if (!canCreate) {
+      setSnack({
+        open: true,
+        message: "You do not have permission to assign interview schedules.",
+        severity: "warning",
+      });
+      return;
+    }
+
     if (!selectedSchedule) {
       setSnack({
         open: true,
@@ -440,7 +579,7 @@ const AssignScheduleToApplicants = () => {
       return;
     }
 
-    socket.current.emit("update_schedule", {
+    socket.current.emit("update_schedule_for_interview", {
       schedule_id: selectedSchedule,
       applicant_numbers: [id],
       ...auditActor(),
@@ -467,6 +606,15 @@ const AssignScheduleToApplicants = () => {
 
   // handleAssign40 (assign max up to room_quota)
   const handleAssign40 = () => {
+    if (!canCreate) {
+      setSnack({
+        open: true,
+        message: "You do not have permission to assign interview schedules.",
+        severity: "warning",
+      });
+      return;
+    }
+
     if (!selectedSchedule) {
       setSnack({
         open: true,
@@ -486,8 +634,8 @@ const AssignScheduleToApplicants = () => {
       return;
     }
 
-    const currentCount = schedule.current_occupancy || 0; // ✅ define it here
-    const maxSlots = schedule.room_quota || 40; // ✅ use DB quota if available
+    const currentCount = schedule.current_occupancy || 0;
+    const maxSlots = schedule.room_quota || 40;
     const availableSlots = maxSlots - currentCount;
 
     if (availableSlots <= 0) {
@@ -499,13 +647,10 @@ const AssignScheduleToApplicants = () => {
       return;
     }
 
-    // take as many unassigned as we can up to availableSlots
-    const unassigned = sortedPersons
-      .filter((a) => a.schedule_id == null)
-      .slice(0, availableSlots)
-      .map((a) => a.applicant_number);
+    // ✅ Filter all unassigned applicants first
+    const filteredPersons = sortedPersons.filter((a) => a.schedule_id == null);
 
-    if (unassigned.length === 0) {
+    if (filteredPersons.length === 0) {
       setSnack({
         open: true,
         message: "No unassigned applicants available.",
@@ -514,31 +659,27 @@ const AssignScheduleToApplicants = () => {
       return;
     }
 
-    socket.current.emit("update_schedule", {
+    // ✅ Take only the ones that fit in available slots and map to applicant numbers
+    const unassigned = filteredPersons
+      .slice(0, availableSlots)
+      .map((a) => a.applicant_number)
+      .filter(Boolean);
+
+    socket.current.emit("update_schedule_for_interview", {
       schedule_id: selectedSchedule,
       applicant_numbers: unassigned,
       ...auditActor(),
     });
 
-    socket.current.once("update_schedule_result", (res) => {
+    socket.current.once("update_schedule_result", async (res) => {
       if (res.success) {
         setSnack({
           open: true,
-          message: `Assigned: ${res.assigned?.length || 0}, Updated: ${res.updated?.length || 0}, Skipped: ${res.skipped?.length || 0}`,
+          message: `Assigned: ${res.assigned?.length || 0}, Updated: ${res.updated?.length || 0}, Skipped: ${res.skipped?.length || 0}. Total unassigned applicants: ${filteredPersons.length}`,
           severity: "success",
         });
-        fetchAllApplicants();
-        fetchSchedulesWithCount();
-        setSchedules((prev) =>
-          prev.map((s) =>
-            Number(s.schedule_id) === Number(selectedSchedule)
-              ? {
-                ...s,
-                current_occupancy: currentCount + (res.assigned?.length || 0),
-              }
-              : s,
-          ),
-        );
+        await fetchAllApplicants();
+        await fetchSchedulesWithCount();
       } else {
         setSnack({
           open: true,
@@ -551,46 +692,29 @@ const AssignScheduleToApplicants = () => {
 
   // handleUnassignImmediate
   const handleUnassignImmediate = async (applicant_number) => {
-    try {
-      const assignedScheduleId =
-        persons.find((p) => p.applicant_number === applicant_number)
-          ?.schedule_id || selectedSchedule;
+    if (!canDelete) {
+      setSnack({
+        open: true,
+        message: "You do not have permission to unassign interview schedules.",
+        severity: "warning",
+      });
+      return;
+    }
 
-      await axios.post(`${API_BASE_URL}/api/unassign_schedule`, {
+    try {
+      await axios.post(`${API_BASE_URL}/api/unassign_interview`, {
         applicant_number,
         ...auditActor(),
       });
 
-      setPersons((prev) =>
-        prev.map((p) =>
-          p.applicant_number === applicant_number
-            ? { ...p, schedule_id: null }
-            : p,
-        ),
-      );
+      await fetchAllApplicants();
+      await fetchSchedulesWithCount();
 
       setSelectedApplicants((prev) => {
         const newSet = new Set(prev);
         newSet.delete(applicant_number);
         return newSet;
       });
-
-      setSchedules((prev) =>
-        prev.map((s) =>
-          Number(s.schedule_id) === Number(assignedScheduleId)
-            ? {
-              ...s,
-              current_occupancy: Math.max(
-                Number(s.current_occupancy || 0) - 1,
-                0,
-              ),
-            }
-            : s,
-        ),
-      );
-
-      await fetchAllApplicants();
-      await fetchSchedulesWithCount();
 
       setSnack({
         open: true,
@@ -609,6 +733,15 @@ const AssignScheduleToApplicants = () => {
 
   // handleAssignCustom
   const handleAssignCustom = () => {
+    if (!canCreate) {
+      setSnack({
+        open: true,
+        message: "You do not have permission to assign interview schedules.",
+        severity: "warning",
+      });
+      return;
+    }
+
     if (!selectedSchedule) {
       setSnack({
         open: true,
@@ -637,7 +770,7 @@ const AssignScheduleToApplicants = () => {
     }
 
     const currentCount = schedule.current_occupancy || 0;
-    const maxSlots = schedule.room_quota || 40; // <-- ✅ use DB quota, fallback 40
+    const maxSlots = schedule.room_quota || 40;
     const availableSlots = maxSlots - currentCount;
 
     if (availableSlots <= 0) {
@@ -665,7 +798,9 @@ const AssignScheduleToApplicants = () => {
       return;
     }
 
-    socket.current.emit("update_schedule", {
+    socket.current.off("update_schedule_result");
+
+    socket.current.emit("update_schedule_for_interview", {
       schedule_id: selectedSchedule,
       applicant_numbers: unassigned,
       ...auditActor(),
@@ -678,8 +813,11 @@ const AssignScheduleToApplicants = () => {
           message: `Assigned: ${res.assigned?.length || 0}, Updated: ${res.updated?.length || 0}, Skipped: ${res.skipped?.length || 0}`,
           severity: "success",
         });
+
         fetchAllApplicants();
         fetchSchedulesWithCount();
+
+        // Update schedule occupancy
         setSchedules((prev) =>
           prev.map((s) =>
             Number(s.schedule_id) === Number(selectedSchedule)
@@ -702,6 +840,15 @@ const AssignScheduleToApplicants = () => {
 
   // handleUnassignAll
   const handleUnassignAll = async () => {
+    if (!canDelete) {
+      setSnack({
+        open: true,
+        message: "You do not have permission to unassign interview schedules.",
+        severity: "warning",
+      });
+      return;
+    }
+
     if (!selectedSchedule) {
       setSnack({
         open: true,
@@ -713,7 +860,7 @@ const AssignScheduleToApplicants = () => {
 
     try {
       const res = await axios.post(
-        `${API_BASE_URL}/api/unassign_all_from_schedule`,
+        `${API_BASE_URL}/api/unassign_all_from_interview`,
         {
           schedule_id: selectedSchedule,
           ...auditActor(),
@@ -734,26 +881,219 @@ const AssignScheduleToApplicants = () => {
     }
   };
 
-  const [emailSubject, setEmailSubject] = useState("Entrance Exam Schedule");
-  const [emailMessage, setEmailMessage] = useState(""); // fixed top portion (no reminders)
-  const [finalPreview, setFinalPreview] = useState(""); // live full preview
+  const [showRequirements, setShowRequirements] = useState(false);
+  const [requirements, setRequirements] = useState([]);
 
-  // ONLY editable part
-  const [customReminders, setCustomReminders] =
-    useState(`- Arrive at least 1 hour before your scheduled exam.
-- Bring your printed exam permit, a valid ID, your own pen, and all required documents.
-- Wear a plain white t-shirt on the exam day.`);
+  const fetchRequirements = async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/requirements`);
+      setRequirements(res.data);
+      return res.data; // 👈 useful for email building
+    } catch (err) {
+      console.error("Failed to fetch requirements:", err);
+      return [];
+    }
+  };
 
-  // Live-rebuild finalPreview whenever reminders or base message change
   useEffect(() => {
-    if (!confirmOpen) return;
-    setFinalPreview(
-      `${emailMessage}\n\u26a0\ufe0f Important Reminders:\n\n${customReminders}\n\nThank you and good luck!\n\nAdmission Office`,
+    fetchRequirements();
+  }, []);
+
+  const filterRequirementsForApplicant = (applicant, list = requirements) => {
+    if (!Array.isArray(list)) return [];
+
+    const applyingAs = String(applicant?.applyingAs ?? "");
+
+    return list.filter((req) => {
+      const applicantType = String(req.applicant_type ?? 0);
+      return (
+        applicantType === applyingAs ||
+        applicantType === "0" ||
+        applicantType.toLowerCase() === "all"
+      );
+    });
+  };
+
+  const [selectedCopies, setSelectedCopies] = useState({});
+
+  const firstApplicantNumber = Array.from(selectedApplicants)[0];
+
+  const selectedApplicantData = persons.find(
+    (p) => p.applicant_number === firstApplicantNumber,
+  );
+
+  const handleSelect = (reqId, type = null) => {
+    setSelectedCopies((prev) => {
+      const updated = { ...prev };
+
+      // ✅ Remove selection if null
+      if (type === null) {
+        delete updated[reqId];
+      } else {
+        updated[reqId] = type;
+      }
+
+      // ✅ Use the already computed selected applicant
+      const applicant = selectedApplicantData;
+
+      // ✅ Safety check
+      if (!applicant) {
+        return updated;
+      }
+
+      // ✅ Get currently selected schedule
+      const sched =
+        getSelectedScheduleData() ||
+        schedules.find(
+          (s) => String(s.schedule_id) === String(applicant.schedule_id),
+        );
+
+      // ✅ Rebuild requirements text with updated copy selections
+      const reqText = buildRequirementsText(applicant, requirements, updated);
+
+      // ✅ Rebuild the email preview
+      const newMessage = buildFullMessage(applicant, reqText, sched);
+
+      // ✅ Update preview
+      setEmailMessage(newMessage);
+
+      return updated;
+    });
+  };
+
+  const buildFullMessage = (applicant, reqText, sched) => {
+    if (!sched) return "No schedule available.";
+
+    const formatTime = (time) => {
+      if (!time) return "N/A";
+      const d = new Date(`1970-01-01T${time}`);
+      return isNaN(d)
+        ? "N/A"
+        : d.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        });
+    };
+
+    const formattedDate = sched.day_description
+      ? new Date(sched.day_description).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+      : "N/A";
+
+    // ✅ Only include the requirements section if the user explicitly
+    // clicked "Show Required Documents"
+    const requirementsSection = showRequirements
+      ? `
+
+Please bring the following requirements:
+
+📄 REQUIRED DOCUMENTS:
+${reqText}
+`
+      : "";
+
+    return `
+Dear ${applicant?.last_name || ""}, ${applicant?.first_name || ""} ${applicant?.middle_name || ""}
+
+You have been assigned to the following schedule:
+
+📅 Date: ${formattedDate}
+🏢 Building: ${sched?.building_description || "N/A"}
+🏫 Room: ${sched?.room_description || "N/A"}
+🕒 Time: ${formatTime(sched?.start_time)} - ${formatTime(sched?.end_time)}
+${requirementsSection}
+⚠️ Important Reminder:
+`.trim();
+  };
+
+  const buildRequirementsText = (
+    applicant,
+    list = requirements,
+    copies = selectedCopies,
+  ) => {
+    const filtered = filterRequirementsForApplicant(applicant, list);
+
+    if (!filtered || filtered.length === 0) {
+      return "No requirements listed.";
+    }
+
+    const mainReqs = filtered.filter(
+      (r) => !r.category?.toLowerCase().includes("medical"),
     );
-  }, [customReminders, emailMessage, confirmOpen]);
+
+    const medReqs = filtered.filter((r) =>
+      r.category?.toLowerCase().includes("medical"),
+    );
+
+    let text = "";
+
+    if (mainReqs.length > 0) {
+      text += "Main Requirements:\n";
+
+      mainReqs.forEach((req, i) => {
+        const sel = copies[req.id];
+
+        text += `${i + 1}. ${req.description}`;
+
+        // optional label
+        if (Number(req.is_optional) === 1) {
+          text += " (Optional)";
+        }
+
+        if (sel === "original") {
+          text += " (Original Copy)";
+        }
+
+        if (sel === "xerox") {
+          text += " (Xerox Copy)";
+        }
+
+        text += "\n";
+      });
+    }
+
+    if (medReqs.length > 0) {
+      text += "\nMedical Requirements:\n";
+
+      medReqs.forEach((req) => {
+        const sel = copies[req.id];
+
+        text += `• ${req.description}`;
+
+        // optional label
+        if (Number(req.is_optional) === 1) {
+          text += " (Optional)";
+        }
+
+        if (sel === "original") {
+          text += " (Original Copy)";
+        }
+
+        if (sel === "xerox") {
+          text += " (Xerox Copy)";
+        }
+
+        text += "\n";
+      });
+    }
+
+    return text.trim();
+  };
 
   const handleSendEmails = () => {
-    // 1️⃣ Validate schedule selection
+    if (!canEdit) {
+      setSnack({
+        open: true,
+        message: "You do not have permission to update interview email status.",
+        severity: "warning",
+      });
+      return;
+    }
+
     if (!selectedSchedule) {
       setSnack({
         open: true,
@@ -763,8 +1103,110 @@ const AssignScheduleToApplicants = () => {
       return;
     }
 
-    // 2️⃣ Find selected schedule details
+    // 👉 Get ALL applicants currently assigned to the selected schedule
+    const assignedApplicants = persons.filter(
+      (a) => Number(a.schedule_id) === Number(selectedSchedule),
+    );
+
+    if (assignedApplicants.length === 0) {
+      setSnack({
+        open: true,
+        message: "No applicants are assigned to this schedule.",
+        severity: "warning",
+      });
+      return;
+    }
+
+    // 👉 Extract applicant numbers for sending
+    const applicantNumbers = assignedApplicants.map((a) => a.applicant_number);
+
+    // 👉 Set selectedApplicants state (used by confirmSendEmails)
+    setSelectedApplicants(new Set(applicantNumbers));
+
+    // 👉 Use first applicant for email preview
+    const first = assignedApplicants[0];
+
+    const fullName =
+      `${first.last_name || ""}, ${first.first_name || ""} ${first.middle_name || ""}`.trim();
+
     const sched = getSelectedScheduleData();
+    if (!sched) {
+      setSnack({
+        open: true,
+        message: "Schedule not found.",
+        severity: "error",
+      });
+      return;
+    }
+
+    // Format times
+    const formattedStart = new Date(
+      `1970-01-01T${sched.start_time}`,
+    ).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    const formattedEnd = new Date(
+      `1970-01-01T${sched.end_time}`,
+    ).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    // Prefill the email message
+    const formattedDate = new Date(sched.day_description).toLocaleDateString(
+      "en-US",
+      {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      },
+    );
+
+    const reqText = buildRequirementsText(first, requirements);
+
+    const message = buildFullMessage(first, reqText, sched);
+    setEmailMessage(message);
+
+    // OPEN the dialog
+    setConfirmOpen(true);
+  };
+
+  const handleSendEmailSingle = (applicant) => {
+    if (!canEdit) {
+      setSnack({
+        open: true,
+        message: "You do not have permission to update interview email status.",
+        severity: "warning",
+      });
+      return;
+    }
+
+    if (!applicant) {
+      setSnack({
+        open: true,
+        message: "Applicant data is missing.",
+        severity: "error",
+      });
+      return;
+    }
+
+    const targetScheduleId = applicant.schedule_id || selectedSchedule;
+    if (!targetScheduleId) {
+      setSnack({
+        open: true,
+        message: "This applicant has no assigned schedule.",
+        severity: "warning",
+      });
+      return;
+    }
+
+    const sched = schedules.find(
+      (s) => String(s.schedule_id) === String(targetScheduleId),
+    );
 
     if (!sched) {
       setSnack({
@@ -775,148 +1217,139 @@ const AssignScheduleToApplicants = () => {
       return;
     }
 
-    const formatTime = (timeStr) => {
-      if (!timeStr) return "";
-      const [h, m] = timeStr.split(":");
-      let hour = parseInt(h, 10);
-      const ampm = hour >= 12 ? "PM" : "AM";
-      hour = hour % 12 || 12;
-      return `${hour}:${m} ${ampm}`;
-    };
+    const reqText = buildRequirementsText(applicant, requirements);
 
-    const formatDateLong = (dateStr) => {
-      if (!dateStr) return "";
-      const date = new Date(dateStr);
-      return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
-    };
+    setSelectedSchedule(targetScheduleId);
+    setSelectedApplicants(new Set([applicant.applicant_number]));
 
-    // 4️⃣ Build FIXED top portion of email (no reminders — useEffect appends them live)
-    const defaultMessage = `Hello, {first_name} {middle_name} {last_name},
+    // ✅ FIXED LINE
+    const message = buildFullMessage(applicant, reqText, sched);
 
-You have been assigned to the following Entrance Examination schedule:
+    setEmailMessage(message);
 
-📅 Day: ${formatDateLong(sched.day_description)}
-🏫 Room: ${sched.room_description}
-🕒 Time: ${formatTime(sched.start_time)} - ${formatTime(sched.end_time)}
-🆔 Applicant No: {applicant_number}
-
-Please log in to your Applicant Form Dashboard, click on your Exam Permit, and print it.
-This printed permit must be presented to your proctor on the exam day to verify your eligibility.
-`;
-
-    setEmailMessage(defaultMessage);
-
-    // reset editable reminders every time modal opens
-    setCustomReminders(`- Arrive at least 1 hour before your scheduled exam.
-- Bring your printed exam permit, a valid ID, your own pen, and all required documents.
-- Wear a plain white t-shirt on the exam day.`);
     setConfirmOpen(true);
   };
 
-  const confirmSendEmails = () => {
+  const confirmSendEmails = async () => {
     setConfirmOpen(false);
     setLoading2(true);
+    const assignedApplicants = Array.from(selectedApplicants);
+    const emailTargets = persons.filter((person) =>
+      assignedApplicants.some(
+        (applicantNumber) =>
+          String(applicantNumber) === String(person.applicant_number),
+      ),
+    );
 
-    if (!selectedSchedule) {
-      setSnack({
-        open: true,
-        message: "Please select a schedule first.",
-        severity: "warning",
-      });
+    if (emailTargets.length === 0) {
       setLoading2(false);
+      setSnack({ open: true, message: "No selected applicants found.", severity: "warning" });
       return;
     }
 
-    const assignedApplicants = persons
-      .filter((p) => Number(p.schedule_id) === Number(selectedSchedule))
+    const uniquePrograms = [
+      ...new Set(emailTargets.map((person) => String(person.program || ""))),
+    ].filter(Boolean);
 
-      .map((p) => p.applicant_number);
-
-    if (assignedApplicants.length === 0) {
-      setSnack({
-        open: true,
-        message: "No applicants assigned to this schedule.",
-        severity: "warning",
-      });
+    if (uniquePrograms.length !== 1) {
       setLoading2(false);
+      setSnack({ open: true, message: "Please send emails by one program at a time.", severity: "warning" });
       return;
     }
 
-    socket.current.emit("send_schedule_emails", {
+    let resolvedSender = "";
+    try {
+      resolvedSender = await resolveSenderForApplicant(emailTargets[0]);
+    } catch (err) {
+      setLoading2(false);
+      setSnack({ open: true, message: err.message || "No active sender account is assigned.", severity: "warning" });
+      return;
+    }
+
+    // ✅ Resolve department_id and program_id for the socket event
+    const programId = emailTargets[0]?.program;
+    const curriculumMatch = curriculumLookup.find(
+      (curriculum) => String(curriculum.curriculum_id) === String(programId),
+    );
+    const departmentId =
+      curriculumMatch?.dprtmnt_id ||
+      getDepartmentIdsFromAdminData(adminData)[0] ||
+      adminData.dprtmnt_id;
+
+    socket.current.emit("send_interview_emails", {
       schedule_id: selectedSchedule,
-      user_person_id: localStorage.getItem("person_id"),
-      ...auditActor(),
-
-      // ✅ SEND TO BACKEND
+      applicant_numbers: assignedApplicants,
       subject: emailSubject,
+      senderName: resolvedSender,
       message: finalPreview,
+      user_person_id: loggedInPersonId,
+      department_id: departmentId,   // ✅ ADDED
+      program_id: programId,         // ✅ ADDED
+      ...auditActor(),
     });
 
-    socket.current.once("send_schedule_emails_result", (res) => {
-      if (res.success) {
-        // 🔥 REMOVE applicants that were emailed
-        setPersons((prev) =>
-          prev.filter((p) => !res.sent.includes(p.applicant_number)),
-        );
+    socket.current.off("send_schedule_emails_result");
 
-        setSnack({
-          open: true,
-          message: "Schedule sent successfully!",
-          severity: "success",
-        });
-      } else {
-        setSnack({
-          open: true,
-          message: res.error || "Failed to send schedule in emails.",
-          severity: "error",
-        });
+    socket.current.once("send_schedule_emails_result", (emailRes) => {
+      setSnack({
+        open: true,
+        message: emailRes.success ? emailRes.message : emailRes.error,
+        severity: emailRes.success ? "success" : "error",
+      });
+
+      if (emailRes.success) {
+        if (Array.isArray(emailRes.sent) && emailRes.sent.length > 0) {
+          Promise.all(
+            emailRes.sent.map((applicantId) =>
+              axios.put(
+                `${API_BASE_URL}/api/interview_applicants/${applicantId}/email-sent`,
+                auditActor(),
+              ),
+            ),
+          ).catch((err) => {
+            console.error("Failed to update email_sent:", err);
+          });
+        }
+        fetchAllApplicants();
       }
 
       setLoading2(false);
     });
   };
 
+  // Email fields - start empty
+  const [emailSubject, setEmailSubject] = useState(
+    "Qualifying / Interview Examination Schedule",
+  );
+
+  const [emailMessage, setEmailMessage] = useState(""); // fixed top portion (without reminder)
+  const [finalPreview, setFinalPreview] = useState(""); // live full preview shown read-only
+
+  const [customReminders, setCustomReminders] = useState(
+    `• Please provide your Enrollment Officer with photocopies of all your submitted online documents.
+• Your Enrollment Officer will provide you with the Admission Form Process, including the required signatories.`,
+  );
+
   const [schedules, setSchedules] = useState([]);
-
-  const handleRowClick = (applicant) => {
-    const personId = applicant?.person_id;
-    if (!personId) return;
-
-    const searchValue =
-      applicant?.applicant_number ||
-      `${applicant?.last_name ?? ""}, ${applicant?.first_name ?? ""}`.trim();
-
-    sessionStorage.setItem("admin_edit_person_id", String(personId));
-    sessionStorage.setItem("edit_person_id", String(personId));
-    sessionStorage.setItem("admin_edit_person_id_source", "applicant_list");
-    sessionStorage.setItem("admin_edit_person_id_ts", String(Date.now()));
-
-    // ✅ Always pass person_id in the URL
-    sessionStorage.setItem("admin_edit_person_data", JSON.stringify(applicant));
-
-    if (searchValue) {
-      sessionStorage.setItem("admin_edit_search_query", String(searchValue));
-      sessionStorage.setItem("edit_applicant_number", String(searchValue));
-    }
-
-    navigate(`//admission_personal_information?person_id=${personId}`);
-  };
 
   const [itemsPerPage, setItemsPerPage] = useState(100);
 
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [sortBy, setSortBy] = useState("name");
+  const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("asc");
   const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("");
   const [selectedProgramFilter, setSelectedProgramFilter] = useState("");
+  const isProgramLocked = isRegistrarProgramSelectionLocked();
   const [department, setDepartment] = useState([]);
+  const [minScore, setMinScore] = useState("");
+  const [maxScore, setMaxScore] = useState("");
+  const [exactRating, setExactRating] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const [selectedCampusFilter, setSelectedCampusFilter] = useState("");
+  const scopedDepartmentIds = getDepartmentIdsFromAdminData(adminData).map(String);
   const filteredDepartments = department.filter((dep) =>
     allCurriculums.some(
       (curriculum) =>
@@ -925,26 +1358,55 @@ This printed permit must be presented to your proctor on the exam day to verify 
           String(curriculum.components) === String(selectedCampusFilter)),
     ),
   );
+  const selectableDepartments =
+    filteredDepartments.length > 0 ? filteredDepartments : department;
+
+  const showAllDepartmentsOption = scopedDepartmentIds.length !== 1;
+  const selectedDepartmentFilterValue =
+    selectedDepartmentFilter === "" ||
+      selectableDepartments.some(
+        (dep) => String(dep.dprtmnt_id) === String(selectedDepartmentFilter),
+      )
+      ? selectedDepartmentFilter
+      : "";
 
   const filteredCurriculumOptions = allCurriculums.filter(
     (curriculum) =>
       (!selectedCampusFilter ||
         String(curriculum.components) === String(selectedCampusFilter)) &&
-      (!selectedDepartmentFilter ||
-        String(curriculum.dprtmnt_id) === String(selectedDepartmentFilter)),
+      (!selectedDepartmentFilterValue ||
+        String(curriculum.dprtmnt_id) === String(selectedDepartmentFilterValue)),
   );
+
+  useEffect(() => {
+    if (isProgramLocked) {
+      setSelectedProgramFilter(getRegistrarCurriculumId());
+    }
+  }, [isProgramLocked]);
+
+  useEffect(() => {
+    if (department.length === 0 || selectedDepartmentFilter) return;
+    const departmentIds = getDepartmentIdsFromAdminData(adminData);
+    if (departmentIds.length !== 1) return;
+    if (allCurriculums.length === 0) return;
+
+    const firstDeptId = String(department[0].dprtmnt_id);
+    setSelectedDepartmentFilter(firstDeptId);
+  }, [department, allCurriculums, selectedDepartmentFilter, adminData]);
 
   const handleCampusFilterChange = (branchId) => {
     setSelectedCampusFilter(branchId);
     setSelectedSchedule("");
-    setSelectedDepartmentFilter("");
-    setSelectedProgramFilter("");
+    if (selectableDepartments.length > 0) {
+      setSelectedDepartmentFilter(String(selectableDepartments[0].dprtmnt_id));
+    }
+    if (!isProgramLocked) setSelectedProgramFilter("");
     setCurrentPage(1);
   };
 
   const handleDepartmentChange = (departmentId) => {
     setSelectedDepartmentFilter(departmentId);
-    setSelectedProgramFilter("");
+    if (!isProgramLocked) setSelectedProgramFilter("");
     setCurrentPage(1);
   };
 
@@ -952,6 +1414,9 @@ This printed permit must be presented to your proctor on the exam day to verify 
     setSelectedProgramFilter(curriculumId);
     setCurrentPage(1);
   };
+
+  const [minTotal, setMinTotal] = useState("");
+  const [minScorePercent, setMinScorePercent] = useState("");
 
   // ✅ Step 1: Filtering
   const normalize = (value) =>
@@ -964,9 +1429,20 @@ This printed permit must be presented to your proctor on the exam day to verify 
 
   const filteredPersons = persons.filter((personData) => {
     const emailNotSent = Number(personData.email_sent ?? 0) !== 1;
-    const query = searchQuery.toLowerCase();
-    const fullName =
-      `${personData.first_name ?? ""} ${personData.middle_name ?? ""} ${personData.last_name ?? ""}`.toLowerCase();
+
+    /* 🧮 COMPUTE SCORES (same as ApplicantScoring) */
+    const subjectScores = subjects.map((subject) =>
+      Number(personData.scores?.[subject.id] ?? 0),
+    );
+
+    const total = subjectScores.reduce((sum, score) => sum + score, 0);
+
+    const maxTotal = subjects.reduce(
+      (sum, subject) => sum + Number(subject.max_score || 0),
+      0,
+    );
+
+    const scorePercent = maxTotal > 0 ? (total / maxTotal) * 100 : 0;
 
     /* 🏫 CAMPUS */
     const personCampus = String(personData.campus ?? "").trim();
@@ -975,23 +1451,45 @@ This printed permit must be presented to your proctor on the exam day to verify 
     const matchesCampus =
       selectedCampusFilter === "" || personCampus === selectedCampusId;
 
+    /* 🎯 SCORE FILTERS (NEW) */
+    const matchesTotal =
+      minTotal === "" ||
+      (total >= Number(minTotal) && total < Number(minTotal) + 1);
+
+    const matchesScorePercent =
+      minScorePercent === "" ||
+      (scorePercent >= Number(minScorePercent) &&
+        scorePercent < Number(minScorePercent) + 1);
+
+    /* 🔎 SEARCH */
+    const query = searchQuery.toLowerCase();
+    const fullName =
+      `${personData.first_name ?? ""} ${personData.middle_name ?? ""} ${personData.last_name ?? ""}`.toLowerCase();
+
     const matchesApplicantID = personData.applicant_number
       ?.toString()
       .toLowerCase()
       .includes(query);
-    const matchesName = fullName.includes(query);
-    const matchesEmail = personData.emailAddress?.toLowerCase().includes(query); // ✅ included
 
-    const programInfo = allCurriculums.find(
+    const matchesName = fullName.includes(query);
+    const matchesEmail = personData.emailAddress?.toLowerCase().includes(query);
+
+    const programInfo = curriculumLookup.find(
       (opt) => opt.curriculum_id?.toString() === personData.program?.toString(),
     );
+    const matchesRegistrarScope = isRegistrarStudentScopeMatch(
+      { program: personData.program },
+      curriculumLookup,
+    );
+
     const matchesProgramQuery = programInfo?.program_code
       ?.toLowerCase()
       .includes(query);
 
+    /* 🎓 FILTERS */
     const matchesDepartment =
-      selectedDepartmentFilter === "" ||
-      String(programInfo?.dprtmnt_id) === String(selectedDepartmentFilter);
+      selectedDepartmentFilterValue === "" ||
+      String(programInfo?.dprtmnt_id) === String(selectedDepartmentFilterValue);
 
     const matchesProgramFilter =
       selectedProgramFilter === "" ||
@@ -1012,6 +1510,12 @@ This printed permit must be presented to your proctor on the exam day to verify 
       normalize(personData.middle_code) ===
       normalize(selectedSemester?.semester_code);
 
+    /* 📅 DATE */
+    const createdAtDate = new Date(personData.created_at);
+    const matchesDateRange =
+      (!startDate || createdAtDate >= new Date(startDate)) &&
+      (!endDate || createdAtDate <= new Date(endDate));
+
     return (
       emailNotSent &&
       (matchesApplicantID ||
@@ -1019,40 +1523,83 @@ This printed permit must be presented to your proctor on the exam day to verify 
         matchesEmail ||
         matchesProgramQuery) &&
       matchesDepartment &&
+      matchesRegistrarScope &&
       matchesProgramFilter &&
       matchesSchoolYear &&
       matchesSemester &&
-      matchesCampus
+      matchesCampus &&
+      matchesTotal && // ✅ NEW
+      matchesScorePercent && // ✅ NEW
+      matchesDateRange
     );
   });
 
+  // ✅ Step 2: Sorting
   const sortedPersons = [...filteredPersons].sort((a, b) => {
-    let valueA, valueB;
-
-    switch (sortBy) {
-      case "name":
-        valueA = `${a.last_name} ${a.first_name}`.toLowerCase();
-        valueB = `${b.last_name} ${b.first_name}`.toLowerCase();
-        break;
-
-      case "id":
-        valueA = a.applicant_number?.toString() || "";
-        valueB = b.applicant_number?.toString() || "";
-        break;
-
-      case "email":
-        valueA = a.emailAddress?.toLowerCase() || "";
-        valueB = b.emailAddress?.toLowerCase() || "";
-        break;
-
-      default:
-        valueA = a.created_at;
-        valueB = b.created_at;
-        break;
+    if (sortBy === "name") {
+      const nameA =
+        `${a.last_name ?? ""} ${a.first_name ?? ""} ${a.middle_name ?? ""}`.toLowerCase();
+      const nameB =
+        `${b.last_name ?? ""} ${b.first_name ?? ""} ${b.middle_name ?? ""}`.toLowerCase();
+      return sortOrder === "asc"
+        ? nameA.localeCompare(nameB)
+        : nameB.localeCompare(nameA);
     }
 
-    if (valueA < valueB) return sortOrder === "asc" ? -1 : 1;
-    if (valueA > valueB) return sortOrder === "asc" ? 1 : -1;
+    if (sortBy === "id") {
+      const idA = a.applicant_number ?? "";
+      const idB = b.applicant_number ?? "";
+      return sortOrder === "asc" ? idA - idB : idB - idA;
+    }
+
+    if (sortBy === "email") {
+      const emailA = a.emailAddress?.toLowerCase() ?? "";
+      const emailB = b.emailAddress?.toLowerCase() ?? "";
+      return sortOrder === "asc"
+        ? emailA.localeCompare(emailB)
+        : emailB.localeCompare(emailA);
+    }
+
+    if (sortBy === "final_rating") {
+      const ratingA = Number(a.final_rating) || 0;
+      const ratingB = Number(b.final_rating) || 0;
+      return sortOrder === "asc" ? ratingA - ratingB : ratingB - ratingA;
+    }
+
+    if (sortBy === "created_at") {
+      const parseDate = (d) => {
+        if (!d) return new Date(0);
+
+        // Normalize spacing and slashes
+        const clean = String(d).trim();
+
+        // Handle DD/MM/YYYY (European format)
+        if (clean.includes("/") && !clean.includes("-")) {
+          const [day, month, year] = clean.split("/");
+          return new Date(
+            `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`,
+          );
+        }
+
+        // Handle ISO and MySQL datetime formats (e.g. "2025-09-14" or "2025-09-14T00:00:00.000Z")
+        if (clean.includes("-")) {
+          return new Date(clean);
+        }
+
+        // Handle fallback numeric timestamps
+        const ts = Date.parse(clean);
+        if (!isNaN(ts)) return new Date(ts);
+
+        return new Date(0);
+      };
+
+      const dateA = parseDate(a.created_at);
+      const dateB = parseDate(b.created_at);
+
+      // "desc" => newest first
+      return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+    }
+
     return 0;
   });
 
@@ -1063,17 +1610,31 @@ This printed permit must be presented to your proctor on the exam day to verify 
   const currentPersons = sortedPersons.slice(indexOfFirstItem, indexOfLastItem);
 
   useEffect(() => {
+    const departmentIds = getDepartmentIdsFromAdminData(adminData);
+    if (!departmentIds.length) return;
+
     const fetchDepartments = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/departments`); // ✅ Update if needed
-        setDepartment(response.data);
+        const responses = await Promise.all(
+          departmentIds.map((departmentId) =>
+            axios.get(`${API_BASE_URL}/api/departments/${departmentId}`),
+          ),
+        );
+        const mergedDepartments = restrictDepartmentsToScope(
+          responses.flatMap((response) => response.data || []),
+        );
+        const uniqueDepartments = [
+          ...new Map(
+            mergedDepartments.map((dep) => [String(dep.dprtmnt_id), dep]),
+          ).values(),
+        ];
+        setDepartment(uniqueDepartments);
       } catch (error) {
         console.error("Error fetching departments:", error);
       }
     };
-
     fetchDepartments();
-  }, []);
+  }, [adminData.dprtmnt_id, adminData.dprtmnt_ids, scopeRevision]);
 
   const maxButtonsToShow = 5;
   let startPage = Math.max(1, currentPage - Math.floor(maxButtonsToShow / 2));
@@ -1088,6 +1649,67 @@ This printed permit must be presented to your proctor on the exam day to verify 
     visiblePages.push(i);
   }
 
+  // Live-rebuild finalPreview whenever reminders, base message,
+  // or the "Show/Hide Required Documents" button changes
+  useEffect(() => {
+    if (!confirmOpen) return;
+
+    // Get the first selected applicant
+    const firstApplicantNumber = Array.from(selectedApplicants)[0];
+    const applicant = persons.find(
+      (p) => p.applicant_number === firstApplicantNumber,
+    );
+
+    if (!applicant) {
+      setFinalPreview(
+        `${emailMessage}\n\n${customReminders}\n\nThank you and good luck!`,
+      );
+      return;
+    }
+
+    // Get selected schedule
+    const sched =
+      getSelectedScheduleData() ||
+      schedules.find(
+        (s) => String(s.schedule_id) === String(applicant.schedule_id),
+      );
+
+    if (!sched) {
+      setFinalPreview(
+        `${emailMessage}\n\n${customReminders}\n\nThank you and good luck!`,
+      );
+      return;
+    }
+
+    // Build requirements text only if the button
+    // "Show Required Documents" is enabled
+    const reqText = showRequirements
+      ? buildRequirementsText(applicant, requirements, selectedCopies)
+      : "";
+
+    // Rebuild the whole email message.
+    // buildFullMessage already checks showRequirements,
+    // so when hidden, the entire requirements section disappears.
+    const rebuiltMessage = buildFullMessage(applicant, reqText, sched);
+
+    // Update the fixed portion of the email
+    setEmailMessage(rebuiltMessage);
+
+    // Update the final preview with reminders
+    setFinalPreview(
+      `${rebuiltMessage}\n\n${customReminders}\n\nThank you and good luck!`,
+    );
+  }, [
+    customReminders,
+    confirmOpen,
+    showRequirements, // ✅ reacts immediately when Show/Hide button is clicked
+    selectedCopies, // ✅ reacts when Original/Xerox selections change
+    selectedApplicants,
+    persons,
+    schedules,
+    requirements,
+  ]);
+
   useEffect(() => {
     if (currentPage > totalPages) {
       setCurrentPage(totalPages || 1);
@@ -1100,24 +1722,6 @@ This printed permit must be presented to your proctor on the exam day to verify 
     );
     return branch?.branch || branchId || "N/A";
   };
-
-  // // 🔒 Disable right-click
-  // document.addEventListener('contextmenu', (e) => e.preventDefault());
-
-  // // 🔒 Block DevTools shortcuts + Ctrl+P silently
-  // document.addEventListener('keydown', (e) => {
-  //   const isBlockedKey =
-  //     e.key === 'F12' || // DevTools
-  //     e.key === 'F11' || // Fullscreen
-  //     (e.ctrlKey && e.shiftKey && (e.key.toLowerCase() === 'i' || e.key.toLowerCase() === 'j')) || // Ctrl+Shift+I/J
-  //     (e.ctrlKey && e.key.toLowerCase() === 'u') || // Ctrl+U (View Source)
-  //     (e.ctrlKey && e.key.toLowerCase() === 'p');   // Ctrl+P (Print)
-
-  //   if (isBlockedKey) {
-  //     e.preventDefault();
-  //     e.stopPropagation();
-  //   }
-  // });
 
   // Put this at the very bottom before the return
   if (loading || hasAccess === null) {
@@ -1173,7 +1777,7 @@ This printed permit must be presented to your proctor on the exam day to verify 
             fontSize: "36px",
           }}
         >
-          ENTRANCE EXAM SCHEDULE MANAGEMENT
+          QUALIFYING / INTERVIEW SCHEDULE MANAGEMENT
         </Typography>
 
         <TextField
@@ -1181,10 +1785,7 @@ This printed permit must be presented to your proctor on the exam day to verify 
           placeholder="Search Applicant Name / Email / Applicant ID"
           size="small"
           value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setCurrentPage(1); // Corrected
-          }}
+          onChange={(e) => setSearchQuery(e.target.value)}
           sx={{
             width: 450,
             backgroundColor: "#fff",
@@ -1262,6 +1863,7 @@ This printed permit must be presented to your proctor on the exam day to verify 
 
       <br />
       <br />
+
       <TableContainer
         component={Paper}
         sx={{ width: "100%", border: `1px solid ${borderColor}` }}
@@ -1272,7 +1874,7 @@ This printed permit must be presented to your proctor on the exam day to verify 
           >
             <TableRow>
               <TableCell sx={{ color: "white", textAlign: "Center" }}>
-                Entrance Exam Schedule Management
+                Qualifying / Interview Schedule
               </TableCell>
             </TableRow>
           </TableHead>
@@ -1293,11 +1895,7 @@ This printed permit must be presented to your proctor on the exam day to verify 
           <Grid container spacing={2} sx={{ mb: 2 }}>
             {/* Select Schedule */}
             <Grid item xs={12} md={3}>
-              <Typography
-                textAlign="left"
-                color="maroon"
-                sx={{ mb: 1, fontWeight: "bold" }}
-              >
+              <Typography textAlign="left" color="maroon" sx={{ mb: 1 }}>
                 Select Schedule:
               </Typography>
               <TextField
@@ -1314,14 +1912,12 @@ This printed permit must be presented to your proctor on the exam day to verify 
                 }}
               >
                 <MenuItem value="">-- Select Schedule --</MenuItem>
-
                 {[...schedules]
                   .filter(
                     (s) =>
                       !selectedCampusFilter ||
                       String(s.branch) === String(selectedCampusFilter),
                   )
-                  // ✅ REMOVE FULL ROOMS HERE
                   .filter(
                     (s) => Number(s.current_occupancy) < Number(s.room_quota),
                   )
@@ -1330,9 +1926,9 @@ This printed permit must be presented to your proctor on the exam day to verify 
                   )
                   .map((s) => (
                     <MenuItem key={s.schedule_id} value={s.schedule_id}>
-                      {getBranchLabel(s.branch)} : {s.proctor} -{" "}
+                      {getBranchLabel(s.branch)} : {s.interviewer} -{" "}
                       {s.day_description} | {s.building_description} |{" "}
-                      {s.room_description} |{" "}
+                      {s.room_description} |
                       {new Date(
                         `1970-01-01T${s.start_time}`,
                       ).toLocaleTimeString("en-US", {
@@ -1356,18 +1952,14 @@ This printed permit must be presented to your proctor on the exam day to verify 
 
             {/* Proctor */}
             <Grid item xs={12} md={3}>
-              <Typography
-                textAlign="left"
-                color="maroon"
-                sx={{ mb: 1, fontWeight: "bold" }}
-              >
-                Proctor:
+              <Typography textAlign="left" color="maroon" sx={{ mb: 1 }}>
+                Interviewer / Exam Supervisor:
               </Typography>
               <TextField
                 fullWidth
                 value={
                   selectedSchedule
-                    ? getSelectedScheduleData()?.proctor || "Not assigned"
+                    ? getSelectedScheduleData()?.interviewer || "Not assigned"
                     : ""
                 }
                 InputProps={{ readOnly: true }}
@@ -1383,11 +1975,7 @@ This printed permit must be presented to your proctor on the exam day to verify 
 
             {/* Room Quota */}
             <Grid item xs={12} md={3}>
-              <Typography
-                textAlign="left"
-                color="maroon"
-                sx={{ mb: 1, fontWeight: "bold" }}
-              >
+              <Typography textAlign="left" color="maroon" sx={{ mb: 1 }}>
                 Room Quota:
               </Typography>
               <TextField
@@ -1410,11 +1998,7 @@ This printed permit must be presented to your proctor on the exam day to verify 
 
             {/* Current Occupancy */}
             <Grid item xs={12} md={3}>
-              <Typography
-                textAlign="left"
-                color="maroon"
-                sx={{ mb: 1, fontWeight: "bold" }}
-              >
+              <Typography textAlign="left" color="maroon" sx={{ mb: 1 }}>
                 Current Occupancy:
               </Typography>
               <TextField
@@ -1466,6 +2050,9 @@ This printed permit must be presented to your proctor on the exam day to verify 
                   <MenuItem value="name">Applicant's Name</MenuItem>
                   <MenuItem value="id">Applicant ID</MenuItem>
                   <MenuItem value="email">Email Address</MenuItem>
+
+                  {/* ✅ New */}
+                  <MenuItem value="created_at">Date Applied</MenuItem>
                 </Select>
               </FormControl>
             </Box>
@@ -1488,45 +2075,22 @@ This printed permit must be presented to your proctor on the exam day to verify 
                 </Select>
               </FormControl>
             </Box>
+
+            {/* Sort Order */}
           </Box>
 
-          <Box display="flex" alignItems="center" gap={2}>
-            {/* NEW Cancel Button BEFORE Assign Max */}
-            {/* <Button
-              variant="contained"
-              sx={{
-                backgroundColor: "#8B0000",
-                color: "white",
-                minWidth: 150,
-              }}
-              onClick={async () => {
-                if (!window.confirm("Are you sure? This will cancel ALL unscheduled applicants?")) {
-                  return;
-                }
-
-                try {
-                  const res = await axios.post(`${API_BASE_URL}/cancel-unscheduled-applicants`);
-                  alert(res.data.message);
-                } catch (err) {
-                  console.error(err);
-                  alert("Error cancelling applicants.");
-                }
-              }}
-            >
-              Reject All
-            </Button> */}
-
-            {/* Assign Max */}
+          {/* RIGHT SIDE: Action Buttons */}
+          <Box display="flex" gap={2} alignItems="center">
             <Button
               variant="contained"
               color="secondary"
               onClick={handleAssign40}
-              sx={{ minWidth: 150 }}
+              sx={{ minWidth: 150, marginLeft: "15px" }}
             >
               Assign Max
             </Button>
 
-            {/* Custom Input */}
+            {/* 🔥 New Custom Assign Input + Button */}
             <TextField
               type="number"
               size="small"
@@ -1535,8 +2099,6 @@ This printed permit must be presented to your proctor on the exam day to verify 
               onChange={(e) => setCustomCount(Number(e.target.value))}
               sx={{ width: 120 }}
             />
-
-            {/* Assign Custom */}
             <Button
               variant="contained"
               color="warning"
@@ -1546,7 +2108,7 @@ This printed permit must be presented to your proctor on the exam day to verify 
               Assign Custom
             </Button>
 
-            {/* Unassign All */}
+            {/* 🔥 New Unassign All Button */}
             <Button
               variant="contained"
               color="error"
@@ -1556,15 +2118,13 @@ This printed permit must be presented to your proctor on the exam day to verify 
               Unassign All
             </Button>
 
-            {/* Send Emails */}
             <Button
               variant="contained"
               color="success"
-              size="small"
-              onClick={handleSendEmails}
               sx={{ minWidth: 150 }}
+              onClick={handleSendEmails}
             >
-              SEND EMAIL TO ALL
+              SEND ALL EMAIL
             </Button>
           </Box>
         </Box>
@@ -1596,18 +2156,23 @@ This printed permit must be presented to your proctor on the exam day to verify 
                 ))}
               </Select>
             </FormControl>
-
+          </Box>
+          <Box display="flex" alignItems="center" gap={1}>
             <Typography fontSize={13} sx={{ minWidth: "70px" }}>
               Department:
             </Typography>
             <FormControl size="small" sx={{ width: "250px" }}>
               <Select
-                value={selectedDepartmentFilter}
+                value={selectedDepartmentFilterValue}
                 onChange={(e) => handleDepartmentChange(e.target.value)}
                 displayEmpty
               >
-                <MenuItem value="">All Departments</MenuItem>
-                {filteredDepartments.map((dep) => (
+                {showAllDepartmentsOption && (
+                  <MenuItem value="">
+                    <em>All Departments</em>
+                  </MenuItem>
+                )}
+                {selectableDepartments.map((dep) => (
                   <MenuItem key={dep.dprtmnt_id} value={String(dep.dprtmnt_id)}>
                     {dep.dprtmnt_name} ({dep.dprtmnt_code})
                   </MenuItem>
@@ -1625,9 +2190,10 @@ This printed permit must be presented to your proctor on the exam day to verify 
               <Select
                 value={selectedProgramFilter}
                 onChange={(e) => handleProgramFilterChange(e.target.value)}
+                disabled={isProgramLocked}
                 displayEmpty
               >
-                <MenuItem value="">All Programs</MenuItem>
+                {!isProgramLocked && <MenuItem value="">All Programs</MenuItem>}
                 {filteredCurriculumOptions.map((prog) => (
                   <MenuItem
                     key={prog.curriculum_id}
@@ -1688,16 +2254,34 @@ This printed permit must be presented to your proctor on the exam day to verify 
             </FormControl>
           </Box>
         </Box>
+        <Typography color="maroon" sx={{ mb: 1, fontWeight: "bold" }}>
+          Applicant Entrance Exam Filter
+        </Typography>
+
+        <Box display="flex" gap={2} flexWrap="wrap" alignItems="center">
+          <Typography fontSize={13}>Total:</Typography>
+          <TextField
+            label="Total"
+            size="small"
+            type="number"
+            value={minTotal}
+            onChange={(e) => setMinTotal(e.target.value)}
+          />
+
+          <Typography fontSize={13}>Score:</Typography>
+          <TextField
+            label="Score %"
+            size="small"
+            type="number"
+            value={minScorePercent}
+            onChange={(e) => setMinScorePercent(e.target.value)}
+          />
+        </Box>
       </Paper>
 
       <TableContainer component={Paper} sx={{ width: "100%" }}>
         <Table size="small">
-          <TableHead
-            sx={{
-              backgroundColor: settings?.header_color || "#1976d2",
-              color: "white",
-            }}
-          >
+          <TableHead sx={{ backgroundColor: "#6D2323", color: "white" }}>
             <TableRow>
               <TableCell
                 colSpan={10}
@@ -1943,6 +2527,31 @@ This printed permit must be presented to your proctor on the exam day to verify 
               </TableCell>
               <TableCell
                 sx={{
+                  color: "black",
+                  textAlign: "center",
+                  width: "6%",
+                  py: 0.5,
+                  fontSize: "12px",
+                  border: `1px solid ${borderColor}`,
+                }}
+              >
+                Total
+              </TableCell>
+              <TableCell
+                sx={{
+                  color: "black",
+                  textAlign: "center",
+                  width: "6%",
+                  py: 0.5,
+                  fontSize: "12px",
+                  border: `1px solid ${borderColor}`,
+                }}
+              >
+                Score %
+              </TableCell>
+
+              <TableCell
+                sx={{
                   color: "white",
                   textAlign: "center",
                   fontSize: "12px",
@@ -1968,33 +2577,47 @@ This printed permit must be presented to your proctor on the exam day to verify 
           <TableBody>
             {currentPersons.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} sx={{ textAlign: "center", p: 2 }}>
+                <TableCell colSpan={7} sx={{ textAlign: "center", p: 2 }}>
                   No applicants found.
                 </TableCell>
               </TableRow>
             ) : (
-              currentPersons.map((person, index) => {
-                const id = person.applicant_number;
-                const isAssigned = person.schedule_id !== null;
-                const isSelected = selectedApplicants.has(id);
+              currentPersons.map((person, idx) => {
+                const subjectScores = subjects.map((subject) => {
+                  return Number(person.scores?.[subject.id] ?? 0);
+                });
+
+                const applicantId = person.applicant_number;
+                const isAssigned = !!person.schedule_id;
+
+                const totalScore = subjectScores.reduce(
+                  (sum, score) => sum + score,
+                  0,
+                );
+
+                const maxTotal = subjects.reduce(
+                  (sum, subject) => sum + Number(subject.max_score || 0),
+                  0,
+                );
+
+                const computedConvertedRating =
+                  maxTotal > 0 ? (totalScore / maxTotal) * 50 + 50 : 0;
 
                 return (
                   <TableRow
                     key={person.person_id}
                     sx={{
-                      backgroundColor:
-                        index % 2 === 0 ? "#ffffff" : "lightgray", // white / light gray
+                      backgroundColor: idx % 2 === 0 ? "#ffffff" : "lightgray", // white / light gray
                     }}
                   >
-                    {/* Auto-increment # */}
                     <TableCell
                       sx={{
-                        textAlign: "center",
                         border: `1px solid ${borderColor}`,
+                        textAlign: "center",
                         fontSize: "12px",
                       }}
                     >
-                      {indexOfFirstItem + index + 1}
+                      {indexOfFirstItem + idx + 1}
                     </TableCell>
 
                     <TableCell
@@ -2003,7 +2626,6 @@ This printed permit must be presented to your proctor on the exam day to verify 
                         cursor: "pointer",
                         textAlign: "center",
                         border: `1px solid ${borderColor}`,
-                        py: 0.5,
                         fontSize: "12px",
                       }}
                       onClick={() => handleRowClick(person)}
@@ -2018,7 +2640,6 @@ This printed permit must be presented to your proctor on the exam day to verify 
                         cursor: "pointer",
                         textAlign: "left",
                         border: `1px solid ${borderColor}`,
-                        py: 0.5,
                         fontSize: "12px",
                       }}
                       onClick={() => handleRowClick(person)}
@@ -2029,8 +2650,8 @@ This printed permit must be presented to your proctor on the exam day to verify 
                     {/* Program */}
                     <TableCell
                       sx={{
-                        textAlign: "center",
                         border: `1px solid ${borderColor}`,
+                        textAlign: "center",
                         fontSize: "12px",
                       }}
                     >
@@ -2044,8 +2665,8 @@ This printed permit must be presented to your proctor on the exam day to verify 
                     {/* Email */}
                     <TableCell
                       sx={{
-                        textAlign: "center",
                         border: `1px solid ${borderColor}`,
+                        textAlign: "center",
                         fontSize: "12px",
                       }}
                     >
@@ -2054,17 +2675,37 @@ This printed permit must be presented to your proctor on the exam day to verify 
 
                     <TableCell
                       sx={{
-                        textAlign: "center",
                         border: `1px solid ${borderColor}`,
+                        textAlign: "center",
+                        fontSize: "12px",
+                      }}
+                    >
+                      {totalScore}
+                    </TableCell>
+
+                    <TableCell
+                      sx={{
+                        border: `1px solid ${borderColor}`,
+                        textAlign: "center",
+                        fontSize: "12px",
+                      }}
+                    >
+                      {Number(computedConvertedRating).toFixed(2)}
+                    </TableCell>
+
+                    <TableCell
+                      sx={{
+                        border: `1px solid ${borderColor}`,
+                        textAlign: "center",
                         fontSize: "12px",
                       }}
                     >
                       {(() => {
-                        if (!person.created_at) return "";
+                        if (!person.created_at.split("T")[0]) return "";
 
-                        const date = new Date(person.created_at);
+                        const date = new Date(person.created_at.split("T")[0]);
 
-                        if (isNaN(date)) return person.created_at;
+                        if (isNaN(date)) return person.created_at.split("T")[0];
 
                         return date.toLocaleDateString("en-US", {
                           year: "numeric",
@@ -2074,31 +2715,29 @@ This printed permit must be presented to your proctor on the exam day to verify 
                       })()}
                     </TableCell>
 
-                    {/* Action Buttons (from AssignScheduleToApplicants) */}
-                    {/* Action Buttons (from AssignScheduleToApplicants) */}
+                    {/* Action Buttons */}
                     <TableCell
                       sx={{
-                        textAlign: "center",
                         border: `1px solid ${borderColor}`,
+                        textAlign: "center",
+                        fontSize: "12px",
                       }}
                     >
                       {!isAssigned ? (
-                        // ✅ Not assigned → Assign only
                         <Button
                           variant="contained"
                           color="primary"
-                          onClick={() => handleAssignSingle(id)} // new helper for 1 applicant
+                          onClick={() => handleAssignSingle(applicantId)} // ✅ use applicantId
                         >
                           Assign
                         </Button>
                       ) : (
-                        // ✅ Already assigned → show Unassign + Send Email
                         <Box display="flex" gap={1} justifyContent="center">
                           <Button
                             variant="contained"
                             color="error"
                             size="small"
-                            onClick={() => handleUnassignImmediate(id)}
+                            onClick={() => handleUnassignImmediate(applicantId)} // ✅ use applicantId
                           >
                             Unassign
                           </Button>
@@ -2106,73 +2745,7 @@ This printed permit must be presented to your proctor on the exam day to verify 
                             variant="contained"
                             color="success"
                             size="small"
-                            onClick={() => {
-                              if (!selectedSchedule) {
-                                setSnack({
-                                  open: true,
-                                  message: "Please select a schedule first.",
-                                  severity: "warning",
-                                });
-                                return;
-                              }
-
-                              const sched = schedules.find(
-                                (s) =>
-                                  Number(s.schedule_id) ===
-                                  Number(selectedSchedule),
-                              );
-
-                              if (!sched) {
-                                setSnack({
-                                  open: true,
-                                  message: "Schedule not found.",
-                                  severity: "error",
-                                });
-                                return;
-                              }
-
-                              const formatTime = (timeStr) => {
-                                if (!timeStr) return "";
-                                const [h, m] = timeStr.split(":");
-                                let hour = parseInt(h, 10);
-                                const ampm = hour >= 12 ? "PM" : "AM";
-                                hour = hour % 12 || 12;
-                                return `${hour}:${m} ${ampm}`;
-                              };
-
-                              const formatDateLong = (dateStr) => {
-                                if (!dateStr) return "";
-                                const date = new Date(dateStr);
-                                return date.toLocaleDateString("en-US", {
-                                  year: "numeric",
-                                  month: "long",
-                                  day: "numeric",
-                                });
-                              };
-
-                              setEmailMessage(
-                                `Hello, ${person.first_name} ${person.middle_name
-                                  ? person.middle_name.charAt(0) + "."
-                                  : ""
-                                } ${person.last_name}
-
-You have been assigned to the following Entrance Examination schedule:
-
-📅 Day: ${formatDateLong(sched.day_description)}
-🏫 Room: ${sched.room_description}
-🕒 Time: ${formatTime(sched.start_time)} - ${formatTime(sched.end_time)}
-🆔 Applicant No: ${person.applicant_number}
-
-Please log in to your Applicant Form Dashboard, click on your Exam Permit, and print it.
-This printed permit must be presented to your proctor on the exam day to verify your eligibility.
-`,
-                              );
-
-                              setCustomReminders(`- Arrive at least 1 hour before your scheduled exam.
-- Bring your printed exam permit, a valid ID, your own pen, and all required documents.
-- Wear a plain white t-shirt on the exam day.`);
-                              setConfirmOpen(true);
-                            }}
+                            onClick={() => handleSendEmailSingle(person)}
                           >
                             SEND EMAIL
                           </Button>
@@ -2186,14 +2759,10 @@ This printed permit must be presented to your proctor on the exam day to verify 
           </TableBody>
         </Table>
       </TableContainer>
+
       <TableContainer component={Paper} sx={{ width: "100%" }}>
         <Table size="small">
-          <TableHead
-            sx={{
-              backgroundColor: settings?.header_color || "#1976d2",
-              color: "white",
-            }}
-          >
+          <TableHead sx={{ backgroundColor: "#6D2323", color: "white" }}>
             <TableRow>
               <TableCell
                 colSpan={10}
@@ -2374,6 +2943,7 @@ This printed permit must be presented to your proctor on the exam day to verify 
           </TableHead>
         </Table>
       </TableContainer>
+
       <Snackbar
         open={snack.open}
         autoHideDuration={5000}
@@ -2389,7 +2959,6 @@ This printed permit must be presented to your proctor on the exam day to verify 
         </Alert>
       </Snackbar>
 
-      {/* Edit & Send Email Dialog */}
       <Dialog
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
@@ -2426,7 +2995,21 @@ This printed permit must be presented to your proctor on the exam day to verify 
         </DialogTitle>
 
         <DialogContent dividers sx={{ p: 3 }}>
-          {/* Subject - full width on top */}
+          {/* Sender - full width on top */}
+          <TextField
+            label="Sender"
+            value={
+              department.find(
+                (dep) =>
+                  String(dep.dprtmnt_id) === String(selectedDepartmentFilterValue),
+              )?.dprtmnt_name || ""
+            }
+            fullWidth
+            InputProps={{ readOnly: true }}
+            sx={{ mb: 2 }}
+          />
+
+          {/* Subject - full width */}
           <TextField
             label="Email Subject"
             value={emailSubject}
@@ -2436,7 +3019,7 @@ This printed permit must be presented to your proctor on the exam day to verify 
           />
 
           {/* Two-column layout */}
-          <Box sx={{ display: "flex", gap: 3 }}>
+          <Box sx={{ display: "flex", gap: 3, alignItems: "flex-start" }}>
             {/* LEFT SIDE - Preview */}
             <Box
               sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}
@@ -2476,13 +3059,185 @@ This printed permit must be presented to your proctor on the exam day to verify 
                 ✏️ Edit Fields
               </Typography>
 
+              {/* Required Documents */}
+              {/* Required Documents */}
+              <div
+                style={{
+                  border: "1px solid #ddd",
+                  borderRadius: "8px",
+                  padding: "16px",
+                  backgroundColor: "#fafafa",
+                }}
+              >
+                <p style={{ fontWeight: "bold", marginBottom: "12px" }}>
+                  📄 REQUIRED DOCUMENTS:
+                </p>
+
+                {/* Toggle Button */}
+                <Button
+                  variant={showRequirements ? "contained" : "outlined"}
+                  color={showRequirements ? "error" : "primary"}
+                  size="small"
+                  onClick={() => setShowRequirements((prev) => !prev)}
+                  sx={{
+                    mb: 2,
+                    fontWeight: "bold",
+                    textTransform: "none",
+                    borderRadius: "10px",
+                  }}
+                >
+                  {showRequirements
+                    ? "Hide Required Documents"
+                    : "Show Required Documents"}
+                </Button>
+
+                {/* Default Message */}
+                {!showRequirements && (
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "text.secondary",
+                      fontStyle: "italic",
+                      backgroundColor: "#ffffff",
+                      border: "1px dashed #ccc",
+                      borderRadius: "6px",
+                      padding: "12px",
+                    }}
+                  >
+                    No requirements needed.
+                  </Typography>
+                )}
+
+                {/* Requirements List */}
+                {showRequirements &&
+                  filterRequirementsForApplicant(
+                    selectedApplicantData,
+                    requirements,
+                  ).map((req) => {
+                    const selected = selectedCopies[req.id];
+
+                    return (
+                      <div
+                        key={req.id}
+                        style={{
+                          border: "1px solid #eee",
+                          borderRadius: "6px",
+                          padding: "10px",
+                          marginBottom: "10px",
+                          backgroundColor: selected ? "#fff8f0" : "white",
+                        }}
+                      >
+                        <div style={{ marginBottom: "8px" }}>
+                          <span style={{ fontWeight: 500 }}>
+                            • {req.description}
+                          </span>
+
+                          {selected && (
+                            <span
+                              style={{
+                                marginLeft: "10px",
+                                color: "#800000",
+                                fontWeight: "bold",
+                              }}
+                            >
+                              ({selected.toUpperCase()})
+                            </span>
+                          )}
+                        </div>
+
+                        <Box display="flex" gap={1} flexWrap="wrap" mt={1}>
+                          {/* ORIGINAL COPY */}
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() => handleSelect(req.id, "original")}
+                            sx={{
+                              backgroundColor:
+                                selected === "original" ? "#1976d2" : "#e3f2fd",
+                              color:
+                                selected === "original" ? "#fff" : "#1976d2",
+                              fontWeight: "bold",
+                              borderRadius: "10px",
+                              textTransform: "none",
+                              "&:hover": {
+                                backgroundColor:
+                                  selected === "original"
+                                    ? "#1565c0"
+                                    : "#bbdefb",
+                              },
+                            }}
+                          >
+                            Original Copy
+                          </Button>
+
+                          {/* XEROX COPY */}
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() => handleSelect(req.id, "xerox")}
+                            sx={{
+                              backgroundColor:
+                                selected === "xerox" ? "#2e7d32" : "#e8f5e9",
+                              color: selected === "xerox" ? "#fff" : "#2e7d32",
+                              fontWeight: "bold",
+                              borderRadius: "10px",
+                              textTransform: "none",
+                              "&:hover": {
+                                backgroundColor:
+                                  selected === "xerox" ? "#1b5e20" : "#c8e6c9",
+                              },
+                            }}
+                          >
+                            Xerox Copy
+                          </Button>
+
+                          {/* REMOVE */}
+                          {selected && (
+                            <Button
+                              size="small"
+                              color="error"
+                              variant="outlined"
+                              onClick={() => handleSelect(req.id, null)}
+                              sx={{
+                                fontWeight: "bold",
+                                borderRadius: "10px",
+                                textTransform: "none",
+                              }}
+                            >
+                              Remove
+                            </Button>
+                          )}
+                        </Box>
+                      </div>
+                    );
+                  })}
+
+                {/* If no requirements exist */}
+                {showRequirements &&
+                  filterRequirementsForApplicant(
+                    selectedApplicantData,
+                    requirements,
+                  ).length === 0 && (
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "text.secondary",
+                        fontStyle: "italic",
+                      }}
+                    >
+                      No requirements are available for this applicant.
+                    </Typography>
+                  )}
+              </div>
+
+              {/* Editable Reminders */}
               <TextField
                 label="Important Reminders"
                 value={customReminders}
                 onChange={(e) => setCustomReminders(e.target.value)}
                 fullWidth
                 multiline
-                minRows={18}
+                minRows={6}
                 placeholder="Edit reminders here..."
                 sx={{ fontFamily: "monospace", whiteSpace: "pre-wrap" }}
               />
@@ -2504,12 +3259,13 @@ This printed permit must be presented to your proctor on the exam day to verify 
             variant="contained"
             color="success"
             size="small"
-            sx={{ minWidth: 140, height: 40 }}
+            sx={{ minWidth: "140px", height: "40px" }}
           >
-            SEND EMAIL
+            Send Emails
           </Button>
         </DialogActions>
       </Dialog>
+
       <LoadingOverlay
         open={loading2}
         message="Sending emails, please wait..."
@@ -2518,4 +3274,4 @@ This printed permit must be presented to your proctor on the exam day to verify 
   );
 };
 
-export default AssignScheduleToApplicants;
+export default AssignScheduleToApplicantsInterviewer;
