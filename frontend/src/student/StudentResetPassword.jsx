@@ -39,13 +39,35 @@ const makeToggleStyles = (onColor) => `
   }
 `;
 
+
 const passwordRules = [
-  { label: "Minimum of 8 characters", test: (pw) => pw.length >= 8 },
-  { label: "At least one lowercase letter (e.g. abc)", test: (pw) => /[a-z]/.test(pw) },
-  { label: "At least one uppercase letter (e.g. ABC)", test: (pw) => /[A-Z]/.test(pw) },
-  { label: "At least one number (e.g. 123)", test: (pw) => /\d/.test(pw) },
-  { label: "At least one special character (! # $ ^ * @ - . < > _ & % + = ?)", test: (pw) => /[!#$^*@\-.<>_&%+=?]/.test(pw) },
+  {
+    label: "Minimum of 8 characters",
+    labelTl: "Dapat hindi bababa sa 8 na letra o karakter",
+    test: (pw) => pw.length >= 8,
+  },
+  {
+    label: "At least one lowercase letter (e.g. abc)",
+    labelTl: "Dapat may isa mang maliit na letra (halimbawa: abc)",
+    test: (pw) => /[a-z]/.test(pw),
+  },
+  {
+    label: "At least one uppercase letter (e.g. ABC)",
+    labelTl: "Dapat may isa mang malaking letra (halimbawa: ABC)",
+    test: (pw) => /[A-Z]/.test(pw),
+  },
+  {
+    label: "At least one number (e.g. 123)",
+    labelTl: "Dapat may isa mang numero (halimbawa: 123)",
+    test: (pw) => /\d/.test(pw),
+  },
+  {
+    label: "At least one special character (! # $ ^ * @ - . < > _ & % + = ?)",
+    labelTl: "Dapat may isa mang espesyal na karakter (! # $ ^ * @ - . < > _ & % + = ?)",
+    test: (pw) => /[!#$^*@\-.<>_&%+=?]/.test(pw),
+  },
 ];
+
 
 const StudentResetPassword = () => {
   const settings = useContext(SettingsContext);
@@ -335,19 +357,31 @@ const StudentResetPassword = () => {
             <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
               Your new password must include:
             </Typography>
-            <List dense disablePadding>
-              {passwordRules.map((rule, i) => (
-                <ListItem key={i} sx={{ py: 0.25 }}>
-                  <ListItemIcon sx={{ minWidth: 32 }}>
-                    {validations[i]
-                      ? <CheckCircle sx={{ color: "green", fontSize: 18 }} />
-                      : <Cancel sx={{ color: "red", fontSize: 18 }} />
-                    }
-                  </ListItemIcon>
-                  <ListItemText primary={rule.label} primaryTypographyProps={{ fontSize: 13 }} />
-                </ListItem>
-              ))}
-            </List>
+             <List dense disablePadding>
+                       {passwordRules.map((rule, i) => (
+                         <ListItem key={i} sx={{ py: 0.35, px: 0, alignItems: "flex-start" }}>
+                           <ListItemIcon sx={{ minWidth: 32, mt: "2px" }}>
+                             {validations[i]
+                               ? <CheckCircle sx={{ color: "green", fontSize: { xs: 18, sm: 22 } }} />
+                               : <Cancel sx={{ color: "red", fontSize: { xs: 18, sm: 22 } }} />}
+                           </ListItemIcon>
+                           <ListItemText
+                             primary={rule.label}
+                             secondary={rule.labelTl}
+                             primaryTypographyProps={{
+                               fontSize: { xs: "12px", sm: "14px" },
+                               color: validations[i] ? "green" : "inherit",
+                               fontWeight: validations[i] ? 600 : 400,
+                             }}
+                             secondaryTypographyProps={{
+                               fontSize: { xs: "11px", sm: "12.5px" },
+                               fontStyle: "italic",
+                               color: validations[i] ? "green" : "text.secondary",
+                             }}
+                           />
+                         </ListItem>
+                       ))}
+                     </List>
 
             <Typography variant="body2" color="warning.main" sx={{ mt: 1, mb: 2, fontSize: 12 }}>
               Note: You are required to change your password to continue using the system securely.

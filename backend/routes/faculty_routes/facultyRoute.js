@@ -797,7 +797,7 @@ router.post("/send_faculty_password_reminder", async (req, res) => {
 
           <p style="font-size: 13px;">
             Login link:<br/>
-            <a href="${frontendUrl}/login" style="color: #0d6efd;">${frontendUrl}/login</a>
+         https://ap.earist.edu.ph/login
           </p>
 
           <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 24px 0;" />

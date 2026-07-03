@@ -4,7 +4,7 @@ const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
 const speakeasy = require("speakeasy");
 const path = require("path");
-const fs = require("fs");
+const fs = require("fs")
 const QRCode = require("qrcode");
 const { db, db3 } = require("../database/database");
 const { CanDelete, CanEdit } = require("../../middleware/pagePermissions");
@@ -18,6 +18,79 @@ const {
 const router = express.Router();
 const dns = require("dns").promises;
 
+
+// small helper so you're not repeating this SELECT everywhere
+async function getShortTerm() {
+  const [rows] = await db.query(
+    "SELECT short_term FROM company_settings WHERE id = 1"
+  );
+  return rows?.[0]?.short_term || "Institution";
+}
+
+
+const generateTempPassword = () => {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  return Array.from({ length: 8 }, () =>
+    chars.charAt(Math.floor(Math.random() * chars.length))
+  ).join("");
+};
+ 
+// Looks up an account by ID (student number, or employee ID for
+// registrar/faculty) and returns its type + email + current totp state.
+// Does NOT verify email here — caller compares it.
+async function resolveForgotPasswordAccount(identifier) {
+  const normalizedIdentifier = String(identifier || "").trim();
+  if (!normalizedIdentifier) return null;
+
+  const [studentRows] = await db3.query(
+    `SELECT ua.id, ua.email, ua.totp_secret, ua.totp_verified
+     FROM student_numbering_table snt
+     JOIN user_accounts ua ON ua.person_id = snt.person_id AND ua.role = 'student'
+     WHERE snt.student_number = ?
+     LIMIT 1`,
+    [normalizedIdentifier]
+  );
+  if (studentRows.length > 0) return { ...studentRows[0], type: "student" };
+
+  const [registrarRows] = await db3.query(
+    `SELECT id, email, totp_secret, totp_verified
+     FROM user_accounts
+     WHERE employee_id = ? AND role = 'registrar'
+     LIMIT 1`,
+    [normalizedIdentifier]
+  );
+  if (registrarRows.length > 0) return { ...registrarRows[0], type: "registrar" };
+
+  const [facultyRows] = await db3.query(
+    `SELECT prof_id AS id, email, totp_secret, totp_verified
+     FROM prof_table
+     WHERE employee_id = ? AND role = 'faculty'
+     LIMIT 1`,
+    [normalizedIdentifier]
+  );
+  if (facultyRows.length > 0) return { ...facultyRows[0], type: "faculty" };
+
+  // ── NEW: applicant lookup (lives in the ADMISSION db, keyed by applicant_number) ──
+  const [applicantRows] = await db.query(
+    `SELECT ua.person_id AS id, ua.email, ua.totp_secret, ua.totp_verified, pt.birthOfDate
+     FROM applicant_numbering_table ant
+     JOIN person_table pt ON pt.person_id = ant.person_id
+     JOIN user_accounts ua ON ua.person_id = ant.person_id AND ua.role = 'applicant'
+     WHERE ant.applicant_number = ?
+     LIMIT 1`,
+    [normalizedIdentifier]
+  );
+  if (applicantRows.length > 0) return { ...applicantRows[0], type: "applicant" };
+
+  return null;
+}
+ 
+const TYPE_TABLE_MAP = {
+  student: { table: "user_accounts", idColumn: "id", db: db3 },
+  registrar: { table: "user_accounts", idColumn: "id", db: db3 },
+  faculty: { table: "prof_table", idColumn: "prof_id", db: db3 },
+  applicant: { table: "user_accounts", idColumn: "person_id", db: db }, // NEW
+};
 
 // ─── In-memory stores ───────────────────────────────────────────────────────
 let otpStore = {};
@@ -1924,6 +1997,230 @@ router.get("/check-domain-mx", async (req, res) => {
   } catch (error) {
     console.error("Domain MX check error:", error);
     return res.json({ valid: false, suggestion: null });
+  }
+});
+
+ 
+// ────────────────────────────────────────────────────────────────────────────
+//  STEP 2: verify the new code, THEN swap the secret in + reset password
+// ────────────────────────────────────────────────────────────────────────────
+router.post("/forgot-password-confirm", async (req, res) => {
+  const { identifier, type, token } = req.body;
+  const normalizedIdentifier = String(identifier || "").trim();
+  const normalizedType = String(type || "").trim();
+ 
+  if (!normalizedIdentifier || !normalizedType || !token) {
+    return res.status(400).json({
+      success: false,
+      message: "Missing identifier, type, or code.",
+    });
+  }
+ 
+  if (!/^\d{6}$/.test(String(token).trim())) {
+    return res.status(400).json({
+      success: false,
+      message: "Please enter a valid 6-digit code.",
+    });
+  }
+ 
+  const tableInfo = TYPE_TABLE_MAP[normalizedType];
+  if (!tableInfo) {
+    return res.status(400).json({ success: false, message: "Invalid account type." });
+  }
+ 
+  // Basic brute-force guard on the confirm step, separate from login lockouts.
+  const attemptKey = `fp_confirm::${normalizedType}::${normalizedIdentifier}`;
+  const now = Date.now();
+  if (!loginAttempts[attemptKey]) {
+    loginAttempts[attemptKey] = { count: 0, lockUntil: null };
+  }
+  const record = loginAttempts[attemptKey];
+ 
+  if (record.lockUntil && record.lockUntil > now) {
+    const remainingSeconds = Math.ceil((record.lockUntil - now) / 1000);
+    return res.status(429).json({
+      success: false,
+      locked: true,
+      remainingSeconds,
+      message: `Too many failed attempts. Try again in ${remainingSeconds} seconds.`,
+    });
+  }
+  if (record.lockUntil && record.lockUntil <= now) {
+    loginAttempts[attemptKey] = { count: 0, lockUntil: null };
+  }
+ 
+  const storeKey = `forgot_password_setup::${normalizedType}::${normalizedIdentifier}`;
+  const stored = otpStore[storeKey];
+ 
+  if (!stored) {
+    return res.status(400).json({
+      success: false,
+      message: "No pending recovery request found. Please start over.",
+    });
+  }
+ 
+  if (stored.expiresAt < now) {
+    delete otpStore[storeKey];
+    return res.status(400).json({
+      success: false,
+      message: "This recovery QR code has expired. Please start over.",
+    });
+  }
+ 
+  const isValid = speakeasy.totp.verify({
+    secret: stored.totpSecret,
+    encoding: "base32",
+    token: String(token).trim(),
+    window: 1,
+  });
+ 
+  if (!isValid) {
+    loginAttempts[attemptKey].count++;
+    if (loginAttempts[attemptKey].count >= 3) {
+      loginAttempts[attemptKey].lockUntil = now + 3 * 60 * 1000;
+      await insertAuditLogAdmission({
+        actorId: normalizedIdentifier,
+        role: normalizedType,
+        action: "FORGOT_PASSWORD_QR_CONFIRM",
+        outcome: "LOCKED",
+        reason: "Too many invalid recovery codes",
+      });
+      return res.status(429).json({
+        success: false,
+        locked: true,
+        remainingSeconds: 180,
+        message: "Too many failed attempts. Locked for 3 minutes.",
+      });
+    }
+    await insertAuditLogAdmission({
+      actorId: normalizedIdentifier,
+      role: normalizedType,
+      action: "FORGOT_PASSWORD_QR_CONFIRM",
+      outcome: "FAILED",
+      reason: "Invalid recovery code",
+    });
+    return res.status(400).json({
+      success: false,
+      message: "Incorrect code. Wait for it to refresh and try again.",
+    });
+  }
+ 
+  try {
+    const newPassword = generateTempPassword();
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+ 
+  await tableInfo.db.query(   // ← use the connection that matches the account type
+  `UPDATE ${tableInfo.table}
+   SET totp_secret = ?, totp_verified = 1, password = ?, force_password_change = 1
+   WHERE ${tableInfo.idColumn} = ?`,
+  [stored.totpSecret, hashedPassword, stored.accountId]
+);
+ 
+    delete otpStore[storeKey];
+    delete loginAttempts[attemptKey];
+ 
+    await insertAuditLogAdmission({
+      actorId: normalizedIdentifier,
+      role: normalizedType,
+      action: "FORGOT_PASSWORD_QR_CONFIRM",
+      severity: "WARNING", // secret + password both changed — worth flagging for review
+      outcome: "SUCCESS",
+      message: `Authenticator re-linked and password reset for (${normalizedIdentifier}). Old authenticator secret is now invalid.`,
+    });
+ 
+    return res.json({
+      success: true,
+      temp_password: newPassword,
+      message: "Authenticator re-linked and password reset successfully.",
+    });
+  } catch (error) {
+    console.error("forgot-password-confirm error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    });
+  }
+});
+
+router.post("/forgot-password-init", async (req, res) => {
+  const { identifier, email, birthdate } = req.body;
+  const normalizedIdentifier = String(identifier || "").trim();
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+
+  if (!normalizedIdentifier || !normalizedEmail) {
+    return res.status(400).json({
+      success: false,
+      message: "ID and email are required.",
+    });
+  }
+
+  const genericFailure = {
+    success: false,
+    message:
+      "We couldn't find a matching account. Please check your ID and email address.",
+  };
+
+  try {
+    const account = await resolveForgotPasswordAccount(normalizedIdentifier);
+
+    const emailMatches =
+      account && String(account.email || "").trim().toLowerCase() === normalizedEmail;
+
+    // Applicants get an extra birthdate check to match the old flow's strength
+    const birthdateMatches =
+      !account || account.type !== "applicant"
+        ? true
+        : String(account.birthOfDate || "").slice(0, 10) ===
+          String(birthdate || "").slice(0, 10);
+
+    if (!account || !emailMatches || !birthdateMatches) {
+      await insertAuditLogAdmission({
+        actorId: normalizedIdentifier,
+        role: account?.type || "unknown",
+        action: "FORGOT_PASSWORD_QR_INIT",
+        outcome: "FAILED",
+        reason: "Identifier/email/birthdate did not match any account",
+      });
+      return res.status(404).json(genericFailure);
+    }
+
+    const shortTerm = await getShortTerm();
+    const secret = speakeasy.generateSecret({
+      name: `${shortTerm} Recovery (${normalizedIdentifier})`,
+      issuer: shortTerm,
+      length: 20,
+    });
+
+    otpStore[`forgot_password_setup::${account.type}::${normalizedIdentifier}`] = {
+      totpSecret: secret.base32,
+      accountId: account.id,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    };
+
+    const qrDataUrl = await QRCode.toDataURL(secret.otpauth_url, {
+      color: { dark: "#000000", light: "#FFFFFF" },
+      width: 220,
+      margin: 2,
+    });
+
+    await insertAuditLogAdmission({
+      actorId: normalizedIdentifier,
+      role: account.type,
+      action: "FORGOT_PASSWORD_QR_INIT",
+      outcome: "SUCCESS",
+      message: `Identity verified for (${normalizedIdentifier}); new recovery QR issued.`,
+    });
+
+    return res.json({
+      success: true,
+      qrDataUrl,
+      manualKey: secret.base32,
+      type: account.type,
+      identifier: normalizedIdentifier,
+    });
+  } catch (error) {
+    console.error("forgot-password-init error:", error);
+    return res.status(500).json({ success: false, message: "Internal server error." });
   }
 });
 
