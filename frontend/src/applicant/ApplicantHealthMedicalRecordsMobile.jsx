@@ -4,20 +4,14 @@ import axios from "axios";
 import {
   Button,
   Box,
-  TextField,
-  Container,
   Typography,
   Card,
-  Table,
-  TableBody,
-  TableCell,
-  TableRow,
-  FormGroup,
   Modal,
-  FormControlLabel,
   Checkbox,
   Snackbar,
-  Alert
+  Alert,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -34,136 +28,59 @@ import ExamPermit from "./ExamPermit";
 import API_BASE_URL from "../apiConfig";
 import DateField from "../components/DateField";
 
-// ─── Style tokens (from StudentDashboard4Mobile) ──────────────────────────────
-const S = {
-  screen: {
-    minHeight: "100vh",
-    backgroundColor: "#f5f5f5",
-    fontFamily: "'Segoe UI', sans-serif",
-    paddingBottom: 80,
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    margin: "12px 12px 0",
-    overflow: "hidden",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-  },
-  cardHeader: {
-    color: "#fff",
-    padding: "10px 14px",
-    fontSize: 13,
-    fontWeight: 700,
-    letterSpacing: 0.3,
-  },
-  cardBody: { padding: "14px 14px" },
-  fieldWrap: { marginBottom: 14 },
-  label: {
-    display: "block",
-    fontSize: 12,
-    fontWeight: 600,
-    color: "#444",
-    marginBottom: 5,
-  },
-  input: (hasError) => ({
-    width: "100%",
-    height: 42,
-    padding: "0 12px",
-    border: `1px solid ${hasError ? "#d32f2f" : "#ccc"}`,
-    borderRadius: 8,
-    fontSize: 14,
-    backgroundColor: "#fff",
-    boxSizing: "border-box",
-    outline: "none",
-    color: "#222",
-  }),
-  textarea: {
-    width: "100%",
-    padding: "10px 12px",
-    border: "1px solid #ccc",
-    borderRadius: 8,
-    fontSize: 14,
-    backgroundColor: "#fff",
-    boxSizing: "border-box",
-    outline: "none",
-    color: "#222",
-    resize: "vertical",
-    minHeight: 80,
-    fontFamily: "'Segoe UI', sans-serif",
-  },
-  divider: {
-    border: "none",
-    borderTop: "1px solid #e0e0e0",
-    margin: "14px 0 10px",
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: "#6D2323",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 10,
-  },
-  checkRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
-  },
-  checkLabel: { fontSize: 14, color: "#333" },
-  yesNoRow: {
-    display: "flex",
-    gap: 16,
-    alignItems: "center",
-  },
-  yesNoItem: {
-    display: "flex",
-    alignItems: "center",
-    gap: 4,
-  },
-  conditionRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderBottom: "1px solid #f0f0f0",
-    marginBottom: 8,
-    paddingBottom: 8,
-  },
-  conditionLabel: { fontSize: 13, color: "#333", flex: 1 },
-  toast: (severity) => ({
-    position: "fixed",
-    top: 16,
-    left: "50%",
-    transform: "translateX(-50%)",
-    zIndex: 9999,
-    backgroundColor:
-      severity === "success"
-        ? "#2e7d32"
-        : severity === "error"
-          ? "#c62828"
-          : "#e65100",
-    color: "#fff",
-    padding: "10px 20px",
-    borderRadius: 24,
-    fontSize: 13,
-    boxShadow: "0 3px 10px rgba(0,0,0,0.25)",
-    maxWidth: "90vw",
-    textAlign: "center",
-  }),
-};
-
 // ─── Reusable field wrapper ───────────────────────────────────────────────────
 const Field = ({ label, children }) => (
-  <div style={S.fieldWrap}>
-    {label && <label style={S.label}>{label}</label>}
+  <div style={{ marginBottom: 14 }}>
+    {label && (
+      <label
+        style={{
+          display: "block",
+          fontSize: "clamp(11px, 1.4vw, 13px)",
+          fontWeight: 600,
+          color: "#444",
+          marginBottom: 5,
+        }}
+      >
+        {label}
+      </label>
+    )}
     {children}
   </div>
 );
 
-// ─── YES / NO toggle (editable — from Dashboard4 logic) ──────────────────────
+const inputStyle = (hasError, extra = {}) => ({
+  width: "100%",
+  height: 42,
+  padding: "0 12px",
+  border: `1px solid ${hasError ? "#d32f2f" : "#ccc"}`,
+  borderRadius: 8,
+  fontSize: "clamp(13px, 1.6vw, 14px)",
+  backgroundColor: "#fff",
+  boxSizing: "border-box",
+  outline: "none",
+  color: "#222",
+  ...extra,
+});
+
+const textareaStyle = {
+  width: "100%",
+  padding: "10px 12px",
+  border: "1px solid #ccc",
+  borderRadius: 8,
+  fontSize: "clamp(13px, 1.6vw, 14px)",
+  backgroundColor: "#fff",
+  boxSizing: "border-box",
+  outline: "none",
+  color: "#222",
+  resize: "vertical",
+  minHeight: 80,
+  fontFamily: "'Segoe UI', sans-serif",
+};
+
+// ─── YES / NO toggle ──────────────────────────────────────────────────────────
 const YesNo = ({ fieldKey, value, onChange }) => (
-  <div style={S.yesNoRow}>
-    <div style={S.yesNoItem}>
+  <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
       <input
         type="checkbox"
         checked={value === 1}
@@ -172,7 +89,7 @@ const YesNo = ({ fieldKey, value, onChange }) => (
       />
       <span style={{ fontSize: 13, color: "#333" }}>Yes</span>
     </div>
-    <div style={S.yesNoItem}>
+    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
       <input
         type="checkbox"
         checked={value === 0}
@@ -186,24 +103,22 @@ const YesNo = ({ fieldKey, value, onChange }) => (
 
 // ─── Condition row ────────────────────────────────────────────────────────────
 const ConditionRow = ({ label, fieldKey, person, onChange }) => (
-  <div style={S.conditionRow}>
-    <span style={S.conditionLabel}>{label}</span>
-    <YesNo
-      fieldKey={fieldKey}
-      value={person[fieldKey]}
-      onChange={onChange}
-    />
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      borderBottom: "1px solid #f0f0f0",
+      marginBottom: 8,
+      paddingBottom: 8,
+      gap: 12,
+      flexWrap: "wrap",
+    }}
+  >
+    <span style={{ fontSize: "clamp(12px, 1.5vw, 14px)", color: "#333", flex: 1, minWidth: 140 }}>{label}</span>
+    <YesNo fieldKey={fieldKey} value={person[fieldKey]} onChange={onChange} />
   </div>
 );
-
-// ─── Steps definition ─────────────────────────────────────────────────────────
-const stepDefs = [
-  { label: "Personal Information", icon: <PersonIcon /> },
-  { label: "Family Background", icon: <FamilyRestroomIcon /> },
-  { label: "Educational Attainment", icon: <SchoolIcon /> },
-  { label: "Health Medical Records", icon: <HealthAndSafetyIcon /> },
-  { label: "Other Information", icon: <InfoIcon /> },
-];
 
 const medicalConditions = [
   { label: "Asthma", key: "asthma" },
@@ -231,11 +146,22 @@ const vaccineColumns = [
 ];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-const ApplicantHealthMedicalRecordsMobile = (props) => {
+const ApplicantHealthMedicalRecordsResponsive = (props) => {
   const settings = useContext(SettingsContext);
   const navigate = useNavigate();
+  const theme = useTheme();
 
-  // ── Theme state (from Dashboard4) ──────────────────────────────────────────
+  // Breakpoints: phone < 600px, tablet 600–959px, desktop >= 960px
+  const isPhone = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
+  const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
+
+  // Two-column fields stack on phone, sit side-by-side from tablet up
+  const gridCols2 = { display: "grid", gridTemplateColumns: isPhone ? "1fr" : "1fr 1fr", gap: 16 };
+  // Vaccine grid: 2 cols on desktop/tablet, 1 col on very small screens (already narrow inputs, keep 2 unless phone-tiny)
+  const vaccineGrid = { display: "flex", gap: 8, flexWrap: isPhone ? "wrap" : "nowrap" };
+
+  // ── Theme state ─────────────────────────────────────────────────────────
   const [titleColor, setTitleColor] = useState("#000000");
   const [subtitleColor, setSubtitleColor] = useState("#555555");
   const [borderColor, setBorderColor] = useState("#000000");
@@ -244,7 +170,7 @@ const ApplicantHealthMedicalRecordsMobile = (props) => {
   const [companyName, setCompanyName] = useState("");
   const [shortTerm, setShortTerm] = useState("");
 
-  // ── User / person state (from Dashboard4) ──────────────────────────────────
+  // ── User / person state ─────────────────────────────────────────────────
   const [userID, setUserID] = useState("");
   const [userRole, setUserRole] = useState("");
   const [person, setPerson] = useState({
@@ -265,29 +191,26 @@ const ApplicantHealthMedicalRecordsMobile = (props) => {
     remarks: "",
   });
 
-  // ── Exam permit state (from Dashboard4) ────────────────────────────────────
+  // ── Exam permit state ───────────────────────────────────────────────────
   const divToPrintRef = useRef();
   const [showPrintView, setShowPrintView] = useState(false);
   const [examPermitError, setExamPermitError] = useState("");
   const [examPermitModalOpen, setExamPermitModalOpen] = useState(false);
   const [canPrintPermit, setCanPrintPermit] = useState(false);
 
-  // ── Snackbar (from StudentDashboard4Mobile) ─────────────────────────────────
+  // ── Snackbar ───────────────────────────────────────────────────────────────
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "warning" });
-
 
   const handleCloseSnackbar = (event, reason) => {
     if (reason === "clickaway") return;
     setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
-
   const showSnackbar = (message, severity = "warning") => {
     setSnackbar({ open: true, message, severity });
-    setTimeout(() => setSnackbar((p) => ({ ...p, open: false })), 3000);
   };
 
-  // ── Apply settings (from Dashboard4) ──────────────────────────────────────
+  // ── Apply settings ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!settings) return;
     if (settings.title_color) setTitleColor(settings.title_color);
@@ -299,7 +222,7 @@ const ApplicantHealthMedicalRecordsMobile = (props) => {
     if (settings.short_term) setShortTerm(settings.short_term);
   }, [settings]);
 
-  // ── Auth + load (from Dashboard4 — do not alter) ───────────────────────────
+  // ── Auth + load (do not alter) ──────────────────────────────────────────
   useEffect(() => {
     const storedUser = localStorage.getItem("email");
     const storedRole = localStorage.getItem("role");
@@ -330,15 +253,15 @@ const ApplicantHealthMedicalRecordsMobile = (props) => {
     }
   }, []);
 
-  // ── Fetch person (from Dashboard4 — do not alter) ─────────────────────────
+  // ── Fetch person (do not alter) ─────────────────────────────────────────
   const fetchPersonData = async (id) => {
     try {
       const res = await axios.get(`${API_BASE_URL}/api/person/${id}`);
       setPerson(res.data);
-    } catch (error) { }
+    } catch (error) {}
   };
 
-  // ── handleUpdate (from Dashboard4 — do not alter) ─────────────────────────
+  // ── handleUpdate (do not alter) ─────────────────────────────────────────
   const handleUpdate = async (updatedPerson) => {
     try {
       if (!updatedPerson || Object.keys(updatedPerson).length === 0) {
@@ -375,7 +298,7 @@ const ApplicantHealthMedicalRecordsMobile = (props) => {
     handleUpdate(updated);
   };
 
-  // ── Exam permit (from Dashboard4) ─────────────────────────────────────────
+  // ── Exam permit ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!userID) return;
     axios
@@ -447,7 +370,7 @@ const ApplicantHealthMedicalRecordsMobile = (props) => {
     }
   };
 
-  // ── Keys & steps navigation (from Dashboard4) ─────────────────────────────
+  // ── Keys & steps navigation ──────────────────────────────────────────────
   const keys = JSON.parse(localStorage.getItem("dashboardKeys") || "{}");
 
   const stepsWithPaths = [
@@ -461,7 +384,6 @@ const ApplicantHealthMedicalRecordsMobile = (props) => {
   const [activeStep, setActiveStep] = useState(3);
   const [clickedSteps, setClickedSteps] = useState(Array(stepsWithPaths.length).fill(false));
 
-
   const handleStepClick = (index) => {
     setActiveStep(index);
     const newClickedSteps = [...clickedSteps];
@@ -471,7 +393,7 @@ const ApplicantHealthMedicalRecordsMobile = (props) => {
     setTimeout(() => navigate(stepsWithPaths[index].path), 1000);
   };
 
-  // ── Links (from Dashboard4) ────────────────────────────────────────────────
+  // ── Links ────────────────────────────────────────────────────────────────
   const links = [
     { to: "/ecat_application_form", label: "ECAT Application Form" },
     { to: "/admission_form_process", label: "Admission Form Process" },
@@ -484,29 +406,39 @@ const ApplicantHealthMedicalRecordsMobile = (props) => {
     { label: "Examination Permit", onClick: handleExamPermitClick },
   ];
 
-  // 🔒 Disable right-click
-  document.addEventListener("contextmenu", (e) => e.preventDefault());
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  // 🔒 Block DevTools shortcuts + Ctrl+P silently
-  document.addEventListener("keydown", (e) => {
-    const isBlockedKey =
-      e.key === "F12" ||
-      e.key === "F11" ||
-      (e.ctrlKey &&
-        e.shiftKey &&
-        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-      (e.ctrlKey && e.key.toLowerCase() === "u") ||
-      (e.ctrlKey && e.key.toLowerCase() === "p");
+    // 🔒 Block DevTools shortcuts + Ctrl+P silently
+    document.addEventListener("keydown", (e) => {
+        const isBlockedKey =
+            e.key === "F12" ||
+            e.key === "F11" ||
+            (e.ctrlKey &&
+                e.shiftKey &&
+                (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+            (e.ctrlKey && e.key.toLowerCase() === "u") ||
+            (e.ctrlKey && e.key.toLowerCase() === "p");
 
-    if (isBlockedKey) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  });
+        if (isBlockedKey) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    });
+  // Cards per row depending on viewport
+  const cardBasis = isPhone ? "calc(50% - 6px)" : isTablet ? "calc(33.333% - 8px)" : "calc(20% - 13px)";
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // Content max width so it doesn't stretch edge-to-edge on large desktop monitors
+  const contentMaxWidth = isDesktop ? 1000 : "100%";
+
   return (
-    <div style={S.screen}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        backgroundColor: "#f5f5f5",
+        fontFamily: "'Segoe UI', sans-serif",
+        pb: { xs: 8, md: 4 },
+      }}
+    >
       {/* Hidden print target */}
       {showPrintView && (
         <div ref={divToPrintRef} style={{ display: "block" }}>
@@ -517,7 +449,7 @@ const ApplicantHealthMedicalRecordsMobile = (props) => {
       {/* Toast */}
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={1000}
+        autoHideDuration={2000}
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
@@ -526,664 +458,782 @@ const ApplicantHealthMedicalRecordsMobile = (props) => {
         </Alert>
       </Snackbar>
 
-      {/* ── Page Header ────────────────────────────────────────────────── */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          mb: 1,
-          padding: 1,
-        }}
-      >
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: "bold",
-            color: titleColor,
-            fontSize: { xs: "22px", sm: "28px", md: "36px" },
-          }}
-        >
-          HEALTH MEDICAL RECORDS
-        </Typography>
-      </Box>
-      <hr style={{ border: "1px solid #ccc", width: "100%" }} />
-      <br />
-
-      {/* ── Notice Banner ──────────────────────────────────────────────── */}
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 1.5,
-          mx: "12px",
-          mt: "12px",
-          p: "10px 12px",
-          borderRadius: "8px",
-          backgroundColor: "#fffaf5",
-          border: "1px solid #6D2323",
-          boxShadow: "0px 2px 8px rgba(0,0,0,0.05)",
-        }}
-      >
-        {/* Icon */}
+      <Box sx={{ maxWidth: contentMaxWidth, mx: "auto", px: { xs: 0, md: 2 } }}>
+        {/* ── Page Header ─────────────────────────────────────────────── */}
         <Box
           sx={{
             display: "flex",
+            justifyContent: "space-between",
             alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "#800000",
-            borderRadius: "6px",
-            width: 36,
-            height: 36,
-            flexShrink: 0,
+            flexWrap: "wrap",
+            mb: 1,
+            p: { xs: 1, md: 2 },
           }}
         >
-          <ErrorIcon sx={{ color: "white", fontSize: 22 }} />
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: "bold",
+              color: titleColor,
+              fontSize: { xs: "22px", sm: "28px", md: "36px" },
+            }}
+          >
+            HEALTH MEDICAL RECORDS
+          </Typography>
+        </Box>
+        <hr style={{ border: "1px solid #ccc", width: "100%" }} />
+        <br />
+
+        {/* ── Notice Banner ───────────────────────────────────────────── */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 1.5,
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            p: { xs: "10px 12px", md: "14px 16px" },
+            borderRadius: "8px",
+            backgroundColor: "#fffaf5",
+            border: "1px solid #6D2323",
+            boxShadow: "0px 2px 8px rgba(0,0,0,0.05)",
+          }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "#800000",
+              borderRadius: "6px",
+              width: { xs: 36, md: 48 },
+              height: { xs: 36, md: 48 },
+              flexShrink: 0,
+            }}
+          >
+            <ErrorIcon sx={{ color: "white", fontSize: { xs: 22, md: 30 } }} />
+          </Box>
+
+          <Typography
+            sx={{
+              fontSize: { xs: "13px", sm: "14px", md: "16px" },
+              fontFamily: "Poppins, sans-serif",
+              color: "#3e3e3e",
+              lineHeight: 1.5,
+            }}
+          >
+            <strong style={{ color: "maroon" }}>Important Notice:</strong>
+            <br />
+            <span style={{ margin: "0 8px" }}>➔</span>
+            Please indicate <strong>“NA”</strong> or <strong>“N/A”</strong> in fields where the
+            requested information is not applicable or no response can be provided.
+            <br />
+            <span style={{ margin: "0 8px" }}>➔</span>
+            To enter the letter <strong>“Ñ”</strong>, press and hold the ALT key while typing
+            <strong> 165</strong>. For <strong>“ñ”</strong>, press and hold the ALT key while
+            typing <strong> 164</strong>.
+            <br />
+            <span style={{ margin: "0 8px" }}>➔</span>
+            Please complete all information from <strong>Personal Information</strong> up to
+            <strong> Other Information</strong> before printing your documents.
+          </Typography>
         </Box>
 
-        {/* Text */}
-        <Typography
-          sx={{
-            fontSize: "20px",
-            fontFamily: "Poppins, sans-serif",
-            color: "#3e3e3e",
-            lineHeight: 1.3,
-            whiteSpace: "normal",
-            overflow: "hidden",
-          }}
-        >
-          <strong style={{ color: "maroon" }}>Important Notice:</strong>
-          <br />
-
-
-
-          <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
-          Please indicate <strong>“NA”</strong> or <strong>“N/A”</strong> in fields where the
-          requested information is not applicable or no response can be provided.
-          <br />
-
-          <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
-          To enter the letter <strong>“Ñ”</strong>, press and hold the ALT key while typing
-          <strong> 165</strong>. For <strong>“ñ”</strong>, press and hold the ALT key while
-          typing <strong> 164</strong>.
-          <br />
-
-          <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
-          Please complete all information from <strong>Personal Information</strong> up to
-          <strong> Other Information</strong> before printing your documents.
-          <br />
-        </Typography>
-      </Box>
-
-      {/* ── Printable Documents ────────────────────────────────────────── */}
-      <Box sx={{ px: "12px", pt: "12px" }}>
-        <Typography
-          sx={{
-            fontSize: "24px",
-            fontWeight: "bold",
-            textAlign: "center",
-            color: "black",
-            marginTop: "20px",
-            mb: 2,
-          }}
-        >
-          PRINTABLE DOCUMENTS
-        </Typography>
-        <Box
-          sx={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 1,
-            justifyContent: "center",
-          }}
-        >
-          {links.map((lnk, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.07, duration: 0.3 }}
-              style={{ width: "calc(50% - 4px)" }}
-            >
-              <Card
-                sx={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 0.75,
-                  px: 1.5,
-                  py: 1.25,
-                  height: 52,
-                  width: "100%",
-                  borderRadius: "12px",
-                  border: `1px solid ${borderColor || "#6D2323"}`,
-                  backgroundColor: "#fff",
-                  cursor: "pointer",
-                  transition: "all 0.25s ease-in-out",
-                  "&:hover": {
-                    backgroundColor: settings?.header_color || "#6D2323",
-                    "& .chip-icon": { color: "#fff" },
-                    "& .chip-text": { color: "#fff" },
-                  },
-                }}
-                onClick={() => {
-                  if (lnk.onClick) {
-                    lnk.onClick();
-                  } else if (lnk.to) {
-                    navigate(lnk.to);
-                  }
-                }}
+        {/* ── Printable Documents ─────────────────────────────────────── */}
+        <Box sx={{ px: { xs: "12px", md: 0 }, pt: "12px" }}>
+          <Typography
+            sx={{
+              fontSize: { xs: "22px", md: "28px" },
+              fontWeight: "bold",
+              textAlign: "center",
+              color: "black",
+              mt: "20px",
+              mb: 2,
+            }}
+          >
+            PRINTABLE DOCUMENTS
+          </Typography>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.25, justifyContent: "center" }}>
+            {links.map((lnk, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.06, duration: 0.3 }}
+                style={{ width: cardBasis, minWidth: 140 }}
               >
-                <PictureAsPdfIcon
-                  className="chip-icon"
+                <Card
                   sx={{
-                    fontSize: 18,
-                    color: mainButtonColor || "#6D2323",
-                    flexShrink: 0,
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 0.75,
+                    px: 1.5,
+                    py: 1.25,
+                    height: { xs: 52, md: 60 },
+                    width: "100%",
+                    borderRadius: "12px",
+                    border: `1px solid ${borderColor || "#6D2323"}`,
+                    backgroundColor: "#fff",
+                    cursor: "pointer",
+                    transition: "all 0.25s ease-in-out",
+                    "&:hover": {
+                      transform: { md: "scale(1.04)" },
+                      backgroundColor: settings?.header_color || "#6D2323",
+                      "& .chip-icon": { color: "#fff" },
+                      "& .chip-text": { color: "#fff" },
+                    },
                   }}
-                />
-                <Typography
-                  className="chip-text"
-                  sx={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: mainButtonColor || "#6D2323",
-                    fontFamily: "Poppins, sans-serif",
-                    whiteSpace: "normal",
-                    lineHeight: 1.3,
-                    textAlign: "center",
+                  onClick={() => {
+                    if (lnk.onClick) {
+                      lnk.onClick();
+                    } else if (lnk.to) {
+                      navigate(lnk.to);
+                    }
                   }}
                 >
-                  {lnk.label}
+                  <PictureAsPdfIcon
+                    className="chip-icon"
+                    sx={{ fontSize: { xs: 18, md: 22 }, color: mainButtonColor || "#6D2323", flexShrink: 0 }}
+                  />
+                  <Typography
+                    className="chip-text"
+                    sx={{
+                      fontSize: { xs: 11, md: 13 },
+                      fontWeight: 600,
+                      color: mainButtonColor || "#6D2323",
+                      fontFamily: "Poppins, sans-serif",
+                      lineHeight: 1.3,
+                      textAlign: "center",
+                    }}
+                  >
+                    {lnk.label}
+                  </Typography>
+                </Card>
+              </motion.div>
+            ))}
+          </Box>
+        </Box>
+
+        {/* ── Applicant Form Intro ────────────────────────────────────── */}
+        <Box sx={{ px: { xs: "14px", md: 0 }, pt: 2, textAlign: "center" }}>
+          <Typography
+            component="h1"
+            sx={{
+              fontSize: { xs: "24px", sm: "32px", md: "42px" },
+              fontWeight: "bold",
+              textAlign: "center",
+              color: subtitleColor,
+              mt: "20px",
+            }}
+          >
+            APPLICANT FORM
+          </Typography>
+          <Typography sx={{ fontSize: { xs: 13, md: 15 }, color: "#555" }}>
+            Complete the applicant form to secure your place for the upcoming
+            academic year at{" "}
+            {shortTerm ? (
+              <>
+                <strong>{shortTerm.toUpperCase()}</strong>
+                <br />
+                {companyName || ""}
+              </>
+            ) : (
+              companyName || ""
+            )}
+            .
+          </Typography>
+        </Box>
+
+        {/* ── Stepper ─────────────────────────────────────────────────── */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            width: "100%",
+            px: { xs: 2, md: 4 },
+            py: 1.5,
+            borderBottom: "1px solid #e0e0e0",
+            overflowX: "auto",
+          }}
+        >
+          {stepsWithPaths.map((step, index) => (
+            <React.Fragment key={index}>
+              <Box
+                sx={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer" }}
+                onClick={() => handleStepClick(index)}
+              >
+                <Box
+                  sx={{
+                    width: { xs: 42, md: 52 },
+                    height: { xs: 42, md: 52 },
+                    borderRadius: "50%",
+                    border: `2px solid ${borderColor}`,
+                    backgroundColor: activeStep === index ? (settings?.header_color || "#6D2323") : "#E8C999",
+                    color: activeStep === index ? "#fff" : "#333",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: { xs: 18, md: 22 },
+                    transition: "all 0.2s",
+                    flexShrink: 0,
+                  }}
+                >
+                  {step.icon}
+                </Box>
+                <Typography
+                  sx={{
+                    mt: 0.75,
+                    color: activeStep === index ? "#6D2323" : "#555",
+                    fontWeight: activeStep === index ? 700 : 400,
+                    fontSize: { xs: 10, sm: 12, md: 13 },
+                    textAlign: "center",
+                    maxWidth: { xs: 64, md: 96 },
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {step.label}
                 </Typography>
-              </Card>
-            </motion.div>
+              </Box>
+              {index < stepsWithPaths.length - 1 && (
+                <Box
+                  sx={{
+                    height: "2px",
+                    backgroundColor: mainButtonColor,
+                    flex: 1,
+                    minWidth: { xs: 16, md: 32 },
+                    alignSelf: "center",
+                    mx: { xs: 0.75, md: 1.5 },
+                    mb: 3,
+                  }}
+                />
+              )}
+            </React.Fragment>
           ))}
         </Box>
-      </Box>
 
-      {/* ── Applicant Form Intro ───────────────────────────────────────── */}
-      <div style={{ padding: "16px 14px 0", textAlign: "center" }}>
-        <h1
-          style={{
-            fontSize: "28px",
-            fontWeight: "bold",
-            textAlign: "center",
-            color: subtitleColor,
-            marginTop: "20px",
-          }}
-        >
-          APPLICANT FORM
-        </h1>
-        <div style={{ textAlign: "center", fontSize: 13, color: "#555" }}>
-          Complete the applicant form to secure your place for the upcoming
-          academic year at{" "}
-          {shortTerm ? (
-            <>
-              <strong>{shortTerm.toUpperCase()}</strong>
-              <br />
-              {companyName || ""}
-            </>
-          ) : (
-            companyName || ""
-          )}
-          .
-        </div>
-      </div>
-
-      {/* ── Stepper ────────────────────────────────────────────────────── */}
-      <Box sx={{ display: "flex", justifyContent: "center", width: "100%", px: 2, py: 1.5, borderBottom: "1px solid #e0e0e0" }}>
-        {stepsWithPaths.map((step, index) => (
-          <React.Fragment key={index}>
-            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer" }} onClick={() => handleStepClick(index)}>
-              <Box sx={{
-                width: 46, height: 46, borderRadius: "50%", border: `2px solid ${borderColor}`,
-                backgroundColor: activeStep === index ? (settings?.header_color || "#6D2323") : "#E8C999",
-                color: activeStep === index ? "#fff" : "#333",
-                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, transition: "all 0.2s",
-              }}>
-                {step.icon}
-              </Box>
-              <Typography sx={{ mt: 0.75, color: activeStep === index ? "#6D2323" : "#555", fontWeight: activeStep === index ? 700 : 400, fontSize: { xs: 10, sm: 12 }, textAlign: "center", maxWidth: 72, lineHeight: 1.3 }}>
-                {step.label}
-              </Typography>
-            </Box>
-            {index < stepsWithPaths.length - 1 && (
-              <Box sx={{ height: "2px", backgroundColor: mainButtonColor, flex: 1, alignSelf: "center", mx: 1, mb: 3 }} />
-            )}
-          </React.Fragment>
-        ))}
-      </Box>
-
-      {/* ── Step Header Bar ────────────────────────────────────────────── */}
-      <Box
-        sx={{
-          backgroundColor: settings?.header_color || "#1976d2",
-          border: `1px solid ${borderColor}`,
-          color: "white",
-          borderRadius: 2,
-          mx: "12px",
-          mt: "12px",
-          p: "10px 14px",
-        }}
-      >
-        <Typography sx={{ fontSize: 14, fontFamily: "Poppins, sans-serif" }}>
-          Step 4: Health and Medical Records
-        </Typography>
-      </Box>
-
-      {/* ── I. Symptoms Today ──────────────────────────────────────────── */}
-      <div style={{ ...S.card, border: `1px solid ${borderColor}`, }}>
-        <div
-          style={{
-            ...S.cardHeader,
+        {/* ── Step Header Bar ────────────────────────────────────────── */}
+        <Box
+          sx={{
             backgroundColor: settings?.header_color || "#1976d2",
+            border: `1px solid ${borderColor}`,
+            color: "white",
+            borderRadius: 2,
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            p: { xs: "10px 14px", md: "12px 18px" },
           }}
         >
-          I. Symptoms Today
-        </div>
-        <div style={S.cardBody}>
-          <div style={{ fontSize: 12, color: "#555", marginBottom: 12 }}>
-            Do you have any of the following symptoms today?
-          </div>
-          {["cough", "colds", "fever"].map((symptom) => (
-            <div key={symptom} style={S.checkRow}>
-              <Checkbox
-                name={symptom}
-                checked={person[symptom] === 1}
-                onChange={(e) => {
-                  const updated = {
-                    ...person,
-                    [symptom]: e.target.checked ? 1 : 0,
-                  };
-                  setPerson(updated);
-                  handleUpdate(updated);
-                }}
-                onBlur={() => handleUpdate(person)}
-                sx={{ p: 0.5, "& .MuiSvgIcon-root": { fontSize: 20 } }}
-              />
-              <span style={S.checkLabel}>
-                {symptom.charAt(0).toUpperCase() + symptom.slice(1)}
-              </span>
+          <Typography sx={{ fontSize: { xs: 14, md: 16 }, fontFamily: "Poppins, sans-serif" }}>
+            Step 4: Health and Medical Records
+          </Typography>
+        </Box>
+
+        {/* ── I. Symptoms Today ────────────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
+            I. Symptoms Today
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <div style={{ fontSize: 12, color: "#555", marginBottom: 12 }}>
+              Do you have any of the following symptoms today?
             </div>
-          ))}
-        </div>
-      </div>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: { xs: 0, md: 4 } }}>
+              {["cough", "colds", "fever"].map((symptom) => (
+                <div key={symptom} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <Checkbox
+                    name={symptom}
+                    checked={person[symptom] === 1}
+                    onChange={(e) => {
+                      const updated = { ...person, [symptom]: e.target.checked ? 1 : 0 };
+                      setPerson(updated);
+                      handleUpdate(updated);
+                    }}
+                    onBlur={() => handleUpdate(person)}
+                    sx={{ p: 0.5, "& .MuiSvgIcon-root": { fontSize: 20 } }}
+                  />
+                  <span style={{ fontSize: 14, color: "#333" }}>
+                    {symptom.charAt(0).toUpperCase() + symptom.slice(1)}
+                  </span>
+                </div>
+              ))}
+            </Box>
+          </Box>
+        </Box>
 
-      {/* ── II. Medical History ────────────────────────────────────────── */}
-      <div style={{ ...S.card, border: `1px solid ${borderColor}`, }}>
-        <div
-          style={{
-            ...S.cardHeader,
-            backgroundColor: settings?.header_color || "#1976d2",
+        {/* ── II. Medical History ─────────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
           }}
         >
-          II. Medical History
-        </div>
-        <div style={S.cardBody}>
-          <div style={{ fontSize: 12, color: "#555", marginBottom: 12 }}>
-            Have you suffered from, or been told you had, any of the following
-            conditions?
-          </div>
-
-          {medicalConditions.map(({ label, key }) => (
-            <ConditionRow
-              key={key}
-              label={label}
-              fieldKey={key}
-              person={person}
-              onChange={handleToggle}
-            />
-          ))}
-
-          <hr style={S.divider} />
-
-          {/* Hospitalization */}
-          <div style={S.sectionLabel}>Hospitalization History</div>
-          <div
-            style={{
-              ...S.conditionRow,
-              flexDirection: "column",
-              alignItems: "flex-start",
-              gap: 10,
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
             }}
           >
-            <span style={{ fontSize: 13, color: "#333" }}>
-              Do you have any previous history of hospitalization or operation?
-            </span>
-            <YesNo
-              fieldKey="hospitalized"
-              value={person.hospitalized}
-              onChange={handleToggle}
-            />
-          </div>
+            II. Medical History
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <div style={{ fontSize: 12, color: "#555", marginBottom: 12 }}>
+              Have you suffered from, or been told you had, any of the following
+              conditions?
+            </div>
 
-          <Field label="If Yes, Please Specify:">
-            <input
-              type="text"
-              name="hospitalizationDetails"
-              value={person.hospitalizationDetails || ""}
-              onChange={(e) =>
-                handleTextChange("hospitalizationDetails", e.target.value)
-              }
-              onBlur={() => handleUpdate(person)}
-              style={S.input(false)}
-              placeholder="Enter details..."
-            />
-          </Field>
-        </div>
-      </div>
+            <Box
+              sx={{
+                columnCount: { xs: 1, md: 2 },
+                columnGap: "32px",
+              }}
+            >
+              {medicalConditions.map(({ label, key }) => (
+                <Box key={key} sx={{ breakInside: "avoid" }}>
+                  <ConditionRow label={label} fieldKey={key} person={person} onChange={handleToggle} />
+                </Box>
+              ))}
+            </Box>
 
-      {/* ── III. Medication ────────────────────────────────────────────── */}
-      <div style={{ ...S.card, border: `1px solid ${borderColor}`, }}>
-        <div
-          style={{
-            ...S.cardHeader,
-            backgroundColor: settings?.header_color || "#1976d2",
-          }}
-        >
-          III. Medication
-        </div>
-        <div style={S.cardBody}>
-          <Field label="List all current medications:">
-            <textarea
-              name="medications"
-              value={person.medications || ""}
-              onChange={(e) => handleTextChange("medications", e.target.value)}
-              onBlur={() => handleUpdate(person)}
-              style={S.textarea}
-              placeholder="Enter medications or type NA"
-            />
-          </Field>
-        </div>
-      </div>
+            <hr style={{ border: "none", borderTop: "1px solid #e0e0e0", margin: "14px 0 10px" }} />
 
-      {/* ── IV. COVID Profile ──────────────────────────────────────────── */}
-      <div style={{ ...S.card, border: `1px solid ${borderColor}`, }}>
-        <div
-          style={{
-            ...S.cardHeader,
-            backgroundColor: settings?.header_color || "#1976d2",
-          }}
-        >
-          IV. COVID Profile
-        </div>
-        <div style={S.cardBody}>
-          {/* A. COVID History */}
-          <div style={S.sectionLabel}>A. COVID-19 History</div>
-          <div
-            style={{
-              ...S.conditionRow,
-              flexDirection: "column",
-              alignItems: "flex-start",
-              gap: 10,
-            }}
-          >
-            <span style={{ fontSize: 13, color: "#333" }}>
-              Do you have history of COVID-19?
-            </span>
-            <YesNo
-              fieldKey="hadCovid"
-              value={person.hadCovid}
-              onChange={handleToggle}
-            />
-          </div>
-
-          <Field label="If Yes, When:">
-            <DateField
-              size="small"
-              name="covidDate"
-              value={person.covidDate || ""}
-              onChange={(e) =>
-                handleTextChange("covidDate", e.target.value)
-              }
-              onBlur={() => handleUpdate(person)}
-              style={S.input(false)}
-            />
-          </Field>
-
-          <hr style={S.divider} />
-
-          {/* B. Vaccinations */}
-          <div style={S.sectionLabel}>B. COVID Vaccinations</div>
-          {vaccineColumns.map(({ label, brandKey, dateKey }) => (
+            {/* Hospitalization */}
             <div
-              key={brandKey}
               style={{
-                backgroundColor: "#fafafa",
-                border: "1px solid #e8e8e8",
-                borderRadius: 8,
-                padding: "10px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#6D2323",
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
                 marginBottom: 10,
               }}
             >
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: "#6D2323",
-                  marginBottom: 8,
-                }}
-              >
-                {label}
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ ...S.label, marginBottom: 4 }}>Brand</label>
-                  <input
-                    type="text"
-                    name={brandKey}
-                    value={person[brandKey] || ""}
-                    onChange={(e) =>
-                      handleTextChange(brandKey, e.target.value)
-                    }
-                    onBlur={() => handleUpdate(person)}
-                    style={{ ...S.input(false), height: 38 }}
-                    placeholder="Brand name"
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ ...S.label, marginBottom: 4 }}>Date</label>
-                  <DateField
-                    size="small"
-                    name={dateKey}
-                    value={person[dateKey] || ""}
-                    onChange={(e) =>
-                      handleTextChange(dateKey, e.target.value)
-                    }
-                    onBlur={() => handleUpdate(person)}
-                    style={{ ...S.input(false), height: 38 }}
-                  />
-                </div>
-              </div>
+              Hospitalization History
             </div>
-          ))}
-        </div>
-      </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 10 }}>
+              <span style={{ fontSize: 13, color: "#333" }}>
+                Do you have any previous history of hospitalization or operation?
+              </span>
+              <YesNo fieldKey="hospitalized" value={person.hospitalized} onChange={handleToggle} />
+            </div>
 
-      {/* ── V. Laboratory Results ──────────────────────────────────────── */}
-      <div style={{ ...S.card, border: `1px solid ${borderColor}`, }}>
-        <div
-          style={{
-            ...S.cardHeader,
-            backgroundColor: settings?.header_color || "#1976d2",
+            <Box sx={{ maxWidth: { md: 480 } }}>
+              <Field label="If Yes, Please Specify:">
+                <input
+                  type="text"
+                  name="hospitalizationDetails"
+                  value={person.hospitalizationDetails || ""}
+                  onChange={(e) => handleTextChange("hospitalizationDetails", e.target.value)}
+                  onBlur={() => handleUpdate(person)}
+                  style={inputStyle(false)}
+                  placeholder="Enter details..."
+                />
+              </Field>
+            </Box>
+          </Box>
+        </Box>
+
+        {/* ── III. Medication ─────────────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
           }}
         >
-          V. Laboratory Results
-        </div>
-        <div style={S.cardBody}>
-          <div style={{ fontSize: 12, color: "#555", marginBottom: 12 }}>
-            Please indicate the result of the following:
-          </div>
-          {[
-            { label: "Chest X-ray", key: "chestXray" },
-            { label: "CBC", key: "cbc" },
-            { label: "Urinalysis", key: "urinalysis" },
-            { label: "Other Workups", key: "otherworkups" },
-          ].map(({ label, key }) => (
-            <Field key={key} label={label}>
-              <input
-                type="text"
-                name={key}
-                value={person[key] || ""}
-                onChange={(e) => handleTextChange(key, e.target.value)}
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
+            III. Medication
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <Field label="List all current medications:">
+              <textarea
+                name="medications"
+                value={person.medications || ""}
+                onChange={(e) => handleTextChange("medications", e.target.value)}
                 onBlur={() => handleUpdate(person)}
-                style={S.input(false)}
-                placeholder="Enter result or NA"
+                style={textareaStyle}
+                placeholder="Enter medications or type NA"
               />
             </Field>
-          ))}
-        </div>
-      </div>
-
-      {/* ── VI. Diagnosis ──────────────────────────────────────────────── */}
-      <div style={{ ...S.card, border: `1px solid ${borderColor}`, }}>
-        <div
-          style={{
-            ...S.cardHeader,
-            backgroundColor: settings?.header_color || "#1976d2",
-          }}
-        >
-          VI. Diagnosis
-        </div>
-        <div style={S.cardBody}>
-          <div style={{ fontSize: 13, color: "#333", marginBottom: 12 }}>
-            Do you have any of the following symptoms today?
-          </div>
-          <div style={{ display: "flex", gap: 20 }}>
-            <div style={S.yesNoItem}>
-              <Checkbox
-                name="symptomsToday"
-                checked={person.symptomsToday === 0}
-                onChange={() => {
-                  const updated = {
-                    ...person,
-                    symptomsToday:
-                      person.symptomsToday === 0 ? null : 0,
-                  };
-                  setPerson(updated);
-                  handleUpdate(updated);
-                }}
-                onBlur={() => handleUpdate(person)}
-                sx={{ p: 0.5 }}
-              />
-              <span style={{ fontSize: 13, marginLeft: 4 }}>
-                Physically Fit
-              </span>
-            </div>
-            <div style={S.yesNoItem}>
-              <Checkbox
-                name="symptomsToday"
-                checked={person.symptomsToday === 1}
-                onChange={() => {
-                  const updated = {
-                    ...person,
-                    symptomsToday:
-                      person.symptomsToday === 1 ? null : 1,
-                  };
-                  setPerson(updated);
-                  handleUpdate(updated);
-                }}
-                onBlur={() => handleUpdate(person)}
-                sx={{ p: 0.5 }}
-              />
-              <span style={{ fontSize: 13, marginLeft: 4 }}>
-                For Compliance
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── VII. Remarks ───────────────────────────────────────────────── */}
-      <div style={{ ...S.card, marginBottom: 16, border: `1px solid ${borderColor}`, }}>
-        <div
-          style={{
-            ...S.cardHeader,
-            backgroundColor: settings?.header_color || "#1976d2",
-          }}
-        >
-          VII. Remarks
-        </div>
-        <div style={S.cardBody}>
-          <textarea
-            name="remarks"
-            value={person.remarks || ""}
-            onChange={(e) => handleTextChange("remarks", e.target.value)}
-            onBlur={() => handleUpdate(person)}
-            style={S.textarea}
-            placeholder="Remarks from physician..."
-          />
-        </div>
-
-        <Box
-          display="flex"
-          justifyContent="space-between"
-          mx="12px"
-          mb={3}
-          mt={2}
-        >
-          <Button
-            variant="contained"
-            // REPLACE WITH:
-            onClick={() => {
-              showSnackbar("Your record has been saved successfully!", "success");
-              setTimeout(() => navigate(`/applicant_educational_attainment/${keys.step3}`), 1000);
-            }}
-            startIcon={
-              <ArrowBackIcon
-                sx={{ color: "#000", transition: "color 0.3s" }}
-              />
-            }
-            sx={{
-              backgroundColor: subButtonColor,
-              border: `1px solid ${borderColor}`,
-              color: "#000",
-              textTransform: "none",
-              fontWeight: 600,
-              "&:hover": {
-                backgroundColor: "#000",
-                color: "#fff",
-                "& .MuiSvgIcon-root": { color: "#fff" },
-              },
-            }}
-          >
-            Previous Step
-          </Button>
-
-          <Button
-            variant="contained"
-            onClick={() => {
-              handleUpdate(person);
-              showSnackbar("Your record has been saved successfully!", "success");
-              setTimeout(() => navigate(`/applicant_other_information/${keys.step5}`), 1000);
-            }}
-            endIcon={
-              <ArrowForwardIcon
-                sx={{ color: "#fff", transition: "color 0.3s" }}
-              />
-            }
-            sx={{
-              backgroundColor: mainButtonColor,
-              border: `1px solid ${borderColor}`,
-              color: "#fff",
-              textTransform: "none",
-              fontWeight: 600,
-              "&:hover": {
-                backgroundColor: "#000",
-                color: "#fff",
-                "& .MuiSvgIcon-root": { color: "#fff" },
-              },
-            }}
-          >
-            Next Step
-          </Button>
+          </Box>
         </Box>
-      </div>
 
-      {/* ── Exam Permit Error Modal (from Dashboard4) ──────────────────── */}
+        {/* ── IV. COVID Profile ────────────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
+            IV. COVID Profile
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#6D2323",
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+                marginBottom: 10,
+              }}
+            >
+              A. COVID-19 History
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 10 }}>
+              <span style={{ fontSize: 13, color: "#333" }}>Do you have history of COVID-19?</span>
+              <YesNo fieldKey="hadCovid" value={person.hadCovid} onChange={handleToggle} />
+            </div>
+
+            <Box sx={{ maxWidth: { md: 300 } }}>
+              <Field label="If Yes, When:">
+                <DateField
+                  size="small"
+                  name="covidDate"
+                  value={person.covidDate || ""}
+                  onChange={(e) => handleTextChange("covidDate", e.target.value)}
+                  onBlur={() => handleUpdate(person)}
+                  style={inputStyle(false)}
+                />
+              </Field>
+            </Box>
+
+            <hr style={{ border: "none", borderTop: "1px solid #e0e0e0", margin: "14px 0 10px" }} />
+
+            {/* B. Vaccinations */}
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#6D2323",
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+                marginBottom: 10,
+              }}
+            >
+              B. COVID Vaccinations
+            </div>
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                gap: 1.5,
+              }}
+            >
+              {vaccineColumns.map(({ label, brandKey, dateKey }) => (
+                <Box
+                  key={brandKey}
+                  sx={{
+                    backgroundColor: "#fafafa",
+                    border: "1px solid #e8e8e8",
+                    borderRadius: 2,
+                    p: "10px 12px",
+                  }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#6D2323", marginBottom: 8 }}>{label}</div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 4 }}>
+                        Brand
+                      </label>
+                      <input
+                        type="text"
+                        name={brandKey}
+                        value={person[brandKey] || ""}
+                        onChange={(e) => handleTextChange(brandKey, e.target.value)}
+                        onBlur={() => handleUpdate(person)}
+                        style={inputStyle(false, { height: 38 })}
+                        placeholder="Brand name"
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 4 }}>
+                        Date
+                      </label>
+                      <DateField
+                        size="small"
+                        name={dateKey}
+                        value={person[dateKey] || ""}
+                        onChange={(e) => handleTextChange(dateKey, e.target.value)}
+                        onBlur={() => handleUpdate(person)}
+                        style={inputStyle(false, { height: 38 })}
+                      />
+                    </div>
+                  </div>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        </Box>
+
+        {/* ── V. Laboratory Results ───────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
+            V. Laboratory Results
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <div style={{ fontSize: 12, color: "#555", marginBottom: 12 }}>
+              Please indicate the result of the following:
+            </div>
+            <div style={gridCols2}>
+              {[
+                { label: "Chest X-ray", key: "chestXray" },
+                { label: "CBC", key: "cbc" },
+                { label: "Urinalysis", key: "urinalysis" },
+                { label: "Other Workups", key: "otherworkups" },
+              ].map(({ label, key }) => (
+                <Field key={key} label={label}>
+                  <input
+                    type="text"
+                    name={key}
+                    value={person[key] || ""}
+                    onChange={(e) => handleTextChange(key, e.target.value)}
+                    onBlur={() => handleUpdate(person)}
+                    style={inputStyle(false)}
+                    placeholder="Enter result or NA"
+                  />
+                </Field>
+              ))}
+            </div>
+          </Box>
+        </Box>
+
+        {/* ── VI. Diagnosis ────────────────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
+            VI. Diagnosis
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <div style={{ fontSize: 13, color: "#333", marginBottom: 12 }}>
+              Do you have any of the following symptoms today?
+            </div>
+            <Box sx={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <Checkbox
+                  name="symptomsToday"
+                  checked={person.symptomsToday === 0}
+                  onChange={() => {
+                    const updated = { ...person, symptomsToday: person.symptomsToday === 0 ? null : 0 };
+                    setPerson(updated);
+                    handleUpdate(updated);
+                  }}
+                  onBlur={() => handleUpdate(person)}
+                  sx={{ p: 0.5 }}
+                />
+                <span style={{ fontSize: 13, marginLeft: 4 }}>Physically Fit</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <Checkbox
+                  name="symptomsToday"
+                  checked={person.symptomsToday === 1}
+                  onChange={() => {
+                    const updated = { ...person, symptomsToday: person.symptomsToday === 1 ? null : 1 };
+                    setPerson(updated);
+                    handleUpdate(updated);
+                  }}
+                  onBlur={() => handleUpdate(person)}
+                  sx={{ p: 0.5 }}
+                />
+                <span style={{ fontSize: 13, marginLeft: 4 }}>For Compliance</span>
+              </div>
+            </Box>
+          </Box>
+        </Box>
+
+        {/* ── VII. Remarks + Navigation ───────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            mb: 3,
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
+            VII. Remarks
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <textarea
+              name="remarks"
+              value={person.remarks || ""}
+              onChange={(e) => handleTextChange("remarks", e.target.value)}
+              onBlur={() => handleUpdate(person)}
+              style={textareaStyle}
+              placeholder="Remarks from physician..."
+            />
+
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column-reverse", sm: "row" },
+                justifyContent: "space-between",
+                gap: 1.5,
+                mt: 3,
+              }}
+            >
+              <Button
+                fullWidth={isPhone}
+                variant="contained"
+                onClick={() => {
+                  showSnackbar("Your record has been saved successfully!", "success");
+                  setTimeout(() => navigate(`/applicant_educational_attainment/${keys.step3}`), 1000);
+                }}
+                startIcon={<ArrowBackIcon sx={{ color: "#000", transition: "color 0.3s" }} />}
+                sx={{
+                  backgroundColor: subButtonColor,
+                  border: `1px solid ${borderColor}`,
+                  color: "#000",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  "&:hover": {
+                    backgroundColor: "#000",
+                    color: "#fff",
+                    "& .MuiSvgIcon-root": { color: "#fff" },
+                  },
+                }}
+              >
+                Previous Step
+              </Button>
+
+              <Button
+                fullWidth={isPhone}
+                variant="contained"
+                onClick={() => {
+                  handleUpdate(person);
+                  showSnackbar("Your record has been saved successfully!", "success");
+                  setTimeout(() => navigate(`/applicant_other_information/${keys.step5}`), 1000);
+                }}
+                endIcon={<ArrowForwardIcon sx={{ color: "#fff", transition: "color 0.3s" }} />}
+                sx={{
+                  backgroundColor: mainButtonColor,
+                  border: `1px solid ${borderColor}`,
+                  color: "#fff",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  "&:hover": {
+                    backgroundColor: "#000",
+                    color: "#fff",
+                    "& .MuiSvgIcon-root": { color: "#fff" },
+                  },
+                }}
+              >
+                Next Step
+              </Button>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+
+      {/* ── Exam Permit Error Modal ─────────────────────────────────────── */}
       <Modal
         open={examPermitModalOpen}
         onClose={handleCloseExamPermitModal}
@@ -1207,19 +1257,10 @@ const ApplicantHealthMedicalRecordsMobile = (props) => {
           }}
         >
           <ErrorIcon sx={{ color: mainButtonColor, fontSize: 44, mb: 1.5 }} />
-          <Typography
-            id="exam-permit-error-title"
-            variant="h6"
-            component="h2"
-            color="maroon"
-            sx={{ fontSize: 16 }}
-          >
+          <Typography id="exam-permit-error-title" variant="h6" component="h2" color="maroon" sx={{ fontSize: 16 }}>
             Exam Permit Notice
           </Typography>
-          <Typography
-            id="exam-permit-error-description"
-            sx={{ mt: 1.5, fontSize: 13 }}
-          >
+          <Typography id="exam-permit-error-description" sx={{ mt: 1.5, fontSize: 13 }}>
             {examPermitError}
           </Typography>
           <Button
@@ -1236,11 +1277,8 @@ const ApplicantHealthMedicalRecordsMobile = (props) => {
           </Button>
         </Box>
       </Modal>
-
-      {/* ── Bottom Navigation ──────────────────────────────────────────── */}
-
-    </div>
+    </Box>
   );
 };
 
-export default ApplicantHealthMedicalRecordsMobile;
+export default ApplicantHealthMedicalRecordsResponsive;

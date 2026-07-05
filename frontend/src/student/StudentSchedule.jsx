@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useMemo } from "react";
 import { SettingsContext } from "../App";
 import {
   Box,
@@ -44,6 +44,13 @@ const TIME_SLOTS = [
 
 const parseTime = (t) => new Date(`1970-01-01 ${t}`);
 
+// Breakpoints: <768 = mobile (phones), 768-1099 = tablet, >=1100 = desktop
+const getDeviceType = (width) => {
+  if (width < 768) return "mobile";
+  if (width < 1100) return "tablet";
+  return "desktop";
+};
+
 const StudentSchedule = () => {
   const settings = useContext(SettingsContext);
 
@@ -53,7 +60,13 @@ const StudentSchedule = () => {
 
   const [studentSchedule, setStudentSchedule] = useState([]);
   const [activeDay, setActiveDay] = useState("MON");
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [deviceType, setDeviceType] = useState(() =>
+    typeof window !== "undefined" ? getDeviceType(window.innerWidth) : "desktop"
+  );
+
+  const isMobile = deviceType === "mobile";
+  const isTablet = deviceType === "tablet";
+  const isCompact = isMobile || isTablet; // shared "small screen" behavior
 
   useEffect(() => {
     if (!settings) return;
@@ -62,10 +75,22 @@ const StudentSchedule = () => {
     if (settings.main_button_color) setMainButtonColor(settings.main_button_color);
   }, [settings]);
 
+  // Single resize listener drives device type (mobile / tablet / desktop)
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    let frame;
+    const handleResize = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        setDeviceType(getDeviceType(window.innerWidth));
+      });
+    };
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleResize);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
+    };
   }, []);
 
   useEffect(() => {
@@ -74,6 +99,32 @@ const StudentSchedule = () => {
     if (!storedID) { window.location.href = "/login"; return; }
     if (storedRole !== "student") { window.location.href = "/faculty_dashboard"; return; }
     fetchStudentSchedule(storedID);
+  }, []);
+
+  // 🔒 Disable right-click + block DevTools/print shortcuts.
+  // Moved into a mount-only effect with proper cleanup so listeners
+  // aren't re-attached on every render (previous version leaked one
+  // pair of listeners per render, which also breaks on unmount).
+  useEffect(() => {
+    const blockContextMenu = (e) => e.preventDefault();
+    const blockShortcuts = (e) => {
+      const isBlockedKey =
+        e.key === "F12" ||
+        e.key === "F11" ||
+        (e.ctrlKey && e.shiftKey && (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+        (e.ctrlKey && e.key.toLowerCase() === "u") ||
+        (e.ctrlKey && e.key.toLowerCase() === "p");
+      if (isBlockedKey) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    document.addEventListener("contextmenu", blockContextMenu);
+    document.addEventListener("keydown", blockShortcuts);
+    return () => {
+      document.removeEventListener("contextmenu", blockContextMenu);
+      document.removeEventListener("keydown", blockShortcuts);
+    };
   }, []);
 
   const fetchStudentSchedule = async (id) => {
@@ -90,8 +141,17 @@ const StudentSchedule = () => {
     return Number.isFinite(num) ? Math.round(num) : 0;
   };
 
-  const sortedSchedule = [...studentSchedule].sort((a, b) =>
-    (a.course_code || "").localeCompare(b.course_code || "")
+  const sortedSchedule = useMemo(
+    () =>
+      [...studentSchedule].sort((a, b) =>
+        (a.course_code || "").localeCompare(b.course_code || "")
+      ),
+    [studentSchedule]
+  );
+
+  const totalUnits = useMemo(
+    () => sortedSchedule.reduce((total, row) => total + toWholeUnit(row.course_unit), 0),
+    [sortedSchedule]
   );
 
   const isTimeInSchedule = (start, end, day) =>
@@ -130,29 +190,8 @@ const StudentSchedule = () => {
     return "different";
   };
 
-  // 🔒 Disable right-click
-  document.addEventListener("contextmenu", (e) => e.preventDefault());
-
-  // 🔒 Block DevTools shortcuts + Ctrl+P silently
-  document.addEventListener("keydown", (e) => {
-    const isBlockedKey =
-      e.key === "F12" ||
-      e.key === "F11" ||
-      (e.ctrlKey &&
-        e.shiftKey &&
-        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-      (e.ctrlKey && e.key.toLowerCase() === "u") ||
-      (e.ctrlKey && e.key.toLowerCase() === "p");
-
-    if (isBlockedKey) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  });
-
-  const getCenterText = (start, day) => {
+  const getCenterText = (start, day, cellHeightRem) => {
     const slotStart = parseTime(start);
-    const SLOT_HEIGHT_REM = 2.5;
 
     for (const entry of studentSchedule) {
       if (entry.day_description !== day) continue;
@@ -167,10 +206,10 @@ const StudentSchedule = () => {
       const isCenter = idxInBlock === centerIndex;
       if (!isCenter) return "";
 
-      let marginTop = isOdd ? 0 : -(SLOT_HEIGHT_REM / 2);
+      let marginTop = isOdd ? 0 : -(cellHeightRem / 2);
       if (!isOdd) marginTop = `calc(${marginTop}rem - 1rem)`;
 
-      const fontSize = totalHours === 1 ? "10px" : "11px";
+      const fontSize = totalHours === 1 ? "9.5px" : isTablet ? "10px" : "11px";
       return (
         <span style={{ position: "relative", display: "inline-block", textAlign: "center", width: "100%", fontSize, marginTop }}>
           <div style={{ width: "100%", padding: "0 2px" }}>
@@ -180,7 +219,7 @@ const StudentSchedule = () => {
             <span style={{ display: "block", whiteSpace: "normal", wordBreak: "break-word", fontSize: "8px", lineHeight: 1.2 }}>
               {entry.room_description === "TBA" ? "TBA" : entry.room_description}
             </span>
-            <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: totalHours === 1 ? "8px" : "10px" }}>
+            <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: totalHours === 1 ? "8px" : "9.5px" }}>
               {entry.prof_lastname === "TBA" ? "TBA" : `Prof. ${entry.prof_lastname}`}
             </span>
           </div>
@@ -190,136 +229,86 @@ const StudentSchedule = () => {
     return "";
   };
 
-  // ── Mobile: card list for the selected day ──
-  const renderMobileDaySchedule = () => {
-    const dayEntries = studentSchedule
-      .filter((e) => e.day_description === activeDay)
-      .sort((a, b) => parseTime(a.school_time_start) - parseTime(b.school_time_start));
+  // ── Shared course card (used for the summary list on phones,
+  //    and the per-day list on phones/tablets) ──
+  const CourseCard = ({ entry, showDay }) => (
+    <Box
+      sx={{
+        background: "#fffde7",
+        border: `1.5px solid ${borderColor}`,
+        borderLeft: `5px solid ${mainButtonColor}`,
+        borderRadius: "8px",
+        p: 1.5,
+      }}
+    >
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1 }}>
+        <Typography sx={{ fontWeight: 700, fontSize: 14, color: mainButtonColor }}>
+          {entry.course_code}
+        </Typography>
+        {showDay && (
+          <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#777", whiteSpace: "nowrap" }}>
+            {entry.day_description}
+          </Typography>
+        )}
+      </Box>
+      <Typography sx={{ fontSize: 12, color: "#333", mt: 0.3 }}>
+        {entry.course_description}
+      </Typography>
+      <Box sx={{ display: "flex", gap: 2, mt: 0.8, flexWrap: "wrap" }}>
+        <Typography sx={{ fontSize: 11, color: "#555" }}>
+          🕐 {entry.school_time_start} – {entry.school_time_end}
+        </Typography>
+        <Typography sx={{ fontSize: 11, color: "#555" }}>
+          📍 {entry.room_description}
+        </Typography>
+        <Typography sx={{ fontSize: 11, color: "#555" }}>
+          👤 {entry.prof_lastname === "TBA" ? "TBA" : `Prof. ${entry.prof_lastname}`}
+        </Typography>
+        <Typography sx={{ fontSize: 11, color: "#555" }}>
+          📚 {entry.program_code} {entry.section_description}
+        </Typography>
+        <Typography sx={{ fontSize: 11, color: "#555" }}>
+          ⓤ {toWholeUnit(entry.course_unit)} unit{toWholeUnit(entry.course_unit) === 1 ? "" : "s"}
+        </Typography>
+      </Box>
+    </Box>
+  );
 
-    if (!dayEntries.length) {
+  // ── Course summary: table on tablet/desktop, cards on phones ──
+  const renderCourseSummary = () => {
+    if (isMobile) {
       return (
-        <Box sx={{ textAlign: "center", py: 6, color: "#888" }}>
-          <Typography sx={{ fontSize: 14 }}>No classes on {DAY_LABELS[activeDay]}</Typography>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, px: { xs: 0.5, sm: 0 } }}>
+          {sortedSchedule.map((row, i) => (
+            <CourseCard key={i} entry={row} showDay />
+          ))}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              border: `1.5px solid ${borderColor}`,
+              borderRadius: "8px",
+              p: 1.5,
+              background: "#f5f5f5",
+            }}
+          >
+            <Typography sx={{ fontWeight: 700, fontSize: 13 }}>Total Units</Typography>
+            <Typography sx={{ fontWeight: 700, fontSize: 13, color: mainButtonColor }}>
+              {totalUnits}
+            </Typography>
+          </Box>
         </Box>
       );
     }
 
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1 }}>
-        {dayEntries.map((entry, i) => (
-          <Box
-            key={i}
-            sx={{
-              background: "#fffde7",
-              border: `1.5px solid ${borderColor}`,
-              borderLeft: `5px solid ${mainButtonColor}`,
-              borderRadius: "8px",
-              p: 1.5,
-            }}
-          >
-            <Typography sx={{ fontWeight: 700, fontSize: 14, color: mainButtonColor }}>
-              {entry.course_code}
-            </Typography>
-            <Typography sx={{ fontSize: 12, color: "#333", mt: 0.3 }}>
-              {entry.course_description}
-            </Typography>
-            <Box sx={{ display: "flex", gap: 2, mt: 0.8, flexWrap: "wrap" }}>
-              <Typography sx={{ fontSize: 11, color: "#555" }}>
-                🕐 {entry.school_time_start} – {entry.school_time_end}
-              </Typography>
-              <Typography sx={{ fontSize: 11, color: "#555" }}>
-                📍 {entry.room_description}
-              </Typography>
-              <Typography sx={{ fontSize: 11, color: "#555" }}>
-                👤 {entry.prof_lastname === "TBA" ? "TBA" : `Prof. ${entry.prof_lastname}`}
-              </Typography>
-              <Typography sx={{ fontSize: 11, color: "#555" }}>
-                📚 {entry.program_code} {entry.section_description}
-              </Typography>
-            </Box>
-          </Box>
-        ))}
-      </Box>
-    );
-  };
-
-  // ── Desktop: full weekly grid ──
-  const renderDesktopGrid = () => (
-    <Box sx={{ overflowX: "auto", width: "100%" }}>
-      <table style={{ borderCollapse: "collapse", tableLayout: "fixed" }}>
-        <thead>
-          <tr style={{ display: "flex", alignItems: "center" }}>
-            <td style={{ minWidth: "6.5rem", minHeight: "2.2rem", display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${borderColor}`, fontSize: 14 }}>
-              TIME
-            </td>
-            <td style={{ padding: 0, margin: 0 }}>
-              <div style={{ minWidth: "6.6rem", textAlign: "center", border: `1px solid ${borderColor}`, borderLeft: 0, borderBottom: 0, fontSize: 14 }}>DAY</div>
-              <p style={{ minWidth: "6.6rem", textAlign: "center", border: `1px solid ${borderColor}`, borderLeft: 0, fontSize: "11.5px", fontWeight: "bold", marginTop: "-3px" }}>Official Time</p>
-            </td>
-            {DAYS.map((day) => (
-              <td key={day} style={{ padding: 0, margin: 0 }}>
-                <div style={{ minWidth: "8.5rem", textAlign: "center", border: `1px solid ${borderColor}`, borderLeft: 0, borderBottom: 0, fontSize: 14 }}>{DAY_LABELS[day].toUpperCase()}</div>
-                <p style={{ minWidth: "8.5rem", textAlign: "center", border: `1px solid ${borderColor}`, borderLeft: 0, fontSize: "11.5px", marginTop: "-3px" }}>7:00AM - 9:00PM</p>
-              </td>
-            ))}
-          </tr>
-        </thead>
-        <tbody style={{ display: "flex", flexDirection: "column", marginTop: "-0.1px" }}>
-          {TIME_SLOTS.map(([start, end]) => (
-            <tr key={start} style={{ display: "flex", width: "100%" }}>
-              <td style={{ margin: 0, padding: 0, minWidth: "13.1rem" }}>
-                <div style={{ height: "2.5rem", border: `1px solid ${borderColor}`, borderTop: 0, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {start.replace(":00 ", ":00 ")} - {end}
-                </div>
-              </td>
-              {DAYS.map((day) => {
-                const inSched = isTimeInSchedule(start, end, day);
-                const topAdj = hasAdjacentSchedule(start, end, day, "top");
-                const botAdj = hasAdjacentSchedule(start, end, day, "bottom");
-                return (
-                  <td key={day} style={{ margin: 0, padding: 0, minWidth: "8.5rem" }}>
-                    <div style={{
-                      height: "2.5rem",
-                      border: `1px solid ${borderColor}`,
-                      borderTop: inSched && topAdj === "same" ? 0 : `1px solid ${borderColor}`,
-                      borderBottom: inSched && botAdj === "same" ? 0 : `1px solid ${borderColor}`,
-                      borderLeft: 0,
-                      fontSize: 14,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: inSched ? "#fef08a" : "transparent",
-                    }}>
-                      {getCenterText(start, day)}
-                    </div>
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </Box>
-  );
-
-  return (
-    <Box sx={{ minHeight: "calc(100vh - 150px)", overflowY: "auto", backgroundColor: "transparent", mt: 1, p: { xs: 1, sm: 2 } }}>
-      {/* Header */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", mb: 2, px: { xs: 0, sm: 2 } }}>
-        <Typography variant="h4" sx={{ fontWeight: "bold", color: titleColor, fontSize: { xs: "22px", sm: "28px", md: "36px" } }}>
-          CLASS SCHEDULE
-        </Typography>
-      </Box>
-      <hr style={{ border: "1px solid #ccc", width: "100%" }} />
-      <br />
-
-      {/* Table */}
-      <TableContainer component={Paper} sx={{ mb: 3, mx: "auto", width: "100%", maxWidth: "1400px", overflowX: "auto" }}>
-        <Table size="small" sx={{ minWidth: isMobile ? 600 : "auto" }}>
-          <TableHead sx={{ backgroundColor: settings?.header_color || "#1976d2", border: `1px solid ${borderColor}` }}>
+      <TableContainer component={Paper} sx={{ mx: "auto", width: "100%", maxWidth: "1400px", overflowX: "auto" }}>
+        <Table size="small" sx={{ minWidth: isTablet ? 640 : "auto" }}>
+          <TableHead sx={{ backgroundColor: settings?.header_color || "#1976d2" }}>
             <TableRow>
               {["#", "Course Description", "Course Code", "Lec", "Lab", "Units", "Section", "Schedule"].map((h) => (
-                <TableCell key={h} sx={{ color: "white", border: `1px solid ${borderColor}`, fontSize: { xs: "0.65rem", sm: "0.75rem" }, whiteSpace: "nowrap" }}>{h}</TableCell>
+                <TableCell key={h} sx={{ color: "white", border: `1px solid ${borderColor}`, fontSize: { sm: "0.7rem", md: "0.75rem" }, whiteSpace: "nowrap" }}>{h}</TableCell>
               ))}
             </TableRow>
           </TableHead>
@@ -336,7 +325,7 @@ const StudentSchedule = () => {
                   `${row.program_code} ${row.section_description}`,
                   `${row.day_description}, ${row.school_time_start} - ${row.school_time_end} ${row.room_description}`,
                 ].map((cell, ci) => (
-                  <TableCell key={ci} sx={{ fontSize: { xs: "0.65rem", sm: "0.75rem" }, border: `1px solid ${borderColor}` }}>
+                  <TableCell key={ci} sx={{ fontSize: { sm: "0.7rem", md: "0.75rem" }, border: `1px solid ${borderColor}` }}>
                     {cell}
                   </TableCell>
                 ))}
@@ -346,59 +335,172 @@ const StudentSchedule = () => {
               <TableCell colSpan={3} style={{ border: `1px solid ${borderColor}` }} />
               <TableCell colSpan={2} style={{ fontWeight: "600", border: `1px solid ${borderColor}`, fontSize: "0.75rem" }}>Total Units</TableCell>
               <TableCell style={{ border: `1px solid ${borderColor}`, fontSize: "0.75rem" }}>
-                {sortedSchedule.reduce((total, row) => total + toWholeUnit(row.course_unit), 0)}
+                {totalUnits}
               </TableCell>
               <TableCell colSpan={2} style={{ border: `1px solid ${borderColor}` }} />
             </TableRow>
           </TableBody>
         </Table>
       </TableContainer>
+    );
+  };
+
+  // ── Weekly grid: card list (phones + tablets) vs full grid (desktop) ──
+  const renderCompactDaySchedule = () => {
+    const dayEntries = studentSchedule
+      .filter((e) => e.day_description === activeDay)
+      .sort((a, b) => parseTime(a.school_time_start) - parseTime(b.school_time_start));
+
+    if (!dayEntries.length) {
+      return (
+        <Box sx={{ textAlign: "center", py: 6, color: "#888" }}>
+          <Typography sx={{ fontSize: 14 }}>No classes on {DAY_LABELS[activeDay]}</Typography>
+        </Box>
+      );
+    }
+
+    return (
+      <Box
+        sx={{
+          display: isTablet ? "grid" : "flex",
+          gridTemplateColumns: isTablet ? "repeat(2, 1fr)" : undefined,
+          flexDirection: isTablet ? undefined : "column",
+          gap: 1.5,
+          mt: 1,
+        }}
+      >
+        {dayEntries.map((entry, i) => (
+          <CourseCard key={i} entry={entry} />
+        ))}
+      </Box>
+    );
+  };
+
+  const renderDayTabs = () => (
+    <>
+      <Box sx={{ display: "flex", gap: 0.75, overflowX: "auto", pb: 1, mb: 1, scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
+        {DAYS.map((day) => {
+          const hasClass = studentSchedule.some((e) => e.day_description === day);
+          const isActive = activeDay === day;
+          return (
+            <Box
+              key={day}
+              onClick={() => setActiveDay(day)}
+              sx={{
+                flexShrink: 0,
+                px: 1.5,
+                py: 0.75,
+                borderRadius: "20px",
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: isActive ? 700 : 400,
+                border: `1.5px solid ${isActive ? mainButtonColor : borderColor}`,
+                backgroundColor: isActive ? mainButtonColor : "transparent",
+                color: isActive ? "#fff" : hasClass ? mainButtonColor : "#999",
+                position: "relative",
+                transition: "all 0.18s ease",
+              }}
+            >
+              {day}
+              {hasClass && !isActive && (
+                <Box sx={{ position: "absolute", top: 2, right: 2, width: 5, height: 5, borderRadius: "50%", backgroundColor: mainButtonColor }} />
+              )}
+            </Box>
+          );
+        })}
+      </Box>
+      <Typography sx={{ fontSize: 13, fontWeight: 600, color: mainButtonColor, mb: 1 }}>
+        {DAY_LABELS[activeDay]}
+      </Typography>
+    </>
+  );
+
+  // ── Desktop: full weekly grid, sized with relative units so it also
+  //    scales reasonably on large tablets in landscape ──
+  const renderDesktopGrid = () => {
+    const timeColWidth = "6.5rem";
+    const dayColWidth = isTablet ? "7rem" : "8.5rem";
+    const rowHeight = "2.5rem";
+
+    return (
+      <Box sx={{ overflowX: "auto", width: "100%" }}>
+        <table style={{ borderCollapse: "collapse", tableLayout: "fixed" }}>
+          <thead>
+            <tr style={{ display: "flex", alignItems: "center" }}>
+              <td style={{ minWidth: timeColWidth, minHeight: "2.2rem", display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${borderColor}`, fontSize: 14 }}>
+                TIME
+              </td>
+              <td style={{ padding: 0, margin: 0 }}>
+                <div style={{ minWidth: "6.6rem", textAlign: "center", border: `1px solid ${borderColor}`, borderLeft: 0, borderBottom: 0, fontSize: 14 }}>DAY</div>
+                <p style={{ minWidth: "6.6rem", textAlign: "center", border: `1px solid ${borderColor}`, borderLeft: 0, fontSize: "11.5px", fontWeight: "bold", marginTop: "-3px" }}>Official Time</p>
+              </td>
+              {DAYS.map((day) => (
+                <td key={day} style={{ padding: 0, margin: 0 }}>
+                  <div style={{ minWidth: dayColWidth, textAlign: "center", border: `1px solid ${borderColor}`, borderLeft: 0, borderBottom: 0, fontSize: 14 }}>{DAY_LABELS[day].toUpperCase()}</div>
+                  <p style={{ minWidth: dayColWidth, textAlign: "center", border: `1px solid ${borderColor}`, borderLeft: 0, fontSize: "11.5px", marginTop: "-3px" }}>7:00AM - 9:00PM</p>
+                </td>
+              ))}
+            </tr>
+          </thead>
+          <tbody style={{ display: "flex", flexDirection: "column", marginTop: "-0.1px" }}>
+            {TIME_SLOTS.map(([start, end]) => (
+              <tr key={start} style={{ display: "flex", width: "100%" }}>
+                <td style={{ margin: 0, padding: 0, minWidth: "13.1rem" }}>
+                  <div style={{ height: rowHeight, border: `1px solid ${borderColor}`, borderTop: 0, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {start} - {end}
+                  </div>
+                </td>
+                {DAYS.map((day) => {
+                  const inSched = isTimeInSchedule(start, end, day);
+                  const topAdj = hasAdjacentSchedule(start, end, day, "top");
+                  const botAdj = hasAdjacentSchedule(start, end, day, "bottom");
+                  return (
+                    <td key={day} style={{ margin: 0, padding: 0, minWidth: dayColWidth }}>
+                      <div style={{
+                        height: rowHeight,
+                        border: `1px solid ${borderColor}`,
+                        borderTop: inSched && topAdj === "same" ? 0 : `1px solid ${borderColor}`,
+                        borderBottom: inSched && botAdj === "same" ? 0 : `1px solid ${borderColor}`,
+                        borderLeft: 0,
+                        fontSize: 14,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: inSched ? "#fef08a" : "transparent",
+                      }}>
+                        {getCenterText(start, day, 2.5)}
+                      </div>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Box>
+    );
+  };
+
+  return (
+    <Box sx={{ minHeight: "calc(100vh - 150px)", overflowY: "auto", backgroundColor: "transparent", mt: 1, p: { xs: 1, sm: 2 } }}>
+      {/* Header */}
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", mb: 2, px: { xs: 0, sm: 2 } }}>
+        <Typography variant="h4" sx={{ fontWeight: "bold", color: titleColor, fontSize: { xs: "20px", sm: "26px", md: "32px", lg: "36px" } }}>
+          CLASS SCHEDULE
+        </Typography>
+      </Box>
+      <hr style={{ border: "1px solid #ccc", width: "100%" }} />
+      <br />
+
+      {/* Course summary (table on tablet/desktop, cards on phones) */}
+      <Box sx={{ mb: 3 }}>{renderCourseSummary()}</Box>
 
       {/* Weekly Grid Section */}
       <Box sx={{ border: `1px solid ${borderColor}`, p: { xs: 1, sm: "1rem" }, overflowX: "auto" }}>
-
-        {/* Mobile: day tab switcher */}
-        {isMobile ? (
+        {isCompact ? (
           <>
-            {/* Day pill tabs */}
-            <Box sx={{ display: "flex", gap: 0.75, overflowX: "auto", pb: 1, mb: 1, scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
-              {DAYS.map((day) => {
-                const hasClass = studentSchedule.some((e) => e.day_description === day);
-                const isActive = activeDay === day;
-                return (
-                  <Box
-                    key={day}
-                    onClick={() => setActiveDay(day)}
-                    sx={{
-                      flexShrink: 0,
-                      px: 1.5,
-                      py: 0.75,
-                      borderRadius: "20px",
-                      cursor: "pointer",
-                      fontSize: 12,
-                      fontWeight: isActive ? 700 : 400,
-                      border: `1.5px solid ${isActive ? mainButtonColor : borderColor}`,
-                      backgroundColor: isActive ? mainButtonColor : "transparent",
-                      color: isActive ? "#fff" : hasClass ? mainButtonColor : "#999",
-                      position: "relative",
-                      transition: "all 0.18s ease",
-                    }}
-                  >
-                    {day}
-                    {hasClass && !isActive && (
-                      <Box sx={{ position: "absolute", top: 2, right: 2, width: 5, height: 5, borderRadius: "50%", backgroundColor: mainButtonColor }} />
-                    )}
-                  </Box>
-                );
-              })}
-            </Box>
-
-            {/* Day label */}
-            <Typography sx={{ fontSize: 13, fontWeight: 600, color: mainButtonColor, mb: 1 }}>
-              {DAY_LABELS[activeDay]}
-            </Typography>
-
-            {renderMobileDaySchedule()}
+            {renderDayTabs()}
+            {renderCompactDaySchedule()}
           </>
         ) : (
           renderDesktopGrid()

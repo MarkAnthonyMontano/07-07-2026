@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from "react";
 import {
   Box, Button, CircularProgress, Paper, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, Typography,
+  useTheme, useMediaQuery,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import axios from "axios";
@@ -21,11 +22,12 @@ const FeeRow = ({ label, amount, bold, red, large, borderColor }) => (
     py: 0.6, px: 1,
     borderBottom: `1px solid ${borderColor}`,
     backgroundColor: bold ? "#f5f5f5" : "transparent",
+    gap: 1,
   }}>
-    <Typography sx={{ fontSize: large ? 14 : 12, fontWeight: bold ? 700 : 400, flex: 1 }}>
+    <Typography sx={{ fontSize: large ? 14 : 12, fontWeight: bold ? 700 : 400, flex: 1, wordBreak: "break-word" }}>
       {label}
     </Typography>
-    <Typography sx={{ fontSize: large ? 14 : 12, fontWeight: bold ? 700 : 400, color: red ? "red" : "#1a1a1a", ml: 1 }}>
+    <Typography sx={{ fontSize: large ? 14 : 12, fontWeight: bold ? 700 : 400, color: red ? "red" : "#1a1a1a", ml: 1, whiteSpace: "nowrap" }}>
       {amount}
     </Typography>
   </Box>
@@ -36,17 +38,15 @@ const StudentBalanceInfo = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const theme = useTheme();
+
+  // Card layout for phones AND small/portrait tablets (< 900px);
+  // scrollable table for larger tablets (landscape) and desktop.
+  const isCardLayout = useMediaQuery(theme.breakpoints.down("md"));
 
   const [student, setStudent] = useState(location.state?.student || null);
   const [assessmentRow, setAssessmentRow] = useState(location.state?.assessmentRow || null);
   const [loading, setLoading] = useState(!location.state?.assessmentRow);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   const titleColor = settings?.title_color || "#000";
   const borderColor = settings?.border_color || "#000";
@@ -78,21 +78,6 @@ const StudentBalanceInfo = () => {
     fetchAssessment();
   }, [assessmentRow, searchParams]);
 
-  const subjects = (assessmentRow?.subjects || []).filter(
-    (s) => String(s?.course_code || "").trim() !== ""
-  );
-  const fees = assessmentRow?.fees || {};
-
-  const totals = useMemo(() => {
-    const courseUnits = subjects.reduce((sum, s) => sum + Number(s.course_unit || 0), 0);
-    const lectureFees = subjects.reduce((sum, s) => sum + Number(s.lec_fee || 0), 0);
-    const labFees = subjects.reduce((sum, s) => sum + Number(s.lab_fee || 0), 0);
-    return { courseUnits, lectureFees, labFees };
-  }, [subjects]);
-
-  if (loading) return <Box sx={{ p: 4, display: "flex", justifyContent: "center" }}><CircularProgress /></Box>;
-
-  // 🔒 Disable right-click
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
   // 🔒 Block DevTools shortcuts + Ctrl+P silently
@@ -112,19 +97,33 @@ const StudentBalanceInfo = () => {
     }
   });
 
+  const subjects = (assessmentRow?.subjects || []).filter(
+    (s) => String(s?.course_code || "").trim() !== ""
+  );
+  const fees = assessmentRow?.fees || {};
+
+  const totals = useMemo(() => {
+    const courseUnits = subjects.reduce((sum, s) => sum + Number(s.course_unit || 0), 0);
+    const lectureFees = subjects.reduce((sum, s) => sum + Number(s.lec_fee || 0), 0);
+    const labFees = subjects.reduce((sum, s) => sum + Number(s.lab_fee || 0), 0);
+    return { courseUnits, lectureFees, labFees };
+  }, [subjects]);
+
+  if (loading) return <Box sx={{ p: 4, display: "flex", justifyContent: "center" }}><CircularProgress /></Box>;
+
   return (
     <Box sx={{ minHeight: "calc(100vh - 150px)", overflowY: "auto", backgroundColor: "transparent", mt: 1, p: { xs: 1, sm: 2 } }}>
 
       {/* ── Header ── */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2, flexWrap: "wrap" }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1, sm: 1.5 }, mb: 2, flexWrap: "wrap" }}>
         <Button variant="outlined" startIcon={<ArrowBackIcon />}
           onClick={() => navigate("/student_account_balance")}
-          sx={{ textTransform: "none", fontWeight: 700, flexShrink: 0 }}>
+          sx={{ textTransform: "none", fontWeight: 700, flexShrink: 0, fontSize: { xs: 12, sm: 14 } }}>
           Back
         </Button>
         <Typography variant="h4" sx={{
           fontWeight: "bold", color: titleColor,
-          fontSize: { xs: "18px", sm: "24px", md: "32px" },
+          fontSize: { xs: "16px", sm: "20px", md: "26px", lg: "32px" },
         }}>
           STUDENT BALANCE BREAKDOWN
         </Typography>
@@ -137,11 +136,11 @@ const StudentBalanceInfo = () => {
           <Typography>No balance breakdown found for this semester.</Typography>
         </Paper>
       ) : (
-        <Paper sx={{ mt: 3, p: { xs: 1.5, sm: 3 }, border: `1px solid ${borderColor}`, backgroundColor: "white" }}>
+        <Paper sx={{ mt: 3, p: { xs: 1.25, sm: 2, md: 3 }, border: `1px solid ${borderColor}`, backgroundColor: "white" }}>
 
           {/* ── Student info strip ── */}
           <Box sx={{
-            display: "flex", flexWrap: "wrap", gap: 1.5,
+            display: "flex", flexWrap: "wrap", gap: { xs: 1, sm: 1.5 },
             mb: 2, p: { xs: 1, sm: 2 },
             border: `1px solid ${borderColor}`, borderRadius: "8px",
             backgroundColor: "#fafafa",
@@ -152,15 +151,15 @@ const StudentBalanceInfo = () => {
               { label: "Term", value: `${assessmentRow.school_year} - ${Number(assessmentRow.school_year) + 1} / ${assessmentRow.semester}` },
               { label: "Year Level", value: assessmentRow.year_level },
             ].map(({ label, value }) => (
-              <Box key={label} sx={{ minWidth: { xs: "45%", sm: "auto" }, flex: "1 1 auto" }}>
-                <Typography sx={{ fontWeight: 700, fontSize: 12, color: "#555" }}>{label}</Typography>
-                <Typography sx={{ fontSize: 13 }}>{value}</Typography>
+              <Box key={label} sx={{ minWidth: { xs: "45%", sm: "22%" }, flex: "1 1 auto" }}>
+                <Typography sx={{ fontWeight: 700, fontSize: { xs: 11, sm: 12 }, color: "#555" }}>{label}</Typography>
+                <Typography sx={{ fontSize: { xs: 12, sm: 13 }, wordBreak: "break-word" }}>{value}</Typography>
               </Box>
             ))}
           </Box>
 
-          {/* ── Mobile: cards + fee list | Desktop: table ── */}
-          {isMobile ? (
+          {/* ── Mobile & small tablet: cards + fee list | Larger tablet/Desktop: table ── */}
+          {isCardLayout ? (
             <Box>
               {/* Subject cards */}
               <Typography sx={{ fontWeight: 700, fontSize: 13, mb: 1, color: titleColor }}>Subjects</Typography>
@@ -170,13 +169,13 @@ const StudentBalanceInfo = () => {
                   p: 1.2, mb: 1, backgroundColor: "#fff",
                   boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
                 }}>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.3 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.3, gap: 1 }}>
                     <Typography sx={{ fontWeight: 700, fontSize: 13 }}>{subject.course_code}</Typography>
-                    <Typography sx={{ fontWeight: 700, fontSize: 13 }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: 13, whiteSpace: "nowrap" }}>
                       {money(Number(subject.lec_fee || 0) + Number(subject.lab_fee || 0))}
                     </Typography>
                   </Box>
-                  <Typography sx={{ fontSize: 11.5, color: "#555", mb: 0.5 }}>{subject.course_description}</Typography>
+                  <Typography sx={{ fontSize: 11.5, color: "#555", mb: 0.5, wordBreak: "break-word" }}>{subject.course_description}</Typography>
                   <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
                     <Typography sx={{ fontSize: 11 }}>Units: {Number(subject.course_unit)}</Typography>
                     <Typography sx={{ fontSize: 11 }}>Lec: {money(subject.lec_fee)}</Typography>
@@ -214,19 +213,19 @@ const StudentBalanceInfo = () => {
                     <FeeRow label="Discount / Scholarship" amount={`-${money(fees.discountAmount)}`} bold red borderColor={borderColor} />
                   </>
                 )}
-                <Box sx={{ display: "flex", justifyContent: "space-between", px: 1, py: 1, backgroundColor: "#fff1f1" }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", px: 1, py: 1, backgroundColor: "#fff1f1", gap: 1 }}>
                   <Typography sx={{ fontWeight: 800, fontSize: 14 }}>Total Assessment</Typography>
-                  <Typography sx={{ fontWeight: 800, fontSize: 14, color: "red" }}>{money(fees.grandTotal)}</Typography>
+                  <Typography sx={{ fontWeight: 800, fontSize: 14, color: "red", whiteSpace: "nowrap" }}>{money(fees.grandTotal)}</Typography>
                 </Box>
               </Box>
             </Box>
           ) : (
-            <TableContainer component={Paper} elevation={0}>
-              <Table size="small">
+            <TableContainer component={Paper} elevation={0} sx={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+              <Table size="small" sx={{ minWidth: 760 }}>
                 <TableHead>
                   <TableRow sx={{ backgroundColor: headerColor }}>
                     {["#", "Course Code", "Description", "Units", "Lec Fee", "Lab Fee", "Total"].map((h) => (
-                      <TableCell key={h} sx={{ color: "white", fontWeight: "bold", border: `1px solid ${borderColor}`, textAlign: "center" }}>{h}</TableCell>
+                      <TableCell key={h} sx={{ color: "white", fontWeight: "bold", border: `1px solid ${borderColor}`, textAlign: "center", whiteSpace: "nowrap" }}>{h}</TableCell>
                     ))}
                   </TableRow>
                 </TableHead>

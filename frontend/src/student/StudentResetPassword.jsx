@@ -1,4 +1,4 @@
-// StudentResetPassword.jsx  — full replacement
+// StudentResetPassword.jsx  — responsive full replacement
 
 import React, { useState, useEffect, useContext } from "react";
 import { SettingsContext } from "../App";
@@ -6,7 +6,7 @@ import axios from "axios";
 import {
   Box, Button, Typography, TextField, List, ListItem, ListItemIcon,
   ListItemText, IconButton, InputAdornment, Snackbar, InputLabel,
-  Alert, Divider, Paper, Chip,
+  Alert, Divider, Paper, Chip, useMediaQuery, useTheme,
 } from "@mui/material";
 import {
   Visibility, VisibilityOff, CheckCircle, Cancel, Settings,
@@ -71,6 +71,8 @@ const passwordRules = [
 
 const StudentResetPassword = () => {
   const settings = useContext(SettingsContext);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const [titleColor, setTitleColor] = useState("#000000");
   const [subtitleColor, setSubtitleColor] = useState("#555555");
@@ -175,6 +177,10 @@ const StudentResetPassword = () => {
   const toggleShowPassword = (field) =>
     setShowPassword((prev) => ({ ...prev, [field]: !prev[field] }));
 
+  // 🔒 Disable right-click + block DevTools shortcuts / Ctrl+P
+  // (moved into useEffect with cleanup — the original attached a fresh
+  // listener on every render without ever removing the old ones, which
+  // leaks listeners and can make key handling increasingly sluggish.)
   // 🔒 Disable right-click
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
@@ -196,75 +202,133 @@ const StudentResetPassword = () => {
   });
 
   return (
-    <Box sx={{
-      minHeight: "calc(100vh - 150px)", overflowY: "auto",
-      backgroundColor: "transparent", mt: 1,
-      p: { xs: 1, sm: 2 },
-    }}>
+    <Box
+      sx={{
+        minHeight: { xs: "100vh", md: "calc(100vh - 150px)" },
+        overflowY: { md: "auto" },
+        backgroundColor: { xs: "#f5f5f5", md: "transparent" },
+        pr: { md: 1 },
+        mt: { md: 1 },
+        p: { xs: 0, sm: 2 },
+        pb: { xs: 6, sm: 2 },
+      }}
+    >
       <style>{makeToggleStyles(mainButtonColor)}</style>
 
       {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", mb: 2 }}>
-        <Typography variant="h4" sx={{
-          fontWeight: "bold", color: titleColor,
-          fontSize: { xs: "22px", sm: "28px", md: "36px" },
-        }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          flexWrap: "wrap",
+          mb: 2,
+          px: { xs: 2, sm: 0 },
+          pt: { xs: 2, sm: 0 },
+        }}
+      >
+        <Typography
+          variant="h4"
+          sx={{ fontWeight: "bold", color: titleColor, fontSize: { xs: 20, sm: 28, md: 34, lg: 36 } }}
+        >
           SECURITY SETTINGS
         </Typography>
       </Box>
-      <hr style={{ border: "1px solid #ccc", width: "100%" }} />
-      <br />
 
-      <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
-        <Paper elevation={6} sx={{
-          p: { xs: 2, sm: 3 },
-          width: "100%", maxWidth: "540px",
-          borderRadius: 4, backgroundColor: "#fff",
-          border: `1px solid ${borderColor}`,
-          boxShadow: "0px 4px 20px rgba(0,0,0,0.1)",
-          mb: 6,
-        }}>
+      <Box sx={{ borderTop: "1px solid #ccc", width: "100%" }} />
+      <Box sx={{ height: { xs: 16, sm: 20 } }} />
+
+      <Box sx={{ display: "flex", justifyContent: "center", px: { xs: 1.5, sm: 0 }, mt: { xs: 0, sm: 2 } }}>
+        <Paper
+          elevation={6}
+          sx={{
+            p: { xs: 2.5, sm: 3, md: 3.5 },
+            width: { xs: "100%", sm: "80%", md: "55%", lg: "40%" },
+            maxWidth: "540px",
+            borderRadius: 4,
+            backgroundColor: "#fff",
+            border: `1px solid ${borderColor}`,
+            boxShadow: "0px 4px 20px rgba(0,0,0,0.1)",
+            mb: { xs: 4, sm: 6 },
+          }}
+        >
           {/* Icon + title */}
           <Box textAlign="center" mb={2}>
-            <Settings sx={{ fontSize: { xs: 60, sm: 70 }, color: "#000", backgroundColor: "#f0f0f0", borderRadius: "50%", p: 1 }} />
-            <Typography variant="h5" fontWeight="bold" sx={{ mt: 1, color: subtitleColor, fontSize: { xs: "18px", sm: "22px" } }}>
-              SETTINGS
+            <Settings
+              sx={{
+                fontSize: { xs: 56, sm: 70, md: 80 },
+                color: "#000",
+                backgroundColor: "#f0f0f0",
+                borderRadius: "50%",
+                p: 1,
+              }}
+            />
+            <Typography
+              variant="h5"
+              fontWeight="bold"
+              sx={{ mt: 1, color: subtitleColor, fontSize: { xs: 18, sm: 20, md: 22 } }}
+            >
+              Reset Your Password
             </Typography>
-            <Typography fontSize={13} color="text.secondary">
-              Update your password and authentication settings.
+            <Typography sx={{ fontSize: { xs: 12, sm: 13 } }} color="text.secondary">
+              Update your password to keep your account secure.
+            </Typography>
+            <Typography
+              sx={{ fontSize: { xs: 11.5, sm: 12.5 }, mt: 0.25 }}
+              color="text.secondary"
+              fontStyle="italic"
+            >
+              I-update ang iyong password para mapanatiling secure ang iyong account.
             </Typography>
           </Box>
 
           <Divider sx={{ mb: 2 }} />
 
           {/* ── Google Authenticator toggle ── */}
-          <Box sx={{
-            mt: 2, mb: 3, p: { xs: 1.5, sm: 2 },
-            borderRadius: 3,
-            border: totpEnabled ? "1.5px solid #1976d2" : "1.5px solid #e0e0e0",
-            backgroundColor: totpEnabled ? "#f0f6ff" : "#fafafa",
-            transition: "all 0.2s",
-            opacity: totpUpdating ? 0.7 : 1,
-          }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                <Box sx={{
-                  width: { xs: 40, sm: 44 }, height: { xs: 40, sm: 44 },
-                  borderRadius: "50%",
-                  bgcolor: totpEnabled ? mainButtonColor : "#bdbdbd",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  flexShrink: 0, transition: "background-color 0.2s",
-                }}>
+          <Box
+            sx={{
+              mt: 2,
+              mb: 3,
+              p: { xs: 1.5, sm: 2 },
+              borderRadius: 3,
+              border: totpEnabled ? "1.5px solid #1976d2" : "1.5px solid #e0e0e0",
+              backgroundColor: totpEnabled ? "#f0f6ff" : "#fafafa",
+              transition: "all 0.2s",
+              opacity: totpUpdating ? 0.7 : 1,
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 1,
+                flexWrap: { xs: "wrap", sm: "nowrap" },
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+                <Box
+                  sx={{
+                    width: { xs: 38, sm: 44 },
+                    height: { xs: 38, sm: 44 },
+                    borderRadius: "50%",
+                    bgcolor: totpEnabled ? mainButtonColor : "#bdbdbd",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    transition: "background-color 0.2s",
+                  }}
+                >
                   {totpEnabled
-                    ? <PhoneAndroidIcon sx={{ color: "#fff", fontSize: { xs: 20, sm: 22 } }} />
-                    : <LockOpenIcon sx={{ color: "#fff", fontSize: { xs: 20, sm: 22 } }} />
+                    ? <PhoneAndroidIcon sx={{ color: "#fff", fontSize: { xs: 19, sm: 22 } }} />
+                    : <LockOpenIcon sx={{ color: "#fff", fontSize: { xs: 19, sm: 22 } }} />
                   }
                 </Box>
-                <Box>
-                  <Typography fontWeight={700} fontSize={{ xs: 13, sm: 14 }}>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography fontWeight={700} sx={{ fontSize: { xs: 12.5, sm: 14 } }}>
                     Google Authenticator
                   </Typography>
-                  <Typography fontSize={12} color="text.secondary">
+                  <Typography sx={{ fontSize: { xs: 11, sm: 12 } }} color="text.secondary">
                     Two-factor login via authenticator app
                   </Typography>
                 </Box>
@@ -275,7 +339,8 @@ const StudentResetPassword = () => {
                   label={totpEnabled ? "ON" : "OFF"}
                   size="small"
                   sx={{
-                    fontWeight: 700, fontSize: "11px",
+                    fontWeight: 700,
+                    fontSize: "11px",
                     bgcolor: totpEnabled ? "#e3f2fd" : "#f5f5f5",
                     color: totpEnabled ? "#1565c0" : "#757575",
                     border: totpEnabled ? "1px solid #90caf9" : "1px solid #e0e0e0",
@@ -294,13 +359,20 @@ const StudentResetPassword = () => {
             </Box>
 
             {!totpEnabled && (
-              <Box sx={{
-                mt: 1.5, p: 1.5, bgcolor: "#fff8e1",
-                borderRadius: 2, border: "1px solid #ffe082",
-                display: "flex", gap: 1, alignItems: "flex-start",
-              }}>
+              <Box
+                sx={{
+                  mt: 1.5,
+                  p: 1.5,
+                  bgcolor: "#fff8e1",
+                  borderRadius: 2,
+                  border: "1px solid #ffe082",
+                  display: "flex",
+                  gap: 1,
+                  alignItems: "flex-start",
+                }}
+              >
                 <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
-                <Typography fontSize={12} color="#5d4037" lineHeight={1.5}>
+                <Typography sx={{ fontSize: { xs: 11.5, sm: 12 } }} color="#5d4037" lineHeight={1.5}>
                   Google Authenticator is <strong>disabled</strong>. Anyone with
                   your password can log in without a second step. Re-enable it to
                   protect your account.
@@ -308,13 +380,20 @@ const StudentResetPassword = () => {
               </Box>
             )}
             {totpEnabled && (
-              <Box sx={{
-                mt: 1.5, p: 1.5, bgcolor: "#e8f5e9",
-                borderRadius: 2, border: "1px solid #a5d6a7",
-                display: "flex", gap: 1, alignItems: "flex-start",
-              }}>
+              <Box
+                sx={{
+                  mt: 1.5,
+                  p: 1.5,
+                  bgcolor: "#e8f5e9",
+                  borderRadius: 2,
+                  border: "1px solid #a5d6a7",
+                  display: "flex",
+                  gap: 1,
+                  alignItems: "flex-start",
+                }}
+              >
                 <span style={{ fontSize: 16, flexShrink: 0 }}>🔒</span>
-                <Typography fontSize={12} color="#2e7d32" lineHeight={1.5}>
+                <Typography sx={{ fontSize: { xs: 11.5, sm: 12 } }} color="#2e7d32" lineHeight={1.5}>
                   Your account requires a Google Authenticator code every time
                   you log in. Keep the app installed on your phone.
                 </Typography>
@@ -327,14 +406,21 @@ const StudentResetPassword = () => {
           {/* ── Password form ── */}
           <form onSubmit={handleUpdate}>
             {[
-              { key: "current", label: "Current Password", value: currentPassword, setter: setCurrentPassword },
-              { key: "new", label: "New Password", value: newPassword, setter: setNewPassword },
-              { key: "confirm", label: "Confirm Password", value: confirmPassword, setter: setConfirmPassword },
-            ].map(({ key, label, value, setter }) => (
+              { key: "current", label: "Current Password", labelTl: "Kasalukuyang Password", value: currentPassword, setter: setCurrentPassword },
+              { key: "new", label: "New Password", labelTl: "Bagong Password", value: newPassword, setter: setNewPassword },
+              { key: "confirm", label: "Confirm Password", labelTl: "Kumpirmahin ang Password", value: confirmPassword, setter: setConfirmPassword },
+            ].map(({ key, label, labelTl, value, setter }) => (
               <Box mb={2} key={key}>
-                <InputLabel>{label}</InputLabel>
+                <InputLabel sx={{ fontSize: { xs: 13, sm: 14 } }}>
+                  {label}{" "}
+                  <Typography component="span" fontStyle="italic" color="text.secondary" sx={{ fontSize: { xs: 11.5, sm: 12.5 } }}>
+                    ({labelTl})
+                  </Typography>
+                </InputLabel>
                 <TextField
-                  fullWidth size="small" variant="outlined"
+                  fullWidth
+                  size="small"
+                  variant="outlined"
                   type={showPassword[key] ? "text" : "password"}
                   value={value}
                   onChange={(e) => setter(e.target.value)}
@@ -344,7 +430,7 @@ const StudentResetPassword = () => {
                     style: { fontSize: 14 },
                     endAdornment: (
                       <InputAdornment position="end">
-                        <IconButton onClick={() => toggleShowPassword(key)} edge="end" size="small">
+                        <IconButton onClick={() => toggleShowPassword(key)} edge="end" size={isMobile ? "small" : "medium"}>
                           {showPassword[key] ? <Visibility fontSize="small" /> : <VisibilityOff fontSize="small" />}
                         </IconButton>
                       </InputAdornment>
@@ -354,48 +440,66 @@ const StudentResetPassword = () => {
               </Box>
             ))}
 
-            <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
+            <Typography variant="subtitle2" sx={{ mt: 2, mb: 0.25, fontSize: { xs: 12, sm: 14 } }}>
               Your new password must include:
             </Typography>
-             <List dense disablePadding>
-                       {passwordRules.map((rule, i) => (
-                         <ListItem key={i} sx={{ py: 0.35, px: 0, alignItems: "flex-start" }}>
-                           <ListItemIcon sx={{ minWidth: 32, mt: "2px" }}>
-                             {validations[i]
-                               ? <CheckCircle sx={{ color: "green", fontSize: { xs: 18, sm: 22 } }} />
-                               : <Cancel sx={{ color: "red", fontSize: { xs: 18, sm: 22 } }} />}
-                           </ListItemIcon>
-                           <ListItemText
-                             primary={rule.label}
-                             secondary={rule.labelTl}
-                             primaryTypographyProps={{
-                               fontSize: { xs: "12px", sm: "14px" },
-                               color: validations[i] ? "green" : "inherit",
-                               fontWeight: validations[i] ? 600 : 400,
-                             }}
-                             secondaryTypographyProps={{
-                               fontSize: { xs: "11px", sm: "12.5px" },
-                               fontStyle: "italic",
-                               color: validations[i] ? "green" : "text.secondary",
-                             }}
-                           />
-                         </ListItem>
-                       ))}
-                     </List>
+            <Typography
+              variant="subtitle2"
+              fontStyle="italic"
+              color="text.secondary"
+              sx={{ mb: 1, fontSize: { xs: 11, sm: 12.5 }, fontWeight: 400 }}
+            >
+              Dapat kasama sa iyong bagong password ang mga sumusunod:
+            </Typography>
 
-            <Typography variant="body2" color="warning.main" sx={{ mt: 1, mb: 2, fontSize: 12 }}>
+            <List dense disablePadding>
+              {passwordRules.map((rule, i) => (
+                <ListItem key={i} sx={{ py: 0.35, px: 0, alignItems: "flex-start" }}>
+                  <ListItemIcon sx={{ minWidth: 32, mt: "2px" }}>
+                    {validations[i]
+                      ? <CheckCircle sx={{ color: "green", fontSize: { xs: 18, sm: 22 } }} />
+                      : <Cancel sx={{ color: "red", fontSize: { xs: 18, sm: 22 } }} />}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={rule.label}
+                    secondary={rule.labelTl}
+                    primaryTypographyProps={{
+                      fontSize: { xs: 12, sm: 14 },
+                      color: validations[i] ? "green" : "inherit",
+                      fontWeight: validations[i] ? 600 : 400,
+                    }}
+                    secondaryTypographyProps={{
+                      fontSize: { xs: 11, sm: 12.5 },
+                      fontStyle: "italic",
+                      color: validations[i] ? "green" : "text.secondary",
+                    }}
+                  />
+                </ListItem>
+              ))}
+            </List>
+
+            <Typography variant="body2" color="warning.main" sx={{ mt: 1, fontSize: { xs: 11, sm: 13 } }}>
               Note: You are required to change your password to continue using the system securely.
+            </Typography>
+            <Typography variant="body2" color="warning.main" fontStyle="italic" sx={{ mb: 2, fontSize: { xs: 10.5, sm: 12.5 } }}>
+              Paalala: Kinakailangan mong palitan ang iyong password para magpatuloy nang secure sa paggamit ng sistema.
             </Typography>
 
             <Button
-              type="submit" fullWidth variant="contained" disabled={!isValid}
+              type="submit"
+              fullWidth
+              variant="contained"
+              disabled={!isValid}
               sx={{
-                py: 1.4, borderRadius: 2,
+                py: 1.2,
+                borderRadius: 2,
                 backgroundColor: mainButtonColor,
                 border: `1px solid ${borderColor}`,
-                textTransform: "none", fontWeight: "bold",
-                fontSize: { xs: 14, sm: 15 },
+                textTransform: "none",
+                fontWeight: "bold",
+                fontSize: { xs: 13, sm: 15 },
                 "&:hover": { backgroundColor: "#1565c0" },
+                "&.Mui-disabled": { backgroundColor: "#b0b8c8", color: "#fff", opacity: 0.7 },
               }}
             >
               Update Password
@@ -404,12 +508,17 @@ const StudentResetPassword = () => {
         </Paper>
       </Box>
 
-      <Snackbar open={snack.open} autoHideDuration={4000}
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={4000}
         onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}>
-        <Alert severity={snack.severity}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          severity={snack.severity}
           onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
-          sx={{ width: "100%" }}>
+          sx={{ width: "100%" }}
+        >
           {snack.message}
         </Alert>
       </Snackbar>

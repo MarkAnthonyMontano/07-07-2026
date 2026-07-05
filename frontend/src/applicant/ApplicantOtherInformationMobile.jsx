@@ -8,13 +8,11 @@ import {
   Typography,
   Card,
   Modal,
-  FormControl,
-  FormControlLabel,
-  FormHelperText,
-  Checkbox,
   Snackbar,
-  Alert
+  Alert,
+  useMediaQuery,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import PersonIcon from "@mui/icons-material/Person";
@@ -29,112 +27,28 @@ import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import ExamPermit from "./ExamPermit";
 import API_BASE_URL from "../apiConfig";
 
-// ─── Style tokens (from StudentDashboard5Mobile) ──────────────────────────────
-const S = {
-  screen: {
-    minHeight: "100vh",
-    backgroundColor: "#f5f5f5",
-    fontFamily: "'Segoe UI', sans-serif",
-    paddingBottom: 80,
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    margin: "12px 12px 0",
-    overflow: "hidden",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-  },
-  cardHeader: {
-    color: "#fff",
-    padding: "10px 14px",
-    fontSize: 13,
-    fontWeight: 700,
-    letterSpacing: 0.3,
-  },
-  cardBody: { padding: "14px 14px" },
-  fieldWrap: { marginBottom: 14 },
-  label: {
-    display: "block",
-    fontSize: 12,
-    fontWeight: 600,
-    color: "#444",
-    marginBottom: 5,
-  },
-  divider: {
-    border: "none",
-    borderTop: "1px solid #e0e0e0",
-    margin: "14px 0 10px",
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: "#6D2323",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 10,
-  },
-  toast: (severity) => ({
-    position: "fixed",
-    top: 16,
-    left: "50%",
-    transform: "translateX(-50%)",
-    zIndex: 9999,
-    backgroundColor:
-      severity === "success"
-        ? "#2e7d32"
-        : severity === "error"
-          ? "#c62828"
-          : "#e65100",
-    color: "#fff",
-    padding: "10px 20px",
-    borderRadius: 24,
-    fontSize: 13,
-    boxShadow: "0 3px 10px rgba(0,0,0,0.25)",
-    maxWidth: "90vw",
-    textAlign: "center",
-  }),
-  consentBox: {
-    backgroundColor: "#fafafa",
-    border: "1px solid #e0e0e0",
-    borderRadius: 8,
-    padding: "14px",
-  },
-  consentText: {
-    fontSize: 12,
-    color: "#444",
-    lineHeight: 1.7,
-    marginBottom: 10,
-  },
-  agreeRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: "#fff3f3",
-    border: "1px solid #6D2323",
-    borderRadius: 8,
-    padding: "12px 14px",
-    marginTop: 16,
-  },
-  agreeLabel: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: "#6D2323",
-    flex: 1,
-  },
-  errorText: {
-    color: "#d32f2f",
-    fontSize: 11,
-    marginTop: 6,
-    paddingLeft: 4,
-  },
-};
-
-// ─── Main Component ───────────────────────────────────────────────────────────
-const ApplicantOtherInformationMobile = (props) => {
+/**
+ * Responsive rewrite of ApplicantOtherInformationMobile.
+ *
+ * Instead of maintaining a separate desktop component (ApplicantOtherInformation)
+ * and mobile component (ApplicantOtherInformationMobile), this single component
+ * adapts fluidly across breakpoints:
+ *   xs  (<600px)   -> phone
+ *   sm  (600-900)  -> large phone / small tablet
+ *   md  (900-1200) -> tablet / small laptop
+ *   lg+ (1200px+)  -> desktop / web
+ *
+ * All fixed pixel values from the mobile-only version have been converted to
+ * MUI `sx` breakpoint objects or CSS `clamp()` so type, spacing, and layout
+ * scale smoothly instead of jumping between two hard-coded designs.
+ */
+const ApplicantOtherInformationResponsive = (props) => {
   const settings = useContext(SettingsContext);
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  // ── Theme state (from Dashboard5) ──────────────────────────────────────────
+  // ── Theme state ─────────────────────────────────────────────────────────
   const [titleColor, setTitleColor] = useState("#000000");
   const [subtitleColor, setSubtitleColor] = useState("#555555");
   const [borderColor, setBorderColor] = useState("#000000");
@@ -143,24 +57,24 @@ const ApplicantOtherInformationMobile = (props) => {
   const [companyName, setCompanyName] = useState("");
   const [shortTerm, setShortTerm] = useState("");
 
-  // ── User / person state (from Dashboard5) ──────────────────────────────────
+  // ── User / person state ─────────────────────────────────────────────────
   const [userID, setUserID] = useState("");
   const [userRole, setUserRole] = useState("");
   const [person, setPerson] = useState({ termsOfAgreement: "" });
   const [errors, setErrors] = useState({});
 
-  // ── Active school year (from Dashboard5) ───────────────────────────────────
+  // ── Active school year ──────────────────────────────────────────────────
   const [activeYearId, setActiveYearId] = useState(null);
   const [activeSemesterId, setActiveSemesterId] = useState(null);
 
-  // ── Exam permit state (from Dashboard5) ────────────────────────────────────
+  // ── Exam permit state ───────────────────────────────────────────────────
   const divToPrintRef = useRef();
   const [showPrintView, setShowPrintView] = useState(false);
   const [examPermitError, setExamPermitError] = useState("");
   const [examPermitModalOpen, setExamPermitModalOpen] = useState(false);
   const [canPrintPermit, setCanPrintPermit] = useState(false);
 
-  // ── Snackbar (from StudentDashboard5Mobile) ─────────────────────────────────
+  // ── Snackbar ────────────────────────────────────────────────────────────
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -174,10 +88,9 @@ const ApplicantOtherInformationMobile = (props) => {
 
   const showSnackbar = (message, severity = "warning") => {
     setSnackbar({ open: true, message, severity });
-    setTimeout(() => setSnackbar((p) => ({ ...p, open: false })), 3000);
   };
 
-  // ── Apply settings (from Dashboard5) ──────────────────────────────────────
+  // ── Apply settings ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!settings) return;
     if (settings.title_color) setTitleColor(settings.title_color);
@@ -189,7 +102,7 @@ const ApplicantOtherInformationMobile = (props) => {
     if (settings.short_term) setShortTerm(settings.short_term);
   }, [settings]);
 
-  // ── Fetch active school year (from Dashboard5) ─────────────────────────────
+  // ── Fetch active school year ────────────────────────────────────────────
   useEffect(() => {
     axios
       .get(`${API_BASE_URL}/api/active_school_year`)
@@ -203,12 +116,11 @@ const ApplicantOtherInformationMobile = (props) => {
       .catch((err) => console.error("Failed to fetch active school year", err));
   }, []);
 
-  // ── Auth + load (from Dashboard5 — do not alter) ───────────────────────────
+  // ── Auth + load (do not alter) ──────────────────────────────────────────
   useEffect(() => {
     const storedUser = localStorage.getItem("email");
     const storedRole = localStorage.getItem("role");
     const storedID = localStorage.getItem("person_id");
-    const keys = JSON.parse(localStorage.getItem("dashboardKeys") || "{}");
 
     const overrideId = props?.adminOverridePersonId;
 
@@ -232,7 +144,7 @@ const ApplicantOtherInformationMobile = (props) => {
     }
   }, []);
 
-  // ── Fetch person (from Dashboard5 — do not alter) ─────────────────────────
+  // ── Fetch person (do not alter) ─────────────────────────────────────────
   const fetchPersonData = async (id) => {
     try {
       const res = await axios.get(`${API_BASE_URL}/api/person/${id}`);
@@ -240,7 +152,7 @@ const ApplicantOtherInformationMobile = (props) => {
     } catch (error) { }
   };
 
-  // ── handleUpdate (from Dashboard5 — do not alter) ─────────────────────────
+  // ── handleUpdate (do not alter) ──────────────────────────────────────────
   const handleUpdate = async () => {
     const updatedPerson = {
       ...person,
@@ -254,7 +166,7 @@ const ApplicantOtherInformationMobile = (props) => {
     }
   };
 
-  // ── handleBlur (from Dashboard5 — do not alter) ───────────────────────────
+  // ── handleBlur (do not alter) ───────────────────────────────────────────
   const handleBlur = async () => {
     try {
       await axios.put(`${API_BASE_URL}/api/person/${userID}`, person);
@@ -264,7 +176,7 @@ const ApplicantOtherInformationMobile = (props) => {
     }
   };
 
-  // ── handleChange (from Dashboard5) ────────────────────────────────────────
+  // ── handleChange ─────────────────────────────────────────────────────────
   const handleChange = (e) => {
     const { name, type, checked, value } = e.target;
     const updatedPerson = {
@@ -275,7 +187,7 @@ const ApplicantOtherInformationMobile = (props) => {
     handleUpdate(updatedPerson);
   };
 
-  // ── isFormValid (from Dashboard5) ─────────────────────────────────────────
+  // ── isFormValid ──────────────────────────────────────────────────────────
   const isFormValid = () => {
     let newErrors = {};
     let isValid = true;
@@ -287,7 +199,7 @@ const ApplicantOtherInformationMobile = (props) => {
     return isValid;
   };
 
-  // ── submitFinalApplication (from Dashboard5 — do not alter) ───────────────
+  // ── submitFinalApplication (do not alter) ───────────────────────────────
   const submitFinalApplication = async () => {
     if (!isFormValid()) {
       showSnackbar("Please accept the Terms of Agreement.", "error");
@@ -301,12 +213,10 @@ const ApplicantOtherInformationMobile = (props) => {
 
     if (!activeYearId || !activeSemesterId) {
       showSnackbar("Active school year not found.", "error");
-      console.log(activeSemesterId);
       return;
     }
 
     try {
-      console.log(activeSemesterId);
       localStorage.setItem("currentStep", "6");
       showSnackbar(
         "Application submitted successfully. Please upload your documents.",
@@ -322,7 +232,7 @@ const ApplicantOtherInformationMobile = (props) => {
     }
   };
 
-  // ── Exam permit (from Dashboard5) ─────────────────────────────────────────
+  // ── Exam permit ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!userID) return;
     axios
@@ -394,7 +304,7 @@ const ApplicantOtherInformationMobile = (props) => {
     }
   };
 
-  // ── Keys & steps navigation (from Dashboard5) ─────────────────────────────
+  // ── Keys & steps navigation ─────────────────────────────────────────────
   const keys = JSON.parse(localStorage.getItem("dashboardKeys") || "{}");
 
   const stepsWithPaths = [
@@ -408,21 +318,20 @@ const ApplicantOtherInformationMobile = (props) => {
   const [activeStep, setActiveStep] = useState(4);
   const [clickedSteps, setClickedSteps] = useState(Array(stepsWithPaths.length).fill(false));
 
-
   const handleStepClick = (index) => {
     if (isFormValid()) {
       setActiveStep(index);
       const newClickedSteps = [...clickedSteps];
       newClickedSteps[index] = true;
       setClickedSteps(newClickedSteps);
-      showSnackbar("Your record has been saved successfully!", "success");   // ADD
-      setTimeout(() => navigate(stepsWithPaths[index].path), 1000);         // CHANGE
+      showSnackbar("Your record has been saved successfully!", "success");
+      setTimeout(() => navigate(stepsWithPaths[index].path), 1000);
     } else {
-      setSnackbar({ open: true, message: "Please fill all required fields before proceeding.", severity: "error" });
+      showSnackbar("Please fill all required fields before proceeding.", "error");
     }
   };
 
-  // ── Links (from Dashboard5) ────────────────────────────────────────────────
+  // ── Links ────────────────────────────────────────────────────────────────
   const links = [
     { to: "/ecat_application_form", label: "ECAT Application Form" },
     { to: "/admission_form_process", label: "Admission Form Process" },
@@ -438,7 +347,7 @@ const ApplicantOtherInformationMobile = (props) => {
     { label: "Examination Permit", onClick: handleExamPermitClick },
   ];
 
-  // ── Derived name helpers (from StudentDashboard5Mobile) ───────────────────
+  // ── Derived name helpers ────────────────────────────────────────────────
   const institutionName = shortTerm
     ? `${companyName || ""} (${shortTerm.toUpperCase()})`
     : companyName || "the institution";
@@ -447,7 +356,6 @@ const ApplicantOtherInformationMobile = (props) => {
     ? shortTerm.toUpperCase()
     : companyName || "the University";
 
-  // 🔒 Disable right-click
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
   // 🔒 Block DevTools shortcuts + Ctrl+P silently
@@ -466,10 +374,27 @@ const ApplicantOtherInformationMobile = (props) => {
       e.stopPropagation();
     }
   });
+  // ── Reusable responsive style tokens ────────────────────────────────────
+  const consentText = {
+    fontSize: "clamp(12px, 1.4vw, 14px)",
+    color: "#444",
+    lineHeight: 1.7,
+    marginBottom: 10,
+  };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div style={S.screen}>
+    <Box
+      sx={{
+        minHeight: { xs: "100vh", md: "calc(100vh - 150px)" },
+        overflowY: { md: "auto" },
+        backgroundColor: { xs: "#f5f5f5", md: "transparent" },
+        fontFamily: "'Segoe UI', sans-serif",
+        pb: { xs: 10, md: 3 },
+        px: { xs: 0, md: 2 },
+        mt: { md: 1 },
+      }}
+    >
       {/* Hidden print target */}
       {showPrintView && (
         <div ref={divToPrintRef} style={{ display: "block" }}>
@@ -480,7 +405,7 @@ const ApplicantOtherInformationMobile = (props) => {
       {/* Toast */}
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={1000}
+        autoHideDuration={2500}
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
@@ -488,7 +413,8 @@ const ApplicantOtherInformationMobile = (props) => {
           {snackbar.message}
         </Alert>
       </Snackbar>
-      {/* ── Page Header ────────────────────────────────────────────────── */}
+
+      {/* ── Page Header ─────────────────────────────────────────────────── */}
       <Box
         sx={{
           display: "flex",
@@ -496,97 +422,85 @@ const ApplicantOtherInformationMobile = (props) => {
           alignItems: "center",
           flexWrap: "wrap",
           mb: 1,
-          padding: 1,
+          px: { xs: 2, md: 0 },
+          pt: { xs: 2, md: 0 },
         }}
       >
         <Typography
-          variant="h4"
           sx={{
             fontWeight: "bold",
             color: titleColor,
-            fontSize: { xs: "22px", sm: "28px", md: "36px" },
+            fontSize: { xs: 22, sm: 28, md: 34, lg: 36 },
           }}
         >
           OTHER INFORMATION
         </Typography>
       </Box>
-      <hr style={{ border: "1px solid #ccc", width: "100%" }} />
-      <br />
+      <Box sx={{ borderTop: "1px solid #ccc", width: "100%", mx: { xs: 0 } }} />
 
-      {/* ── Notice Banner ──────────────────────────────────────────────── */}
+      {/* ── Notice Banner ───────────────────────────────────────────────── */}
       <Box
         sx={{
           display: "flex",
           alignItems: "flex-start",
-          gap: 1.5,
-          mx: "12px",
-          mt: "12px",
-          p: "10px 12px",
-          borderRadius: "8px",
+          gap: { xs: 1.5, md: 2 },
+          mx: { xs: 1.5, md: 0 },
+          mt: 2,
+          p: { xs: "10px 12px", md: 2 },
+          borderRadius: 2,
           backgroundColor: "#fffaf5",
           border: "1px solid #6D2323",
           boxShadow: "0px 2px 8px rgba(0,0,0,0.05)",
         }}
       >
-        {/* Icon */}
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             backgroundColor: "#800000",
-            borderRadius: "6px",
-            width: 36,
-            height: 36,
+            borderRadius: "8px",
+            width: { xs: 36, md: 60 },
+            height: { xs: 36, md: 60 },
             flexShrink: 0,
           }}
         >
-          <ErrorIcon sx={{ color: "white", fontSize: 22 }} />
+          <ErrorIcon sx={{ color: "white", fontSize: { xs: 22, md: 40 } }} />
         </Box>
 
-        {/* Text */}
         <Typography
           sx={{
-            fontSize: "20px",
+            fontSize: { xs: 13, sm: 15, md: "20px" },
             fontFamily: "Poppins, sans-serif",
             color: "#3e3e3e",
-            lineHeight: 1.3,
-            whiteSpace: "normal",
-            overflow: "hidden",
+            lineHeight: 1.5,
           }}
         >
           <strong style={{ color: "maroon" }}>Important Notice:</strong>
           <br />
-
-
-
-          <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+          <span style={{ margin: "0 10px" }}>➔</span>
           Please indicate <strong>“NA”</strong> or <strong>“N/A”</strong> in fields where the
           requested information is not applicable or no response can be provided.
           <br />
-
-          <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+          <span style={{ margin: "0 10px" }}>➔</span>
           To enter the letter <strong>“Ñ”</strong>, press and hold the ALT key while typing
           <strong> 165</strong>. For <strong>“ñ”</strong>, press and hold the ALT key while
           typing <strong> 164</strong>.
           <br />
-
-          <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+          <span style={{ margin: "0 10px" }}>➔</span>
           Please complete all information from <strong>Personal Information</strong> up to
           <strong> Other Information</strong> before printing your documents.
-          <br />
         </Typography>
       </Box>
 
-      {/* ── Printable Documents ────────────────────────────────────────── */}
-      <Box sx={{ px: "12px", pt: "12px" }}>
+      {/* ── Printable Documents ─────────────────────────────────────────── */}
+      <Box sx={{ px: { xs: 1.5, md: 0 }, pt: 3 }}>
         <Typography
           sx={{
-            fontSize: "24px",
+            fontSize: { xs: 22, sm: 26, md: 30 },
             fontWeight: "bold",
             textAlign: "center",
             color: "black",
-            marginTop: "20px",
             mb: 2,
           }}
         >
@@ -596,17 +510,25 @@ const ApplicantOtherInformationMobile = (props) => {
           sx={{
             display: "flex",
             flexWrap: "wrap",
-            gap: 1,
+            gap: { xs: 1, md: 2 },
             justifyContent: "center",
           }}
         >
           {links.map((lnk, i) => (
-            <motion.div
+            <Box
               key={i}
+              component={motion.div}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.07, duration: 0.3 }}
-              style={{ width: "calc(50% - 4px)" }}
+              sx={{
+                // 2-up on phones, 3-up on tablets, ~30% (roughly 3-up) on desktop
+                width: {
+                  xs: "calc(50% - 4px)",
+                  sm: "calc(33.333% - 8px)",
+                  md: "calc(30% - 16px)",
+                },
+              }}
             >
               <Card
                 sx={{
@@ -617,15 +539,16 @@ const ApplicantOtherInformationMobile = (props) => {
                   gap: 0.75,
                   px: 1.5,
                   py: 1.25,
-                  height: 52,
+                  minHeight: { xs: 52, md: 60 },
                   width: "100%",
-                  borderRadius: "12px",
+                  borderRadius: { xs: "12px", md: 2 },
                   border: `1px solid ${borderColor || "#6D2323"}`,
                   backgroundColor: "#fff",
                   cursor: "pointer",
                   transition: "all 0.25s ease-in-out",
                   "&:hover": {
                     backgroundColor: settings?.header_color || "#6D2323",
+                    transform: { md: "scale(1.05)" },
                     "& .chip-icon": { color: "#fff" },
                     "& .chip-text": { color: "#fff" },
                   },
@@ -641,19 +564,19 @@ const ApplicantOtherInformationMobile = (props) => {
                 <PictureAsPdfIcon
                   className="chip-icon"
                   sx={{
-                    fontSize: 18,
+                    fontSize: { xs: 18, md: 35 },
                     color: mainButtonColor || "#6D2323",
                     flexShrink: 0,
+                    mr: { md: 1.5 },
                   }}
                 />
                 <Typography
                   className="chip-text"
                   sx={{
-                    fontSize: 11,
-                    fontWeight: 600,
+                    fontSize: { xs: 11, sm: 12, md: "0.85rem" },
+                    fontWeight: "bold",
                     color: mainButtonColor || "#6D2323",
                     fontFamily: "Poppins, sans-serif",
-                    whiteSpace: "normal",
                     lineHeight: 1.3,
                     textAlign: "center",
                   }}
@@ -661,263 +584,376 @@ const ApplicantOtherInformationMobile = (props) => {
                   {lnk.label}
                 </Typography>
               </Card>
-            </motion.div>
+            </Box>
           ))}
         </Box>
       </Box>
 
-      {/* ── Applicant Form Intro ───────────────────────────────────────── */}
-      <div style={{ padding: "16px 14px 0", textAlign: "center" }}>
-        <h1
-          style={{
-            fontSize: "28px",
-            fontWeight: "bold",
-            textAlign: "center",
-            color: subtitleColor,
-            marginTop: "20px",
+      <Container maxWidth="lg" disableGutters={isMobile}>
+        {/* ── Applicant Form Intro ──────────────────────────────────────── */}
+        <Box sx={{ px: { xs: 1.5, md: 0 }, pt: 3, textAlign: "center" }}>
+          <Typography
+            sx={{
+              fontSize: { xs: 24, sm: 32, md: 42, lg: 50 },
+              fontWeight: "bold",
+              color: subtitleColor,
+              mb: 1,
+            }}
+          >
+            APPLICANT FORM
+          </Typography>
+          <Typography sx={{ fontSize: { xs: 13, sm: 14, md: 16 }, color: "#555" }}>
+            Complete the applicant form to secure your place for the upcoming
+            academic year at{" "}
+            {shortTerm ? (
+              <>
+                <strong>{shortTerm.toUpperCase()}</strong>
+                <br />
+                {companyName || ""}
+              </>
+            ) : (
+              companyName || ""
+            )}
+            .
+          </Typography>
+        </Box>
+
+        {/* ── Stepper ───────────────────────────────────────────────────── */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            width: "100%",
+            px: { xs: 1, sm: 2, md: 4 },
+            py: { xs: 1.5, md: 2 },
+            mt: 2,
+            borderBottom: { xs: "1px solid #e0e0e0", md: "none" },
           }}
         >
-          APPLICANT FORM
-        </h1>
-        <div style={{ textAlign: "center", fontSize: 13, color: "#555" }}>
-          Complete the applicant form to secure your place for the upcoming
-          academic year at{" "}
-          {shortTerm ? (
-            <>
-              <strong>{shortTerm.toUpperCase()}</strong>
-              <br />
-              {companyName || ""}
-            </>
-          ) : (
-            companyName || ""
-          )}
-          .
-        </div>
-      </div>
-
-      {/* ── Stepper ────────────────────────────────────────────────────── */}
-      <Box sx={{ display: "flex", justifyContent: "center", width: "100%", px: 2, py: 1.5, borderBottom: "1px solid #e0e0e0" }}>
-        {stepsWithPaths.map((step, index) => (
-          <React.Fragment key={index}>
-            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer" }} onClick={() => handleStepClick(index)}>
-              <Box sx={{
-                width: 46, height: 46, borderRadius: "50%", border: `2px solid ${borderColor}`,
-                backgroundColor: activeStep === index ? (settings?.header_color || "#6D2323") : "#E8C999",
-                color: activeStep === index ? "#fff" : "#333",
-                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, transition: "all 0.2s",
-              }}>
-                {step.icon}
+          {stepsWithPaths.map((step, index) => (
+            <React.Fragment key={index}>
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  cursor: "pointer",
+                }}
+                onClick={() => handleStepClick(index)}
+              >
+                <Box
+                  sx={{
+                    width: { xs: 40, sm: 46, md: 50 },
+                    height: { xs: 40, sm: 46, md: 50 },
+                    borderRadius: "50%",
+                    border: `1px solid ${borderColor}`,
+                    backgroundColor:
+                      activeStep === index
+                        ? settings?.header_color || "#1976d2"
+                        : "#E8C999",
+                    color: activeStep === index ? "#fff" : "#000",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {step.icon}
+                </Box>
+                <Typography
+                  sx={{
+                    mt: 0.75,
+                    color: activeStep === index ? "#6D2323" : "#000",
+                    fontWeight: activeStep === index ? "bold" : "normal",
+                    fontSize: { xs: 10, sm: 12, md: 14 },
+                    textAlign: "center",
+                    maxWidth: { xs: 64, sm: 80, md: "none" },
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {step.label}
+                </Typography>
               </Box>
-              <Typography sx={{ mt: 0.75, color: activeStep === index ? "#6D2323" : "#555", fontWeight: activeStep === index ? 700 : 400, fontSize: { xs: 10, sm: 12 }, textAlign: "center", maxWidth: 72, lineHeight: 1.3 }}>
-                {step.label}
+              {index < stepsWithPaths.length - 1 && (
+                <Box
+                  sx={{
+                    height: "2px",
+                    backgroundColor: mainButtonColor,
+                    flex: 1,
+                    alignSelf: "center",
+                    mx: { xs: 1, md: 2 },
+                    mb: { xs: 3, md: 0 },
+                  }}
+                />
+              )}
+            </React.Fragment>
+          ))}
+        </Box>
+
+        <form>
+          {/* ── Step Header Bar ─────────────────────────────────────────── */}
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              border: `1px solid ${borderColor}`,
+              color: "white",
+              borderRadius: 2,
+              boxShadow: 3,
+              mx: { xs: 1.5, md: 0 },
+              mt: { xs: 2, md: 0 },
+              p: { xs: "10px 14px", md: "4px" },
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: { xs: 14, md: "20px" },
+                p: { md: "10px" },
+                fontFamily: "Poppins, sans-serif",
+              }}
+            >
+              Step 5: Other Information
+            </Typography>
+          </Box>
+
+          {/* ── Data Subject Consent Form ───────────────────────────────── */}
+          <Box
+            sx={{
+              backgroundColor: { xs: "#fff", md: "#f1f1f1" },
+              border: `1px solid ${borderColor}`,
+              borderRadius: 2,
+              boxShadow: 3,
+              mx: { xs: 1.5, md: 0 },
+              mt: { xs: 1.5, md: 2 },
+              p: { xs: 0, md: 4 },
+              overflow: "hidden",
+            }}
+          >
+            <Box
+              sx={{
+                backgroundColor: { xs: settings?.header_color || "#1976d2", md: "transparent" },
+                color: { xs: "#fff", md: mainButtonColor },
+                px: { xs: "14px", md: 0 },
+                py: { xs: "10px", md: 0 },
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: { xs: 13, md: "20px" },
+                  fontWeight: { xs: 700, md: "bold" },
+                  letterSpacing: { xs: 0.3, md: 0 },
+                }}
+              >
+                Data Subject Consent Form
               </Typography>
             </Box>
-            {index < stepsWithPaths.length - 1 && (
-              <Box sx={{ height: "2px", backgroundColor: mainButtonColor, flex: 1, alignSelf: "center", mx: 1, mb: 3 }} />
-            )}
-          </React.Fragment>
-        ))}
-      </Box>
 
-      {/* ── Step Header Bar ────────────────────────────────────────────── */}
-      <Box
-        sx={{
-          backgroundColor: settings?.header_color || "#1976d2",
-          border: `1px solid ${borderColor}`,
-          color: "white",
-          borderRadius: 2,
-          mx: "12px",
-          mt: "12px",
-          p: "10px 14px",
-        }}
-      >
-        <Typography sx={{ fontSize: 14, fontFamily: "Poppins, sans-serif" }}>
-          Step 5: Other Information
-        </Typography>
-      </Box>
+            <Box sx={{ px: { xs: "14px", md: 0 }, py: { xs: "14px", md: 0 } }}>
+              <Box sx={{ borderTop: "1px solid #ccc", width: "100%", display: { xs: "none", md: "block" }, mb: 2 }} />
 
-      {/* ── Data Subject Consent Form ──────────────────────────────────── */}
-      <div style={{ ...S.card, border: `1px solid ${borderColor}`, }}>
-        <div
-          style={{
-            ...S.cardHeader,
-            backgroundColor: settings?.header_color || "#1976d2",
-          }}
-        >
-          Data Subject Consent Form
-        </div>
-        <div style={S.cardBody}>
-          <div
-            style={{ fontSize: 12, color: "#555", marginBottom: 12, lineHeight: 1.6 }}
-          >
-            In accordance with RA 10173 or Data Privacy Act of 2012, I give my
-            consent to the following terms and conditions on the collection,
-            use, processing, and disclosure of my personal data:
-          </div>
+              <Typography sx={{ fontWeight: "bold", textAlign: "center", fontSize: { xs: 13, md: 16 } }}>
+                Data Subject Consent Form
+              </Typography>
+              <br />
 
-          <div style={S.consentBox}>
-            <p style={S.consentText}>
-              <strong>1.</strong> I am aware that the {institutionName} has
-              collected and stored my personal data during my
-              admission/enrollment at {shortName}. This data includes my
-              demographic profile, contact details like home address, email
-              address, landline numbers, and mobile numbers.
-            </p>
+              <Typography sx={{ fontSize: { xs: 12, md: 13 }, fontFamily: "Poppins, sans-serif", mb: 1.5 }}>
+                In accordance with RA 10173 or Data Privacy Act of 2012, I give my
+                consent to the following terms and conditions on the collection,
+                use, processing, and disclosure of my personal data:
+              </Typography>
 
-            <p style={S.consentText}>
-              <strong>2.</strong> I agree to personally update these data
-              through personal request from the Office of the Registrar.
-            </p>
+              <Box
+                sx={{
+                  backgroundColor: "#fafafa",
+                  border: "1px solid #e0e0e0",
+                  borderRadius: 2,
+                  p: { xs: "14px", md: 2 },
+                }}
+              >
+                <Typography sx={consentText}>
+                  <strong>1.</strong> I am aware that the {institutionName} has
+                  collected and stored my personal data during my
+                  admission/enrollment at {shortName}. This data includes my
+                  demographic profile, contact details like home address, email
+                  address, landline numbers, and mobile numbers.
+                </Typography>
 
-            <p style={S.consentText}>
-              <strong>3.</strong> In consonance with the above stated Act, I am
-              aware that the University will protect my school records related
-              to my being a student/graduate of {shortName}. However, I have
-              the right to authorize a representative to claim the same subject
-              to the policy of the University.
-            </p>
+                <Typography sx={consentText}>
+                  <strong>2.</strong> I agree to personally update these data
+                  through personal request from the Office of the Registrar.
+                </Typography>
 
-            <p style={S.consentText}>
-              <strong>4.</strong> In order to promote efficient management of
-              the organization's records, I authorize the University to manage
-              my data for data sharing with industry partners, government
-              agencies/embassies, other educational institutions, and other
-              offices for the university for employment, statistics,
-              immigration, transfer credentials, and other legal purposes that
-              may serve me best.
-            </p>
+                <Typography sx={consentText}>
+                  <strong>3.</strong> In consonance with the above stated Act, I am
+                  aware that the University will protect my school records related
+                  to my being a student/graduate of {shortName}. However, I have
+                  the right to authorize a representative to claim the same subject
+                  to the policy of the University.
+                </Typography>
 
-            <p style={{ ...S.consentText, marginBottom: 0 }}>
-              By clicking the submit button, I warrant that I have read,
-              understood all of the above provisions, and agreed to its full
-              implementation.
-            </p>
-          </div>
+                <Typography sx={consentText}>
+                  <strong>4.</strong> In order to promote efficient management of
+                  the organization's records, I authorize the University to manage
+                  my data for data sharing with industry partners, government
+                  agencies/embassies, other educational institutions, and other
+                  offices for the university for employment, statistics,
+                  immigration, transfer credentials, and other legal purposes that
+                  may serve me best.
+                </Typography>
 
-          <hr style={S.divider} />
+                <Typography sx={{ ...consentText, mb: 0 }}>
+                  By clicking the submit button, I warrant that I have read,
+                  understood all of the above provisions, and agreed to its full
+                  implementation.
+                </Typography>
+              </Box>
 
-          <p style={{ ...S.consentText, fontStyle: "italic", color: "#555" }}>
-            I certify that the information given above are true, complete, and
-            accurate to the best of my knowledge and belief. I promise to abide
-            by the rules and regulations of {institutionName} regarding the ECAT
-            and my possible admission. I am aware that any false or misleading
-            information and/or statement may result in the refusal or
-            disqualification of my admission to the institution.
-          </p>
+              <Box sx={{ borderTop: "1px solid #e0e0e0", width: "100%", my: 2 }} />
 
-          {/* Agreement Checkbox — uses Dashboard5's handleChange + handleBlur */}
-          <div
-            style={{
-              ...S.agreeRow,
-              border: errors.termsOfAgreement
-                ? "1px solid #d32f2f"
-                : "1px solid #6D2323",
-              backgroundColor: errors.termsOfAgreement ? "#fff5f5" : "#fff3f3",
+              <Typography sx={{ ...consentText, fontStyle: "italic", color: "#555" }}>
+                I certify that the information given above are true, complete, and
+                accurate to the best of my knowledge and belief. I promise to abide
+                by the rules and regulations of {institutionName} regarding the ECAT
+                and my possible admission. I am aware that any false or misleading
+                information and/or statement may result in the refusal or
+                disqualification of my admission to the institution.
+              </Typography>
+
+              {/* Agreement Checkbox */}
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: { xs: 1.25, md: 1.5 },
+                  backgroundColor: errors.termsOfAgreement ? "#fff5f5" : "#fff3f3",
+                  border: errors.termsOfAgreement ? "1px solid #d32f2f" : "1px solid #6D2323",
+                  borderRadius: 2,
+                  p: { xs: "12px 14px", md: 2 },
+                  mt: 2,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  name="termsOfAgreement"
+                  checked={person.termsOfAgreement === 1}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  style={{
+                    width: 22,
+                    height: 22,
+                    accentColor: "#6D2323",
+                    flexShrink: 0,
+                    cursor: "pointer",
+                  }}
+                />
+                <Typography sx={{ fontSize: { xs: 14, md: 15 }, fontWeight: 600, color: "#6D2323", flex: 1 }}>
+                  I agree to the Terms of Agreement
+                </Typography>
+              </Box>
+
+              {errors.termsOfAgreement && (
+                <Typography sx={{ color: "#d32f2f", fontSize: 11, mt: 0.75, pl: 0.5 }}>
+                  You must agree to the Terms of Agreement to proceed.
+                </Typography>
+              )}
+            </Box>
+          </Box>
+
+          {/* ── Final Step / Navigation ─────────────────────────────────── */}
+          <Box
+            sx={{
+              backgroundColor: "#fff",
+              border: `1px solid ${borderColor}`,
+              borderRadius: 2,
+              boxShadow: { xs: "0 1px 4px rgba(0,0,0,0.08)", md: 3 },
+              mx: { xs: 1.5, md: 0 },
+              mt: 1.5,
+              mb: 3,
+              overflow: "hidden",
             }}
           >
-            <input
-              type="checkbox"
-              name="termsOfAgreement"
-              checked={person.termsOfAgreement === 1}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              style={{
-                width: 22,
-                height: 22,
-                accentColor: "#6D2323",
-                flexShrink: 0,
-                cursor: "pointer",
+            <Box
+              sx={{
+                display: { xs: "block", md: "none" },
+                backgroundColor: settings?.header_color || "#1976d2",
+                color: "#fff",
+                px: "14px",
+                py: "10px",
+                fontSize: 13,
+                fontWeight: 700,
               }}
-            />
-            <span style={S.agreeLabel}>I agree to the Terms of Agreement</span>
-          </div>
+            >
+              Final Step
+            </Box>
+            <Box sx={{ p: { xs: "14px", md: 0 } }}>
+              <Typography sx={{ fontSize: { xs: 13, md: 14 }, color: "#333", lineHeight: 1.6, display: { md: "none" } }}>
+                You are on the last step of the application form. Once you submit,
+                your information will be saved and you will be directed to the
+                online requirements page. Make sure all previous steps are
+                completed before submitting.
+              </Typography>
+            </Box>
 
-          {errors.termsOfAgreement && (
-            <div style={S.errorText}>
-              You must agree to the Terms of Agreement to proceed.
-            </div>
-          )}
-        </div>
-      </div>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column-reverse", sm: "row" },
+                justifyContent: "space-between",
+                gap: { xs: 1.5, sm: 0 },
+                p: { xs: "0 14px 14px", md: 2 },
+                mt: { md: 2 },
+              }}
+            >
+              <Button
+                variant="contained"
+                onClick={() => {
+                  handleUpdate(person);
+                  showSnackbar("Your record has been saved successfully!", "success");
+                  setTimeout(() => navigate(`/applicant_health_medical_records/${keys.step4}`), 1000);
+                }}
+                startIcon={<ArrowBackIcon sx={{ color: "#000", transition: "color 0.3s" }} />}
+                fullWidth={isMobile}
+                sx={{
+                  backgroundColor: subButtonColor,
+                  border: `1px solid ${borderColor}`,
+                  color: "#000",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  "&:hover": {
+                    backgroundColor: "#000",
+                    color: "#fff",
+                    "& .MuiSvgIcon-root": { color: "#fff" },
+                  },
+                }}
+              >
+                Previous Step
+              </Button>
 
-      {/* ── Final Step Card ────────────────────────────────────────────── */}
-      <div style={{ ...S.card, marginBottom: 16, border: `1px solid ${borderColor}`, }}>
-        <div
-          style={{
-            ...S.cardHeader,
-            backgroundColor: settings?.header_color || "#1976d2",
-          }}
-        >
-          Final Step
-        </div>
-        <div style={S.cardBody}>
-          <div style={{ fontSize: 13, color: "#333", lineHeight: 1.6 }}>
-            You are on the last step of the application form. Once you submit,
-            your information will be saved and you will be directed to the
-            online requirements page. Make sure all previous steps are
-            completed before submitting.
-          </div>
-        </div>
+              <Button
+                variant="contained"
+                onClick={submitFinalApplication}
+                endIcon={<FolderIcon sx={{ color: "#fff", transition: "color 0.3s" }} />}
+                fullWidth={isMobile}
+                sx={{
+                  backgroundColor: mainButtonColor,
+                  border: `1px solid ${borderColor}`,
+                  color: "#fff",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  "&:hover": {
+                    backgroundColor: "#000",
+                    color: "#fff",
+                    "& .MuiSvgIcon-root": { color: "#fff" },
+                  },
+                }}
+              >
+                Submit (Save Information)
+              </Button>
+            </Box>
+          </Box>
+        </form>
+      </Container>
 
-        {/* ── Bottom Navigation ────────────────────────────────────────── */}
-        <Box
-          display="flex"
-          justifyContent="space-between"
-          mt={2}
-          mx="12px"
-          mb={2}
-        >
-          <Button
-            variant="contained"
-            onClick={() => {
-              handleUpdate(person);  // ADD THIS
-              showSnackbar("Your record has been saved successfully!", "success");
-              setTimeout(() => navigate(`/applicant_health_medical_records/${keys.step4}`), 1000);
-            }}
-            startIcon={
-              <ArrowBackIcon
-                sx={{ color: "#000", transition: "color 0.3s" }}
-              />
-            }
-            sx={{
-              backgroundColor: subButtonColor,
-              border: `1px solid ${borderColor}`,
-              color: "#000",
-              textTransform: "none",
-              fontWeight: 600,
-              "&:hover": {
-                backgroundColor: "#000",
-                color: "#fff",
-                "& .MuiSvgIcon-root": { color: "#fff" },
-              },
-            }}
-          >
-            Previous Step
-          </Button>
-
-          <Button
-            variant="contained"
-            onClick={submitFinalApplication}
-            endIcon={<FolderIcon sx={{ color: "#fff", transition: "color 0.3s" }} />}
-            sx={{
-              backgroundColor: mainButtonColor,
-              border: `1px solid ${borderColor}`,
-              color: "#fff",
-              textTransform: "none",
-              fontWeight: 600,
-              "&:hover": {
-                backgroundColor: "#000",
-                color: "#fff",
-                "& .MuiSvgIcon-root": { color: "#fff" },
-              },
-            }}
-          >
-            Submit (Save Information)
-          </Button>
-        </Box>
-      </div>
-
-      {/* ── Exam Permit Error Modal (from Dashboard5) ──────────────────── */}
+      {/* ── Exam Permit Error Modal ─────────────────────────────────────── */}
       <Modal
         open={examPermitModalOpen}
         onClose={handleCloseExamPermitModal}
@@ -930,30 +966,27 @@ const ApplicantOtherInformationMobile = (props) => {
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            width: "85%",
-            maxWidth: 360,
+            width: { xs: "88%", sm: 400 },
+            maxWidth: 400,
             bgcolor: "background.paper",
             border: `1px solid ${borderColor}`,
             boxShadow: 24,
-            p: 3,
+            p: { xs: 3, md: 4 },
             borderRadius: 2,
             textAlign: "center",
           }}
         >
-          <ErrorIcon sx={{ color: mainButtonColor, fontSize: 44, mb: 1.5 }} />
+          <ErrorIcon sx={{ color: mainButtonColor, fontSize: { xs: 44, md: 50 }, mb: 1.5 }} />
           <Typography
             id="exam-permit-error-title"
             variant="h6"
             component="h2"
             color="maroon"
-            sx={{ fontSize: 16 }}
+            sx={{ fontSize: { xs: 16, md: 20 } }}
           >
             Exam Permit Notice
           </Typography>
-          <Typography
-            id="exam-permit-error-description"
-            sx={{ mt: 1.5, fontSize: 13 }}
-          >
+          <Typography id="exam-permit-error-description" sx={{ mt: 1.5, fontSize: { xs: 13, md: 15 } }}>
             {examPermitError}
           </Typography>
           <Button
@@ -963,15 +996,15 @@ const ApplicantOtherInformationMobile = (props) => {
               mt: 2.5,
               backgroundColor: mainButtonColor,
               "&:hover": { backgroundColor: "#8B0000" },
-              fontSize: 13,
+              fontSize: { xs: 13, md: 14 },
             }}
           >
             Close
           </Button>
         </Box>
       </Modal>
-    </div>
+    </Box>
   );
 };
 
-export default ApplicantOtherInformationMobile;
+export default ApplicantOtherInformationResponsive;

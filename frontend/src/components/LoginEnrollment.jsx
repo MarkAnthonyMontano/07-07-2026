@@ -29,19 +29,7 @@ import { SettingsContext } from "../App";
 import LoadingOverlay from "./LoadingOverlay";
 import API_BASE_URL from "../apiConfig";
 import MuiLink from "@mui/material/Link";
-
-/* ─── Mobile breakpoint hook ─── */
-const useIsMobile = (bp = 768) => {
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== "undefined" ? window.innerWidth <= bp : false
-  );
-  useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth <= bp);
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
-  }, [bp]);
-  return isMobile;
-};
+import { useResponsive } from "../hooks/useResponsive";
 
 function accessToSet(list = []) {
   return new Set(list.map(Number));
@@ -50,7 +38,7 @@ function getRegistrarDashboard(accessSet) {
   if (accessSet.has(101)) return "/registrar_dashboard";
   if (accessSet.has(102)) return "/enrollment_officer_dashboard";
   if (accessSet.has(103)) return "/admission_officer_dashboard";
-
+  return "/registrar_dashboard";
 }
 function getUserDashboard(role, accessList = []) {
   const accessSet = accessToSet(accessList);
@@ -90,8 +78,11 @@ const TotpLoginModal = ({
   onSuccess,
   loginData,
   mainButtonColor,
-  isMobile,
+  device, // "mobile" | "tablet" | "desktop"
 }) => {
+  const isMobile = device === "mobile";
+  const isTablet = device === "tablet";
+
   const [step, setStep] = useState("verify");
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [manualKey, setManualKey] = useState("");
@@ -102,6 +93,15 @@ const TotpLoginModal = ({
   const inputRefs = useRef([]);
 
   const isSetupFlow = loginData?.requireTotpSetup === true;
+
+  // Size tokens per device tier
+  const modalWidth = isMobile ? "calc(100% - 24px)" : isTablet ? 440 : 480;
+  const modalMaxWidth = isMobile ? undefined : 480;
+  const modalPadding = isMobile ? 2.5 : isTablet ? 3.5 : 4;
+  const qrSize = isMobile ? 168 : isTablet ? 188 : 200;
+  const digitBoxWidth = isMobile ? 38 : isTablet ? 48 : 54;
+  const digitBoxHeight = isMobile ? 48 : isTablet ? 56 : 62;
+  const digitGap = isMobile ? 0.75 : 1.5;
 
   useEffect(() => {
     if (!open || !loginData) return;
@@ -195,28 +195,51 @@ const TotpLoginModal = ({
 
   return (
     <Modal open={open} onClose={canClose ? onClose : undefined}>
-      <Box sx={{
-        position: "absolute", top: "50%", left: "50%",
-        transform: "translate(-50%, -50%)",
-        width: isMobile ? "calc(100% - 32px)" : 480,
-        maxWidth: 480,
-        bgcolor: "#fff", borderRadius: "20px",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
-        p: isMobile ? 3 : 4,
-        border: "1px solid #eee",
-        outline: "none",
-        maxHeight: "90vh",
-        overflowY: "auto",
-      }}>
+      <Box
+        sx={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: modalWidth,
+          maxWidth: modalMaxWidth,
+          bgcolor: "#fff",
+          borderRadius: isMobile ? "16px" : "20px",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
+          p: modalPadding,
+          border: "1px solid #eee",
+          outline: "none",
+          maxHeight: "92dvh",
+          overflowY: "auto",
+          WebkitOverflowScrolling: "touch",
+        }}
+      >
         {/* Close */}
         {canClose && (
-          <button onClick={onClose} style={{
-            position: "absolute", top: "12px", right: "12px",
-            backgroundColor: "black", color: "white", border: "none",
-            borderRadius: "50%", width: "34px", height: "34px",
-            cursor: "pointer", fontSize: "16px", fontWeight: "bold",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>✕</button>
+          <button
+            onClick={onClose}
+            style={{
+              position: "absolute",
+              top: "12px",
+              right: "12px",
+              backgroundColor: "black",
+              color: "white",
+              border: "none",
+              borderRadius: "50%",
+              width: "36px",
+              height: "36px",
+              cursor: "pointer",
+              fontSize: "16px",
+              fontWeight: "bold",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              touchAction: "manipulation",
+            }}
+            aria-label="Close"
+          >
+            ✕
+          </button>
         )}
 
         {/* ── Loading QR ── */}
@@ -233,14 +256,21 @@ const TotpLoginModal = ({
         {step === "scan" && (
           <>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
-              <Box sx={{
-                width: 42, height: 42, borderRadius: "50%",
-                bgcolor: mainButtonColor,
-                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-              }}>
+              <Box
+                sx={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: "50%",
+                  bgcolor: mainButtonColor,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
                 <PhoneAndroidIcon sx={{ color: "#fff", fontSize: 22 }} />
               </Box>
-              <Box>
+              <Box sx={{ minWidth: 0 }}>
                 <Typography fontWeight={700} fontSize={isMobile ? 15 : 17}>
                   Set Up Google Authenticator
                 </Typography>
@@ -259,21 +289,31 @@ const TotpLoginModal = ({
                 border: "1px solid #e8eaff",
               }}
             >
-              {/* ── FIXED: each step on its own clear line ── */}
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
-
-                {/* Step 1 label */}
                 <Typography fontSize={13} color="#444" fontWeight={600}>
                   1. Download and install <strong>Google Authenticator</strong>:
                 </Typography>
 
-                {/* Download buttons — each on its own row */}
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, pl: 1 }}>
-                  <Box sx={{
-                    display: "flex", alignItems: "center", gap: 1,
-                    bgcolor: "#fff", border: "1px solid #dde3ff",
-                    borderRadius: "8px", px: 1.5, py: 1,
-                  }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0.75,
+                    pl: 1,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      bgcolor: "#fff",
+                      border: "1px solid #dde3ff",
+                      borderRadius: "8px",
+                      px: 1.5,
+                      py: 1,
+                    }}
+                  >
                     <span style={{ fontSize: 18, lineHeight: 1 }}>📱</span>
                     <MuiLink
                       href="https://apps.apple.com/app/google-authenticator/id388497605"
@@ -284,15 +324,25 @@ const TotpLoginModal = ({
                       fontSize={13}
                       color="inherit"
                     >
-                      App Store <span style={{ fontWeight: 400, color: "#888" }}>(iPhone / iPad)</span>
+                      App Store{" "}
+                      <span style={{ fontWeight: 400, color: "#888" }}>
+                        (iPhone / iPad)
+                      </span>
                     </MuiLink>
                   </Box>
 
-                  <Box sx={{
-                    display: "flex", alignItems: "center", gap: 1,
-                    bgcolor: "#fff", border: "1px solid #dde3ff",
-                    borderRadius: "8px", px: 1.5, py: 1,
-                  }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      bgcolor: "#fff",
+                      border: "1px solid #dde3ff",
+                      borderRadius: "8px",
+                      px: 1.5,
+                      py: 1,
+                    }}
+                  >
                     <span style={{ fontSize: 18, lineHeight: 1 }}>🤖</span>
                     <MuiLink
                       href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2"
@@ -303,27 +353,36 @@ const TotpLoginModal = ({
                       fontSize={13}
                       color="inherit"
                     >
-                      Google Play <span style={{ fontWeight: 400, color: "#888" }}>(Android)</span>
+                      Google Play{" "}
+                      <span style={{ fontWeight: 400, color: "#888" }}>(Android)</span>
                     </MuiLink>
                   </Box>
                 </Box>
 
-                {/* Step 2 */}
                 <Typography fontSize={13} color="#444" lineHeight={1.6}>
-                  <strong>2.</strong> Open the app → tap <strong>"+"</strong> → <strong>"Scan a QR code"</strong>.
+                  <strong>2.</strong> Open the app → tap <strong>"+"</strong> →{" "}
+                  <strong>"Scan a QR code"</strong>.
                 </Typography>
 
-                {/* Step 3 */}
                 <Typography fontSize={13} color="#444" lineHeight={1.6}>
                   <strong>3.</strong> Scan the QR code below.
                 </Typography>
-
               </Box>
             </Box>
 
             {error ? (
-              <Box sx={{ border: "1px solid #f44336", borderRadius: "12px", p: 2, mb: 2.5, textAlign: "center" }}>
-                <Typography color="error" fontSize={13}>{error}</Typography>
+              <Box
+                sx={{
+                  border: "1px solid #f44336",
+                  borderRadius: "12px",
+                  p: 2,
+                  mb: 2.5,
+                  textAlign: "center",
+                }}
+              >
+                <Typography color="error" fontSize={13}>
+                  {error}
+                </Typography>
               </Box>
             ) : (
               <Box sx={{ textAlign: "center", mb: 2 }}>
@@ -333,29 +392,74 @@ const TotpLoginModal = ({
                       src={qrDataUrl}
                       alt="Google Authenticator QR Code"
                       style={{
-                        width: isMobile ? 170 : 200,
-                        height: isMobile ? 170 : 200,
+                        width: qrSize,
+                        height: qrSize,
                         border: "3px solid #000",
                         borderRadius: "12px",
                         transform: `scale(${scale})`,
                         transformOrigin: "center",
                         transition: "transform 0.2s",
                         display: "inline-block",
+                        maxWidth: "100%",
                       }}
                     />
-                    <Box sx={{ display: "flex", justifyContent: "center", gap: 1, mt: 1.5 }}>
-                      <button onClick={() => setScale((s) => Math.min(s + 0.25, 2))}
-                        style={{ background: "#f0f0f0", border: "1px solid #ddd", borderRadius: "8px", padding: "4px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: "12px" }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        gap: 1,
+                        mt: 1.5,
+                      }}
+                    >
+                      <button
+                        onClick={() => setScale((s) => Math.min(s + 0.25, 2))}
+                        style={{
+                          background: "#f0f0f0",
+                          border: "1px solid #ddd",
+                          borderRadius: "8px",
+                          padding: "6px 12px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: "12px",
+                          touchAction: "manipulation",
+                        }}
+                      >
                         <ZoomInIcon sx={{ fontSize: 16 }} /> Zoom in
                       </button>
-                      <button onClick={() => setScale((s) => Math.max(s - 0.25, 1))}
-                        style={{ background: "#f0f0f0", border: "1px solid #ddd", borderRadius: "8px", padding: "4px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: "12px" }}>
+                      <button
+                        onClick={() => setScale((s) => Math.max(s - 0.25, 1))}
+                        style={{
+                          background: "#f0f0f0",
+                          border: "1px solid #ddd",
+                          borderRadius: "8px",
+                          padding: "6px 12px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: "12px",
+                          touchAction: "manipulation",
+                        }}
+                      >
                         <ZoomOutIcon sx={{ fontSize: 16 }} /> Zoom out
                       </button>
                     </Box>
                   </>
                 ) : (
-                  <Box sx={{ width: 200, height: 200, bgcolor: "#f5f5f5", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", mx: "auto" }}>
+                  <Box
+                    sx={{
+                      width: qrSize,
+                      height: qrSize,
+                      bgcolor: "#f5f5f5",
+                      borderRadius: "12px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      mx: "auto",
+                    }}
+                  >
                     <CircularProgress size={32} sx={{ color: mainButtonColor }} />
                   </Box>
                 )}
@@ -365,31 +469,72 @@ const TotpLoginModal = ({
             {/* Manual key fallback */}
             {manualKey && (
               <Box sx={{ mb: 2 }}>
-                <button onClick={() => setShowManualKey((v) => !v)}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: mainButtonColor, fontSize: "13px", fontWeight: 600, padding: 0, textDecoration: "underline" }}>
+                <button
+                  onClick={() => setShowManualKey((v) => !v)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: mainButtonColor,
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    padding: 0,
+                    textDecoration: "underline",
+                    touchAction: "manipulation",
+                  }}
+                >
                   {showManualKey ? "Hide manual entry key" : "Can't scan? Enter key manually"}
                 </button>
                 {showManualKey && (
                   <>
-                    <Box sx={{ mt: 1, p: "10px 14px", bgcolor: "#f5f5f5", borderRadius: "8px", border: "1px solid #ddd", fontFamily: "monospace", fontSize: isMobile ? "12px" : "13px", letterSpacing: "0.08em", color: "#222", wordBreak: "break-all", userSelect: "all" }}>
+                    <Box
+                      sx={{
+                        mt: 1,
+                        p: "10px 14px",
+                        bgcolor: "#f5f5f5",
+                        borderRadius: "8px",
+                        border: "1px solid #ddd",
+                        fontFamily: "monospace",
+                        fontSize: isMobile ? "12px" : "13px",
+                        letterSpacing: "0.08em",
+                        color: "#222",
+                        wordBreak: "break-all",
+                        userSelect: "all",
+                      }}
+                    >
                       {manualKey}
                     </Box>
                     <Typography fontSize={11.5} color="#888" sx={{ mt: 0.5 }}>
-                      In Google Authenticator: tap + → "Enter a setup key" → paste this key → select "Time based".
+                      In Google Authenticator: tap + → "Enter a setup key" → paste this key →
+                      select "Time based".
                     </Typography>
                   </>
                 )}
               </Box>
             )}
 
-            <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start", bgcolor: "#fffbf2", border: "1px solid #f5a623", borderRadius: "8px", p: 1.5, mb: 2.5 }}>
+            <Box
+              sx={{
+                display: "flex",
+                gap: 1,
+                alignItems: "flex-start",
+                bgcolor: "#fffbf2",
+                border: "1px solid #f5a623",
+                borderRadius: "8px",
+                p: 1.5,
+                mb: 2.5,
+              }}
+            >
               <span style={{ fontSize: 16, flexShrink: 0 }}>⏱️</span>
               <Typography fontSize={12} color="#5d4037" lineHeight={1.5}>
-                This QR code expires in <strong>10 minutes</strong>. If it expires, close this and log in again.
+                This QR code expires in <strong>10 minutes</strong>. If it expires, close this and
+                log in again.
               </Typography>
             </Box>
 
-            <Button fullWidth variant="contained"
+            <Button
+              fullWidth
+              variant="contained"
               onClick={() => {
                 setStep("verify");
                 setError("");
@@ -397,7 +542,17 @@ const TotpLoginModal = ({
                 setTimeout(() => inputRefs.current[0]?.focus(), 150);
               }}
               disabled={!!error || !qrDataUrl}
-              sx={{ backgroundColor: mainButtonColor, color: "#fff", fontWeight: 700, fontSize: "15px", borderRadius: "12px", py: 1.5, textTransform: "none", "&:hover": { backgroundColor: mainButtonColor, opacity: 0.92 } }}
+              sx={{
+                backgroundColor: mainButtonColor,
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: "15px",
+                borderRadius: "12px",
+                py: 1.5,
+                textTransform: "none",
+                minHeight: 48,
+                "&:hover": { backgroundColor: mainButtonColor, opacity: 0.92 },
+              }}
             >
               I've scanned it — Enter the code →
             </Button>
@@ -408,14 +563,21 @@ const TotpLoginModal = ({
         {(step === "verify" || step === "submitting") && (
           <>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
-              <Box sx={{
-                width: 42, height: 42, borderRadius: "50%",
-                bgcolor: mainButtonColor,
-                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-              }}>
+              <Box
+                sx={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: "50%",
+                  bgcolor: mainButtonColor,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
                 <CheckCircleIcon sx={{ color: "#fff", fontSize: 22 }} />
               </Box>
-              <Box>
+              <Box sx={{ minWidth: 0 }}>
                 <Typography fontWeight={700} fontSize={isMobile ? 15 : 17}>
                   {isSetupFlow ? "Confirm Your Authenticator Code" : "Google Authenticator"}
                 </Typography>
@@ -425,9 +587,18 @@ const TotpLoginModal = ({
               </Box>
             </Box>
 
-            <Box sx={{ bgcolor: "#f8f9ff", borderRadius: "12px", p: 2, mb: 2.5, border: "1px solid #e8eaff" }}>
+            <Box
+              sx={{
+                bgcolor: "#f8f9ff",
+                borderRadius: "12px",
+                p: 2,
+                mb: 2.5,
+                border: "1px solid #e8eaff",
+              }}
+            >
               <Typography fontSize={13} color="#444" lineHeight={1.7}>
-                Open <strong>Google Authenticator</strong> on your phone and enter the <strong>6-digit code</strong> shown for this account.
+                Open <strong>Google Authenticator</strong> on your phone and enter the{" "}
+                <strong>6-digit code</strong> shown for this account.
               </Typography>
               <Typography fontSize={12} color="#888" sx={{ mt: 0.5 }}>
                 The code refreshes every 30 seconds — always use the current one.
@@ -435,22 +606,31 @@ const TotpLoginModal = ({
             </Box>
 
             {/* 6-digit boxes */}
-            <Box sx={{ display: "flex", justifyContent: "center", gap: isMobile ? 1 : 1.5, mb: 2.5 }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                gap: digitGap,
+                mb: 2.5,
+                flexWrap: "nowrap",
+              }}
+            >
               {code.map((digit, index) => (
                 <input
                   key={index}
                   ref={(el) => (inputRefs.current[index] = el)}
                   type="text"
                   inputMode="numeric"
+                  autoComplete="one-time-code"
                   maxLength={1}
                   value={digit}
                   onChange={(e) => handleDigitChange(e.target.value, index)}
                   onKeyDown={(e) => handleDigitKeyDown(e, index)}
                   disabled={step === "submitting"}
                   style={{
-                    width: isMobile ? "42px" : "54px",
-                    height: isMobile ? "52px" : "62px",
-                    fontSize: "24px",
+                    width: `${digitBoxWidth}px`,
+                    height: `${digitBoxHeight}px`,
+                    fontSize: isMobile ? "20px" : "24px",
                     fontWeight: 700,
                     textAlign: "center",
                     borderRadius: "12px",
@@ -464,29 +644,71 @@ const TotpLoginModal = ({
             </Box>
 
             {error && (
-              <Box sx={{ bgcolor: "#fff5f5", border: "1px solid #f44336", borderRadius: "8px", p: 1.5, mb: 2 }}>
-                <Typography fontSize={13} color="#c62828">{error}</Typography>
+              <Box
+                sx={{
+                  bgcolor: "#fff5f5",
+                  border: "1px solid #f44336",
+                  borderRadius: "8px",
+                  p: 1.5,
+                  mb: 2,
+                }}
+              >
+                <Typography fontSize={13} color="#c62828">
+                  {error}
+                </Typography>
               </Box>
             )}
 
-            <Button fullWidth variant="contained"
+            <Button
+              fullWidth
+              variant="contained"
               onClick={handleVerify}
               disabled={step === "submitting"}
-              sx={{ backgroundColor: mainButtonColor, color: "#fff", fontWeight: 700, fontSize: "15px", borderRadius: "12px", py: 1.5, textTransform: "none", mb: isSetupFlow ? 1.5 : 0, "&:hover": { backgroundColor: mainButtonColor, opacity: 0.92 } }}
+              sx={{
+                backgroundColor: mainButtonColor,
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: "15px",
+                borderRadius: "12px",
+                py: 1.5,
+                textTransform: "none",
+                minHeight: 48,
+                mb: isSetupFlow ? 1.5 : 0,
+                "&:hover": { backgroundColor: mainButtonColor, opacity: 0.92 },
+              }}
             >
               {step === "submitting" ? (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                   <CircularProgress size={18} sx={{ color: "#fff" }} />
                   Verifying…
                 </Box>
-              ) : isSetupFlow ? "Verify & Complete Setup" : "Verify & Log In"}
+              ) : isSetupFlow ? (
+                "Verify & Complete Setup"
+              ) : (
+                "Verify & Log In"
+              )}
             </Button>
 
             {isSetupFlow && (
-              <Button fullWidth variant="outlined"
-                onClick={() => { setStep("scan"); setError(""); }}
+              <Button
+                fullWidth
+                variant="outlined"
+                onClick={() => {
+                  setStep("scan");
+                  setError("");
+                }}
                 disabled={step === "submitting"}
-                sx={{ fontWeight: 600, fontSize: "13px", borderRadius: "12px", py: 1.25, textTransform: "none", color: "#555", borderColor: "#ddd", "&:hover": { borderColor: "#bbb", bgcolor: "#fafafa" } }}
+                sx={{
+                  fontWeight: 600,
+                  fontSize: "13px",
+                  borderRadius: "12px",
+                  py: 1.25,
+                  textTransform: "none",
+                  color: "#555",
+                  borderColor: "#ddd",
+                  minHeight: 44,
+                  "&:hover": { borderColor: "#bbb", bgcolor: "#fafafa" },
+                }}
               >
                 ← Back to QR code
               </Button>
@@ -503,7 +725,7 @@ const TotpLoginModal = ({
 ══════════════════════════════════════════════════════════════════════════ */
 const LoginEnrollment = ({ setIsAuthenticated }) => {
   const settings = useContext(SettingsContext);
-  const isMobile = useIsMobile();
+  const { device, isMobile, isTablet, isDesktop } = useResponsive();
 
   const [mainButtonColor, setMainButtonColor] = useState("#1976d2");
 
@@ -576,8 +798,14 @@ const LoginEnrollment = ({ setIsAuthenticated }) => {
   const isFormValid = () => {
     let newErrors = {};
     let isValid = true;
-    if (!email) { newErrors.email = true; isValid = false; }
-    if (!password) { newErrors.password = true; isValid = false; }
+    if (!email) {
+      newErrors.email = true;
+      isValid = false;
+    }
+    if (!password) {
+      newErrors.password = true;
+      isValid = false;
+    }
     setErrors(newErrors);
     return isValid;
   };
@@ -597,8 +825,10 @@ const LoginEnrollment = ({ setIsAuthenticated }) => {
     if (shouldForceChange) {
       const roleVal = data.role?.toLowerCase();
       const changePwPath =
-        roleVal === "faculty" ? "/faculty_reset_password"
-          : roleVal === "registrar" ? "/registrar_reset_password"
+        roleVal === "faculty"
+          ? "/faculty_reset_password"
+          : roleVal === "registrar"
+            ? "/registrar_reset_password"
             : "/student_reset_password";
       navigate(changePwPath);
     } else {
@@ -613,15 +843,20 @@ const LoginEnrollment = ({ setIsAuthenticated }) => {
     }
     const stillLocked = getLockoutRemaining(email);
     if (stillLocked > 0) {
-      if (!lockout) { lockTimerRef.current = stillLocked; setLockoutTimer(stillLocked); setLockout(true); }
+      if (!lockout) {
+        lockTimerRef.current = stillLocked;
+        setLockoutTimer(stillLocked);
+        setLockout(true);
+      }
       return;
     }
 
     try {
       setLoading(true);
-      const apiUrl = loginType === "applicant"
-        ? `${API_BASE_URL}/api/login_applicant`
-        : `${API_BASE_URL}/api/login`;
+      const apiUrl =
+        loginType === "applicant"
+          ? `${API_BASE_URL}/api/login_applicant`
+          : `${API_BASE_URL}/api/login`;
 
       const res = await axios.post(apiUrl, { email, password, audit_log_db: "db3" });
 
@@ -680,16 +915,20 @@ const LoginEnrollment = ({ setIsAuthenticated }) => {
 
       const shouldForceChange = localStorage.getItem("force_password_change") === "true";
       completeLogin(res.data, shouldForceChange);
-
     } catch (error) {
       const data = error.response?.data;
       const message = data?.message || "Login failed";
       const attemptsLeft = data?.remaining;
-      const displayMsg = attemptsLeft != null
-        ? `${message} (${attemptsLeft} attempt${attemptsLeft !== 1 ? "s" : ""} left)`
-        : message;
+      const displayMsg =
+        attemptsLeft != null
+          ? `${message} (${attemptsLeft} attempt${attemptsLeft !== 1 ? "s" : ""} left)`
+          : message;
       setSnack({ open: true, message: displayMsg, severity: "error" });
-      if (data?.remainingSeconds || message.toLowerCase().includes("too many") || message.toLowerCase().includes("locked")) {
+      if (
+        data?.remainingSeconds ||
+        message.toLowerCase().includes("too many") ||
+        message.toLowerCase().includes("locked")
+      ) {
         startLockout(email, data?.remainingSeconds ?? 180);
       }
     } finally {
@@ -708,7 +947,6 @@ const LoginEnrollment = ({ setIsAuthenticated }) => {
     setSnack((prev) => ({ ...prev, open: false }));
   };
 
-  // 🔒 Disable right-click
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
   // 🔒 Block DevTools shortcuts + Ctrl+P silently
@@ -728,41 +966,74 @@ const LoginEnrollment = ({ setIsAuthenticated }) => {
     }
   });
 
+  // ── Layout tokens per device tier ──
+  const cardWidth = isMobile ? "calc(100% - 32px)" : isTablet ? "min(520px, 92vw)" : undefined;
+  const cardMaxWidth = isMobile ? 480 : isTablet ? 520 : undefined;
+  const cardBorderWidth = isMobile ? "3px" : isTablet ? "4px" : "5px";
+  const containerMarginTop = isMobile ? 0 : isTablet ? -40 : -100;
+  const fieldHeight = isMobile ? 48 : isTablet ? 52 : 55;
+
   return (
     <>
-      <Box sx={{
-        backgroundImage,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-        width: "100%",
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: isMobile ? "flex-start" : "center",
-        justifyContent: "center",
-        position: "relative",
-        overflowY: isMobile ? "auto" : "hidden",
-        py: isMobile ? 2 : 0,
-      }}>
+      <Box
+        sx={{
+          backgroundImage,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          width: "100%",
+          minHeight: "100dvh",
+          display: "flex",
+          alignItems: isDesktop ? "center" : "flex-start",
+          justifyContent: "center",
+          position: "relative",
+          overflowY: isDesktop ? "hidden" : "auto",
+          py: isDesktop ? 0 : isTablet ? 4 : 2,
+          px: isMobile ? 0 : 2,
+          pb: isMobile ? "calc(16px + env(safe-area-inset-bottom))" : undefined,
+        }}
+      >
         <Container
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", marginTop: isMobile ? 0 : "-100px", padding: isMobile ? "0" : undefined }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginTop: containerMarginTop,
+            padding: isMobile ? "0" : undefined,
+            width: "100%",
+          }}
           maxWidth={false}
         >
           <div
-            style={{ border: isMobile ? "3px solid black" : "5px solid black", width: isMobile ? "calc(100% - 32px)" : undefined, maxWidth: isMobile ? 480 : undefined }}
+            style={{
+              border: `${cardBorderWidth} solid black`,
+              width: cardWidth,
+              maxWidth: cardMaxWidth,
+            }}
             className="Container"
           >
-            <div className="Header" style={{ backgroundColor: settings?.header_color || "#1976d2", padding: isMobile ? "12px 10px" : "1rem 0", borderBottom: "3px solid black" }}>
+            <div
+              className="Header"
+              style={{
+                backgroundColor: settings?.header_color || "#1976d2",
+                padding: isMobile ? "12px 10px" : isTablet ? "14px 12px" : "1rem 0",
+                borderBottom: "3px solid black",
+              }}
+            >
               <div className="HeaderTitle">
-                <div className="CircleCon"><img src={logoSrc} alt="Logo" /></div>
+                <div className="CircleCon">
+                  <img src={logoSrc} alt="Logo" />
+                </div>
               </div>
               <div className="HeaderBody">
                 <strong style={{ color: "white" }}>
-                  {(settings?.company_name || "Company Name").split(" ").reduce((acc, word, i) => {
-                    if (i % 4 === 0 && i !== 0) acc.push(<br key={`br-${i}`} />);
-                    acc.push(word + " ");
-                    return acc;
-                  }, [])}
+                  {(settings?.company_name || "Company Name")
+                    .split(" ")
+                    .reduce((acc, word, i) => {
+                      if (i % 4 === 0 && i !== 0) acc.push(<br key={`br-${i}`} />);
+                      acc.push(word + " ");
+                      return acc;
+                    }, [])}
                 </strong>
                 <p>Academic Information System</p>
               </div>
@@ -772,51 +1043,138 @@ const LoginEnrollment = ({ setIsAuthenticated }) => {
               <div className="TextField" style={{ position: "relative" }}>
                 <label htmlFor="loginType">Login As</label>
                 <select
-                  id="loginType" name="loginType" value={loginType}
+                  id="loginType"
+                  name="loginType"
+                  value={loginType}
                   onChange={(e) => {
                     setLoginType(e.target.value);
                     if (e.target.value === "applicant") navigate("/login_applicant");
                     else navigate("/login");
                   }}
-                  style={{ width: "100%", padding: "0.8rem 2.5rem 0.8rem 2.5rem", borderRadius: "6px", border: "2px solid black", height: "55px", fontSize: "1rem", backgroundColor: "white", outline: "none", appearance: "none", WebkitAppearance: "none", MozAppearance: "none", cursor: "pointer" }}
+                  style={{
+                    width: "100%",
+                    padding: "0.8rem 2.5rem 0.8rem 2.5rem",
+                    borderRadius: "6px",
+                    border: "2px solid black",
+                    height: `${fieldHeight}px`,
+                    fontSize: "1rem",
+                    backgroundColor: "white",
+                    outline: "none",
+                    appearance: "none",
+                    WebkitAppearance: "none",
+                    MozAppearance: "none",
+                    cursor: "pointer",
+                  }}
                 >
                   <option value="user">Student / Faculty / Registrar</option>
                   <option value="applicant">Applicant</option>
                 </select>
-                <PersonIcon style={{ position: "absolute", top: "2.75rem", left: "0.7rem", color: "rgba(0,0,0,0.4)" }} />
-                <ArrowDropDownIcon sx={{ position: "absolute", right: "10px", top: "70%", transform: "translateY(-50%)", fontSize: "30px", color: "black", pointerEvents: "none" }} />
+                <PersonIcon
+                  style={{
+                    position: "absolute",
+                    top: "2.75rem",
+                    left: "0.7rem",
+                    color: "rgba(0,0,0,0.4)",
+                  }}
+                />
+                <ArrowDropDownIcon
+                  sx={{
+                    position: "absolute",
+                    right: "10px",
+                    top: "70%",
+                    transform: "translateY(-50%)",
+                    fontSize: "30px",
+                    color: "black",
+                    pointerEvents: "none",
+                  }}
+                />
               </div>
 
-              <form onSubmit={(e) => { e.preventDefault(); if (!lockout) handleLogin(); }}>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!lockout) handleLogin();
+                }}
+              >
                 <div className="TextField" style={{ position: "relative" }}>
                   <label htmlFor="email">Email Address</label>
                   <input
-                    type="text" id="email" name="email"
-                    placeholder="Enter your email address" className="border"
+                    type="text"
+                    id="email"
+                    name="email"
+                    placeholder="Enter your email address"
+                    className="border"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    style={{ paddingLeft: "2.5rem", height: isMobile ? "48px" : "55px", border: errors.email ? "2px solid red" : "2px solid black" }}
-                    autoFocus={!isMobile}
+                    style={{
+                      paddingLeft: "2.5rem",
+                      height: `${fieldHeight}px`,
+                      border: errors.email ? "2px solid red" : "2px solid black",
+                    }}
+                    autoFocus={isDesktop}
                   />
-                  {errors.email && <span style={{ color: "red", fontSize: "12px" }}>Email is required</span>}
-                  <EmailIcon style={{ position: "absolute", top: "2.75rem", left: "0.7rem", color: "rgba(0,0,0,0.4)" }} />
+                  {errors.email && (
+                    <span style={{ color: "red", fontSize: "12px" }}>Email is required</span>
+                  )}
+                  <EmailIcon
+                    style={{
+                      position: "absolute",
+                      top: "2.75rem",
+                      left: "0.7rem",
+                      color: "rgba(0,0,0,0.4)",
+                    }}
+                  />
                 </div>
 
                 <div className="TextField" style={{ position: "relative" }}>
                   <label htmlFor="password">Password</label>
                   <input
-                    type={showPassword ? "text" : "password"} id="password" name="password"
-                    placeholder="Enter your password" value={password}
-                    onChange={(e) => setPassword(e.target.value)} className="border"
-                    style={{ paddingLeft: "2.5rem", height: isMobile ? "48px" : "55px", border: errors.password ? "2px solid red" : "2px solid black" }}
+                    type={showPassword ? "text" : "password"}
+                    id="password"
+                    name="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="border"
+                    style={{
+                      paddingLeft: "2.5rem",
+                      height: `${fieldHeight}px`,
+                      border: errors.password ? "2px solid red" : "2px solid black",
+                    }}
                   />
-                  {errors.password && <span style={{ color: "red", fontSize: "12px" }}>Password is required</span>}
-                  <LockIcon style={{ position: "absolute", top: "2.75rem", left: "0.7rem", color: "rgba(0,0,0,0.4)", fontSize: "26px" }} />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    style={{ color: "rgba(0,0,0,0.3)", outline: "none", position: "absolute", top: "2.5rem", right: "1rem", background: "none", border: "none", cursor: "pointer", marginBottom: "50px" }}>
-                    {showPassword
-                      ? <Visibility sx={{ fontSize: "26px", color: "rgba(0,0,0,0.4)" }} />
-                      : <VisibilityOff sx={{ fontSize: "26px", color: "rgba(0,0,0,0.4)" }} />}
+                  {errors.password && (
+                    <span style={{ color: "red", fontSize: "12px" }}>Password is required</span>
+                  )}
+                  <LockIcon
+                    style={{
+                      position: "absolute",
+                      top: "2.75rem",
+                      left: "0.7rem",
+                      color: "rgba(0,0,0,0.4)",
+                      fontSize: "26px",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      color: "rgba(0,0,0,0.3)",
+                      outline: "none",
+                      position: "absolute",
+                      top: "2.5rem",
+                      right: "1rem",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      marginBottom: "50px",
+                      touchAction: "manipulation",
+                    }}
+                  >
+                    {showPassword ? (
+                      <Visibility sx={{ fontSize: "26px", color: "rgba(0,0,0,0.4)" }} />
+                    ) : (
+                      <VisibilityOff sx={{ fontSize: "26px", color: "rgba(0,0,0,0.4)" }} />
+                    )}
                   </button>
                 </div>
 
@@ -830,15 +1188,16 @@ const LoginEnrollment = ({ setIsAuthenticated }) => {
                       backgroundColor: lockout ? "#999" : loading ? "#ccc" : mainButtonColor,
                       border: "2px solid black",
                       color: "white",
-                      height: "50px",
+                      height: isMobile ? "48px" : "50px",
                       borderRadius: "10px",
                       padding: "0.5rem 0",
                       fontSize: "16px",
                       fontWeight: "bold",
-                      marginTop: isMobile ? "28px" : "50px",
+                      marginTop: isMobile ? "28px" : isTablet ? "36px" : "50px",
                       cursor: lockout || loading ? "not-allowed" : "pointer",
                       opacity: lockout || loading ? 0.8 : 1,
                       transition: "opacity 0.2s ease-in-out",
+                      touchAction: "manipulation",
                     }}
                   >
                     {lockout ? `Locked (${lockoutTimer}s)` : loading ? "Processing..." : "Log In"}
@@ -847,7 +1206,9 @@ const LoginEnrollment = ({ setIsAuthenticated }) => {
               </form>
 
               <div className="LinkContainer">
-                <span><Link to="/forgot_password">Forgot your password</Link></span>
+                <span>
+                  <Link to="/forgot_password">Forgot your password</Link>
+                </span>
               </div>
             </div>
 
@@ -867,11 +1228,18 @@ const LoginEnrollment = ({ setIsAuthenticated }) => {
           onSuccess={handleTotpSuccess}
           loginData={tempLoginData}
           mainButtonColor={mainButtonColor}
-          isMobile={isMobile}
+          device={device}
         />
 
-        <Snackbar open={snack.open} autoHideDuration={4000} onClose={handleClose} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
-          <Alert severity={snack.severity} onClose={handleClose} sx={{ width: "100%" }}>{snack.message}</Alert>
+        <Snackbar
+          open={snack.open}
+          autoHideDuration={4000}
+          onClose={handleClose}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        >
+          <Alert severity={snack.severity} onClose={handleClose} sx={{ width: "100%" }}>
+            {snack.message}
+          </Alert>
         </Snackbar>
 
         <LoadingOverlay open={loading} />

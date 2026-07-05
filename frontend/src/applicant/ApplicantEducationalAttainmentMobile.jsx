@@ -4,12 +4,13 @@ import axios from "axios";
 import {
   Button,
   Box,
-  Container,
   Typography,
   Card,
   Modal,
   Snackbar,
   Alert,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -25,299 +26,233 @@ import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import ExamPermit from "./ExamPermit";
 import API_BASE_URL from "../apiConfig";
 
-// ─── Style tokens (from StudentDashboard3Mobile) ──────────────────────────────
-const S = {
-  screen: {
-    minHeight: "100vh",
-    backgroundColor: "#f5f5f5",
-    fontFamily: "'Segoe UI', sans-serif",
-    paddingBottom: 80,
-  },
-  notice: {
-    backgroundColor: "#fffaf5",
-    border: "1px solid #6D2323",
-    borderRadius: 8,
-    margin: "12px 12px 0",
-    padding: "10px 12px",
-    display: "flex",
-    gap: 10,
-    alignItems: "flex-start",
-  },
-  noticeIcon: {
-    backgroundColor: "#800000",
-    borderRadius: 6,
-    width: 32,
-    height: 32,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-    fontSize: 18,
-  },
-  noticeText: { fontSize: 12, color: "#3e3e3e", lineHeight: 1.5 },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    margin: "12px 12px 0",
-    overflow: "hidden",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-  },
-  cardHeader: {
-    color: "#fff",
-    padding: "10px 14px",
-    fontSize: 13,
-    fontWeight: 700,
-    letterSpacing: 0.3,
-  },
-  cardBody: { padding: "14px 14px" },
-  fieldWrap: { marginBottom: 14 },
-  label: {
-    display: "block",
-    fontSize: 12,
-    fontWeight: 600,
-    color: "#444",
-    marginBottom: 5,
-  },
-  required: { color: "#d32f2f" },
-  input: (hasError) => ({
-    width: "100%",
-    height: 42,
-    padding: "0 12px",
-    border: `1px solid ${hasError ? "#d32f2f" : "#ccc"}`,
-    borderRadius: 8,
-    fontSize: 14,
-    backgroundColor: "#fff",
-    boxSizing: "border-box",
-    outline: "none",
-    color: "#222",
-  }),
-  select: (hasError) => ({
-    width: "100%",
-    height: 42,
-    padding: "0 12px",
-    border: `1px solid ${hasError ? "#d32f2f" : "#ccc"}`,
-    borderRadius: 8,
-    fontSize: 14,
-    backgroundColor: "#fff",
-    boxSizing: "border-box",
-    outline: "none",
-    color: "#222",
-    appearance: "none",
-    WebkitAppearance: "none",
-    backgroundImage:
-      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none'/%3E%3C/svg%3E\")",
-    backgroundRepeat: "no-repeat",
-    backgroundPosition: "right 12px center",
-    paddingRight: 32,
-  }),
-  helperError: { color: "#d32f2f", fontSize: 11, marginTop: 3 },
-  row: { display: "flex", gap: 10 },
-  flex1: { flex: 1 },
-  divider: {
-    border: "none",
-    borderTop: "1px solid #e0e0e0",
-    margin: "14px 0 10px",
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: "#6D2323",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 10,
-  },
-  toast: (severity) => ({
-    position: "fixed",
-    top: 16,
-    left: "50%",
-    transform: "translateX(-50%)",
-    zIndex: 9999,
-    backgroundColor:
-      severity === "success"
-        ? "#2e7d32"
-        : severity === "error"
-          ? "#c62828"
-          : "#e65100",
-    color: "#fff",
-    padding: "10px 20px",
-    borderRadius: 24,
-    fontSize: 13,
-    boxShadow: "0 3px 10px rgba(0,0,0,0.25)",
-    maxWidth: "90vw",
-    textAlign: "center",
-  }),
-};
-
 // ─── Reusable field wrapper ───────────────────────────────────────────────────
 const Field = ({ label, required, error, helperText, children }) => (
-  <div style={S.fieldWrap}>
+  <div style={{ marginBottom: 14 }}>
     {label && (
-      <label style={S.label}>
+      <label
+        style={{
+          display: "block",
+          fontSize: "clamp(11px, 1.4vw, 13px)",
+          fontWeight: 600,
+          color: "#444",
+          marginBottom: 5,
+        }}
+      >
         {label}
-        {required && <span style={S.required}> *</span>}
+        {required && <span style={{ color: "#d32f2f" }}> *</span>}
       </label>
     )}
     {children}
-    {error && helperText && <div style={S.helperError}>{helperText}</div>}
+    {error && helperText && (
+      <div style={{ color: "#d32f2f", fontSize: 11, marginTop: 3 }}>
+        {helperText}
+      </div>
+    )}
   </div>
 );
 
+const baseControlStyle = (hasError) => ({
+  width: "100%",
+  height: 42,
+  padding: "0 12px",
+  border: `1px solid ${hasError ? "#d32f2f" : "#ccc"}`,
+  borderRadius: 8,
+  fontSize: "clamp(13px, 1.6vw, 14px)",
+  backgroundColor: "#fff",
+  boxSizing: "border-box",
+  outline: "none",
+  color: "#222",
+});
+
 const MInput = ({ error, style, ...props }) => (
-  <input style={{ ...S.input(error), ...style }} {...props} />
+  <input style={{ ...baseControlStyle(error), ...style }} {...props} />
 );
 
 const MSelect = ({ error, style, children, ...props }) => (
-  <select style={{ ...S.select(error), ...style }} {...props}>
+  <select
+    style={{
+      ...baseControlStyle(error),
+      appearance: "none",
+      WebkitAppearance: "none",
+      backgroundImage:
+        "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none'/%3E%3C/svg%3E\")",
+      backgroundRepeat: "no-repeat",
+      backgroundPosition: "right 12px center",
+      paddingRight: 32,
+      ...style,
+    }}
+    {...props}
+  >
     {children}
   </select>
 );
 
 // ─── Reusable school record block (JHS suffix="" / SHS suffix="1") ────────────
-const SchoolBlock = ({ suffix = "", labels = {}, person, errors, handleChange }) => {
+// isStacked: true = fields stack vertically (phone), false = grid layout (tablet/desktop)
+const SchoolBlock = ({ suffix = "", person, errors, handleChange, isStacked }) => {
   const f = (n) => `${n}${suffix}`;
+
   return (
     <>
-      <Field
-        label={labels.level || "Educational Attainment"}
-        required
-        error={errors[f("schoolLevel")]}
-        helperText="Required"
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: isStacked ? "1fr" : "repeat(2, 1fr)",
+          gap: 2,
+          mb: 0,
+        }}
       >
-        <MSelect
-          name={f("schoolLevel")}
-          value={person[f("schoolLevel")] || ""}
-          onChange={handleChange}
+        <Field
+          label="Educational Attainment"
+          required
           error={errors[f("schoolLevel")]}
+          helperText="This field is required."
         >
-          <option value="">Select Level</option>
-          {suffix === "" ? (
-            <>
-              <option value="High School/Junior High School">
-                High School / Junior High School
-              </option>
-              <option value="ALS">ALS</option>
-            </>
-          ) : (
-            <>
-              <option value="Senior High School">Senior High School</option>
-              <option value="Undergraduate">Undergraduate</option>
-              <option value="Graduate">Graduate</option>
-              <option value="ALS">ALS</option>
-              <option value="Vocational/Trade Course">
-                Vocational / Trade Course
-              </option>
-            </>
-          )}
-        </MSelect>
-      </Field>
+          <MSelect
+            name={f("schoolLevel")}
+            value={person[f("schoolLevel")] || ""}
+            onChange={handleChange}
+            error={errors[f("schoolLevel")]}
+          >
+            <option value="">Select Level</option>
+            {suffix === "" ? (
+              <>
+                <option value="High School/Junior High School">
+                  High School / Junior High School
+                </option>
+                <option value="ALS">ALS</option>
+              </>
+            ) : (
+              <>
+                <option value="Senior High School">Senior High School</option>
+                <option value="Undergraduate">Undergraduate</option>
+                <option value="Graduate">Graduate</option>
+                <option value="ALS">ALS</option>
+                <option value="Vocational/Trade Course">
+                  Vocational / Trade Course
+                </option>
+              </>
+            )}
+          </MSelect>
+        </Field>
 
-      <Field
-        label="School Last Attended"
-        required
-        error={errors[f("schoolLastAttended")]}
-        helperText="Required"
-      >
-        <MInput
-          name={f("schoolLastAttended")}
-          value={person[f("schoolLastAttended")] || ""}
-          onChange={handleChange}
+        <Field
+          label="School Last Attended"
+          required
           error={errors[f("schoolLastAttended")]}
-          placeholder="Enter your School Name"
-        />
-      </Field>
+          helperText="This field is required."
+        >
+          <MInput
+            name={f("schoolLastAttended")}
+            value={person[f("schoolLastAttended")] || ""}
+            onChange={handleChange}
+            error={errors[f("schoolLastAttended")]}
+            placeholder="Enter your School Name"
+          />
+        </Field>
 
-      <Field
-        label="Enter your School Address"
-        required
-        error={errors[f("schoolAddress")]}
-        helperText="Required"
-      >
-        <MInput
-          name={f("schoolAddress")}
-          value={person[f("schoolAddress")] || ""}
-          onChange={handleChange}
+        <Field
+          label="School Full Address (Street / Brgy / City)"
+          required
           error={errors[f("schoolAddress")]}
-          placeholder="Street / Brgy / City"
-        />
-      </Field>
+          helperText="This field is required."
+        >
+          <MInput
+            name={f("schoolAddress")}
+            value={person[f("schoolAddress")] || ""}
+            onChange={handleChange}
+            error={errors[f("schoolAddress")]}
+            placeholder="Street / Brgy / City"
+          />
+        </Field>
 
-      <Field label="Enter your Course Program">
-        <MInput
-          name={f("courseProgram")}
-          value={person[f("courseProgram")] || ""}
-          onChange={handleChange}
-          placeholder="Course or Track"
-        />
-      </Field>
+        <Field label="Course Program">
+          <MInput
+            name={f("courseProgram")}
+            value={person[f("courseProgram")] || ""}
+            onChange={handleChange}
+            placeholder="Course or Track"
+          />
+        </Field>
+      </Box>
 
-      <div style={S.row}>
-        <div style={S.flex1}>
-          <Field
-            label="Enter your Recognition / Awards"
-            required
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: isStacked ? "1fr" : "2fr 1fr 1fr",
+          gap: 2,
+        }}
+      >
+        <Field
+          label="Recognition / Awards"
+          required
+          error={errors[f("honor")]}
+          helperText="This field is required."
+        >
+          <MInput
+            name={f("honor")}
+            value={person[f("honor")] || ""}
+            onChange={handleChange}
             error={errors[f("honor")]}
-            helperText="Required"
-          >
-            <MInput
-              name={f("honor")}
-              value={person[f("honor")] || ""}
-              onChange={handleChange}
-              error={errors[f("honor")]}
-              placeholder='e.g. With Honors or "NA"'
-            />
-          </Field>
-        </div>
-        <div style={{ width: 90 }}>
-          <Field
-            label="Enter your General Average"
-            required
+            placeholder='e.g. With Honors or "NA"'
+          />
+        </Field>
+
+        <Field
+          label="General Average"
+          required
+          error={errors[f("generalAverage")]}
+          helperText="This field is required."
+        >
+          <MInput
+            type="number"
+            step="0.01"
+            min={0}
+            max={100}
+            name={f("generalAverage")}
+            value={person[f("generalAverage")] || ""}
+            onChange={handleChange}
             error={errors[f("generalAverage")]}
-            helperText="Required"
-          >
-            <MInput
-              type="number"
-              step="0.01"
-              min={0}
-              max={100}
-              name={f("generalAverage")}
-              value={person[f("generalAverage")] || ""}
-              onChange={handleChange}
-              error={errors[f("generalAverage")]}
-              placeholder="Enter your General Average"
-            />
-          </Field>
-        </div>
-        <div style={{ width: 80 }}>
-          <Field
-            label="Year Grad."
-            required
+            placeholder="e.g. 95.00"
+          />
+        </Field>
+
+        <Field
+          label="Year Graduated"
+          required
+          error={errors[f("yearGraduated")]}
+          helperText="This field is required."
+        >
+          <MInput
+            type="number"
+            min={1900}
+            max={new Date().getFullYear()}
+            step={1}
+            name={f("yearGraduated")}
+            value={person[f("yearGraduated")] || ""}
+            onChange={handleChange}
             error={errors[f("yearGraduated")]}
-            helperText="Required"
-          >
-            <MInput
-              type="number"
-              min={1900}
-              max={new Date().getFullYear()}
-              step={1}
-              name={f("yearGraduated")}
-              value={person[f("yearGraduated")] || ""}
-              onChange={handleChange}
-              error={errors[f("yearGraduated")]}
-              placeholder="YYYY"
-            />
-          </Field>
-        </div>
-      </div>
+            placeholder="YYYY"
+          />
+        </Field>
+      </Box>
     </>
   );
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-const ApplicantEducationalAttainmentMobile = (props) => {
+const ApplicantEducationalAttainmentResponsive = (props) => {
   const settings = useContext(SettingsContext);
   const navigate = useNavigate();
+  const theme = useTheme();
 
-  // ── Theme state (from Dashboard3) ──────────────────────────────────────────
+  // Breakpoints: phone < 600px, tablet 600–959px, desktop >= 960px
+  const isPhone = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
+  const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
+
+  // ── Theme state ─────────────────────────────────────────────────────────
   const [titleColor, setTitleColor] = useState("#000000");
   const [subtitleColor, setSubtitleColor] = useState("#555555");
   const [borderColor, setBorderColor] = useState("#000000");
@@ -326,7 +261,7 @@ const ApplicantEducationalAttainmentMobile = (props) => {
   const [companyName, setCompanyName] = useState("");
   const [shortTerm, setShortTerm] = useState("");
 
-  // ── User / person state (from Dashboard3) ──────────────────────────────────
+  // ── User / person state ─────────────────────────────────────────────────
   const [userID, setUserID] = useState("");
   const [userRole, setUserRole] = useState("");
   const [person, setPerson] = useState({
@@ -347,14 +282,14 @@ const ApplicantEducationalAttainmentMobile = (props) => {
     strand: "",
   });
 
-  // ── Exam permit state (from Dashboard3) ────────────────────────────────────
+  // ── Exam permit state ───────────────────────────────────────────────────
   const divToPrintRef = useRef();
   const [showPrintView, setShowPrintView] = useState(false);
   const [examPermitError, setExamPermitError] = useState("");
   const [examPermitModalOpen, setExamPermitModalOpen] = useState(false);
   const [canPrintPermit, setCanPrintPermit] = useState(false);
 
-  // ── Validation & snackbar ──────────────────────────────────────────────────
+  // ── Validation & snackbar ───────────────────────────────────────────────
   const [errors, setErrors] = useState({});
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -369,10 +304,9 @@ const ApplicantEducationalAttainmentMobile = (props) => {
 
   const showSnackbar = (message, severity = "warning") => {
     setSnackbar({ open: true, message, severity });
-    setTimeout(() => setSnackbar((p) => ({ ...p, open: false })), 3000);
   };
 
-  // ── Apply settings (from Dashboard3) ──────────────────────────────────────
+  // ── Apply settings ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!settings) return;
     if (settings.title_color) setTitleColor(settings.title_color);
@@ -384,7 +318,7 @@ const ApplicantEducationalAttainmentMobile = (props) => {
     if (settings.short_term) setShortTerm(settings.short_term);
   }, [settings]);
 
-  // ── Auth + load (from Dashboard3 — do not alter) ───────────────────────────
+  // ── Auth + load (do not alter) ──────────────────────────────────────────
   useEffect(() => {
     const storedUser = localStorage.getItem("email");
     const storedRole = localStorage.getItem("role");
@@ -416,7 +350,7 @@ const ApplicantEducationalAttainmentMobile = (props) => {
     }
   }, []);
 
-  // ── Fetch person (from Dashboard3 — do not alter) ─────────────────────────
+  // ── Fetch person (do not alter) ─────────────────────────────────────────
   const fetchPersonData = async (id) => {
     try {
       const res = await axios.get(`${API_BASE_URL}/api/person/${id}`);
@@ -429,14 +363,13 @@ const ApplicantEducationalAttainmentMobile = (props) => {
     }
   };
 
-  // ── handleUpdate (from Dashboard3 — do not alter) ─────────────────────────
+  // ── handleUpdate (do not alter) ─────────────────────────────────────────
   const handleUpdate = async (updatedPerson) => {
     try {
       if (!updatedPerson || Object.keys(updatedPerson).length === 0) {
         console.warn("⚠️ No data to update — skipping PUT request.");
         return;
       }
-      console.log("🧠 Sending update:", updatedPerson);
       const response = await axios.put(
         `${API_BASE_URL}/api/person/${userID}`,
         updatedPerson
@@ -450,7 +383,7 @@ const ApplicantEducationalAttainmentMobile = (props) => {
     }
   };
 
-  // ── handleChange (from Dashboard3) ────────────────────────────────────────
+  // ── handleChange ─────────────────────────────────────────────────────────
   const handleChange = (e) => {
     const { name, type, checked, value } = e.target;
     const updatedPerson = {
@@ -461,20 +394,19 @@ const ApplicantEducationalAttainmentMobile = (props) => {
     handleUpdate(updatedPerson);
   };
 
-  // ── requiresSeniorHigh (from Dashboard3) ──────────────────────────────────
+  // ── requiresSeniorHigh ───────────────────────────────────────────────────
   const applyingAsRaw = localStorage.getItem("applyingAs");
   const requiresSeniorHigh =
     ["1", "2", "3", "4"].includes(String(applyingAsRaw)) ||
     person.classifiedAs === "Freshman (First Year)";
 
-  // Auto-set schoolLevel1 when SHS is required (from Dashboard3)
   useEffect(() => {
     if (requiresSeniorHigh && !person.schoolLevel1) {
       setPerson((prev) => ({ ...prev, schoolLevel1: "Senior High School" }));
     }
   }, [requiresSeniorHigh]);
 
-  // ── isFormValid (from Dashboard3) ─────────────────────────────────────────
+  // ── isFormValid ──────────────────────────────────────────────────────────
   const isFormValid = () => {
     let requiredFields = [
       "schoolLevel",
@@ -513,7 +445,7 @@ const ApplicantEducationalAttainmentMobile = (props) => {
     return isValid;
   };
 
-  // ── Exam permit (from Dashboard3) ─────────────────────────────────────────
+  // ── Exam permit ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!userID) return;
     axios
@@ -585,7 +517,7 @@ const ApplicantEducationalAttainmentMobile = (props) => {
     }
   };
 
-  // ── Keys & steps navigation (from Dashboard3) ─────────────────────────────
+  // ── Keys & steps navigation ──────────────────────────────────────────────
   const keys = JSON.parse(localStorage.getItem("dashboardKeys") || "{}");
 
   const stepsWithPaths = [
@@ -597,8 +529,9 @@ const ApplicantEducationalAttainmentMobile = (props) => {
   ];
 
   const [activeStep, setActiveStep] = useState(2);
-  const [clickedSteps, setClickedSteps] = useState(Array(stepsWithPaths.length).fill(false));
-
+  const [clickedSteps, setClickedSteps] = useState(
+    Array(stepsWithPaths.length).fill(false)
+  );
 
   const handleStepClick = (index) => {
     if (isFormValid()) {
@@ -606,13 +539,14 @@ const ApplicantEducationalAttainmentMobile = (props) => {
       const newClickedSteps = [...clickedSteps];
       newClickedSteps[index] = true;
       setClickedSteps(newClickedSteps);
-      showSnackbar("Your record has been saved successfully!", "success");   // ADD
-      setTimeout(() => navigate(stepsWithPaths[index].path), 1000);         // CHANGE
+      showSnackbar("Your record has been saved successfully!", "success");
+      setTimeout(() => navigate(stepsWithPaths[index].path), 1000);
     } else {
-      setSnackbar({ open: true, message: "Please fill all required fields before proceeding.", severity: "error" });
+      showSnackbar("Please fill all required fields before proceeding.", "error");
     }
   };
-  // ── Links (from Dashboard3) ────────────────────────────────────────────────
+
+  // ── Links ────────────────────────────────────────────────────────────────
   const links = [
     { to: "/ecat_application_form", label: "ECAT Application Form" },
     { to: "/admission_form_process", label: "Admission Form Process" },
@@ -621,14 +555,10 @@ const ApplicantEducationalAttainmentMobile = (props) => {
       to: "/office_of_the_registrar",
       label: `Application For ${shortTerm ? shortTerm.toUpperCase() : ""} College Admission`,
     },
-    {
-      to: "/admission_services",
-      label: "Application/Student Satisfactory Survey",
-    },
+    { to: "/admission_services", label: "Application/Student Satisfactory Survey" },
     { label: "Examination Permit", onClick: handleExamPermitClick },
   ];
 
-  // 🔒 Disable right-click
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
   // 🔒 Block DevTools shortcuts + Ctrl+P silently
@@ -648,9 +578,21 @@ const ApplicantEducationalAttainmentMobile = (props) => {
     }
   });
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // Cards per row depending on viewport
+  const cardBasis = isPhone ? "calc(50% - 6px)" : isTablet ? "calc(33.333% - 8px)" : "calc(20% - 13px)";
+
+  // Content max width so it doesn't stretch edge-to-edge on large desktop monitors
+  const contentMaxWidth = isDesktop ? 1000 : "100%";
+
   return (
-    <div style={S.screen}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        backgroundColor: "#f5f5f5",
+        fontFamily: "'Segoe UI', sans-serif",
+        pb: { xs: 8, md: 4 },
+      }}
+    >
       {/* Hidden print target */}
       {showPrintView && (
         <div ref={divToPrintRef} style={{ display: "block" }}>
@@ -660,7 +602,7 @@ const ApplicantEducationalAttainmentMobile = (props) => {
 
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={1000}
+        autoHideDuration={2000}
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
@@ -669,439 +611,508 @@ const ApplicantEducationalAttainmentMobile = (props) => {
         </Alert>
       </Snackbar>
 
-      {/* ── Page Header ────────────────────────────────────────────────── */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          mb: 1,
-          padding: 1,
-        }}
-      >
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: "bold",
-            color: titleColor,
-            fontSize: { xs: "22px", sm: "28px", md: "36px" },
-          }}
-        >
-          EDUCATIONAL ATTAINMENT
-        </Typography>
-      </Box>
-      <hr style={{ border: "1px solid #ccc", width: "100%" }} />
-      <br />
-
-      {/* ── Notice Banner ──────────────────────────────────────────────── */}
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 1.5,
-          mx: "12px",
-          mt: "12px",
-          p: "10px 12px",
-          borderRadius: "8px",
-          backgroundColor: "#fffaf5",
-          border: "1px solid #6D2323",
-          boxShadow: "0px 2px 8px rgba(0,0,0,0.05)",
-        }}
-      >
-        {/* Icon */}
+      <Box sx={{ maxWidth: contentMaxWidth, mx: "auto", px: { xs: 0, md: 2 } }}>
+        {/* ── Page Header ─────────────────────────────────────────────── */}
         <Box
           sx={{
             display: "flex",
+            justifyContent: "space-between",
             alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "#800000",
-            borderRadius: "6px",
-            width: 36,
-            height: 36,
-            flexShrink: 0,
+            flexWrap: "wrap",
+            mb: 1,
+            p: { xs: 1, md: 2 },
           }}
         >
-          <ErrorIcon sx={{ color: "white", fontSize: 22 }} />
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: "bold",
+              color: titleColor,
+              fontSize: { xs: "22px", sm: "28px", md: "36px" },
+            }}
+          >
+            EDUCATIONAL ATTAINMENT
+          </Typography>
+        </Box>
+        <hr style={{ border: "1px solid #ccc", width: "100%" }} />
+        <br />
+
+        {/* ── Notice Banner ───────────────────────────────────────────── */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 1.5,
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            p: { xs: "10px 12px", md: "14px 16px" },
+            borderRadius: "8px",
+            backgroundColor: "#fffaf5",
+            border: "1px solid #6D2323",
+            boxShadow: "0px 2px 8px rgba(0,0,0,0.05)",
+          }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "#800000",
+              borderRadius: "6px",
+              width: { xs: 36, md: 48 },
+              height: { xs: 36, md: 48 },
+              flexShrink: 0,
+            }}
+          >
+            <ErrorIcon sx={{ color: "white", fontSize: { xs: 22, md: 30 } }} />
+          </Box>
+
+          <Typography
+            sx={{
+              fontSize: { xs: "13px", sm: "14px", md: "16px" },
+              fontFamily: "Poppins, sans-serif",
+              color: "#3e3e3e",
+              lineHeight: 1.5,
+            }}
+          >
+            <strong style={{ color: "maroon" }}>Important Notice:</strong>
+            <br />
+            <span style={{ margin: "0 8px" }}>➔</span>
+            Please indicate <strong>“NA”</strong> or <strong>“N/A”</strong> in fields where the
+            requested information is not applicable or no response can be provided.
+            <br />
+            <span style={{ margin: "0 8px" }}>➔</span>
+            To enter the letter <strong>“Ñ”</strong>, press and hold the ALT key while typing
+            <strong> 165</strong>. For <strong>“ñ”</strong>, press and hold the ALT key while
+            typing <strong> 164</strong>.
+            <br />
+            <span style={{ margin: "0 8px" }}>➔</span>
+            Please complete all information from <strong>Personal Information</strong> up to
+            <strong> Other Information</strong> before printing your documents.
+          </Typography>
         </Box>
 
-        {/* Text */}
-        <Typography
-          sx={{
-            fontSize: "20px",
-            fontFamily: "Poppins, sans-serif",
-            color: "#3e3e3e",
-            lineHeight: 1.3,
-            whiteSpace: "normal",
-            overflow: "hidden",
-          }}
-        >
-          <strong style={{ color: "maroon" }}>Important Notice:</strong>
-          <br />
-
-
-
-          <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
-          Please indicate <strong>“NA”</strong> or <strong>“N/A”</strong> in fields where the
-          requested information is not applicable or no response can be provided.
-          <br />
-
-          <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
-          To enter the letter <strong>“Ñ”</strong>, press and hold the ALT key while typing
-          <strong> 165</strong>. For <strong>“ñ”</strong>, press and hold the ALT key while
-          typing <strong> 164</strong>.
-          <br />
-
-          <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
-          Please complete all information from <strong>Personal Information</strong> up to
-          <strong> Other Information</strong> before printing your documents.
-          <br />
-        </Typography>
-      </Box>
-
-      {/* ── Printable Documents ────────────────────────────────────────── */}
-      <Box sx={{ px: "12px", pt: "12px" }}>
-        <Typography
-          sx={{
-            fontSize: "24px",
-            fontWeight: "bold",
-            textAlign: "center",
-            color: "black",
-            marginTop: "20px",
-            mb: 2,
-          }}
-        >
-          PRINTABLE DOCUMENTS
-        </Typography>
-        <Box
-          sx={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 1,
-            justifyContent: "center",
-          }}
-        >
-          {links.map((lnk, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.07, duration: 0.3 }}
-              style={{ width: "calc(50% - 4px)" }}
-            >
-              <Card
-                sx={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 0.75,
-                  px: 1.5,
-                  py: 1.25,
-                  height: 52,
-                  width: "100%",
-                  borderRadius: "12px",
-                  border: `1px solid ${borderColor || "#6D2323"}`,
-                  backgroundColor: "#fff",
-                  cursor: "pointer",
-                  transition: "all 0.25s ease-in-out",
-                  "&:hover": {
-                    backgroundColor: settings?.header_color || "#6D2323",
-                    "& .chip-icon": { color: "#fff" },
-                    "& .chip-text": { color: "#fff" },
-                  },
-                }}
-                onClick={() => {
-                  if (lnk.onClick) {
-                    lnk.onClick();
-                  } else if (lnk.to) {
-                    navigate(lnk.to);
-                  }
-                }}
+        {/* ── Printable Documents ─────────────────────────────────────── */}
+        <Box sx={{ px: { xs: "12px", md: 0 }, pt: "12px" }}>
+          <Typography
+            sx={{
+              fontSize: { xs: "22px", md: "28px" },
+              fontWeight: "bold",
+              textAlign: "center",
+              color: "black",
+              mt: "20px",
+              mb: 2,
+            }}
+          >
+            PRINTABLE DOCUMENTS
+          </Typography>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.25, justifyContent: "center" }}>
+            {links.map((lnk, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.06, duration: 0.3 }}
+                style={{ width: cardBasis, minWidth: 140 }}
               >
-                <PictureAsPdfIcon
-                  className="chip-icon"
+                <Card
                   sx={{
-                    fontSize: 18,
-                    color: mainButtonColor || "#6D2323",
-                    flexShrink: 0,
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 0.75,
+                    px: 1.5,
+                    py: 1.25,
+                    height: { xs: 52, md: 60 },
+                    width: "100%",
+                    borderRadius: "12px",
+                    border: `1px solid ${borderColor || "#6D2323"}`,
+                    backgroundColor: "#fff",
+                    cursor: "pointer",
+                    transition: "all 0.25s ease-in-out",
+                    "&:hover": {
+                      transform: { md: "scale(1.04)" },
+                      backgroundColor: settings?.header_color || "#6D2323",
+                      "& .chip-icon": { color: "#fff" },
+                      "& .chip-text": { color: "#fff" },
+                    },
                   }}
-                />
-                <Typography
-                  className="chip-text"
-                  sx={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: mainButtonColor || "#6D2323",
-                    fontFamily: "Poppins, sans-serif",
-                    whiteSpace: "normal",
-                    lineHeight: 1.3,
-                    textAlign: "center",
+                  onClick={() => {
+                    if (lnk.onClick) {
+                      lnk.onClick();
+                    } else if (lnk.to) {
+                      navigate(lnk.to);
+                    }
                   }}
                 >
-                  {lnk.label}
+                  <PictureAsPdfIcon
+                    className="chip-icon"
+                    sx={{ fontSize: { xs: 18, md: 22 }, color: mainButtonColor || "#6D2323", flexShrink: 0 }}
+                  />
+                  <Typography
+                    className="chip-text"
+                    sx={{
+                      fontSize: { xs: 11, md: 13 },
+                      fontWeight: 600,
+                      color: mainButtonColor || "#6D2323",
+                      fontFamily: "Poppins, sans-serif",
+                      lineHeight: 1.3,
+                      textAlign: "center",
+                    }}
+                  >
+                    {lnk.label}
+                  </Typography>
+                </Card>
+              </motion.div>
+            ))}
+          </Box>
+        </Box>
+
+        {/* ── Applicant Form Intro ────────────────────────────────────── */}
+        <Box sx={{ px: { xs: "14px", md: 0 }, pt: 2, textAlign: "center" }}>
+          <Typography
+            component="h1"
+            sx={{
+              fontSize: { xs: "24px", sm: "32px", md: "42px" },
+              fontWeight: "bold",
+              textAlign: "center",
+              color: subtitleColor,
+              mt: "20px",
+            }}
+          >
+            APPLICANT FORM
+          </Typography>
+          <Typography sx={{ fontSize: { xs: 13, md: 15 }, color: "#555" }}>
+            Complete the applicant form to secure your place for the upcoming
+            academic year at{" "}
+            {shortTerm ? (
+              <>
+                <strong>{shortTerm.toUpperCase()}</strong>
+                <br />
+                {companyName || ""}
+              </>
+            ) : (
+              companyName || ""
+            )}
+            .
+          </Typography>
+        </Box>
+
+        {/* ── Stepper ─────────────────────────────────────────────────── */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            width: "100%",
+            px: { xs: 2, md: 4 },
+            py: 1.5,
+            borderBottom: "1px solid #e0e0e0",
+            overflowX: "auto",
+          }}
+        >
+          {stepsWithPaths.map((step, index) => (
+            <React.Fragment key={index}>
+              <Box
+                sx={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer" }}
+                onClick={() => handleStepClick(index)}
+              >
+                <Box
+                  sx={{
+                    width: { xs: 42, md: 52 },
+                    height: { xs: 42, md: 52 },
+                    borderRadius: "50%",
+                    border: `2px solid ${borderColor}`,
+                    backgroundColor: activeStep === index ? (settings?.header_color || "#6D2323") : "#E8C999",
+                    color: activeStep === index ? "#fff" : "#333",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: { xs: 18, md: 22 },
+                    transition: "all 0.2s",
+                    flexShrink: 0,
+                  }}
+                >
+                  {step.icon}
+                </Box>
+                <Typography
+                  sx={{
+                    mt: 0.75,
+                    color: activeStep === index ? "#6D2323" : "#555",
+                    fontWeight: activeStep === index ? 700 : 400,
+                    fontSize: { xs: 10, sm: 12, md: 13 },
+                    textAlign: "center",
+                    maxWidth: { xs: 64, md: 96 },
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {step.label}
                 </Typography>
-              </Card>
-            </motion.div>
+              </Box>
+              {index < stepsWithPaths.length - 1 && (
+                <Box
+                  sx={{
+                    height: "2px",
+                    backgroundColor: mainButtonColor,
+                    flex: 1,
+                    minWidth: { xs: 16, md: 32 },
+                    alignSelf: "center",
+                    mx: { xs: 0.75, md: 1.5 },
+                    mb: 3,
+                  }}
+                />
+              )}
+            </React.Fragment>
           ))}
         </Box>
-      </Box>
 
-      {/* ── Applicant Form Intro ───────────────────────────────────────── */}
-      <div style={{ padding: "16px 14px 0", textAlign: "center" }}>
-        <h1
-          style={{
-            fontSize: "28px",
-            fontWeight: "bold",
-            textAlign: "center",
-            color: subtitleColor,
-            marginTop: "20px",
+        {/* ── Step Header Bar ─────────────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: settings?.header_color || "#1976d2",
+            border: `1px solid ${borderColor}`,
+            color: "white",
+            borderRadius: 2,
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            p: { xs: "10px 14px", md: "12px 18px" },
           }}
         >
-          APPLICANT FORM
-        </h1>
-        <div style={{ textAlign: "center", fontSize: 13, color: "#555" }}>
-          Complete the applicant form to secure your place for the upcoming
-          academic year at{" "}
-          {shortTerm ? (
-            <>
-              <strong>{shortTerm.toUpperCase()}</strong>
-              <br />
-              {companyName || ""}
-            </>
-          ) : (
-            companyName || ""
-          )}
-          .
-        </div>
-      </div>
+          <Typography sx={{ fontSize: { xs: 14, md: 16 }, fontFamily: "Poppins, sans-serif" }}>
+            Step 3: Educational Attainment
+          </Typography>
+        </Box>
 
-      {/* ── Stepper ────────────────────────────────────────────────────── */}
-      <Box sx={{ display: "flex", justifyContent: "center", width: "100%", px: 2, py: 1.5, borderBottom: "1px solid #e0e0e0" }}>
-        {stepsWithPaths.map((step, index) => (
-          <React.Fragment key={index}>
-            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer" }} onClick={() => handleStepClick(index)}>
-              <Box sx={{
-                width: 46, height: 46, borderRadius: "50%", border: `2px solid ${borderColor}`,
-                backgroundColor: activeStep === index ? (settings?.header_color || "#6D2323") : "#E8C999",
-                color: activeStep === index ? "#fff" : "#333",
-                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, transition: "all 0.2s",
-              }}>
-                {step.icon}
+        {/* ── Junior High School ──────────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
+            Junior High School Background
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <SchoolBlock
+              suffix=""
+              person={person}
+              errors={errors}
+              handleChange={handleChange}
+              isStacked={isPhone}
+            />
+          </Box>
+        </Box>
+
+        {/* ── Senior High School ──────────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
+            Senior High School Background
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            {!requiresSeniorHigh && (
+              <Box
+                sx={{
+                  backgroundColor: "#E8F5E9",
+                  border: "1px solid #A5D6A7",
+                  borderRadius: 2,
+                  p: "10px 12px",
+                  fontSize: 12,
+                  color: "#2E7D32",
+                  mb: 1.5,
+                }}
+              >
+                Senior High fields are optional based on your selected
+                "Applying As" category. Fill in if applicable.
               </Box>
-              <Typography sx={{ mt: 0.75, color: activeStep === index ? "#6D2323" : "#555", fontWeight: activeStep === index ? 700 : 400, fontSize: { xs: 10, sm: 12 }, textAlign: "center", maxWidth: 72, lineHeight: 1.3 }}>
-                {step.label}
-              </Typography>
-            </Box>
-            {index < stepsWithPaths.length - 1 && (
-              <Box sx={{ height: "2px", backgroundColor: mainButtonColor, flex: 1, alignSelf: "center", mx: 1, mb: 3 }} />
             )}
-          </React.Fragment>
-        ))}
-      </Box>
+            <SchoolBlock
+              suffix="1"
+              person={person}
+              errors={errors}
+              handleChange={handleChange}
+              isStacked={isPhone}
+            />
+          </Box>
+        </Box>
 
-      {/* ── Step Header Bar ────────────────────────────────────────────── */}
-      <Box
-        sx={{
-          backgroundColor: settings?.header_color || "#1976d2",
-          border: `1px solid ${borderColor}`,
-          color: "white",
-          borderRadius: 2,
-          mx: "12px",
-          mt: "12px",
-          p: "10px 14px",
-        }}
-      >
-        <Typography sx={{ fontSize: 14, fontFamily: "Poppins, sans-serif" }}>
-          Step 3: Educational Attainment
-        </Typography>
-      </Box>
-
-      {/* ── Junior High School ─────────────────────────────────────────── */}
-      <div style={{ ...S.card, border: `1px solid ${borderColor}`, }}>
-        <div
-          style={{
-            ...S.cardHeader,
-            backgroundColor: settings?.header_color || "#1976d2",
+        {/* ── Strand + Navigation ─────────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
           }}
         >
-          Junior High School Background
-        </div>
-        <div style={S.cardBody}>
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
+            Senior High School Strand
+          </Box>
 
-          <SchoolBlock
-            suffix=""
-            labels={{ level: "Educational Attainment (JHS)" }}
-            person={person}
-            errors={errors}
-            handleChange={handleChange}
-          />
-        </div>
-      </div>
-
-      {/* ── Senior High School ─────────────────────────────────────────── */}
-      <div style={{ ...S.card, border: `1px solid ${borderColor}`, }}>
-        <div
-          style={{
-            ...S.cardHeader,
-            backgroundColor: settings?.header_color || "#1976d2",
-          }}
-        >
-          Senior High School Background
-        </div>
-        <div style={S.cardBody}>
-          {!requiresSeniorHigh && (
-            <div
-              style={{
-                backgroundColor: "#E8F5E9",
-                border: "1px solid #A5D6A7",
-                borderRadius: 8,
-                padding: "10px 12px",
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <Typography
+              sx={{
                 fontSize: 12,
-                color: "#2E7D32",
-                marginBottom: 12,
+                fontWeight: 700,
+                color: "#6D2323",
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+                mb: 1.25,
               }}
             >
-              Senior High fields are optional based on your selected
-              "Applying As" category. Fill in if applicable.
-            </div>
-          )}
-          <SchoolBlock
-            suffix="1"
-            labels={{ level: "Educational Attainment (SHS)" }}
-            person={person}
-            errors={errors}
-            handleChange={handleChange}
-          />
+              Strand (For Senior High School)
+            </Typography>
+            <Box sx={{ maxWidth: { md: 480 } }}>
+              <Field
+                label="SHS Strand"
+                required={requiresSeniorHigh}
+                error={errors.strand}
+                helperText="This field is required."
+              >
+                <MSelect
+                  name="strand"
+                  value={person.strand || ""}
+                  onChange={handleChange}
+                  error={errors.strand}
+                >
+                  <option value="">Select Strand</option>
+                  <option value="Accountancy, Business and Management (ABM)">
+                    Accountancy, Business and Management (ABM)
+                  </option>
+                  <option value="Humanities and Social Sciences (HUMSS)">
+                    Humanities and Social Sciences (HUMSS)
+                  </option>
+                  <option value="Science, Technology, Engineering, and Mathematics (STEM)">
+                    Science, Technology, Engineering, and Mathematics (STEM)
+                  </option>
+                  <option value="General Academic (GAS)">General Academic (GAS)</option>
+                  <option value="Home Economics (HE)">Home Economics (HE)</option>
+                  <option value="Information and Communications Technology (ICT)">
+                    Information and Communications Technology (ICT)
+                  </option>
+                  <option value="Agri-Fishery Arts (AFA)">Agri-Fishery Arts (AFA)</option>
+                  <option value="Industrial Arts (IA)">Industrial Arts (IA)</option>
+                  <option value="Sports Track">Sports Track</option>
+                  <option value="Design and Arts Track">Design and Arts Track</option>
+                </MSelect>
+              </Field>
+            </Box>
+          </Box>
 
-
-
-        </div>
-
-
-      </div>
-
-
-      <div style={{ ...S.card, border: `1px solid ${borderColor}`, }}>
-        <div
-          style={{
-            ...S.cardHeader,
-            backgroundColor: settings?.header_color || "#1976d2",
-          }}
-        >
-          Senior High School Strand
-        </div>
-
-        <div style={S.cardBody}>
-          <div style={S.sectionLabel}> Strand (For Senior High School)</div>
-          <Field
-            label="SHS Strand"
-            required={requiresSeniorHigh}
-            error={errors.strand}
-            helperText="This field is required."
-          >
-            <MSelect
-              name="strand"
-              value={person.strand || ""}
-              onChange={handleChange}
-              error={errors.strand}
-            >
-              <option value="">Select Strand</option>
-              <option value="Accountancy, Business and Management (ABM)">
-                Accountancy, Business and Management (ABM)
-              </option>
-              <option value="Humanities and Social Sciences (HUMSS)">
-                Humanities and Social Sciences (HUMSS)
-              </option>
-              <option value="Science, Technology, Engineering, and Mathematics (STEM)">
-                Science, Technology, Engineering, and Mathematics (STEM)
-              </option>
-              <option value="General Academic (GAS)">
-                General Academic (GAS)
-              </option>
-              <option value="Home Economics (HE)">Home Economics (HE)</option>
-              <option value="Information and Communications Technology (ICT)">
-                Information and Communications Technology (ICT)
-              </option>
-              <option value="Agri-Fishery Arts (AFA)">
-                Agri-Fishery Arts (AFA)
-              </option>
-              <option value="Industrial Arts (IA)">Industrial Arts (IA)</option>
-              <option value="Sports Track">Sports Track</option>
-              <option value="Design and Arts Track">Design and Arts Track</option>
-            </MSelect>
-          </Field>
-        </div>
-
-        <Box
-          display="flex"
-          justifyContent="space-between"
-          mx="12px"
-          mb={3}
-          mt={2}
-        >
-          <Button
-            variant="contained"
-            onClick={() => {
-              handleUpdate(person);
-              showSnackbar("Your record has been saved successfully!", "success");
-              setTimeout(() => navigate(`/applicant_family_background/${keys.step2}`), 1000);
-            }}
-            startIcon={
-              <ArrowBackIcon sx={{ color: "#000", transition: "color 0.3s" }} />
-            }
+          <Box
             sx={{
-              backgroundColor: subButtonColor,
-              border: `1px solid ${borderColor}`,
-              color: "#000",
-              textTransform: "none",
-              fontWeight: 600,
-              "&:hover": {
-                backgroundColor: "#000",
-                color: "#fff",
-                "& .MuiSvgIcon-root": { color: "#fff" },
-              },
+              display: "flex",
+              flexDirection: { xs: "column-reverse", sm: "row" },
+              justifyContent: "space-between",
+              gap: 1.5,
+              mx: { xs: "12px", md: "20px" },
+              mb: 3,
+              mt: 2,
             }}
           >
-            Previous Step
-          </Button>
-
-          <Button
-            variant="contained"
-            onClick={() => {
-              handleUpdate(person);
-              if (isFormValid()) {
+            <Button
+              fullWidth={isPhone}
+              variant="contained"
+              onClick={() => {
+                handleUpdate(person);
                 showSnackbar("Your record has been saved successfully!", "success");
-                setTimeout(() => navigate(`/applicant_health_medical_records/${keys.step4}`), 1000);
-              } else {
-                showSnackbar(
-                  "Please complete all required fields before proceeding.",
-                  "error"
-                );
-              }
-            }}
-            endIcon={
-              <ArrowForwardIcon sx={{ color: "#fff", transition: "color 0.3s" }} />
-            }
-            sx={{
-              backgroundColor: mainButtonColor,
-              border: `1px solid ${borderColor}`,
-              color: "#fff",
-              textTransform: "none",
-              fontWeight: 600,
-              "&:hover": {
-                backgroundColor: "#000",
-                color: "#fff",
-                "& .MuiSvgIcon-root": { color: "#fff" },
-              },
-            }}
-          >
-            Next Step
-          </Button>
-        </Box>
-      </div>
+                setTimeout(() => navigate(`/applicant_family_background/${keys.step2}`), 1000);
+              }}
+              startIcon={<ArrowBackIcon sx={{ color: "#000", transition: "color 0.3s" }} />}
+              sx={{
+                backgroundColor: subButtonColor,
+                border: `1px solid ${borderColor}`,
+                color: "#000",
+                textTransform: "none",
+                fontWeight: 600,
+                "&:hover": {
+                  backgroundColor: "#000",
+                  color: "#fff",
+                  "& .MuiSvgIcon-root": { color: "#fff" },
+                },
+              }}
+            >
+              Previous Step
+            </Button>
 
-      {/* ── Exam Permit Error Modal (from Dashboard3) ──────────────────── */}
+            <Button
+              fullWidth={isPhone}
+              variant="contained"
+              onClick={() => {
+                handleUpdate(person);
+                if (isFormValid()) {
+                  showSnackbar("Your record has been saved successfully!", "success");
+                  setTimeout(() => navigate(`/applicant_health_medical_records/${keys.step4}`), 1000);
+                } else {
+                  showSnackbar("Please complete all required fields before proceeding.", "error");
+                }
+              }}
+              endIcon={<ArrowForwardIcon sx={{ color: "#fff", transition: "color 0.3s" }} />}
+              sx={{
+                backgroundColor: mainButtonColor,
+                border: `1px solid ${borderColor}`,
+                color: "#fff",
+                textTransform: "none",
+                fontWeight: 600,
+                "&:hover": {
+                  backgroundColor: "#000",
+                  color: "#fff",
+                  "& .MuiSvgIcon-root": { color: "#fff" },
+                },
+              }}
+            >
+              Next Step
+            </Button>
+          </Box>
+        </Box>
+      </Box>
+
+      {/* ── Exam Permit Error Modal ─────────────────────────────────────── */}
       <Modal
         open={examPermitModalOpen}
         onClose={handleCloseExamPermitModal}
@@ -1125,19 +1136,10 @@ const ApplicantEducationalAttainmentMobile = (props) => {
           }}
         >
           <ErrorIcon sx={{ color: mainButtonColor, fontSize: 44, mb: 1.5 }} />
-          <Typography
-            id="exam-permit-error-title"
-            variant="h6"
-            component="h2"
-            color="maroon"
-            sx={{ fontSize: 16 }}
-          >
+          <Typography id="exam-permit-error-title" variant="h6" component="h2" color="maroon" sx={{ fontSize: 16 }}>
             Exam Permit Notice
           </Typography>
-          <Typography
-            id="exam-permit-error-description"
-            sx={{ mt: 1.5, fontSize: 13 }}
-          >
+          <Typography id="exam-permit-error-description" sx={{ mt: 1.5, fontSize: 13 }}>
             {examPermitError}
           </Typography>
           <Button
@@ -1154,8 +1156,8 @@ const ApplicantEducationalAttainmentMobile = (props) => {
           </Button>
         </Box>
       </Modal>
-    </div>
+    </Box>
   );
 };
 
-export default ApplicantEducationalAttainmentMobile;
+export default ApplicantEducationalAttainmentResponsive;

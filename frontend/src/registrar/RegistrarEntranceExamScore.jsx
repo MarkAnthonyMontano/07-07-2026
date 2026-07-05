@@ -1083,25 +1083,25 @@ const ApplicantScoringReadOnly = () => {
         newWin.document.close();
     };
 
-    // // 🔒 Disable right-click
-    // document.addEventListener("contextmenu", (e) => e.preventDefault());
+    // 🔒 Disable right-click
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-    // // 🔒 Block DevTools shortcuts + Ctrl+P silently
-    // document.addEventListener("keydown", (e) => {
-    //     const isBlockedKey =
-    //         e.key === "F12" ||
-    //         e.key === "F11" ||
-    //         (e.ctrlKey &&
-    //             e.shiftKey &&
-    //             (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-    //         (e.ctrlKey && e.key.toLowerCase() === "u") ||
-    //         (e.ctrlKey && e.key.toLowerCase() === "p");
+    // 🔒 Block DevTools shortcuts + Ctrl+P silently
+    document.addEventListener("keydown", (e) => {
+        const isBlockedKey =
+            e.key === "F12" ||
+            e.key === "F11" ||
+            (e.ctrlKey &&
+                e.shiftKey &&
+                (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+            (e.ctrlKey && e.key.toLowerCase() === "u") ||
+            (e.ctrlKey && e.key.toLowerCase() === "p");
 
-    //     if (isBlockedKey) {
-    //         e.preventDefault();
-    //         e.stopPropagation();
-    //     }
-    // });
+        if (isBlockedKey) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    });
 
     // Put this at the very bottom before the return 
     if (loading || hasAccess === null) {

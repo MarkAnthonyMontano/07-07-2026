@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { SettingsContext } from "../App";
 import {
   Box,
@@ -37,6 +37,7 @@ import {
 const StudentOnlineRequirements = () => {
   const settings = useContext(SettingsContext);
   const theme = useTheme();
+  // Card layout for phones + small tablets, table layout from md (tablet-landscape) up
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   const [titleColor, setTitleColor] = useState("#000000");
@@ -51,17 +52,11 @@ const StudentOnlineRequirements = () => {
 
   useEffect(() => {
     if (!settings) return;
-
     if (settings.title_color) setTitleColor(settings.title_color);
     if (settings.subtitle_color) setSubtitleColor(settings.subtitle_color);
     if (settings.border_color) setBorderColor(settings.border_color);
-    if (settings.main_button_color)
-      setMainButtonColor(settings.main_button_color);
-
-    if (settings.logo_url) {
-      setFetchedLogo(`${API_BASE_URL}${settings.logo_url}`);
-    }
-
+    if (settings.main_button_color) setMainButtonColor(settings.main_button_color);
+    if (settings.logo_url) setFetchedLogo(`${API_BASE_URL}${settings.logo_url}`);
     if (settings.company_name) setCompanyName(settings.company_name);
     if (settings.short_term) setShortTerm(settings.short_term);
     if (settings.campus_address) setCampusAddress(settings.campus_address);
@@ -73,16 +68,16 @@ const StudentOnlineRequirements = () => {
   const [selectedFiles, setSelectedFiles] = useState({});
   const [allRequirementsCompleted, setAllRequirementsCompleted] = useState(false);
 
-  const [snack, setSnack] = useState({
-    open: false,
-    message: "",
-    severity: "success",
-  });
+  const [snack, setSnack] = useState({ open: false, message: "", severity: "success" });
+
+  const [openModal, setOpenModal] = useState(false);
+  const [openConfirmModal, setOpenConfirmModal] = useState(false);
 
   useEffect(() => {
-    const StudentPersonId = localStorage.getItem("person_id");
-    if (!StudentPersonId) return;
-    fetchStudentDocuments(StudentPersonId);
+    const personId = localStorage.getItem("person_id");
+    if (!personId) return;
+    setUserID(personId);
+    fetchStudentDocuments(personId);
   }, []);
 
   const fetchStudentDocuments = async (personId) => {
@@ -132,16 +127,6 @@ const StudentOnlineRequirements = () => {
     }
   };
 
-  const [openModal, setOpenModal] = useState(false);
-  const [openConfirmModal, setOpenConfirmModal] = useState(false);
-
-  useEffect(() => {
-    const personId = localStorage.getItem("person_id");
-    if (!personId) return;
-    setUserID(personId);
-    fetchStudentDocuments(personId);
-  }, []);
-
   const handleUpload = async (key, file) => {
     if (allRequirementsCompleted) return;
     if (!file) return;
@@ -166,6 +151,7 @@ const StudentOnlineRequirements = () => {
       setSnack({ open: true, severity: "success", message: "File uploaded successfully" });
       fetchStudentDocuments(localStorage.getItem("person_id"));
     } catch (err) {
+      setSelectedFiles((prev) => { const next = { ...prev }; delete next[key]; return next; });
       setSnack({ open: true, severity: "error", message: err.response?.data?.error || "Upload failed" });
     }
   };
@@ -186,16 +172,12 @@ const StudentOnlineRequirements = () => {
       (r) => r.category === "Main" && Number(r.is_required) === 1,
     );
     const uploadedIds = new Set(uploads.map((u) => Number(u.requirements_id)));
-    const missing = requiredMain.filter(
-      (req) => !uploadedIds.has(Number(req.id)),
-    );
-
+    const missing = requiredMain.filter((req) => !uploadedIds.has(Number(req.id)));
     if (missing.length > 0) {
-      const names = missing.map((m) => m.description).join(", ");
       setSnack({
         open: true,
         severity: "warning",
-        message: `Please upload all required MAIN requirements: ${names}`,
+        message: `Please upload all required MAIN requirements: ${missing.map((m) => m.description).join(", ")}`,
       });
       return false;
     }
@@ -208,13 +190,13 @@ const StudentOnlineRequirements = () => {
   };
 
   const getStatusChip = (status) => {
-    if (status == 1)
-      return <Chip icon={<CheckCircleIcon />} label="Verified" color="success" size="small" sx={{ fontWeight: "bold" }} />;
-    if (status == 2)
-      return <Chip icon={<CancelIcon />} label="Rejected" color="error" size="small" sx={{ fontWeight: "bold" }} />;
+    if (status == 1) return <Chip icon={<CheckCircleIcon />} label="Verified" color="success" size="small" sx={{ fontWeight: "bold" }} />;
+    if (status == 2) return <Chip icon={<CancelIcon />} label="Rejected" color="error" size="small" sx={{ fontWeight: "bold" }} />;
     return <Chip icon={<HourglassEmptyIcon />} label="Pending" color="default" size="small" />;
   };
 
+  // 🔒 Right-click / DevTools blocking, scoped with cleanup so listeners aren't
+  // re-added on every render (see ApplicantOnlineRequirements for the equivalent).
   // 🔒 Disable right-click
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
@@ -235,36 +217,27 @@ const StudentOnlineRequirements = () => {
     }
   });
 
-  // Mobile card layout for each document row
+  // Mobile / small-tablet card per document
   const renderMobileCard = (doc) => {
     const uploaded = doc.upload_id ? doc : null;
-
     return (
       <Box
         key={doc.id}
         sx={{
           border: `1px solid ${borderColor}`,
           borderRadius: "8px",
-          p: 2,
+          p: { xs: 1.75, sm: 2 },
           mb: 2,
           backgroundColor: "#fff",
           boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
         }}
       >
-        {/* Document Name */}
-        <Box sx={{ mb: 1.5 }}>
-          <Typography sx={{ fontWeight: "bold", fontSize: "15px", lineHeight: 1.4 }}>
-            {doc.description}
-            {doc.is_required === 1 && (
-              <span style={{ color: "red", marginLeft: 4 }}>*</span>
-            )}
-            {doc.is_optional === 1 && (
-              <span style={{ color: "#888", marginLeft: 4, fontSize: "12px" }}>(Optional)</span>
-            )}
-          </Typography>
-        </Box>
+        <Typography sx={{ fontWeight: "bold", fontSize: { xs: 14, sm: 15 }, mb: 1, lineHeight: 1.4 }}>
+          {doc.description}
+          {doc.is_required === 1 && <span style={{ color: "red", marginLeft: 4 }}>*</span>}
+          {doc.is_optional === 1 && <span style={{ color: "#888", marginLeft: 4, fontSize: "12px" }}>(Optional)</span>}
+        </Typography>
 
-        {/* Uploaded File Name */}
         {selectedFiles[doc.id] && (
           <Box
             sx={{
@@ -272,7 +245,7 @@ const StudentOnlineRequirements = () => {
               px: 1.5,
               py: 0.75,
               borderRadius: "4px",
-              fontSize: "13px",
+              fontSize: { xs: 12, sm: 13 },
               fontWeight: "bold",
               mb: 1.5,
               overflow: "hidden",
@@ -285,19 +258,15 @@ const StudentOnlineRequirements = () => {
           </Box>
         )}
 
-        {/* Remarks & Status */}
         {(uploaded?.remarks?.trim() || uploaded?.status == 1 || uploaded?.status == 2) && (
           <Box sx={{ mb: 1.5 }}>
             {typeof uploaded?.remarks === "string" && uploaded.remarks.trim() !== "" && (
-              <Typography sx={{ fontSize: "13px", color: "#444", mb: 0.5 }}>
-                {uploaded.remarks}
-              </Typography>
+              <Typography sx={{ fontSize: { xs: 12, sm: 13 }, color: "#444", mb: 0.5 }}>{uploaded.remarks}</Typography>
             )}
-            {(uploaded?.status == 1 || uploaded?.status == 2) && getStatusChip(uploaded.status)}
+            {getStatusChip(uploaded?.status)}
           </Box>
         )}
 
-        {/* Action Buttons */}
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1 }}>
           <Button
             variant="contained"
@@ -305,18 +274,11 @@ const StudentOnlineRequirements = () => {
             startIcon={<CloudUploadIcon />}
             size="small"
             disabled={allRequirementsCompleted}
-            sx={{
-              backgroundColor: "#F0C03F",
-              color: "white",
-              fontWeight: "bold",
-              textTransform: "none",
-              flex: "1 1 auto",
-              minWidth: "120px",
-            }}
+            sx={{ backgroundColor: "#F0C03F", color: "white", fontWeight: "bold", textTransform: "none", flex: "1 1 auto", minWidth: "120px" }}
           >
             Browse File
             <input
-              key={selectedFiles[doc.id] || doc.id}
+              key={selectedFiles[doc.id] || `empty-${doc.id}`}
               hidden
               type="file"
               accept=".jpg,.jpeg,.png,.pdf"
@@ -332,12 +294,7 @@ const StudentOnlineRequirements = () => {
               target="_blank"
               startIcon={<VisibilityIcon />}
               size="small"
-              sx={{
-                fontWeight: "bold",
-                textTransform: "none",
-                flex: "1 1 auto",
-                minWidth: "100px",
-              }}
+              sx={{ fontWeight: "bold", textTransform: "none", flex: "1 1 auto", minWidth: "100px" }}
             >
               Preview
             </Button>
@@ -349,14 +306,7 @@ const StudentOnlineRequirements = () => {
               startIcon={<DeleteIcon />}
               size="small"
               disabled={allRequirementsCompleted}
-              sx={{
-                backgroundColor: "#9E0000",
-                color: "white",
-                fontWeight: "bold",
-                textTransform: "none",
-                flex: "1 1 auto",
-                minWidth: "100px",
-              }}
+              sx={{ backgroundColor: "#9E0000", color: "white", fontWeight: "bold", textTransform: "none", flex: "1 1 auto", minWidth: "100px" }}
             >
               Delete
             </Button>
@@ -366,54 +316,23 @@ const StudentOnlineRequirements = () => {
     );
   };
 
-  // Desktop table row (original layout)
+  // Desktop / tablet-landscape table row
   const renderRow = (doc) => {
     const uploaded = doc.upload_id ? doc : null;
-
     return (
       <TableRow key={doc.id}>
-        <TableCell
-          sx={{
-            fontWeight: "bold",
-            width: "25%",
-            border: `1px solid ${borderColor}`,
-          }}
-        >
+        <TableCell sx={{ fontWeight: "bold", width: "25%", border: `1px solid ${borderColor}`, fontSize: { md: 13, lg: 14 } }}>
           {doc.description}
-          {doc.is_optional === 1 && (
-            <span style={{ marginLeft: 2 }}>(Optional)</span>
-          )}
-          {doc.is_required === 1 && (
-            <span style={{ color: "red", marginLeft: 5 }}>*</span>
-          )}
+          {doc.is_optional === 1 && <span style={{ marginLeft: 2 }}>(Optional)</span>}
+          {doc.is_required === 1 && <span style={{ color: "red", marginLeft: 5 }}>*</span>}
         </TableCell>
 
-        <TableCell
-          sx={{
-            width: "25%",
-            border: `1px solid ${borderColor}`,
-            textAlign: "center",
-            verticalAlign: "middle",
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, width: "100%" }}>
-            <Box sx={{ width: "220px", flexShrink: 0, textAlign: "center" }}>
+        <TableCell sx={{ width: "25%", border: `1px solid ${borderColor}`, textAlign: "center", verticalAlign: "middle" }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, width: "100%", flexWrap: { md: "wrap", lg: "nowrap" } }}>
+            <Box sx={{ width: { md: 160, lg: 220 }, flexShrink: 0, textAlign: "center" }}>
               {selectedFiles[doc.id] ? (
                 <Box
-                  sx={{
-                    backgroundColor: "#e0e0e0",
-                    padding: "6px 12px",
-                    borderRadius: "4px",
-                    fontSize: "14px",
-                    fontWeight: "bold",
-                    height: "40px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
+                  sx={{ backgroundColor: "#e0e0e0", padding: "6px 12px", borderRadius: "4px", fontSize: { md: 12.5, lg: 14 }, fontWeight: "bold", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
                   title={selectedFiles[doc.id]}
                 >
                   {selectedFiles[doc.id]}
@@ -428,18 +347,11 @@ const StudentOnlineRequirements = () => {
                 component="label"
                 startIcon={<CloudUploadIcon />}
                 disabled={allRequirementsCompleted}
-                sx={{
-                  backgroundColor: "#F0C03F",
-                  color: "white",
-                  fontWeight: "bold",
-                  height: "40px",
-                  textTransform: "none",
-                  minWidth: "140px",
-                }}
+                sx={{ backgroundColor: "#F0C03F", color: "white", fontWeight: "bold", height: "40px", textTransform: "none", minWidth: { md: 120, lg: 140 }, fontSize: { md: 12.5, lg: 14 } }}
               >
                 Browse File
                 <input
-                  key={selectedFiles[doc.id] || doc.id}
+                  key={selectedFiles[doc.id] || `empty-${doc.id}`}
                   hidden
                   type="file"
                   accept=".jpg,.jpeg,.png,.pdf"
@@ -450,24 +362,15 @@ const StudentOnlineRequirements = () => {
           </Box>
         </TableCell>
 
-        <TableCell sx={{ width: "25%", border: `1px solid ${borderColor}` }}>
+        <TableCell sx={{ width: "25%", border: `1px solid ${borderColor}`, fontSize: { md: 12.5, lg: 14 } }}>
           {typeof uploaded?.remarks === "string" && uploaded.remarks.trim() !== "" && (
-            <Typography sx={{ fontStyle: "normal", color: "inherit" }}>
-              {uploaded.remarks}
-            </Typography>
+            <Typography sx={{ fontStyle: "normal", color: "inherit", fontSize: "inherit" }}>{uploaded.remarks}</Typography>
           )}
-          {uploaded?.status == 1 || uploaded?.status == 2 ? (
-            <Typography
-              sx={{
-                mt: 0.5,
-                fontSize: "14px",
-                color: uploaded?.status == 1 ? "green" : "red",
-                fontWeight: "bold",
-              }}
-            >
+          {(uploaded?.status == 1 || uploaded?.status == 2) && (
+            <Typography sx={{ mt: 0.5, fontSize: { md: 13, lg: 14 }, color: uploaded?.status == 1 ? "green" : "red", fontWeight: "bold" }}>
               {uploaded?.status == 1 ? "Verified" : "Rejected"}
             </Typography>
-          ) : null}
+          )}
         </TableCell>
 
         <TableCell sx={{ width: "10%", border: `1px solid ${borderColor}` }}>
@@ -478,7 +381,7 @@ const StudentOnlineRequirements = () => {
               href={`${API_BASE_URL}/StudentOnlineDocuments/${uploaded.file_path}`}
               target="_blank"
               startIcon={<VisibilityIcon />}
-              sx={{ color: "white", fontWeight: "bold", height: "40px", textTransform: "none", minWidth: "140px" }}
+              sx={{ color: "white", fontWeight: "bold", height: "40px", textTransform: "none", minWidth: { md: 120, lg: 140 }, fontSize: { md: 12.5, lg: 14 } }}
             >
               Preview
             </Button>
@@ -491,7 +394,7 @@ const StudentOnlineRequirements = () => {
               onClick={() => handleDelete(uploaded.upload_id)}
               startIcon={<DeleteIcon />}
               disabled={allRequirementsCompleted}
-              sx={{ backgroundColor: "#9E0000", color: "white", fontWeight: "bold", height: "40px", textTransform: "none", minWidth: "140px" }}
+              sx={{ backgroundColor: "#9E0000", color: "white", fontWeight: "bold", height: "40px", textTransform: "none", minWidth: { md: 120, lg: 140 }, fontSize: { md: 12.5, lg: 14 } }}
             >
               Delete
             </Button>
@@ -504,32 +407,21 @@ const StudentOnlineRequirements = () => {
   return (
     <Box
       sx={{
-        height: "calc(100vh - 150px)",
-        overflowY: "auto",
-        paddingRight: 1,
-        backgroundColor: "transparent",
-        mt: 1,
-        padding: { xs: 1, sm: 2 },
+        minHeight: { xs: "100vh", md: "calc(100vh - 150px)" },
+        overflowY: { md: "auto" },
+        backgroundColor: { xs: "#f5f5f5", md: "transparent" },
+        pr: { md: 1 },
+        mt: { md: 1 },
+        p: { xs: 0, sm: 2 },
+        pb: { xs: 6, sm: 2 },
       }}
     >
-      <Snackbar
-        open={snack.open}
-        autoHideDuration={5000}
-        onClose={handleClose}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-      >
-        <Alert severity={snack.severity} onClose={handleClose} sx={{ width: "100%" }}>
-          {snack.message}
-        </Alert>
+      <Snackbar open={snack.open} autoHideDuration={5000} onClose={handleClose} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
+        <Alert severity={snack.severity} onClose={handleClose} sx={{ width: "100%" }}>{snack.message}</Alert>
       </Snackbar>
 
-      {/* Confirm Modal */}
-      <Dialog
-        open={openConfirmModal}
-        onClose={() => setOpenConfirmModal(false)}
-        maxWidth="md"
-        fullWidth
-        fullScreen={isMobile}
+      {/* Review Dialog */}
+      <Dialog open={openConfirmModal} onClose={() => setOpenConfirmModal(false)} maxWidth="md" fullWidth fullScreen={isMobile}
         PaperProps={{ sx: { borderRadius: isMobile ? 0 : "16px", overflow: "hidden", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" } }}
       >
         <DialogTitle sx={{ bgcolor: settings?.header_color || "#1976d2", color: "white", display: "flex", alignItems: "center", fontWeight: "bold", px: 3, py: 2 }}>
@@ -556,47 +448,20 @@ const StudentOnlineRequirements = () => {
             {requirements.filter((r) => r.category === "Main").map((doc) => {
               const uploaded = doc.upload_id ? doc : null;
               return (
-                <Box
-                  key={doc.id}
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.5,
-                    backgroundColor: uploaded ? "#f0fff4" : "#fafafa",
-                    border: uploaded ? "1px solid #4caf50" : "1px solid #e0e0e0",
-                    borderRadius: "10px",
-                    p: "10px 14px",
-                  }}
-                >
+                <Box key={doc.id} sx={{ display: "flex", alignItems: "center", gap: 1.5, backgroundColor: uploaded ? "#f0fff4" : "#fafafa", border: uploaded ? "1px solid #4caf50" : "1px solid #e0e0e0", borderRadius: "10px", p: "10px 14px" }}>
                   <Box sx={{ width: 36, height: 36, borderRadius: "50%", backgroundColor: uploaded ? "#4caf50" : "#e0e0e0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <Typography fontSize={16} color="white" fontWeight="bold">{uploaded ? "✓" : "–"}</Typography>
                   </Box>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {doc.description}
-                    </Typography>
-                    <Typography sx={{ fontSize: 11.5, color: uploaded ? "#2e7d32" : "#999", mt: "1px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {uploaded?.original_name || "No file uploaded"}
-                    </Typography>
+                    <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: "#222", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{doc.description}</Typography>
+                    <Typography sx={{ fontSize: 11.5, color: uploaded ? "#2e7d32" : "#999", mt: "1px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{uploaded?.original_name || "No file uploaded"}</Typography>
                   </Box>
                   {uploaded ? (
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      href={`${API_BASE_URL}/StudentOnlineDocuments/${uploaded.file_path}`}
-                      target="_blank"
-                      startIcon={<VisibilityIcon />}
-                      size="small"
-                      sx={{ color: "white", fontWeight: "bold", textTransform: "none", minWidth: { xs: "80px", sm: "140px" } }}
-                    >
+                    <Button variant="contained" color="primary" href={`${API_BASE_URL}/StudentOnlineDocuments/${uploaded.file_path}`} target="_blank" startIcon={<VisibilityIcon />} size="small" sx={{ color: "white", fontWeight: "bold", textTransform: "none", minWidth: { xs: "80px", sm: "140px" } }}>
                       {isMobile ? "View" : "Preview"}
                     </Button>
                   ) : (
-                    <Chip
-                      label="Missing"
-                      size="small"
-                      sx={{ height: 24, fontSize: 11, fontWeight: 700, backgroundColor: "#FEE2E2", color: "#B91C1C", borderRadius: "6px", flexShrink: 0 }}
-                    />
+                    <Chip label="Missing" size="small" sx={{ height: 24, fontSize: 11, fontWeight: 700, backgroundColor: "#FEE2E2", color: "#B91C1C", borderRadius: "6px", flexShrink: 0 }} />
                   )}
                 </Box>
               );
@@ -605,9 +470,7 @@ const StudentOnlineRequirements = () => {
         </DialogContent>
 
         <DialogActions sx={{ px: { xs: 2, sm: 3 }, pb: 2.5, pt: 1.5, display: "flex", justifyContent: "space-between", flexDirection: { xs: "column-reverse", sm: "row" }, gap: { xs: 1, sm: 0 } }}>
-          <Button color="error" variant="outlined" fullWidth={isMobile} onClick={() => setOpenConfirmModal(false)}>
-            Cancel
-          </Button>
+          <Button color="error" variant="outlined" fullWidth={isMobile} onClick={() => setOpenConfirmModal(false)}>Cancel</Button>
           <Button
             variant="contained"
             fullWidth={isMobile}
@@ -633,77 +496,29 @@ const StudentOnlineRequirements = () => {
       </Dialog>
 
       {/* Page Header */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", mb: 2 }}>
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: "bold",
-            color: titleColor,
-            fontSize: { xs: "22px", sm: "28px", md: "36px" },
-          }}
-        >
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", mb: 2, px: { xs: 2, sm: 0 }, pt: { xs: 2, sm: 0 } }}>
+        <Typography variant="h4" sx={{ fontWeight: "bold", color: titleColor, fontSize: { xs: 20, sm: 28, md: 34, lg: 36 } }}>
           STUDENT'S REQUIREMENTS
         </Typography>
       </Box>
-      <hr style={{ border: "1px solid #ccc", width: "100%" }} />
-      <br />
+      <Box sx={{ borderTop: "1px solid #ccc", width: "100%" }} />
+      <Box sx={{ height: { xs: 16, sm: 20 } }} />
 
       {/* Notice Box */}
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "center",
-          width: "100%",
-          mt: 2,
-        }}
-      >
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: { xs: 1.5, sm: 2 },
-            width: "100%",
-            p: { xs: 1.5, sm: 2 },
-            borderRadius: "10px",
-            backgroundColor: "#fffaf5",
-            border: "1px solid #6D2323",
-            boxShadow: "0px 2px 8px rgba(0, 0, 0, 0.05)",
-          }}
-        >
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "#800000",
-              borderRadius: "8px",
-              width: { xs: 44, sm: 60 },
-              height: { xs: 44, sm: 60 },
-              flexShrink: 0,
-            }}
-          >
+      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "center", width: "100%", px: { xs: 1.5, sm: 0 } }}>
+        <Box sx={{ display: "flex", alignItems: "flex-start", gap: { xs: 1.5, sm: 2 }, width: "100%", p: { xs: 1.5, sm: 2 }, borderRadius: "10px", backgroundColor: "#fffaf5", border: "1px solid #6D2323", boxShadow: "0px 2px 8px rgba(0,0,0,0.05)" }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#800000", borderRadius: "8px", width: { xs: 44, sm: 60 }, height: { xs: 44, sm: 60 }, flexShrink: 0 }}>
             <ErrorIcon sx={{ color: "white", fontSize: { xs: 28, sm: 40 } }} />
           </Box>
-          <Typography
-            sx={{
-              fontSize: { xs: "13px", sm: "15px", md: "18px" },
-              fontFamily: "Poppins, sans-serif",
-              color: "#3e3e3e",
-              lineHeight: 1.6,
-            }}
-          >
+          <Typography sx={{ fontSize: { xs: 13, sm: 15, md: 17, lg: 18 }, fontFamily: "Poppins, sans-serif", color: "#3e3e3e", lineHeight: 1.6 }}>
             <strong style={{ color: "#600000" }}>Notice:</strong> Students are required to submit all{" "}
-            <strong>Main Requirements (required documents)</strong> to complete their enrollment records.
-            <strong> Optional documents</strong> are not required but may be uploaded if available. Only files in{" "}
-            <strong>JPG, JPEG, PNG, or PDF</strong> format are allowed. Maximum file size:{" "}
-            <strong>4 MB</strong>.
+            <strong>Main Requirements (required documents)</strong> to complete their enrollment records. <strong>Optional documents</strong> are not required but may be uploaded if available. Only <strong>JPG, JPEG, PNG, or PDF</strong> files under <strong>4 MB</strong> are accepted.
           </Typography>
         </Box>
       </Box>
 
       {/* Requirements by Category */}
-      <Box sx={{ px: { xs: 0, sm: 2 }, marginLeft: { xs: 0, sm: "-10px" } }}>
+      <Box sx={{ px: { xs: 1.5, sm: 2 } }}>
         {Object.entries(
           requirements.reduce((acc, r) => {
             const cat = r.category || "Main";
@@ -713,82 +528,46 @@ const StudentOnlineRequirements = () => {
           }, {}),
         ).map(([category, docs]) => (
           <Box key={category} sx={{ mt: 4 }}>
-            <Container>
-              <h1
-                style={{
-                  fontSize: isMobile ? "24px" : "45px",
+            <Container disableGutters={isMobile} maxWidth="lg">
+              <Typography
+                sx={{
+                  fontSize: { xs: 22, sm: 28, md: 36, lg: 42 },
                   fontWeight: "bold",
                   textAlign: "center",
                   color: subtitleColor,
-                  marginTop: "25px",
+                  mt: { xs: 1.5, sm: 3 },
                 }}
               >
-                {category === "Medical"
-                  ? "MEDICAL REQUIREMENTS"
-                  : category === "Others"
-                    ? "OTHER REQUIREMENTS"
-                    : "MAIN REQUIREMENTS"}
-              </h1>
-
+                {category === "Medical" ? "MEDICAL REQUIREMENTS" : category === "Others" ? "OTHER REQUIREMENTS" : "MAIN REQUIREMENTS"}
+              </Typography>
               {category !== "Medical" && category !== "Others" && (
-                <div
-                  style={{
-                    textAlign: "center",
-                    fontSize: isMobile ? "14px" : "18px",
-                    marginTop: "10px",
-                    marginBottom: "30px",
-                    color: "#333",
-                  }}
-                >
+                <Typography sx={{ textAlign: "center", fontSize: { xs: 13, sm: 15, md: 17 }, mt: 1.25, mb: { xs: 2, sm: 3.5 }, color: "#333" }}>
                   Complete the student form to secure your place for the upcoming academic year at{" "}
-                  {shortTerm ? (
-                    <>
-                      <strong>{shortTerm.toUpperCase()}</strong> <br />
-                      {companyName || ""}
-                    </>
-                  ) : (
-                    companyName || ""
-                  )}
-                  .
-                </div>
+                  {shortTerm ? <><strong>{shortTerm.toUpperCase()}</strong> <br />{companyName || ""}</> : companyName || ""}.
+                </Typography>
               )}
             </Container>
 
-            {/* Mobile: Card layout */}
             {isMobile ? (
-              <Box sx={{ px: 1 }}>
-                {docs.map((doc) =>
-                  renderMobileCard({
-                    id: doc.id,
-                    description: doc.description,
-                    is_required: doc.is_required,
-                    is_optional: doc.is_optional,
-                    upload_id: doc.upload_id,
-                    original_name: doc.original_name,
-                    file_path: doc.file_path,
-                    status: doc.status,
-                    remarks: doc.remarks,
-                  }),
-                )}
+              <Box sx={{ px: { xs: 0.5, sm: 1 } }}>
+                {docs.map((doc) => renderMobileCard(doc))}
               </Box>
             ) : (
-              /* Desktop: Table layout */
               <TableContainer
                 component={Paper}
-                sx={{ width: "95%", mt: 2, border: `1px solid ${borderColor}` }}
+                sx={{
+                  width: { md: "100%", lg: "95%" },
+                  mx: { md: 0, lg: "auto" },
+                  mt: 2,
+                  border: `1px solid ${borderColor}`,
+                  overflowX: "auto",
+                }}
               >
-                <Table>
-                  <TableHead
-                    sx={{
-                      backgroundColor: settings?.header_color || "#1976d2",
-                      border: `1px solid ${borderColor}`,
-                    }}
-                  >
+                <Table sx={{ minWidth: 720 }}>
+                  <TableHead sx={{ backgroundColor: settings?.header_color || "#1976d2", border: `1px solid ${borderColor}` }}>
                     <TableRow>
                       {["Document", "Upload", "Remarks", "Preview", "Delete"].map((h) => (
-                        <TableCell key={h} sx={{ color: "white", border: `1px solid ${borderColor}` }}>
-                          {h}
-                        </TableCell>
+                        <TableCell key={h} sx={{ color: "white", border: `1px solid ${borderColor}`, fontSize: { md: 13, lg: 14 } }}>{h}</TableCell>
                       ))}
                     </TableRow>
                   </TableHead>
@@ -803,19 +582,7 @@ const StudentOnlineRequirements = () => {
                       },
                     }}
                   >
-                    {docs.map((doc) =>
-                      renderRow({
-                        id: doc.id,
-                        description: doc.description,
-                        is_required: doc.is_required,
-                        is_optional: doc.is_optional,
-                        upload_id: doc.upload_id,
-                        original_name: doc.original_name,
-                        file_path: doc.file_path,
-                        status: doc.status,
-                        remarks: doc.remarks,
-                      }),
-                    )}
+                    {docs.map((doc) => renderRow(doc))}
                   </TableBody>
                 </Table>
               </TableContainer>

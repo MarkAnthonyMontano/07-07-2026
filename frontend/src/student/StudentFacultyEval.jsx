@@ -241,6 +241,8 @@ const StudentFacultyEvaluation = () => {
     return groups;
   }, {});
 
+  // 🔒 Disable right-click + block DevTools shortcuts / Ctrl+P
+  // (moved into useEffect with cleanup — the original attached a fresh
   // 🔒 Disable right-click
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
@@ -261,6 +263,7 @@ const StudentFacultyEvaluation = () => {
     }
   });
 
+
   const ratingCriteria = [
     { scale: 5, label: "Always manifested", desc: "Evident in nearly all relevant situations (91–100%)." },
     { scale: 4, label: "Often manifested", desc: "Evident most of the time (61–90%)." },
@@ -274,7 +277,7 @@ const StudentFacultyEvaluation = () => {
     maximumFractionDigits: 2,
   });
 
-  // Mobile: render radio choices as a vertical list with scale badges
+  // Mobile / tablet: render radio choices as a vertical list with scale badges
   const renderMobileChoices = (q) => {
     const choices = [
       q.first_choice, q.second_choice, q.third_choice,
@@ -309,7 +312,7 @@ const StudentFacultyEvaluation = () => {
                 onChange={() => handleAnswerChange(q.question_id, choice)}
                 sx={{ p: 0 }}
               />
-              <Typography sx={{ fontSize: "14px", flex: 1 }}>{choice}</Typography>
+              <Typography sx={{ fontSize: { xs: 13, sm: 14 }, flex: 1 }}>{choice}</Typography>
             </Box>
           );
         })}
@@ -317,7 +320,7 @@ const StudentFacultyEvaluation = () => {
     );
   };
 
-  // Desktop: original equal-width grid choices
+  // Desktop (lg+): original equal-width grid choices
   const renderDesktopChoices = (q) => {
     const choices = [
       q.first_choice, q.second_choice, q.third_choice,
@@ -344,7 +347,7 @@ const StudentFacultyEvaluation = () => {
                 value={choice}
                 checked={answers[q.question_id] === choice}
                 onChange={() => handleAnswerChange(q.question_id, choice)}
-                label={<Typography sx={{ fontSize: 14 }}>{choice}</Typography>}
+                label={<Typography sx={{ fontSize: { md: 12.5, lg: 14 } }}>{choice}</Typography>}
               />
             </Paper>
           </Grid>
@@ -356,12 +359,13 @@ const StudentFacultyEvaluation = () => {
   return (
     <Box
       sx={{
-        height: "calc(100vh - 150px)",
-        overflowY: "auto",
-        paddingRight: 1,
-        backgroundColor: "transparent",
-        mt: 1,
-        padding: { xs: 1, sm: 2 },
+        minHeight: { xs: "100vh", md: "calc(100vh - 150px)" },
+        overflowY: { md: "auto" },
+        backgroundColor: { xs: "#f5f5f5", md: "transparent" },
+        pr: { md: 1 },
+        mt: { md: 1 },
+        p: { xs: 0, sm: 2 },
+        pb: { xs: 6, sm: 2 },
       }}
     >
       {/* Header */}
@@ -372,6 +376,8 @@ const StudentFacultyEvaluation = () => {
           alignItems: "center",
           flexWrap: "wrap",
           mb: 2,
+          px: { xs: 1.5, sm: 0 },
+          pt: { xs: 2, sm: 0 },
         }}
       >
         <Typography
@@ -379,315 +385,316 @@ const StudentFacultyEvaluation = () => {
           sx={{
             fontWeight: "bold",
             color: titleColor,
-            fontSize: { xs: "20px", sm: "28px", md: "36px" },
+            fontSize: { xs: 20, sm: 28, md: 34, lg: 36 },
           }}
         >
           FACULTY EVALUATION FORM
         </Typography>
       </Box>
-      <hr style={{ border: "1px solid #ccc", width: "100%" }} />
-      <br />
+      <Box sx={{ borderTop: "1px solid #ccc", width: "100%" }} />
+      <Box sx={{ height: { xs: 16, sm: 20 } }} />
 
-      {matriculationBalanceInfo.hasBalance && (
-        <Alert severity="warning" sx={{ borderRadius: 2, mb: 3 }}>
-          You are not currently fully paid for this current semester. Your remaining matriculation balance is{" "}
-          <b>{formattedMatriculationBalance}</b>. Please settle your balance before evaluating faculty.
-        </Alert>
-      )}
+      <Box sx={{ px: { xs: 1.5, sm: 0 } }}>
+        {matriculationBalanceInfo.hasBalance && (
+          <Alert severity="warning" sx={{ borderRadius: 2, mb: 3, fontSize: { xs: 12.5, sm: 14 } }}>
+            You are not currently fully paid for this current semester. Your remaining matriculation balance is{" "}
+            <b>{formattedMatriculationBalance}</b>. Please settle your balance before evaluating faculty.
+          </Alert>
+        )}
 
-      {/* Choose Course + Rating Criteria panels */}
-      <Grid container spacing={2} sx={{ mb: 4 }}>
+        {/* Choose Course + Rating Criteria panels */}
+        <Grid container spacing={2} sx={{ mb: 4 }}>
 
-        {/* CHOOSE COURSE PANEL */}
-        <Grid item xs={12} md={6}>
-          <Paper
-            sx={{
-              p: { xs: 2, sm: 3 },
-              borderRadius: 3,
-              border: `1px solid ${borderColor}`,
-              boxShadow: 1,
-              height: "100%",
-            }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 700, color: titleColor, mb: 2, fontSize: { xs: "15px", sm: "18px" } }}>
-              CHOOSE COURSE
-            </Typography>
-
-            <Box sx={{ mb: 3 }}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Select Course</InputLabel>
-                <Select
-                  value={selectedCourse}
-                  onChange={handleSelectedCourse}
-                  label="Select Course"
-                  disabled={matriculationBalanceInfo.hasBalance}
-                >
-                  {studentCourses.map((c) => (
-                    <MenuItem key={getCourseEvaluationKey(c)} value={getCourseEvaluationKey(c)}>
-                      {c.course_code} - {c.course_description}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Box>
-
-            {selectedProfessor && (
-              <Box sx={{ mt: 1 }}>
-                {[
-                  {
-                    label: "Name of Faculty being Evaluated",
-                    value: `${selectedProfessor.fname || ""} ${selectedProfessor.mname || ""} ${selectedProfessor.lname || ""}`.trim(),
-                  },
-                  { label: "College/Department", value: selectedProfessor.department || "" },
-                  { label: "Course Code", value: selectedProfessor.course_code || "" },
-                  {
-                    label: "Program Code",
-                    value: `${selectedProfessor.curriculum_year}-${selectedProfessor.program_code}` || "",
-                  },
-                  {
-                    label: "Semester or Term/Academic Year",
-                    value: `${selectedProfessor.current_year} - ${selectedProfessor.next_year}, ${selectedProfessor.semester_description}` || "",
-                  },
-                ].map((row, index) => (
-                  // On mobile: stacked label + value; on desktop: side-by-side grid
-                  isMobile ? (
-                    <Box key={index} sx={{ mb: 1.2, pb: 1, borderBottom: "1px solid #f0f0f0" }}>
-                      <Typography sx={{ fontSize: "12px", color: subtitleColor }}>{row.label}</Typography>
-                      <Typography sx={{ fontSize: "14px", fontWeight: 600 }}>{row.value}</Typography>
-                    </Box>
-                  ) : (
-                    <Grid container key={index} sx={{ mb: 1.2 }}>
-                      <Grid item xs={7}>
-                        <Typography sx={{ fontSize: 14 }}>{row.label}</Typography>
-                      </Grid>
-                      <Grid item xs={1}>
-                        <Typography sx={{ fontSize: 14 }}>:</Typography>
-                      </Grid>
-                      <Grid item xs={4}>
-                        <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{row.value}</Typography>
-                      </Grid>
-                    </Grid>
-                  )
-                ))}
-              </Box>
-            )}
-          </Paper>
-        </Grid>
-
-        {/* RATING CRITERIA */}
-        <Grid item xs={12} md={6}>
-          <Paper
-            sx={{
-              p: { xs: 2, sm: 3 },
-              borderRadius: 3,
-              border: `1px solid ${borderColor}`,
-              boxShadow: 1,
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            {/* On mobile: collapsible header */}
-            <Box
+          {/* CHOOSE COURSE PANEL */}
+          <Grid item xs={12} md={6}>
+            <Paper
               sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                mb: criteriaOpen || !isMobile ? 2 : 0,
-                cursor: isMobile ? "pointer" : "default",
+                p: { xs: 2, sm: 3 },
+                borderRadius: 3,
+                border: `1px solid ${borderColor}`,
+                boxShadow: 1,
+                height: "100%",
               }}
-              onClick={() => isMobile && setCriteriaOpen((prev) => !prev)}
             >
-              <Typography variant="h6" sx={{ fontWeight: 700, color: titleColor, fontSize: { xs: "15px", sm: "18px" } }}>
-                Rating Criteria
+              <Typography variant="h6" sx={{ fontWeight: 700, color: titleColor, mb: 2, fontSize: { xs: 14, sm: 16, md: 18 } }}>
+                CHOOSE COURSE
               </Typography>
-              {isMobile && (
-                <IconButton size="small">
-                  {criteriaOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                </IconButton>
-              )}
-            </Box>
 
-            <Collapse in={!isMobile || criteriaOpen}>
-              {/* Mobile: compact badge cards instead of a 3-column table */}
-              {isMobile ? (
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                  {ratingCriteria.map((r) => (
-                    <Box
-                      key={r.scale}
-                      sx={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 1.5,
-                        p: 1.2,
-                        borderRadius: "8px",
-                        border: `1px solid ${borderColor}`,
-                        backgroundColor: "#fafafa",
-                      }}
-                    >
-                      <Chip
-                        label={r.scale}
-                        size="small"
-                        sx={{
-                          backgroundColor: settings?.header_color || "#1976d2",
-                          color: "white",
-                          fontWeight: 700,
-                          minWidth: 32,
-                          flexShrink: 0,
-                        }}
-                      />
-                      <Box>
-                        <Typography sx={{ fontSize: "13px", fontWeight: 600 }}>{r.label}</Typography>
-                        <Typography sx={{ fontSize: "12px", color: subtitleColor }}>{r.desc}</Typography>
+              <Box sx={{ mb: 3 }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Select Course</InputLabel>
+                  <Select
+                    value={selectedCourse}
+                    onChange={handleSelectedCourse}
+                    label="Select Course"
+                    disabled={matriculationBalanceInfo.hasBalance}
+                  >
+                    {studentCourses.map((c) => (
+                      <MenuItem key={getCourseEvaluationKey(c)} value={getCourseEvaluationKey(c)}>
+                        {c.course_code} - {c.course_description}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+
+              {selectedProfessor && (
+                <Box sx={{ mt: 1 }}>
+                  {[
+                    {
+                      label: "Name of Faculty being Evaluated",
+                      value: `${selectedProfessor.fname || ""} ${selectedProfessor.mname || ""} ${selectedProfessor.lname || ""}`.trim(),
+                    },
+                    { label: "College/Department", value: selectedProfessor.department || "" },
+                    { label: "Course Code", value: selectedProfessor.course_code || "" },
+                    {
+                      label: "Program Code",
+                      value: `${selectedProfessor.curriculum_year}-${selectedProfessor.program_code}` || "",
+                    },
+                    {
+                      label: "Semester or Term/Academic Year",
+                      value: `${selectedProfessor.current_year} - ${selectedProfessor.next_year}, ${selectedProfessor.semester_description}` || "",
+                    },
+                  ].map((row, index) => (
+                    // On mobile/tablet: stacked label + value; on desktop (lg+): side-by-side grid
+                    isMobile ? (
+                      <Box key={index} sx={{ mb: 1.2, pb: 1, borderBottom: "1px solid #f0f0f0" }}>
+                        <Typography sx={{ fontSize: { xs: 11.5, sm: 12.5 }, color: subtitleColor }}>{row.label}</Typography>
+                        <Typography sx={{ fontSize: { xs: 13, sm: 14 }, fontWeight: 600 }}>{row.value}</Typography>
                       </Box>
-                    </Box>
+                    ) : (
+                      <Grid container key={index} sx={{ mb: 1.2 }}>
+                        <Grid item xs={7}>
+                          <Typography sx={{ fontSize: { md: 13, lg: 14 } }}>{row.label}</Typography>
+                        </Grid>
+                        <Grid item xs={1}>
+                          <Typography sx={{ fontSize: { md: 13, lg: 14 } }}>:</Typography>
+                        </Grid>
+                        <Grid item xs={4}>
+                          <Typography sx={{ fontSize: { md: 13, lg: 14 }, fontWeight: 600 }}>{row.value}</Typography>
+                        </Grid>
+                      </Grid>
+                    )
                   ))}
                 </Box>
-              ) : (
-                <TableContainer component={Paper} sx={{ boxShadow: "none", borderRadius: 2, flexGrow: 1 }}>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow
-                        sx={{
-                          backgroundColor: settings?.header_color || "#1976d2",
-                          color: "white",
-                          border: `1px solid ${borderColor}`,
-                        }}
-                      >
-                        {["Scale", "Qualitative Description", "Operational Definition"].map((h) => (
-                          <TableCell key={h} sx={{ fontWeight: 700, color: "white", border: `1px solid ${borderColor}` }}>
-                            {h}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    </TableHead>
-                    <TableBody
-                      sx={{
-                        border: `1px solid ${borderColor}`,
-                        "& .MuiTableRow-root:nth-of-type(odd)": {
-                          backgroundColor: "#ffffff",
-                        },
-                        "& .MuiTableRow-root:nth-of-type(even)": {
-                          backgroundColor: "lightgray",
-                        },
-                      }}
-                    >
-                      {ratingCriteria.map((r) => (
-                        <TableRow key={r.scale} sx={{ border: `1px solid ${borderColor}` }}>
-                          <TableCell sx={{ fontWeight: 600, border: `1px solid ${borderColor}` }}>{r.scale}</TableCell>
-                          <TableCell sx={{ border: `1px solid ${borderColor}` }}>{r.label}</TableCell>
-                          <TableCell sx={{ border: `1px solid ${borderColor}` }}>{r.desc}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
               )}
-            </Collapse>
-          </Paper>
-        </Grid>
-      </Grid>
+            </Paper>
+          </Grid>
 
-      {/* CATEGORY SECTIONS */}
-      {selectedProfessor &&
-        Object.entries(groupedQuestions).map(([category, items]) => {
-          const isInteraction = category.toLowerCase().includes("interaction");
-          const headerBg = isInteraction ? "#eef8ee" : "#e9f4ff";
-
-          return (
-            <Box key={category} mb={4}>
-              {/* Section Header */}
+          {/* RATING CRITERIA */}
+          <Grid item xs={12} md={6}>
+            <Paper
+              sx={{
+                p: { xs: 2, sm: 3 },
+                borderRadius: 3,
+                border: `1px solid ${borderColor}`,
+                boxShadow: 1,
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              {/* On mobile/tablet: collapsible header */}
               <Box
                 sx={{
-                  background: headerBg,
-                  p: { xs: 1.5, sm: 2 },
-                  borderRadius: 2,
-                  border: `1px solid ${borderColor}`,
-                  mb: 2,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  mb: criteriaOpen || !isMobile ? 2 : 0,
+                  cursor: isMobile ? "pointer" : "default",
                 }}
+                onClick={() => isMobile && setCriteriaOpen((prev) => !prev)}
               >
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontWeight: 700,
-                    fontSize: { xs: "20px", sm: "30px", md: "40px" },
-                    color: titleColor,
-                  }}
-                >
-                  {items[0].title}
+                <Typography variant="h6" sx={{ fontWeight: 700, color: titleColor, fontSize: { xs: 14, sm: 16, md: 18 } }}>
+                  Rating Criteria
                 </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    fontStyle: "italic",
-                    fontSize: { xs: "13px", sm: "15px" },
-                    color: subtitleColor,
-                  }}
-                >
-                  {items[0].meaning}
-                </Typography>
+                {isMobile && (
+                  <IconButton size="small">
+                    {criteriaOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                  </IconButton>
+                )}
               </Box>
 
-              {/* Questions */}
-              {items.map((q) => (
-                <Paper
-                  key={q.question_id}
+              <Collapse in={!isMobile || criteriaOpen}>
+                {/* Mobile/tablet: compact badge cards instead of a 3-column table */}
+                {isMobile ? (
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    {ratingCriteria.map((r) => (
+                      <Box
+                        key={r.scale}
+                        sx={{
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: 1.5,
+                          p: 1.2,
+                          borderRadius: "8px",
+                          border: `1px solid ${borderColor}`,
+                          backgroundColor: "#fafafa",
+                        }}
+                      >
+                        <Chip
+                          label={r.scale}
+                          size="small"
+                          sx={{
+                            backgroundColor: settings?.header_color || "#1976d2",
+                            color: "white",
+                            fontWeight: 700,
+                            minWidth: 32,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <Box>
+                          <Typography sx={{ fontSize: { xs: 12.5, sm: 13.5 }, fontWeight: 600 }}>{r.label}</Typography>
+                          <Typography sx={{ fontSize: { xs: 11.5, sm: 12.5 }, color: subtitleColor }}>{r.desc}</Typography>
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
+                ) : (
+                  <TableContainer component={Paper} sx={{ boxShadow: "none", borderRadius: 2, flexGrow: 1, overflowX: "auto" }}>
+                    <Table size="small" sx={{ minWidth: 480 }}>
+                      <TableHead>
+                        <TableRow
+                          sx={{
+                            backgroundColor: settings?.header_color || "#1976d2",
+                            color: "white",
+                            border: `1px solid ${borderColor}`,
+                          }}
+                        >
+                          {["Scale", "Qualitative Description", "Operational Definition"].map((h) => (
+                            <TableCell key={h} sx={{ fontWeight: 700, color: "white", border: `1px solid ${borderColor}`, fontSize: { md: 12.5, lg: 14 } }}>
+                              {h}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      </TableHead>
+                      <TableBody
+                        sx={{
+                          border: `1px solid ${borderColor}`,
+                          "& .MuiTableRow-root:nth-of-type(odd)": {
+                            backgroundColor: "#ffffff",
+                          },
+                          "& .MuiTableRow-root:nth-of-type(even)": {
+                            backgroundColor: "lightgray",
+                          },
+                        }}
+                      >
+                        {ratingCriteria.map((r) => (
+                          <TableRow key={r.scale} sx={{ border: `1px solid ${borderColor}` }}>
+                            <TableCell sx={{ fontWeight: 600, border: `1px solid ${borderColor}`, fontSize: { md: 12.5, lg: 14 } }}>{r.scale}</TableCell>
+                            <TableCell sx={{ border: `1px solid ${borderColor}`, fontSize: { md: 12.5, lg: 14 } }}>{r.label}</TableCell>
+                            <TableCell sx={{ border: `1px solid ${borderColor}`, fontSize: { md: 12.5, lg: 14 } }}>{r.desc}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
+              </Collapse>
+            </Paper>
+          </Grid>
+        </Grid>
+
+        {/* CATEGORY SECTIONS */}
+        {selectedProfessor &&
+          Object.entries(groupedQuestions).map(([category, items]) => {
+            const isInteraction = category.toLowerCase().includes("interaction");
+            const headerBg = isInteraction ? "#eef8ee" : "#e9f4ff";
+
+            return (
+              <Box key={category} mb={4}>
+                {/* Section Header */}
+                <Box
                   sx={{
+                    background: headerBg,
                     p: { xs: 1.5, sm: 2 },
-                    mb: 2,
                     borderRadius: 2,
                     border: `1px solid ${borderColor}`,
-                    boxShadow: 0,
+                    mb: 2,
                   }}
                 >
                   <Typography
-                    variant="subtitle1"
-                    sx={{ fontWeight: 700, mb: 1, fontSize: { xs: "14px", sm: "16px" } }}
+                    variant="h6"
+                    sx={{
+                      fontWeight: 700,
+                      fontSize: { xs: 18, sm: 24, md: 32, lg: 38 },
+                      color: titleColor,
+                    }}
                   >
-                    {q.question_description}
+                    {items[0].title}
                   </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontStyle: "italic",
+                      fontSize: { xs: 12.5, sm: 14, md: 15 },
+                      color: subtitleColor,
+                    }}
+                  >
+                    {items[0].meaning}
+                  </Typography>
+                </Box>
 
-                  {isMobile
-                    ? renderMobileChoices(q)
-                    : renderDesktopChoices(q)}
-                </Paper>
-              ))}
-            </Box>
-          );
-        })}
+                {/* Questions */}
+                {items.map((q) => (
+                  <Paper
+                    key={q.question_id}
+                    sx={{
+                      p: { xs: 1.5, sm: 2 },
+                      mb: 2,
+                      borderRadius: 2,
+                      border: `1px solid ${borderColor}`,
+                      boxShadow: 0,
+                    }}
+                  >
+                    <Typography
+                      variant="subtitle1"
+                      sx={{ fontWeight: 700, mb: 1, fontSize: { xs: 13.5, sm: 15, md: 16 } }}
+                    >
+                      {q.question_description}
+                    </Typography>
 
-      {/* Action Buttons */}
-      {selectedProfessor && (
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            gap: 2,
-            mt: 3,
-            mb: 10,
-            flexDirection: { xs: "column", sm: "row" },
-            px: { xs: 1, sm: 0 },
-          }}
-        >
-          <Button
-            variant="outlined"
-            color="error"
-            fullWidth={isMobile}
-            onClick={() => setResetDialogOpen(true)}
+                    {isMobile
+                      ? renderMobileChoices(q)
+                      : renderDesktopChoices(q)}
+                  </Paper>
+                ))}
+              </Box>
+            );
+          })}
+
+        {/* Action Buttons */}
+        {selectedProfessor && (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              gap: 2,
+              mt: 3,
+              mb: { xs: 4, sm: 10 },
+              flexDirection: { xs: "column", sm: "row" },
+            }}
           >
-            Reset Answers
-          </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              fullWidth={isMobile}
+              onClick={() => setResetDialogOpen(true)}
+            >
+              Reset Answers
+            </Button>
 
-          <Button
-            variant="contained"
-            fullWidth={isMobile}
-            sx={{ bgcolor: "#1976d2", "&:hover": { bgcolor: "#155fa0" } }}
-            onClick={() => setSaveDialogOpen(true)}
-          >
-            Save Evaluation
-          </Button>
-        </Box>
-      )}
+            <Button
+              variant="contained"
+              fullWidth={isMobile}
+              sx={{ bgcolor: "#1976d2", "&:hover": { bgcolor: "#155fa0" } }}
+              onClick={() => setSaveDialogOpen(true)}
+            >
+              Save Evaluation
+            </Button>
+          </Box>
+        )}
+      </Box>
 
       {/* RESET DIALOG */}
       <Dialog

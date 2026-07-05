@@ -460,9 +460,9 @@ const CertificateOfRegistration = forwardRef(
       setPersonID(personId);
       setCorActiveSchoolYearId(
         tagged.active_school_year_id ??
-          tagged.activeSchoolYearId ??
-          tagged.corData?.active_school_year_id ??
-          "",
+        tagged.activeSchoolYearId ??
+        tagged.corData?.active_school_year_id ??
+        "",
       );
       setYearLevelDescription(
         tagged.year_level_description ?? tagged.yearLevelDescription ?? "",
@@ -675,19 +675,18 @@ const CertificateOfRegistration = forwardRef(
       fetchTosf();
     }, []);
 
-    // 🔒 Disable right-click
     document.addEventListener("contextmenu", (e) => e.preventDefault());
 
     // 🔒 Block DevTools shortcuts + Ctrl+P silently
     document.addEventListener("keydown", (e) => {
       const isBlockedKey =
-        e.key === "F12" || // DevTools
-        e.key === "F11" || // Fullscreen
+        e.key === "F12" ||
+        e.key === "F11" ||
         (e.ctrlKey &&
           e.shiftKey &&
-          (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) || // Ctrl+Shift+I/J
-        (e.ctrlKey && e.key.toLowerCase() === "u") || // Ctrl+U (View Source)
-        (e.ctrlKey && e.key.toLowerCase() === "p"); // Ctrl+P (Print)
+          (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+        (e.ctrlKey && e.key.toLowerCase() === "u") ||
+        (e.ctrlKey && e.key.toLowerCase() === "p");
 
       if (isBlockedKey) {
         e.preventDefault();

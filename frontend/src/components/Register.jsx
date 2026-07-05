@@ -50,8 +50,16 @@ import Autocomplete from "@mui/material/Autocomplete";
 import { motion, AnimatePresence } from "framer-motion";
 import MuiLink from "@mui/material/Link";
 
-/* ─── Mobile breakpoint hook ─── */
-const useIsMobile = (bp = 768) => {
+/* ─── Device breakpoint hooks ───────────────────────────────────────────────
+   Three tiers instead of one: phones get their own compact layout, tablets
+   get a wider single-column layout (previously tablets fell into whichever
+   bucket happened to straddle 768px, which broke iPads and Android tablets
+   in portrait), and desktop/laptop keeps the original two-column layout.
+════════════════════════════════════════════════════════════════════════════ */
+const MOBILE_BP = 600;   // phones
+const TABLET_BP = 1024;  // tablets (portrait + landscape up to ~1024px)
+
+const useIsMobile = (bp = MOBILE_BP) => {
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" ? window.innerWidth <= bp : false
   );
@@ -61,6 +69,20 @@ const useIsMobile = (bp = 768) => {
     return () => window.removeEventListener("resize", handler);
   }, [bp]);
   return isMobile;
+};
+
+const useIsTablet = (min = MOBILE_BP, max = TABLET_BP) => {
+  const getVal = () =>
+    typeof window !== "undefined" &&
+    window.innerWidth > min &&
+    window.innerWidth <= max;
+  const [isTablet, setIsTablet] = useState(getVal);
+  useEffect(() => {
+    const handler = () => setIsTablet(getVal());
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, [min, max]);
+  return isTablet;
 };
 
 /* ─── Formats announcement text with bullets / line-breaks ─── */
@@ -1134,6 +1156,10 @@ const TotpSetupModal = ({
 const Register = () => {
   const settings = useContext(SettingsContext);
   const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
+  // isCompact = "not enough width for the two-column desktop layout" —
+  // covers both phones and tablets so neither breaks the container.
+  const isCompact = isMobile || isTablet;
 
   const [titleColor, setTitleColor] = useState("#000000");
   const [subtitleColor, setSubtitleColor] = useState("#555555");
@@ -1265,14 +1291,14 @@ const Register = () => {
 
   const [redirectLoading, setRedirectLoading] = useState(false);
 
-  // Mobile slides
+  // Compact (mobile + tablet) announcement slides
   const [mobileSlides, setMobileSlides] = useState([]);
   useEffect(() => {
-    if (!isMobile) return;
+    if (!isCompact) return;
     axios.get(`${API_BASE_URL}/api/announcements`)
       .then((res) => { if (Array.isArray(res.data.data)) setMobileSlides(res.data.data); })
       .catch(() => { });
-  }, [isMobile]);
+  }, [isCompact]);
 
   useEffect(() => {
     axios.get(`${API_BASE_URL}/api/branches`)
@@ -1501,9 +1527,10 @@ const Register = () => {
     ? `url(${API_BASE_URL}${settings.bg_image})`
     : "url(/default-bg.jpg)";
 
-  if (redirectLoading) return <RedirectLoading message="Account created! Redirecting to login..." />;
-
-  // 🔒 Disable right-click
+  // 🔒 Right-click / DevTools-shortcut blocking — desktop (mouse + keyboard)
+  // only. Previously this ran on every render with no cleanup (piling up
+  // duplicate listeners) and unconditionally blocked the context menu,
+  // which on many mobile browsers also blocks the long-press "Paste" menu —
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
   // 🔒 Block DevTools shortcuts + Ctrl+P silently
@@ -1523,6 +1550,8 @@ const Register = () => {
     }
   });
 
+  if (redirectLoading) return <RedirectLoading message="Account created! Redirecting to login..." />;
+
   const inputH = isMobile ? "44px" : "45px";
 
   return (
@@ -1535,30 +1564,32 @@ const Register = () => {
         width: "100%",
         minHeight: "100vh",
         display: "flex",
-        alignItems: isMobile ? "flex-start" : "center",
+        alignItems: isCompact ? "flex-start" : "center",
         justifyContent: "center",
-        overflowY: isMobile ? "auto" : "hidden",
-        py: isMobile ? 2 : 0,
+        overflowY: isCompact ? "auto" : "hidden",
+        overflowX: "hidden",
+        py: isCompact ? 2 : 0,
       }}>
         <Container
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            flexDirection: isMobile ? "column" : "row",
-            padding: isMobile ? "0" : undefined,
+            flexDirection: isCompact ? "column" : "row",
+            padding: isCompact ? "0" : undefined,
           }}
           maxWidth={false}
         >
-          {!isMobile && <AnnouncementSlider campusId={branchId} targetRole="applicant" />}
+          {!isCompact && <AnnouncementSlider campusId={branchId} targetRole="applicant" />}
 
           <div
             style={{
-              border: isMobile ? "3px solid black" : "5px solid black",
-              marginLeft: isMobile ? 0 : -100,
-              marginTop: isMobile ? 0 : "-50px",
-              width: isMobile ? "calc(100% - 32px)" : undefined,
-              maxWidth: isMobile ? 520 : undefined,
+              border: isCompact ? "3px solid black" : "5px solid black",
+              marginLeft: isCompact ? 0 : -100,
+              marginTop: isCompact ? 0 : "-50px",
+              width: isCompact ? "calc(100% - 32px)" : undefined,
+              maxWidth: isCompact ? (isTablet ? 640 : 520) : undefined,
+              boxSizing: "border-box",
             }}
             className="Container"
           >
@@ -1588,7 +1619,7 @@ const Register = () => {
             {/* Body */}
             <div className="Body">
 
-              {isMobile && mobileSlides.length > 0 && (
+              {isCompact && mobileSlides.length > 0 && (
                 <MobileAnnouncementBanner slides={mobileSlides} />
               )}
 
@@ -1596,7 +1627,7 @@ const Register = () => {
               <div className="TextField">
                 <label style={{ color: "black" }}>Campus<span style={{ color: "red" }}> *</span></label>
                 <select value={branchId} onChange={handleBranchSelect} className="border" required
-                  style={{ height: inputH, border: errors.campus ? "2px solid red" : "2px solid black", width: "100%", appearance: "none", WebkitAppearance: "none", MozAppearance: "none", paddingRight: "2.2rem" }}>
+                  style={{ height: inputH, fontSize: "16px", border: errors.campus ? "2px solid red" : "2px solid black", width: "100%", appearance: "none", WebkitAppearance: "none", MozAppearance: "none", paddingRight: "2.2rem" }}>
                   <option value="">Select Campus</option>
                   {branches.map((b) => <option key={b.id} value={b.id}>{b.branch}</option>)}
                 </select>
@@ -1615,7 +1646,7 @@ const Register = () => {
                   <input type="text" placeholder="Enter your last name" required disabled={fieldDisabled}
                     value={lastName} onChange={(e) => setLastName(e.target.value.toUpperCase())}
                     onKeyDown={handleKeyDownRegister} className="border"
-                    style={{ paddingLeft: "2.5rem", height: inputH, border: errors.lastName ? "2px solid red" : "2px solid black", width: "100%" }} />
+                    style={{ paddingLeft: "2.5rem", height: inputH, fontSize: "16px", border: errors.lastName ? "2px solid red" : "2px solid black", width: "100%" }} />
                   <BadgeIcon style={{ position: "absolute", top: "2.5rem", left: "0.7rem", fontSize: "20px" }} />
                   {errors.lastName && <span style={{ color: "red", fontSize: "12px" }}>This field is required</span>}
                 </div>
@@ -1624,7 +1655,7 @@ const Register = () => {
                   <label style={{ color: "black" }}>First Name<span style={{ color: "red" }}> *</span></label>
                   <input type="text" required placeholder="Enter your first name" value={firstName} disabled={fieldDisabled}
                     onChange={(e) => setFirstName(e.target.value.toUpperCase())} onKeyDown={handleKeyDownRegister} className="border"
-                    style={{ paddingLeft: "2.5rem", height: inputH, border: errors.firstName ? "2px solid red" : "2px solid black", width: "100%" }} />
+                    style={{ paddingLeft: "2.5rem", height: inputH, fontSize: "16px", border: errors.firstName ? "2px solid red" : "2px solid black", width: "100%" }} />
                   <PersonIcon style={{ position: "absolute", top: "2.5rem", left: "0.7rem", fontSize: "20px" }} />
                   {errors.firstName && <span style={{ color: "red", fontSize: "12px" }}>This field is required</span>}
                 </div>
@@ -1633,7 +1664,7 @@ const Register = () => {
                   <label style={{ color: "black" }}>Middle Name (Optional)</label>
                   <input type="text" placeholder="Enter your middle name" value={middleName} disabled={fieldDisabled}
                     onChange={(e) => setMiddleName(e.target.value.toUpperCase())} onKeyDown={handleKeyDownRegister} className="border"
-                    style={{ paddingLeft: "2.5rem", height: inputH, border: "2px solid black", width: "100%" }} />
+                    style={{ paddingLeft: "2.5rem", height: inputH, fontSize: "16px", border: "2px solid black", width: "100%" }} />
                   <PersonIcon style={{ position: "absolute", top: "2.5rem", left: "0.7rem", fontSize: "20px" }} />
                 </div>
 
@@ -1641,7 +1672,7 @@ const Register = () => {
                   <label style={{ color: "black" }}>Birth Date<span style={{ color: "red" }}> *</span></label>
                   <input type="date" required value={birthday} disabled={fieldDisabled}
                     onChange={(e) => setBirthday(e.target.value)} onKeyDown={handleKeyDownRegister} className="border"
-                    style={{ paddingLeft: "2.5rem", height: inputH, border: errors.birthday ? "2px solid red" : "2px solid black", width: "100%" }} />
+                    style={{ paddingLeft: "2.5rem", height: inputH, fontSize: "16px", border: errors.birthday ? "2px solid red" : "2px solid black", width: "100%" }} />
                   <CakeIcon style={{ position: "absolute", top: "2.5rem", left: "0.7rem", fontSize: "20px" }} />
                   {errors.birthday && <span style={{ color: "red", fontSize: "12px" }}>This field is required</span>}
                 </div>
@@ -1659,7 +1690,7 @@ const Register = () => {
                   <select required value={academicProgram} disabled={fieldDisabled}
                     onChange={(e) => { setAcademicProgram(e.target.value); setApplyingAs(""); setSelectedCurriculum(""); }}
                     className="border"
-                    style={{ paddingLeft: "1rem", height: inputH, border: errors.academicProgram ? "2px solid red" : "2px solid black", width: "100%", appearance: "none", paddingRight: "2.2rem" }}>
+                    style={{ paddingLeft: "1rem", height: inputH, fontSize: "16px", border: errors.academicProgram ? "2px solid red" : "2px solid black", width: "100%", appearance: "none", paddingRight: "2.2rem" }}>
                     <option value="">Select Program</option>
                     {selectedBranch?.academicPrograms?.filter((prog) => prog.open === 1).map((prog) => (
                       <option key={prog.id} value={prog.id}>{prog.name}</option>
@@ -1677,7 +1708,7 @@ const Register = () => {
                       setApplyingAs(e.target.value); setSelectedCurriculum("");
                     }}
                     className="border"
-                    style={{ paddingLeft: "1rem", height: inputH, border: errors.applyingAs ? "2px solid red" : "2px solid black", width: "100%", appearance: "none", paddingRight: "2.2rem" }}>
+                    style={{ paddingLeft: "1rem", height: inputH, fontSize: "16px", border: errors.applyingAs ? "2px solid red" : "2px solid black", width: "100%", appearance: "none", paddingRight: "2.2rem" }}>
                     <option value="">Select Applying</option>
                     {(() => {
                       const selectedProgram = selectedBranch?.academicPrograms?.find((prog) => prog.id.toString() === academicProgram);
@@ -1741,7 +1772,7 @@ const Register = () => {
                       helperText={errors.selectedCurriculum ? "This field is required" : ""}
                       sx={{
                         "& .MuiOutlinedInput-root": {
-                          height: inputH,
+                          height: inputH, fontSize: "16px",
                           "& fieldset": { border: errors.selectedCurriculum ? "2px solid red" : "2px solid black" },
                           "&:hover fieldset": { border: errors.selectedCurriculum ? "2px solid red" : "2px solid black" },
                           "&.Mui-focused fieldset": { border: errors.selectedCurriculum ? "2px solid red" : "2px solid black" },
@@ -1778,7 +1809,7 @@ const Register = () => {
                   onKeyDown={handleKeyDownRegister}
                   style={{
                     paddingLeft: "2.5rem",
-                    height: inputH,
+                    height: inputH, fontSize: "16px",
                     border: errors.email || emailDomainStatus === "invalid" ? "2px solid red" : "2px solid black",
                   }}
                 />
@@ -1838,7 +1869,7 @@ const Register = () => {
                     onFocus={() => setPasswordFocused(true)}
                     onBlur={() => setPasswordFocused(false)}
                     onKeyDown={handleKeyDownRegister} required
-                    style={{ paddingLeft: "2.5rem", height: inputH, border: errors.password ? "2px solid red" : "2px solid black", width: "100%" }} />
+                    style={{ paddingLeft: "2.5rem", height: inputH, fontSize: "16px", border: errors.password ? "2px solid red" : "2px solid black", width: "100%" }} />
                   <LockIcon style={{ position: "absolute", top: "2.5rem", left: "0.7rem", color: "rgba(0,0,0,0.4)", fontSize: "22px" }} />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
                     style={{ position: "absolute", top: "2.5rem", right: "1rem", background: "none", border: "none", cursor: "pointer" }}>
@@ -1861,7 +1892,7 @@ const Register = () => {
                     onChange={(e) => setConfirmPassword(e.target.value)} onKeyDown={handleKeyDownRegister}
                     required disabled={!usersData.password}
                     style={{
-                      paddingLeft: "2.5rem", height: inputH,
+                      paddingLeft: "2.5rem", height: inputH, fontSize: "16px",
                       border: errors.confirmPassword ? "2px solid red" : "2px solid black",
                       width: "100%",
                       backgroundColor: !usersData.password ? "#f0f0f0" : "white",
@@ -1970,7 +2001,7 @@ const Register = () => {
           onSuccess={handleTotpSuccess}
           email={tempEmail}
           mainButtonColor={mainButtonColor}
-          isMobile={isMobile}
+          isMobile={isCompact}
           registrationPayload={registrationPayload}
         />
 

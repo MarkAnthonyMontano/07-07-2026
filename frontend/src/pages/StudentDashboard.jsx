@@ -18,7 +18,8 @@ import {
   IconButton,
   Stack,
   Avatar,
-  Tooltip
+  Tooltip,
+  useMediaQuery,
 } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import SchoolIcon from "@mui/icons-material/School";
@@ -53,6 +54,10 @@ import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 const StudentDashboard = ({ profileImage, setProfileImage }) => {
   const navigate = useNavigate();
   const settings = useContext(SettingsContext);
+
+  // 📱 Responsive breakpoint helpers (reactive to viewport, unlike raw window.innerWidth reads)
+  const isMobile = useMediaQuery("(max-width:600px)");
+  const isTablet = useMediaQuery("(max-width:960px)");
 
   const [titleColor, setTitleColor] = useState("#000000");
   const [subtitleColor, setSubtitleColor] = useState("#555555");
@@ -827,25 +832,37 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
     { label: "Account Balance", icon: <CreditCard />, href: "/student_account_balance" },
   ];
 
-  // 🔒 Disable right-click
-  document.addEventListener("contextmenu", (e) => e.preventDefault());
+  // 🔒 Disable right-click and block DevTools shortcuts.
+  // Moved into a useEffect with cleanup so listeners aren't re-added on every render
+  // (the original code attached a brand-new listener on every single render, which
+  // leaks memory and gets worse the longer a session runs — especially costly on
+  // memory-constrained mobile/tablet browsers).
+  useEffect(() => {
+    const handleContextMenu = (e) => e.preventDefault();
+    const handleKeyDown = (e) => {
+      const isBlockedKey =
+        e.key === "F12" ||
+        e.key === "F11" ||
+        (e.ctrlKey &&
+          e.shiftKey &&
+          (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+        (e.ctrlKey && e.key.toLowerCase() === "u") ||
+        (e.ctrlKey && e.key.toLowerCase() === "p");
 
-  // 🔒 Block DevTools shortcuts + Ctrl+P silently
-  document.addEventListener("keydown", (e) => {
-    const isBlockedKey =
-      e.key === "F12" ||
-      e.key === "F11" ||
-      (e.ctrlKey &&
-        e.shiftKey &&
-        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-      (e.ctrlKey && e.key.toLowerCase() === "u") ||
-      (e.ctrlKey && e.key.toLowerCase() === "p");
+      if (isBlockedKey) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
 
-    if (isBlockedKey) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  });
+    document.addEventListener("contextmenu", handleContextMenu);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("contextmenu", handleContextMenu);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   return (
     <Box
@@ -854,6 +871,7 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
         width: "100%",
         backgroundColor: "#f7f6f4",
         overflowY: "auto",
+        overflowX: "hidden",
         fontFamily: "Poppins, sans-serif",
       }}
     >
@@ -877,7 +895,7 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
       </div>
       <Box
         sx={{
-          mx: { xs: 1.5, md: 3 },
+          mx: { xs: 1, sm: 1.5, md: 3 },
           mt: { xs: 1.5, md: 2.5 },
           borderRadius: "12px",
           overflow: "hidden",
@@ -886,14 +904,14 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
           border: `2px solid ${borderColor}`
         }}
       >
-        <Box sx={{ px: { xs: 2, md: 4 }, py: { xs: 2.5, md: 3 }, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", }}>
-          <Stack direction="row" alignItems="center" spacing={2}>
+        <Box sx={{ px: { xs: 1.5, sm: 2, md: 4 }, py: { xs: 2, md: 3 }, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap", }}>
+          <Stack direction="row" alignItems="center" spacing={{ xs: 1.25, sm: 2 }}>
             <Box position="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} sx={{ display: "inline-flex" }}>
               <Avatar
                 src={profileImage || (personData?.profile_image ? `${API_BASE_URL}/uploads/Student1by1/${personData.profile_image}` : "")}
                 alt={personData?.first_name || "Student"}
                 onClick={() => fileInputRef.current?.click()}
-                sx={{ width: 64, height: 64, border: "1px solid white", bgcolor: "rgba(255,255,255,0.15)", cursor: "pointer", display: { xs: "none", sm: "flex", color: "white" } }}
+                sx={{ width: { xs: 48, sm: 56, md: 64 }, height: { xs: 48, sm: 56, md: 64 }, border: "1px solid white", bgcolor: "rgba(255,255,255,0.15)", cursor: "pointer", color: "white" }}
               >
                 {personData?.first_name?.[0] || <PersonIcon />}
               </Avatar>
@@ -919,13 +937,14 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
               )}
               <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleFileChange} />
             </Box>
-            <Box>
+            <Box sx={{ minWidth: 0 }}>
               <Typography
                 sx={{
-                  fontSize: "32px",
+                  fontSize: { xs: 18, sm: 22, md: 28, lg: 32 },
                   fontWeight: 800,
-                  lineHeight: 1.1,
+                  lineHeight: 1.2,
                   color: "white",
+                  wordBreak: "break-word",
                 }}
               >
                 Welcome Back!{" "}
@@ -936,10 +955,11 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
 
               <Typography
                 sx={{
-                  fontSize: "22px",
+                  fontSize: { xs: 13, sm: 15, md: 18, lg: 22 },
                   letterSpacing: 0,
                   opacity: 0.86,
                   color: "white",
+                  wordBreak: "break-word",
                 }}
               >
                 <Box component="span" sx={{ fontWeight: 700 }}>
@@ -951,7 +971,7 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
           </Stack>
 
         </Box>
-        <Box sx={{ px: { xs: 2, md: 4 }, py: 1.5, backgroundColor: "lightgray", display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "1fr 1fr 2fr 1fr 1fr" }, gap: 2, borderTop: `2px solid ${borderColor}` }}>
+        <Box sx={{ px: { xs: 1.5, sm: 2, md: 4 }, py: 1.5, backgroundColor: "lightgray", display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "1fr 1fr 2fr 1fr 1fr" }, gap: 2, borderTop: `2px solid ${borderColor}` }}>
           {[
             ["School Year", `${sy.current_year || ""}-${sy.next_year || ""}`],
             ["Semester", sy.semester_description || "N/A"],
@@ -960,29 +980,29 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
             ["Year Level", studentYearLevel],
           ].map(([label, value]) => (
             <Box key={label} sx={{ borderLeft: { lg: "1px solid rgba(255,255,255,0.22)" }, pl: { lg: 2 } }}>
-              <Typography sx={{ fontSize: 12, textTransform: "uppercase", opacity: 0.78, color: "black" }}>{label}</Typography>
-              <Typography sx={{ fontSize: 15, fontWeight: 600, color: "black" }}>{value}</Typography>
+              <Typography sx={{ fontSize: { xs: 11, sm: 12 }, textTransform: "uppercase", opacity: 0.78, color: "black" }}>{label}</Typography>
+              <Typography sx={{ fontSize: { xs: 13, sm: 15 }, fontWeight: 600, color: "black", wordBreak: "break-word" }}>{value}</Typography>
             </Box>
           ))}
         </Box>
       </Box>
 
-      <Box sx={{ py: { xs: 2, md: 2.5 }, mx: { xs: 1.5, md: 3 }, maxWidth: "none", }}>
-        <Grid container spacing={2} sx={{ width: "100%", }}>
+      <Box sx={{ py: { xs: 2, md: 2.5 }, mx: { xs: 1, sm: 1.5, md: 3 }, maxWidth: "none", }}>
+        <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ width: "100%", }}>
           <Grid item xs={12} md={6} lg={3} sx={{}}>
             <Card sx={{ ...cardSx, border: `2px solid ${borderColor}`, }}>
-              <CardContent sx={{ p: 3, }}>
+              <CardContent sx={{ p: { xs: 2, sm: 3 }, }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
                   <Box>
-                    <Typography sx={{ fontSize: 20, fontWeight: 700 }}>Course Status</Typography>
+                    <Typography sx={{ fontSize: { xs: 16, sm: 20 }, fontWeight: 700 }}>Course Status</Typography>
                     <Typography sx={{ mt: 0.5, color: "text.secondary", fontSize: 13 }}>Academic year {sy.current_year || "N/A"}-{sy.next_year || ""} - {sy.semester_description || "Semester"}</Typography>
                   </Box>
                   <Box sx={{ textAlign: "right" }}>
-                    <Typography sx={{ color: maroon, fontSize: 52, lineHeight: 0.9, fontWeight: 800 }}>{total}</Typography>
+                    <Typography sx={{ color: maroon, fontSize: { xs: 36, sm: 44, md: 52 }, lineHeight: 0.9, fontWeight: 800 }}>{total}</Typography>
                     <Typography sx={{ color: maroon, textTransform: "uppercase", fontSize: 12, fontWeight: 700 }}>Courses</Typography>
                   </Box>
                 </Stack>
-                <Divider sx={{ my: 3 }} />
+                <Divider sx={{ my: { xs: 2, sm: 3 } }} />
                 <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
                   {[
                     ["Passed", passed, "#75a843"],
@@ -997,9 +1017,9 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
                     </Box>
                   ))}
                 </Stack>
-                <Divider sx={{ my: 3 }} />
+                <Divider sx={{ my: { xs: 2, sm: 3 } }} />
                 <Stack direction="row" spacing={2.5} alignItems="center">
-                  <Box sx={{ width: 92, height: 92, minWidth: 92, borderRadius: "50%", background: statusRingBackground, display: "grid", placeItems: "center", p: "9px" }}>
+                  <Box sx={{ width: { xs: 76, sm: 92 }, height: { xs: 76, sm: 92 }, minWidth: { xs: 76, sm: 92 }, borderRadius: "50%", background: statusRingBackground, display: "grid", placeItems: "center", p: "9px" }}>
                     <Box sx={{ width: "100%", height: "100%", borderRadius: "50%", bgcolor: "#fff", display: "grid", placeItems: "center", fontSize: 17, fontWeight: 800 }}>{total}</Box>
                   </Box>
                   <Box>
@@ -1013,7 +1033,7 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
 
           <Grid item xs={12} md={6} lg={3}>
             <Card sx={{ ...cardSx, border: `2px solid ${borderColor}`, }}>
-              <CardContent sx={{ p: 3 }}>
+              <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
                 <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2.5 }}>
                   <Box sx={iconBoxSx}><PersonIcon /></Box>
                   <Box>
@@ -1037,7 +1057,7 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
 
           <Grid item xs={12} md={6} lg={3}>
             <Card sx={{ ...cardSx, border: `2px solid ${borderColor}`, }}>
-              <CardContent sx={{ p: 3 }}>
+              <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
                 <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2.5 }}>
                   <Box sx={iconBoxSx}><AccountBalanceWallet /></Box>
                   <Typography sx={{ fontWeight: 700 }}>Account Balance</Typography>
@@ -1070,7 +1090,7 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
             <Card
               sx={{
                 ...cardSx,
-                p: 2,
+                p: { xs: 1, sm: 2 },
                 flexShrink: 0,
                 border: `2px solid ${borderColor}`,
               }}
@@ -1148,7 +1168,7 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
                         textAlign: "center",
                         py: 0.5,
                         fontWeight: "bold",
-                        fontSize: 14,
+                        fontSize: { xs: 11, sm: 14 },
                         borderBottom: `2px solid ${borderColor}`,
                       }}
                     >
@@ -1164,7 +1184,7 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
                           <Box
                             key={`${i}-${j}`}
                             sx={{
-                              height: 50,
+                              height: { xs: 38, sm: 50 },
                               backgroundColor: "#fff",
                             }}
                           />
@@ -1185,12 +1205,14 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
                       const dayCell = (
                         <Box
                           sx={{
-                            height: 38,
+                            height: { xs: 30, sm: 38 },
+                            width: { xs: 30, sm: 38 },
+                            mx: "auto",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             borderRadius: "50%",
-                            fontSize: 12,
+                            fontSize: { xs: 11, sm: 12 },
                             backgroundColor: isToday
                               ? maroon
                               : isHoliday
@@ -1229,12 +1251,14 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
                           arrow
                           placement="top"
                         >
-                          {dayCell}
+                          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: { xs: 38, sm: 50 } }}>
+                            {dayCell}
+                          </Box>
                         </Tooltip>
                       ) : (
-                        <React.Fragment key={`${i}-${j}`}>
+                        <Box key={`${i}-${j}`} sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: { xs: 38, sm: 50 } }}>
                           {dayCell}
-                        </React.Fragment>
+                        </Box>
                       );
                     })
                   )}
@@ -1246,10 +1270,10 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
             <Card sx={{ ...cardSx, border: `2px solid ${borderColor}`, }}>
               <CardContent sx={{ p: 0, }}>
                 <Grid container>
-                  <Grid item xs={12} md={5.2} sx={{ p: 2.5, borderRight: { md: `1px solid ${softBorder}` } }}>
+                  <Grid item xs={12} md={5.2} sx={{ p: { xs: 2, sm: 2.5 }, borderRight: { md: `1px solid ${softBorder}` } }}>
                     <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}><Box sx={iconBoxSx}><StarBorder /></Box><Typography sx={{ fontSize: 18, fontWeight: 700 }}>Honors Standing</Typography></Stack>
-                    <Box sx={{ border: `2px solid ${borderColor}`, borderRadius: "8px", p: 2.5, textAlign: "center" }}>
-                      <Typography sx={{ mt: 1.25, fontSize: 24, color: maroon, fontWeight: 800 }}>
+                    <Box sx={{ border: `2px solid ${borderColor}`, borderRadius: "8px", p: { xs: 2, sm: 2.5 }, textAlign: "center" }}>
+                      <Typography sx={{ mt: 1.25, fontSize: { xs: 18, sm: 24 }, color: maroon, fontWeight: 800 }}>
                         {honorStanding.loading
                           ? "Loading..."
                           : honorStanding.title ||
@@ -1277,19 +1301,19 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
                       </Typography>
                     </Box>
                   </Grid>
-                  <Grid item xs={12} md={6.8} sx={{ p: 2.5 }}>
+                  <Grid item xs={12} md={6.8} sx={{ p: { xs: 2, sm: 2.5 } }}>
                     <Typography sx={{ fontSize: 18, fontWeight: 700, mb: 2 }}>Quick Access</Typography>
-                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(3, 1fr)" }, gap: 1.5 }}>
+                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(3, 1fr)" }, gap: { xs: 1, sm: 1.5 } }}>
                       {quickLinks.map((link) => (
-                        <Button key={link.label} type="button" onClick={() => navigate(link.href)} variant="outlined" sx={{ height: 86, borderRadius: "8px", borderColor: softBorder, color: "text.primary", display: "flex", flexDirection: "column", gap: 0.8, textTransform: "none", "& svg": { color: maroon }, "&:hover": { borderColor: maroon, bgcolor: "rgba(155,47,53,0.04)" }, border: `2px solid ${borderColor}` }}>
-                          {link.icon}<Typography sx={{ fontSize: 13, lineHeight: 1.1 }}>{link.label}</Typography>
+                        <Button key={link.label} type="button" onClick={() => navigate(link.href)} variant="outlined" sx={{ height: { xs: 74, sm: 86 }, borderRadius: "8px", borderColor: softBorder, color: "text.primary", display: "flex", flexDirection: "column", gap: 0.8, textTransform: "none", "& svg": { color: maroon }, "&:hover": { borderColor: maroon, bgcolor: "rgba(155,47,53,0.04)" }, border: `2px solid ${borderColor}` }}>
+                          {link.icon}<Typography sx={{ fontSize: { xs: 11.5, sm: 13 }, lineHeight: 1.1, textAlign: "center" }}>{link.label}</Typography>
                         </Button>
                       ))}
                     </Box>
                   </Grid>
                 </Grid>
                 <Divider />
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ xs: "flex-start", sm: "center" }} justifyContent="space-between" sx={{ p: 2.5 }}>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ xs: "flex-start", sm: "center" }} justifyContent="space-between" sx={{ p: { xs: 2, sm: 2.5 } }}>
                   <Stack direction="row" spacing={2} alignItems="center">
                     <Box sx={{ ...iconBoxSx, width: 64, height: 64 }}><FactCheck sx={{ fontSize: 34 }} /></Box>
                     <Box><Typography sx={{ fontSize: 17, fontWeight: 700 }}>Certificate of Registration</Typography><Typography sx={{ mt: 0.5, color: "text.secondary", fontSize: 14 }}>Download your official enrollment certificate for this semester.</Typography></Box>
@@ -1299,6 +1323,7 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
                     startIcon={<DownloadIcon />}
                     onClick={downloadCorPdf}
                     disabled={!isCorReadyToPrint || isGeneratingCorPdf}
+                    fullWidth={isMobile}
                     sx={{ border: `2px solid ${borderColor}`, color: "text.primary", textTransform: "none", borderRadius: "8px", px: 3 }}
                   >
                     {isGeneratingCorPdf ? "Generating PDF..." : "Download student's copy"}
@@ -1314,14 +1339,14 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
                 borderRadius: "14px",
                 border: `2px solid ${borderColor}`,
                 boxShadow: 3,
-                height: 600,
+                height: { xs: 420, sm: 480, md: 600 },
                 display: "flex",
                 flexDirection: "column",
                 overflow: "hidden",
                 transition: "all 0.3s ease",
                 background: "#fff",
                 "&:hover": {
-                  transform: "scale(1.01)",
+                  transform: { xs: "none", md: "scale(1.01)" },
                   boxShadow: 6,
                 },
               }}
@@ -1357,6 +1382,7 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
                       alignItems: "center",
                       justifyContent: "center",
                       backdropFilter: "blur(6px)",
+                      flexShrink: 0,
                     }}
                   >
                     <Campaign sx={{ color: "#fff", fontSize: 24 }} />
@@ -1364,7 +1390,7 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
 
                   <Typography
                     sx={{
-                      fontSize: 18,
+                      fontSize: { xs: 15, sm: 18 },
                       fontWeight: 800,
                       textTransform: "uppercase",
                       letterSpacing: 0.5,
@@ -1379,16 +1405,18 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
                 <Box
                   sx={{
                     flex: 1,
-                    p: 2,
+                    p: { xs: 1.25, sm: 2 },
                     overflow: "hidden",
                     display: "flex",
                     flexDirection: "column",
+                    minHeight: 0,
                   }}
                 >
                   {firstAnnouncement?.file_path ? (
                     <Box
                       sx={{
                         flex: 1,
+                        minHeight: 0,
                         borderRadius: "14px",
                         overflow: "hidden",
                         position: "relative",
@@ -1397,7 +1425,7 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
                         background: "#fff",
                         transition: "all 0.3s ease",
                         "&:hover": {
-                          transform: "translateY(-2px)",
+                          transform: { xs: "none", md: "translateY(-2px)" },
                           boxShadow: 4,
                         },
                       }}
@@ -1416,7 +1444,7 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
                           objectFit: "cover",
                           transition: "transform 0.35s ease",
                           "&:hover": {
-                            transform: "scale(1.05)",
+                            transform: { xs: "none", md: "scale(1.05)" },
                           },
                         }}
                       />
@@ -1461,14 +1489,14 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
                           bottom: 0,
                           left: 0,
                           right: 0,
-                          p: 2,
+                          p: { xs: 1.5, sm: 2 },
                         }}
                       >
                         <Typography
                           sx={{
                             color: "#fff",
                             fontWeight: 800,
-                            fontSize: 20,
+                            fontSize: { xs: 16, sm: 20 },
                             lineHeight: 1.2,
                             mb: 0.5,
                           }}
@@ -1563,6 +1591,7 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
               position: "fixed", inset: 0, zIndex: 9999,
               background: "rgba(0,0,0,0.92)",
               display: "flex", alignItems: "center", justifyContent: "center",
+              padding: isMobile ? 0 : undefined,
             }}
           >
             {/* Prev */}
@@ -1570,12 +1599,12 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
               onClick={e => { e.stopPropagation(); lightboxPrev(); }}
               sx={{
                 position: "fixed", left: { xs: 4, sm: 16 }, top: "50%", transform: "translateY(-50%)",
-                zIndex: 10000, width: { xs: 44, sm: 60 }, height: { xs: 44, sm: 60 },
+                zIndex: 10000, width: { xs: 40, sm: 60 }, height: { xs: 40, sm: 60 },
                 background: "rgba(255,255,255,0.15)", color: "#fff",
                 "&:hover": { background: "rgba(255,255,255,0.3)" },
               }}
             >
-              <ArrowBackIosNewIcon sx={{ fontSize: { xs: 18, sm: 24 } }} />
+              <ArrowBackIosNewIcon sx={{ fontSize: { xs: 16, sm: 24 } }} />
             </IconButton>
 
             {/* Next */}
@@ -1583,12 +1612,12 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
               onClick={e => { e.stopPropagation(); lightboxNext(); }}
               sx={{
                 position: "fixed", right: { xs: 4, sm: 16 }, top: "50%", transform: "translateY(-50%)",
-                zIndex: 10000, width: { xs: 44, sm: 60 }, height: { xs: 44, sm: 60 },
+                zIndex: 10000, width: { xs: 40, sm: 60 }, height: { xs: 40, sm: 60 },
                 background: "rgba(255,255,255,0.15)", color: "#fff",
                 "&:hover": { background: "rgba(255,255,255,0.3)" },
               }}
             >
-              <ArrowForwardIosIcon sx={{ fontSize: { xs: 18, sm: 24 } }} />
+              <ArrowForwardIosIcon sx={{ fontSize: { xs: 16, sm: 24 } }} />
             </IconButton>
 
             {/* Main card */}
@@ -1601,11 +1630,11 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
               onClick={e => e.stopPropagation()}
               style={{
                 display: "flex",
-                flexDirection: window.innerWidth <= 768 ? "column" : "row",
-                width: window.innerWidth <= 768 ? "92vw" : "80vw",
+                flexDirection: isTablet ? "column" : "row",
+                width: isTablet ? "94vw" : "80vw",
                 maxWidth: "1200px",
-                maxHeight: window.innerWidth <= 768 ? "88vh" : "82vh",
-                borderRadius: "16px",
+                maxHeight: isTablet ? "90vh" : "82vh",
+                borderRadius: isMobile ? 12 : 16,
                 overflow: "hidden",
                 background: "#111",
               }}
@@ -1613,9 +1642,9 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
               {/* LEFT — image */}
               {announcements[lightboxIndex].file_path && (
                 <div style={{
-                  flex: window.innerWidth <= 768 ? "0 0 auto" : "0 0 60%",
-                  width: window.innerWidth <= 768 ? "100%" : "60%",
-                  maxHeight: window.innerWidth <= 768 ? "45vh" : "82vh",
+                  flex: isTablet ? "0 0 auto" : "0 0 60%",
+                  width: isTablet ? "100%" : "60%",
+                  maxHeight: isTablet ? "40vh" : "82vh",
                   background: "#000",
                   display: "flex",
                   alignItems: "center",
@@ -1650,7 +1679,7 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
                 display: "flex",
                 flexDirection: "column",
                 background: "linear-gradient(160deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%)",
-                padding: window.innerWidth <= 768 ? "20px 16px" : "32px 28px",
+                padding: isMobile ? "18px 14px" : isTablet ? "20px 16px" : "32px 28px",
                 overflowY: "auto",
                 scrollbarWidth: "thin",
                 scrollbarColor: "rgba(255,255,255,0.2) transparent",
@@ -1659,22 +1688,27 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
                 <IconButton
                   onClick={e => { e.stopPropagation(); closeLightbox(); }}
                   sx={{
-                    position: "fixed", top: 25, left: 50, zIndex: 10000,
-                    width: 75, height: 75,
+                    position: "fixed",
+                    top: { xs: 10, sm: 25 },
+                    left: { xs: 10, sm: 50 },
+                    zIndex: 10000,
+                    width: { xs: 44, sm: 75 },
+                    height: { xs: 44, sm: 75 },
                     background: "rgba(255,255,255,0.15)", color: "#fff",
                     "&:hover": { background: "rgba(220,50,50,0.75)" },
                   }}
                 >
-                  <CloseIcon sx={{ fontSize: 28 }} />
+                  <CloseIcon sx={{ fontSize: { xs: 20, sm: 28 } }} />
                 </IconButton>
 
                 {/* Title */}
                 <h2 style={{
                   margin: "0 0 4px",
                   color: "#fff",
-                  fontSize: window.innerWidth <= 768 ? "16px" : "20px",
+                  fontSize: isMobile ? "15px" : isTablet ? "16px" : "20px",
                   fontWeight: 700,
                   lineHeight: 1.4,
+                  paddingTop: isMobile ? "36px" : 0,
                 }}>
                   {announcements[lightboxIndex].title}
                 </h2>
@@ -1708,6 +1742,7 @@ const StudentDashboard = ({ profileImage, setProfileImage }) => {
                     display: "flex",
                     alignItems: "center",
                     gap: "6px",
+                    flexWrap: "wrap",
                   }}>
                     {announcements.map((_, i) => (
                       <div

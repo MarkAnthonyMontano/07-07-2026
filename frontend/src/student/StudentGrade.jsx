@@ -13,6 +13,8 @@ import {
   Snackbar,
   Alert,
   AlertTitle,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import axios from "axios";
 import API_BASE_URL from "../apiConfig";
@@ -23,6 +25,7 @@ import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import ClassIcon from "@mui/icons-material/Class";
 import FilterNoneIcon from "@mui/icons-material/FilterNone";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
+
 // ─── Remark Badge ─────────────────────────────────────────────────
 const REMARK_MAP = {
   0: { label: "Ongoing", bg: "#E8F5E9", color: "#9e9c1e", border: "#807700" },
@@ -36,15 +39,22 @@ const RemarkBadge = ({ value }) => {
   const style = REMARK_MAP[value];
   if (!style) return <span style={{ color: "#9CA3AF", fontSize: 12 }}>—</span>;
   return (
-    <span style={{
-      display: "inline-flex", alignItems: "center",
-      background: style.bg, color: style.color,
-      border: `1px solid ${style.border}`,
-      borderRadius: 6, padding: "2px 8px",
-      fontSize: 11, fontWeight: 600,
-      letterSpacing: "0.04em", textTransform: "uppercase",
-      whiteSpace: "nowrap",
-    }}>
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        background: style.bg,
+        color: style.color,
+        border: `1px solid ${style.border}`,
+        borderRadius: 6,
+        padding: "2px 8px",
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: "0.04em",
+        textTransform: "uppercase",
+        whiteSpace: "nowrap",
+      }}
+    >
       {style.label}
     </span>
   );
@@ -113,6 +123,7 @@ const canShowGrade = (subject, latestMigratedTermKey) => {
   return getAcademicTermKey(subject) !== latestMigratedTermKey;
 };
 
+// ─── Mobile / Tablet Grade Card ────────────────────────────────────
 const MobileGradeCard = ({
   row,
   index,
@@ -124,24 +135,24 @@ const MobileGradeCard = ({
     sx={{
       border: `1px solid ${borderColor}`,
       borderRadius: "8px",
-      p: 1.5,
+      p: { xs: 1.25, sm: 1.5 },
       mb: 1.5,
       backgroundColor: index % 2 === 0 ? "#ffffff" : "lightgray",
       boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
     }}
   >
-    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 0.5 }}>
+    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 0.5, gap: 1 }}>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 700, fontSize: 13, color: titleColor, mb: 0.2 }}>
+        <Typography sx={{ fontWeight: 700, fontSize: { xs: 12.5, sm: 13 }, color: titleColor, mb: 0.2 }}>
           {row.course_code}
         </Typography>
-        <Typography sx={{ fontSize: 11.5, color: subtitleColor, lineHeight: 1.3 }}>
+        <Typography sx={{ fontSize: { xs: 11, sm: 11.5 }, color: subtitleColor, lineHeight: 1.3 }}>
           {row.course_description}
         </Typography>
       </Box>
       <Box sx={{ ml: 1, flexShrink: 0 }}>
         {row.numeric_grade
-          ? <Typography sx={{ fontWeight: 700, fontSize: 16, color: titleColor }}>{row.numeric_grade}</Typography>
+          ? <Typography sx={{ fontWeight: 700, fontSize: { xs: 15, sm: 16 }, color: titleColor }}>{row.numeric_grade}</Typography>
           : <Typography sx={{ color: "#9CA3AF", fontSize: 14 }}>—</Typography>
         }
       </Box>
@@ -149,16 +160,16 @@ const MobileGradeCard = ({
 
     <Box sx={{ display: "flex", flexWrap: "wrap", gap: "6px 12px", mt: 0.8, alignItems: "center" }}>
       {/* Professor */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-        <PersonOutlineIcon sx={{ fontSize: 13, color: "#000" }} />
-        <Typography sx={{ fontSize: 11, color: "#000" }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}>
+        <PersonOutlineIcon sx={{ fontSize: 13, color: "#000", flexShrink: 0 }} />
+        <Typography sx={{ fontSize: 11, color: "#000", wordBreak: "break-word" }}>
           {row.fname === "TBA" && row.lname === "TBA" ? "TBA" : `Prof. ${row.fname} ${row.lname}`}
         </Typography>
       </Box>
 
       {/* Section */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-        <ClassIcon sx={{ fontSize: 13, color: "#000" }} />
+        <ClassIcon sx={{ fontSize: 13, color: "#000", flexShrink: 0 }} />
         <Typography sx={{ fontSize: 11, color: "#000" }}>
           {row.program_code}-{row.section_description}
         </Typography>
@@ -166,7 +177,7 @@ const MobileGradeCard = ({
 
       {/* Units */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-        <FilterNoneIcon sx={{ fontSize: 13, color: "#000" }} />
+        <FilterNoneIcon sx={{ fontSize: 13, color: "#000", flexShrink: 0 }} />
         <Typography sx={{ fontSize: 11, color: "#000" }}>
           {getUnitDisplay(row)} unit{getUnitDisplay(row) !== 1 ? "s" : ""}
         </Typography>
@@ -176,7 +187,7 @@ const MobileGradeCard = ({
       {row.schedule && (
         <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.5, width: "100%" }}>
           <AccessTimeIcon sx={{ fontSize: 13, color: "#000", mt: "1px", flexShrink: 0 }} />
-          <Typography sx={{ fontSize: 11, color: "#000", whiteSpace: "pre-line", lineHeight: 1.5 }}>
+          <Typography sx={{ fontSize: 11, color: "#000", whiteSpace: "pre-line", lineHeight: 1.5, wordBreak: "break-word" }}>
             {row.schedule}
           </Typography>
         </Box>
@@ -190,6 +201,13 @@ const MobileGradeCard = ({
 // ─── Main Component ───────────────────────────────────────────────
 const StudentGradingPage = () => {
   const settings = useContext(SettingsContext);
+  const theme = useTheme();
+
+  // Breakpoints:
+  // - card layout for phones AND small/portrait tablets (< 900px)
+  // - scrollable table layout for larger tablets (landscape) and desktop (>= 900px)
+  const isCardLayout = useMediaQuery(theme.breakpoints.down("md"));
+  const isXs = useMediaQuery(theme.breakpoints.down("sm"));
 
   const [titleColor, setTitleColor] = useState("#000000");
   const [subtitleColor, setSubtitleColor] = useState("#555555");
@@ -199,14 +217,6 @@ const StudentGradingPage = () => {
   const [companyName, setCompanyName] = useState("");
   const [shortTerm, setShortTerm] = useState("");
   const [campusAddress, setCampusAddress] = useState("");
-
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   useEffect(() => {
     if (!settings) return;
@@ -319,24 +329,7 @@ const StudentGradingPage = () => {
     else setMessage("");
   }, [gradingActive, matriculationBalanceInfo.hasBalance, studentGrade]);
 
-  const rawTerms = [...new Set(studentGrade.map((row) => `${row.year_level_description} ${row.semester_description}`))];
-  const sortedTerms = sortTerms(rawTerms);
-  const headerBg = settings?.header_color || "#1976d2";
-  const programInfo = studentGrade[0] || null;
-  const formattedMatriculationBalance = matriculationBalanceInfo.balance.toLocaleString(undefined, {
-    minimumFractionDigits: 2, maximumFractionDigits: 2,
-  });
-
-  const headCell = {
-    backgroundColor: headerBg, color: "#fff", fontWeight: 600,
-    fontSize: 12, letterSpacing: "0.05em", textTransform: "uppercase",
-    padding: "10px 14px", borderBottom: "none", whiteSpace: "nowrap",
-  };
-  const bodyCell = {
-    fontSize: 13, padding: "10px 14px", color: "#1a1a1a",
-    borderBottom: `1px solid ${borderColor}`, verticalAlign: "middle",
-  };
-
+  // 🔒 Disable right-click + block DevTools shortcuts (properly scoped with cleanup,
   // 🔒 Disable right-click
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
@@ -357,6 +350,24 @@ const StudentGradingPage = () => {
     }
   });
 
+  const rawTerms = [...new Set(studentGrade.map((row) => `${row.year_level_description} ${row.semester_description}`))];
+  const sortedTerms = sortTerms(rawTerms);
+  const headerBg = settings?.header_color || "#1976d2";
+  const programInfo = studentGrade[0] || null;
+  const formattedMatriculationBalance = matriculationBalanceInfo.balance.toLocaleString(undefined, {
+    minimumFractionDigits: 2, maximumFractionDigits: 2,
+  });
+
+  const headCell = {
+    backgroundColor: headerBg, color: "#fff", fontWeight: 600,
+    fontSize: 12, letterSpacing: "0.05em", textTransform: "uppercase",
+    padding: "10px 14px", borderBottom: "none", whiteSpace: "nowrap",
+  };
+  const bodyCell = {
+    fontSize: 13, padding: "10px 14px", color: "#1a1a1a",
+    borderBottom: `1px solid ${borderColor}`, verticalAlign: "middle",
+  };
+
   return (
     <Box sx={{
       minHeight: "calc(100vh - 150px)",
@@ -367,8 +378,13 @@ const StudentGradingPage = () => {
     }}>
 
       {/* ── Snackbar ── */}
-      <Snackbar open={!!message} autoHideDuration={4000} onClose={() => setMessage("")}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}>
+      <Snackbar
+        open={!!message}
+        autoHideDuration={4000}
+        onClose={() => setMessage("")}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        sx={{ maxWidth: { xs: "94vw", sm: 480 }, left: "50%", transform: "translateX(-50%)" }}
+      >
         <Alert onClose={() => setMessage("")} severity="warning" sx={{ width: "100%" }}>
           {message}
         </Alert>
@@ -376,12 +392,12 @@ const StudentGradingPage = () => {
 
       {/* ── Page Header ── */}
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2.5, flexWrap: "wrap", gap: 1 }}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: "bold", color: titleColor, fontSize: { xs: "22px", sm: "28px", md: "36px" }, lineHeight: 1.2 }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="h4" sx={{ fontWeight: "bold", color: titleColor, fontSize: { xs: "20px", sm: "26px", md: "32px", lg: "36px" }, lineHeight: 1.2 }}>
             STUDENT GRADES
           </Typography>
           {programInfo && (
-            <Typography variant="body2" sx={{ color: subtitleColor, mt: "6px", fontSize: { xs: 13, sm: 16, md: 18 } }}>
+            <Typography variant="body2" sx={{ color: subtitleColor, mt: "6px", fontSize: { xs: 12.5, sm: 15, md: 17 } }}>
               {programInfo.program_description} ({programInfo.program_code})
             </Typography>
           )}
@@ -390,14 +406,14 @@ const StudentGradingPage = () => {
         {/* Grading Status Pill */}
         <Box sx={{
           display: "inline-flex", alignItems: "center", gap: "6px",
-          px: "14px", py: "6px", borderRadius: "20px",
-          fontSize: 12, fontWeight: 600, letterSpacing: "0.03em",
+          px: { xs: "10px", sm: "14px" }, py: "6px", borderRadius: "20px",
+          fontSize: { xs: 11, sm: 12 }, fontWeight: 600, letterSpacing: "0.03em",
           backgroundColor: gradingActive ? "#E8F5E9" : "#FFF3E0",
           color: gradingActive ? "#2E7D32" : "#E65100",
           border: `1px solid ${gradingActive ? "#A5D6A7" : "#FFCC80"}`,
-          flexShrink: 0, alignSelf: "flex-start",
+          flexShrink: 0, alignSelf: "flex-start", whiteSpace: "nowrap",
         }}>
-          <Box sx={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: gradingActive ? "#43A047" : "#FB8C00" }} />
+          <Box sx={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: gradingActive ? "#43A047" : "#FB8C00", flexShrink: 0 }} />
           {gradingActive ? "Grades Available" : "Not Yet Available"}
         </Box>
       </Box>
@@ -409,10 +425,11 @@ const StudentGradingPage = () => {
       <Alert severity="info" icon={<InfoOutlinedIcon />} sx={{
         borderRadius: "12px", mt: 2,
         justifyContent: "center", alignItems: "center", textAlign: "center",
+        fontSize: { xs: 12.5, sm: 14 },
         "& .MuiAlert-message": { width: "100%", textAlign: "center" },
         "& .MuiAlert-icon": { alignItems: "center" },
       }}>
-        <AlertTitle sx={{ fontWeight: 600, textAlign: "center" }}>Attention to All Students</AlertTitle>
+        <AlertTitle sx={{ fontWeight: 600, textAlign: "center", fontSize: { xs: 14, sm: 16 } }}>Attention to All Students</AlertTitle>
         Viewing grades online through the <b>Student Information System</b> is strictly for personal use only.
         Students who need an official copy must submit a request at the Registrar's Office.
         <br /><br />
@@ -424,7 +441,7 @@ const StudentGradingPage = () => {
 
       {/* ── Balance Warning ── */}
       {matriculationBalanceInfo.hasBalance && (
-        <Alert severity="warning" sx={{ borderRadius: "12px", mb: 3 }}>
+        <Alert severity="warning" sx={{ borderRadius: "12px", mb: 3, fontSize: { xs: 12.5, sm: 14 } }}>
           <AlertTitle sx={{ fontWeight: 700 }}>Grades Hidden Due to Matriculation Balance</AlertTitle>
           Your grades are hidden because you still have a remaining matriculation balance of{" "}
           <b>{formattedMatriculationBalance}</b>. Please settle your balance to view your grades.
@@ -447,21 +464,20 @@ const StudentGradingPage = () => {
           const gwaValue = termSubjects[0]?.gwa;
           const sectionDescription = termSubjects[0]?.section_description;
 
-
           return (
             <Box key={idx} sx={{ mb: 5 }}>
 
               {/* ── Student Info Card ── */}
               <Box sx={{
                 display: "flex", alignItems: "flex-start",
-                mb: 2, p: { xs: 1.5, sm: 2 },
+                mb: 2, p: { xs: 1.25, sm: 1.75, md: 2 },
                 borderRadius: "10px", backgroundColor: "#fff",
                 border: `1px solid ${borderColor}`, boxShadow: 2,
-                gap: 1.5,
+                gap: { xs: 1, sm: 1.5 },
               }}>
                 {/* Person icon */}
                 <Box sx={{
-                  width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+                  width: { xs: 34, sm: 40 }, height: { xs: 34, sm: 40 }, borderRadius: "50%", flexShrink: 0,
                   backgroundColor: headerBg, display: "flex",
                   alignItems: "center", justifyContent: "center", color: "#fff",
                 }}>
@@ -471,31 +487,31 @@ const StudentGradingPage = () => {
                 {/* Accent bar */}
                 <Box sx={{ width: 4, borderRadius: 2, backgroundColor: headerBg, flexShrink: 0, alignSelf: "stretch" }} />
 
-                {/* Info — stacks vertically on mobile, side-by-side on desktop */}
+                {/* Info — stacks vertically on mobile/tablet, side-by-side on larger screens */}
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   {programInfo && (
                     <Box sx={{
                       display: "flex",
-                      flexDirection: { xs: "column", md: "row" },
+                      flexDirection: { xs: "column", lg: "row" },
                       justifyContent: "space-between",
-                      gap: { xs: 0.5, md: 0 },
+                      gap: { xs: 0.5, lg: 0 },
                     }}>
                       {/* LEFT */}
-                      <Box>
-                        <Typography sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: titleColor }}>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontSize: { xs: 11.5, sm: 13, md: 14 }, fontWeight: 700, color: titleColor, wordBreak: "break-word" }}>
                           STUDENT NUMBER:{" "}
                           <Box component="span" sx={{ fontWeight: "normal", ml: "8px" }}>
                             {programInfo.student_number}
                           </Box>
                         </Typography>
-                        <Typography sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: titleColor }}>
+                        <Typography sx={{ fontSize: { xs: 11.5, sm: 13, md: 14 }, fontWeight: 700, color: titleColor, wordBreak: "break-word" }}>
                           NAME:{" "}
                           <Box component="span" sx={{ fontWeight: "normal", ml: "8px" }}>
                             {programInfo.last_name}, {programInfo.first_name} {programInfo.middle_name}
                           </Box>
                         </Typography>
                         {gwaValue && (
-                          <Typography sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: titleColor }}>
+                          <Typography sx={{ fontSize: { xs: 11.5, sm: 13, md: 14 }, fontWeight: 700, color: titleColor }}>
                             Weighted GWA:{" "}
                             <Box component="span" sx={{ fontWeight: "normal", ml: "8px", color: headerBg }}>
                               {Number(gwaValue).toFixed(3)}
@@ -505,20 +521,20 @@ const StudentGradingPage = () => {
                       </Box>
 
                       {/* RIGHT */}
-                      <Box sx={{ textAlign: { xs: "left", md: "right" } }}>
-                        <Typography sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: titleColor }}>
+                      <Box sx={{ textAlign: { xs: "left", lg: "right" }, minWidth: 0 }}>
+                        <Typography sx={{ fontSize: { xs: 11.5, sm: 13, md: 14 }, fontWeight: 700, color: titleColor, wordBreak: "break-word" }}>
                           PROGRAM:{" "}
                           <Box component="span" sx={{ fontWeight: "normal", ml: "8px" }}>
                             ({programInfo.program_code}) {programInfo.program_description} {programInfo.major}
                           </Box>
                         </Typography>
-                        <Typography sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: titleColor }}>
+                        <Typography sx={{ fontSize: { xs: 11.5, sm: 13, md: 14 }, fontWeight: 700, color: titleColor }}>
                           YEAR / SEMESTER:{" "}
                           <Box component="span" sx={{ fontWeight: "normal", ml: "8px" }}>
                             {formatYearLabel(yearLevel)} - {semesterLabel}
                           </Box>
                         </Typography>
-                        <Typography sx={{ fontSize: { xs: 12, sm: 14 }, fontWeight: 700, color: titleColor }}>
+                        <Typography sx={{ fontSize: { xs: 11.5, sm: 13, md: 14 }, fontWeight: 700, color: titleColor }}>
                           SECTION:{" "}
                           <Box component="span" sx={{ fontWeight: "normal", ml: "8px" }}>
                             {sectionDescription || "—"}
@@ -530,8 +546,8 @@ const StudentGradingPage = () => {
                 </Box>
               </Box>
 
-              {/* ── Mobile: cards | Desktop: table ── */}
-              {isMobile ? (
+              {/* ── Mobile & small tablet: cards | Larger tablet/Desktop: scrollable table ── */}
+              {isCardLayout ? (
                 <Box>
                   {termSubjects.map((row, i) => (
                     <MobileGradeCard
@@ -545,23 +561,22 @@ const StudentGradingPage = () => {
               ) : (
                 <TableContainer component={Paper} elevation={0} sx={{
                   border: `1px solid ${borderColor}`,
-                  overflow: "hidden",
+                  overflowX: "auto",
+                  WebkitOverflowScrolling: "touch",
                 }}>
-                  <Table size="small" sx={{ tableLayout: "fixed" }}>
+                  <Table size="small" sx={{ minWidth: 860, tableLayout: "fixed" }}>
                     <TableHead>
                       <TableRow>
                         {[
                           { label: "#", width: "48px", align: "center" },
-                          { label: "Code", width: "120px" },
+                          { label: "Code", width: "110px" },
                           { label: "Subject", width: undefined },
-
-                          { label: "Faculty", width: "200px" },
-                          { label: "Schedule", width: "200px", align: "center" },
-
-                          { label: "Units", width: "70px", align: "center" },
-                          { label: "Section", width: "120px", align: "center" },
-                          { label: "Final Grade", width: "110px", align: "center" },
-                          { label: "Status", width: "120px", align: "center" },
+                          { label: "Faculty", width: "170px" },
+                          { label: "Schedule", width: "170px", align: "center" },
+                          { label: "Units", width: "64px", align: "center" },
+                          { label: "Section", width: "100px", align: "center" },
+                          { label: "Final Grade", width: "100px", align: "center" },
+                          { label: "Status", width: "110px", align: "center" },
                         ].map(({ label, width, align }) => (
                           <TableCell key={label} sx={{ ...headCell, width, textAlign: align || "left", border: `1px solid ${borderColor}` }}>
                             {label}
@@ -592,7 +607,6 @@ const StudentGradingPage = () => {
                           <TableCell sx={{ ...bodyCell, border: `1px solid ${borderColor}`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {row.course_description}
                           </TableCell>
-
                           <TableCell sx={{ ...bodyCell, border: `1px solid ${borderColor}`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {row.fname === "TBA" && row.lname === "TBA"
                               ? <span style={{ color: "#9CA3AF", fontStyle: "italic" }}>TBA</span>

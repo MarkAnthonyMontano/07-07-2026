@@ -41,6 +41,7 @@ import SendIcon from "@mui/icons-material/Send";
 const ApplicantOnlineRequirements = () => {
   const settings = useContext(SettingsContext);
   const theme = useTheme();
+  // Card layout for phones + small tablets, table layout from md (tablet-landscape) up
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   const [titleColor, setTitleColor] = useState("#000000");
@@ -341,27 +342,31 @@ const ApplicantOnlineRequirements = () => {
     });
   };
 
-  // // 🔒 Disable right-click
-  // document.addEventListener("contextmenu", (e) => e.preventDefault());
+     document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  // // 🔒 Block DevTools shortcuts + Ctrl+P silently
-  // document.addEventListener("keydown", (e) => {
-  //   const isBlockedKey =
-  //     e.key === "F12" ||
-  //     e.key === "F11" ||
-  //     (e.ctrlKey &&
-  //       e.shiftKey &&
-  //       (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-  //     (e.ctrlKey && e.key.toLowerCase() === "u") ||
-  //     (e.ctrlKey && e.key.toLowerCase() === "p");
+    // 🔒 Block DevTools shortcuts + Ctrl+P silently
+    document.addEventListener("keydown", (e) => {
+        const isBlockedKey =
+            e.key === "F12" ||
+            e.key === "F11" ||
+            (e.ctrlKey &&
+                e.shiftKey &&
+                (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+            (e.ctrlKey && e.key.toLowerCase() === "u") ||
+            (e.ctrlKey && e.key.toLowerCase() === "p");
 
-  //   if (isBlockedKey) {
-  //     e.preventDefault();
-  //     e.stopPropagation();
-  //   }
-  // });
+        if (isBlockedKey) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    });
 
-  // Mobile card per document
+  // 🔒 Right-click / DevTools blocking was previously here and is left disabled,
+  // matching the existing intent of this file. If re-enabled elsewhere, do it via
+  // a useEffect with listener cleanup (see ApplicantResetPassword / ApplicantOtherInformation)
+  // rather than attaching a new listener on every render.
+
+  // Mobile / small-tablet card per document
   const renderMobileCard = (doc) => {
     const uploaded = uploads.find((u) => Number(u.requirements_id) === Number(doc.id));
     return (
@@ -370,13 +375,13 @@ const ApplicantOnlineRequirements = () => {
         sx={{
           border: `1px solid ${borderColor}`,
           borderRadius: "8px",
-          p: 2,
+          p: { xs: 1.75, sm: 2 },
           mb: 2,
           backgroundColor: "#fff",
           boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
         }}
       >
-        <Typography sx={{ fontWeight: "bold", fontSize: "15px", mb: 1, lineHeight: 1.4 }}>
+        <Typography sx={{ fontWeight: "bold", fontSize: { xs: 14, sm: 15 }, mb: 1, lineHeight: 1.4 }}>
           {doc.label}
           {doc.is_required === 1 && <span style={{ color: "red", marginLeft: 4 }}>*</span>}
           {doc.is_optional === 1 && <span style={{ color: "#888", marginLeft: 4, fontSize: "12px" }}>(Optional)</span>}
@@ -389,7 +394,7 @@ const ApplicantOnlineRequirements = () => {
               px: 1.5,
               py: 0.75,
               borderRadius: "4px",
-              fontSize: "13px",
+              fontSize: { xs: 12, sm: 13 },
               fontWeight: "bold",
               mb: 1.5,
               overflow: "hidden",
@@ -405,7 +410,7 @@ const ApplicantOnlineRequirements = () => {
         {(uploaded?.remarks?.trim() || uploaded?.status == 1 || uploaded?.status == 2) && (
           <Box sx={{ mb: 1.5 }}>
             {typeof uploaded?.remarks === "string" && uploaded.remarks.trim() !== "" && (
-              <Typography sx={{ fontSize: "13px", color: "#444", mb: 0.5 }}>{uploaded.remarks}</Typography>
+              <Typography sx={{ fontSize: { xs: 12, sm: 13 }, color: "#444", mb: 0.5 }}>{uploaded.remarks}</Typography>
             )}
             {getStatusChip(uploaded?.status)}
           </Box>
@@ -458,23 +463,23 @@ const ApplicantOnlineRequirements = () => {
     );
   };
 
-  // Desktop table row
+  // Desktop / tablet-landscape table row
   const renderRow = (doc) => {
     const uploaded = uploads.find((u) => Number(u.requirements_id) === Number(doc.id));
     return (
       <TableRow key={doc.id}>
-        <TableCell sx={{ fontWeight: "bold", width: "25%", border: `1px solid ${borderColor}` }}>
+        <TableCell sx={{ fontWeight: "bold", width: "25%", border: `1px solid ${borderColor}`, fontSize: { md: 13, lg: 14 } }}>
           {doc.label}
           {doc.is_optional === 1 && <span style={{ marginLeft: 2 }}>(Optional)</span>}
           {doc.is_required === 1 && <span style={{ color: "red", marginLeft: 5 }}>*</span>}
         </TableCell>
 
         <TableCell sx={{ width: "25%", border: `1px solid ${borderColor}`, textAlign: "center", verticalAlign: "middle" }}>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, width: "100%" }}>
-            <Box sx={{ width: "220px", flexShrink: 0, textAlign: "center" }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, width: "100%", flexWrap: { md: "wrap", lg: "nowrap" } }}>
+            <Box sx={{ width: { md: 160, lg: 220 }, flexShrink: 0, textAlign: "center" }}>
               {selectedFiles[doc.id] ? (
                 <Box
-                  sx={{ backgroundColor: "#e0e0e0", padding: "6px 12px", borderRadius: "4px", fontSize: "14px", fontWeight: "bold", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                  sx={{ backgroundColor: "#e0e0e0", padding: "6px 12px", borderRadius: "4px", fontSize: { md: 12.5, lg: 14 }, fontWeight: "bold", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
                   title={selectedFiles[doc.id]}
                 >
                   {selectedFiles[doc.id]}
@@ -488,7 +493,7 @@ const ApplicantOnlineRequirements = () => {
                 variant="contained"
                 component="label"
                 startIcon={<CloudUploadIcon />}
-                sx={{ backgroundColor: "#F0C03F", color: "white", fontWeight: "bold", height: "40px", textTransform: "none", minWidth: "140px" }}
+                sx={{ backgroundColor: "#F0C03F", color: "white", fontWeight: "bold", height: "40px", textTransform: "none", minWidth: { md: 120, lg: 140 }, fontSize: { md: 12.5, lg: 14 } }}
               >
                 Browse File
                 <input
@@ -503,12 +508,12 @@ const ApplicantOnlineRequirements = () => {
           </Box>
         </TableCell>
 
-        <TableCell sx={{ width: "25%", border: `1px solid ${borderColor}` }}>
+        <TableCell sx={{ width: "25%", border: `1px solid ${borderColor}`, fontSize: { md: 12.5, lg: 14 } }}>
           {typeof uploaded?.remarks === "string" && uploaded.remarks.trim() !== "" && (
-            <Typography sx={{ fontStyle: "normal", color: "inherit" }}>{uploaded.remarks}</Typography>
+            <Typography sx={{ fontStyle: "normal", color: "inherit", fontSize: "inherit" }}>{uploaded.remarks}</Typography>
           )}
           {(uploaded?.status == 1 || uploaded?.status == 2) && (
-            <Typography sx={{ mt: 0.5, fontSize: "14px", color: uploaded?.status == 1 ? "green" : "red", fontWeight: "bold" }}>
+            <Typography sx={{ mt: 0.5, fontSize: { md: 13, lg: 14 }, color: uploaded?.status == 1 ? "green" : "red", fontWeight: "bold" }}>
               {uploaded?.status == 1 ? "Verified" : "Rejected"}
             </Typography>
           )}
@@ -522,7 +527,7 @@ const ApplicantOnlineRequirements = () => {
               href={`${API_BASE_URL}/ApplicantOnlineDocuments/${uploaded.file_path}`}
               target="_blank"
               startIcon={<VisibilityIcon />}
-              sx={{ color: "white", fontWeight: "bold", height: "40px", textTransform: "none", minWidth: "140px" }}
+              sx={{ color: "white", fontWeight: "bold", height: "40px", textTransform: "none", minWidth: { md: 120, lg: 140 }, fontSize: { md: 12.5, lg: 14 } }}
             >
               Preview
             </Button>
@@ -534,7 +539,7 @@ const ApplicantOnlineRequirements = () => {
             <Button
               onClick={() => handleDelete(uploaded.upload_id)}
               startIcon={<DeleteIcon />}
-              sx={{ backgroundColor: "#9E0000", color: "white", fontWeight: "bold", height: "40px", textTransform: "none", minWidth: "140px" }}
+              sx={{ backgroundColor: "#9E0000", color: "white", fontWeight: "bold", height: "40px", textTransform: "none", minWidth: { md: 120, lg: 140 }, fontSize: { md: 12.5, lg: 14 } }}
             >
               Delete
             </Button>
@@ -545,7 +550,17 @@ const ApplicantOnlineRequirements = () => {
   };
 
   return (
-    <Box sx={{ height: "calc(100vh - 150px)", overflowY: "auto", paddingRight: 1, backgroundColor: "transparent", mt: 1, padding: { xs: 1, sm: 2 } }}>
+    <Box
+      sx={{
+        minHeight: { xs: "100vh", md: "calc(100vh - 150px)" },
+        overflowY: { md: "auto" },
+        backgroundColor: { xs: "#f5f5f5", md: "transparent" },
+        pr: { md: 1 },
+        mt: { md: 1 },
+        p: { xs: 0, sm: 2 },
+        pb: { xs: 6, sm: 2 },
+      }}
+    >
       <Snackbar open={snack.open} autoHideDuration={5000} onClose={handleClose} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
         <Alert severity={snack.severity} onClose={handleClose} sx={{ width: "100%" }}>{snack.message}</Alert>
       </Snackbar>
@@ -789,21 +804,21 @@ const ApplicantOnlineRequirements = () => {
       </Dialog>
 
       {/* Page Header */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", mb: 2 }}>
-        <Typography variant="h4" sx={{ fontWeight: "bold", color: titleColor, fontSize: { xs: "22px", sm: "28px", md: "36px" } }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", mb: 2, px: { xs: 2, sm: 0 }, pt: { xs: 2, sm: 0 } }}>
+        <Typography variant="h4" sx={{ fontWeight: "bold", color: titleColor, fontSize: { xs: 20, sm: 28, md: 34, lg: 36 } }}>
           APPLICANT'S DOCUMENTS
         </Typography>
       </Box>
-      <hr style={{ border: "1px solid #ccc", width: "100%" }} />
-      <br />
+      <Box sx={{ borderTop: "1px solid #ccc", width: "100%" }} />
+      <Box sx={{ height: { xs: 16, sm: 20 } }} />
 
       {/* Notice Box */}
-      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "center", width: "100%", mt: 2 }}>
+      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "center", width: "100%", px: { xs: 1.5, sm: 0 } }}>
         <Box sx={{ display: "flex", alignItems: "flex-start", gap: { xs: 1.5, sm: 2 }, width: "100%", p: { xs: 1.5, sm: 2 }, borderRadius: "10px", backgroundColor: "#fffaf5", border: "1px solid #6D2323", boxShadow: "0px 2px 8px rgba(0,0,0,0.05)" }}>
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#800000", borderRadius: "8px", width: { xs: 44, sm: 60 }, height: { xs: 44, sm: 60 }, flexShrink: 0 }}>
             <ErrorIcon sx={{ color: "white", fontSize: { xs: 28, sm: 40 } }} />
           </Box>
-          <Typography sx={{ fontSize: { xs: "13px", sm: "15px", md: "18px" }, fontFamily: "Poppins, sans-serif", color: "#3e3e3e", lineHeight: 1.6 }}>
+          <Typography sx={{ fontSize: { xs: 13, sm: 15, md: 17, lg: 18 }, fontFamily: "Poppins, sans-serif", color: "#3e3e3e", lineHeight: 1.6 }}>
             <strong style={{ color: "#600000" }}>Notice:</strong> Applicants are required to submit all{" "}
             <strong>Main Requirements (required) documents</strong> to proceed. <strong>Optional documents</strong> are not required but may be uploaded. Only <strong>JPG, JPEG, PNG, or PDF</strong> files under <strong>4 MB</strong> are accepted.
           </Typography>
@@ -811,7 +826,7 @@ const ApplicantOnlineRequirements = () => {
       </Box>
 
       {/* Requirements by Category */}
-      <Box sx={{ px: { xs: 0, sm: 2 }, marginLeft: { xs: 0, sm: "-10px" } }}>
+      <Box sx={{ px: { xs: 1.5, sm: 2 } }}>
         {Object.entries(
           requirements.reduce((acc, r) => {
             const cat = r.category || "Main";
@@ -821,29 +836,46 @@ const ApplicantOnlineRequirements = () => {
           }, {}),
         ).map(([category, docs]) => (
           <Box key={category} sx={{ mt: 4 }}>
-            <Container>
-              <h1 style={{ fontSize: isMobile ? "24px" : "45px", fontWeight: "bold", textAlign: "center", color: subtitleColor, marginTop: "25px" }}>
+            <Container disableGutters={isMobile} maxWidth="lg">
+              <Typography
+                sx={{
+                  fontSize: { xs: 22, sm: 28, md: 36, lg: 42 },
+                  fontWeight: "bold",
+                  textAlign: "center",
+                  color: subtitleColor,
+                  mt: { xs: 1.5, sm: 3 },
+                }}
+              >
                 {category === "Medical" ? "MEDICAL REQUIREMENTS" : category === "Others" ? "OTHER REQUIREMENTS" : "MAIN REQUIREMENTS"}
-              </h1>
+              </Typography>
               {category !== "Medical" && category !== "Others" && (
-                <div style={{ textAlign: "center", fontSize: isMobile ? "14px" : "18px", marginTop: "10px", marginBottom: "30px", color: "#333" }}>
+                <Typography sx={{ textAlign: "center", fontSize: { xs: 13, sm: 15, md: 17 }, mt: 1.25, mb: { xs: 2, sm: 3.5 }, color: "#333" }}>
                   Complete the applicant form to secure your place for the upcoming academic year at{" "}
                   {shortTerm ? <><strong>{shortTerm.toUpperCase()}</strong> <br />{companyName || ""}</> : companyName || ""}.
-                </div>
+                </Typography>
               )}
             </Container>
 
             {isMobile ? (
-              <Box sx={{ px: 1 }}>
+              <Box sx={{ px: { xs: 0.5, sm: 1 } }}>
                 {docs.map((doc) => renderMobileCard({ id: doc.id, label: doc.description, is_required: doc.is_required, is_optional: doc.is_optional }))}
               </Box>
             ) : (
-              <TableContainer component={Paper} sx={{ width: "95%", mt: 2, border: `1px solid ${borderColor}` }}>
-                <Table>
+              <TableContainer
+                component={Paper}
+                sx={{
+                  width: { md: "100%", lg: "95%" },
+                  mx: { md: 0, lg: "auto" },
+                  mt: 2,
+                  border: `1px solid ${borderColor}`,
+                  overflowX: "auto",
+                }}
+              >
+                <Table sx={{ minWidth: 720 }}>
                   <TableHead sx={{ backgroundColor: settings?.header_color || "#1976d2", border: `1px solid ${borderColor}` }}>
                     <TableRow>
                       {["Document", "Upload", "Remarks", "Preview", "Delete"].map((h) => (
-                        <TableCell key={h} sx={{ color: "white", border: `1px solid ${borderColor}` }}>{h}</TableCell>
+                        <TableCell key={h} sx={{ color: "white", border: `1px solid ${borderColor}`, fontSize: { md: 13, lg: 14 } }}>{h}</TableCell>
                       ))}
                     </TableRow>
                   </TableHead>

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useContext } from "react";
 import {
   Box, Typography, Paper, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Button,
+  useTheme, useMediaQuery,
 } from "@mui/material";
 import axios from "axios";
 import API_BASE_URL from "../apiConfig";
@@ -17,18 +18,16 @@ const fmt = (val) =>
 const ProgramPayment = () => {
   const settings = useContext(SettingsContext);
   const navigate = useNavigate();
+  const theme = useTheme();
+
+  // Card layout for phones AND small/portrait tablets (< 900px);
+  // scrollable table for larger tablets (landscape) and desktop.
+  const isCardLayout = useMediaQuery(theme.breakpoints.down("md"));
 
   const [assessmentData, setAssessmentData] = useState([]);
   const [student, setStudent] = useState(null);
   const [titleColor, setTitleColor] = useState("#000");
   const [borderColor, setBorderColor] = useState("#000");
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   useEffect(() => {
     if (!settings) return;
@@ -65,22 +64,7 @@ const ProgramPayment = () => {
     fetchAssessment();
   }, []);
 
-  const grandTotal = assessmentData.reduce((sum, row) => sum + Number(row.balance || 0), 0);
-
-  const handleRowClick = (row) => {
-    const params = new URLSearchParams({
-      school_year: String(row.school_year || ""),
-      semester: String(row.semester || ""),
-      active_school_year_id: String(row.active_school_year_id || ""),
-    });
-    navigate(`/student_account_balance/info?${params.toString()}`, {
-      state: { assessmentRow: row, student },
-    });
-  };
-
-  const headerColor = settings?.header_color || "#990000";
-
-  // 🔒 Disable right-click
+  // 🔒 Disable right-click + block DevTools shortcuts (properly scoped with cleanup,
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
   // 🔒 Block DevTools shortcuts + Ctrl+P silently
@@ -100,47 +84,62 @@ const ProgramPayment = () => {
     }
   });
 
+  const grandTotal = assessmentData.reduce((sum, row) => sum + Number(row.balance || 0), 0);
+
+  const handleRowClick = (row) => {
+    const params = new URLSearchParams({
+      school_year: String(row.school_year || ""),
+      semester: String(row.semester || ""),
+      active_school_year_id: String(row.active_school_year_id || ""),
+    });
+    navigate(`/student_account_balance/info?${params.toString()}`, {
+      state: { assessmentRow: row, student },
+    });
+  };
+
+  const headerColor = settings?.header_color || "#990000";
+
   return (
     <Box sx={{ minHeight: "calc(100vh - 150px)", overflowY: "auto", backgroundColor: "transparent", mt: 1, p: { xs: 1, sm: 2 } }}>
 
       {/* ── Header ── */}
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", mb: 2 }}>
-        <Typography variant="h4" sx={{ fontWeight: "bold", color: titleColor, fontSize: { xs: "20px", sm: "28px", md: "36px" } }}>
+        <Typography variant="h4" sx={{ fontWeight: "bold", color: titleColor, fontSize: { xs: "18px", sm: "24px", md: "30px", lg: "36px" } }}>
           STUDENT ACCOUNT BALANCE
         </Typography>
       </Box>
       <hr style={{ border: "1px solid #ccc", width: "100%" }} />
       <br />
 
-      <Paper sx={{ mt: 3, p: { xs: 1.5, sm: 3 }, border: `1px solid ${borderColor}`, minHeight: "75vh", backgroundColor: "white" }}>
+      <Paper sx={{ mt: 3, p: { xs: 1.25, sm: 2, md: 3 }, border: `1px solid ${borderColor}`, minHeight: "75vh", backgroundColor: "white" }}>
 
         {/* ── Announcement ── */}
         <Box sx={{ textAlign: "center", mb: 4 }}>
-          <Typography sx={{ fontSize: { xs: "16px", sm: "20px", md: "24px" }, textDecoration: "underline" }}>
+          <Typography sx={{ fontSize: { xs: "14px", sm: "18px", md: "22px", lg: "24px" }, textDecoration: "underline" }}>
             Announcement :
           </Typography>
-          <Typography sx={{ fontSize: { xs: "14px", sm: "18px", md: "22px" }, mt: 1 }}>
+          <Typography sx={{ fontSize: { xs: "12.5px", sm: "16px", md: "20px", lg: "22px" }, mt: 1, px: { xs: 1, sm: 0 } }}>
             Accounts/Balance reflected in the system are subject for correction
             or adjustment at the STUDENTS ACCOUNT SECTION.
           </Typography>
         </Box>
 
         {/* ── Student Info ── */}
-        <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", mb: 2, px: { xs: 0, sm: 2 }, gap: 1 }}>
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <Typography sx={{ fontWeight: "bold", fontSize: { xs: 13, sm: 15 } }}>Student Name :</Typography>
-            <Typography sx={{ fontSize: { xs: 13, sm: 15 } }}>
+        <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", mb: 2, px: { xs: 0, sm: 2 }, gap: { xs: 0.5, sm: 1 } }}>
+          <Box sx={{ display: "flex", gap: 1, minWidth: 0 }}>
+            <Typography sx={{ fontWeight: "bold", fontSize: { xs: 12.5, sm: 15 }, whiteSpace: "nowrap" }}>Student Name :</Typography>
+            <Typography sx={{ fontSize: { xs: 12.5, sm: 15 }, wordBreak: "break-word" }}>
               {student ? `${student.last_name}, ${student.first_name}` : ""}
             </Typography>
           </Box>
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <Typography sx={{ fontWeight: "bold", fontSize: { xs: 13, sm: 15 } }}>Student No. :</Typography>
-            <Typography sx={{ fontSize: { xs: 13, sm: 15 } }}>{student?.student_number}</Typography>
+          <Box sx={{ display: "flex", gap: 1, minWidth: 0 }}>
+            <Typography sx={{ fontWeight: "bold", fontSize: { xs: 12.5, sm: 15 }, whiteSpace: "nowrap" }}>Student No. :</Typography>
+            <Typography sx={{ fontSize: { xs: 12.5, sm: 15 } }}>{student?.student_number}</Typography>
           </Box>
         </Box>
 
-        {/* ── Mobile: cards | Desktop: table ── */}
-        {isMobile ? (
+        {/* ── Mobile & small tablet: cards | Larger tablet/Desktop: table ── */}
+        {isCardLayout ? (
           <Box>
             {assessmentData.length === 0 ? (
               <Box sx={{ textAlign: "center", py: 4 }}>
@@ -156,7 +155,7 @@ const ProgramPayment = () => {
                   boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
                 }}>
                   {/* School year + semester link */}
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5, gap: 1 }}>
                     <Typography sx={{ fontWeight: 700, fontSize: 13 }}>
                       {row.school_year} - {Number(row.school_year) + 1}
                     </Typography>
@@ -180,15 +179,15 @@ const ProgramPayment = () => {
                         <Typography sx={{ fontSize: 11.5, color: "#555" }}>{row.scholarship}</Typography>
                       </Box>
                     )}
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                      <CreditCardIcon sx={{ fontSize: 14, color: "#555" }} />
-                      <Typography sx={{ fontSize: 11.5, color: "#555" }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}>
+                      <CreditCardIcon sx={{ fontSize: 14, color: "#555", flexShrink: 0 }} />
+                      <Typography sx={{ fontSize: 11.5, color: "#555", wordBreak: "break-word" }}>
                         {row.payment_type ? `${row.payment_type} - ${row.payment_status}` : "TOTAL AMOUNT DUE"}
                       </Typography>
                     </Box>
                   </Box>
 
-                  <Box sx={{ display: "flex", gap: 2, justifyContent: "space-between", pt: 0.8, borderTop: `1px solid ${borderColor}` }}>
+                  <Box sx={{ display: "flex", gap: 1, justifyContent: "space-between", pt: 0.8, borderTop: `1px solid ${borderColor}` }}>
                     <Box sx={{ textAlign: "center" }}>
                       <Typography sx={{ fontSize: 10, color: "#888", fontWeight: 600 }}>ASSESSMENT</Typography>
                       <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{fmt(row.assessment)}</Typography>
@@ -209,21 +208,22 @@ const ProgramPayment = () => {
             {/* Grand total strip */}
             <Box sx={{
               display: "flex", justifyContent: "space-between",
-              px: 1.5, py: 1, mt: 1,
+              px: 1.5, py: 1, mt: 1, gap: 1,
               borderRadius: "8px", backgroundColor: "#fff1f1",
               border: `1px solid ${borderColor}`,
+              flexWrap: "wrap",
             }}>
-              <Typography sx={{ fontWeight: "bold", fontSize: 14 }}>Grand Total Balance/(Refund) :</Typography>
-              <Typography sx={{ fontWeight: "bold", color: "red", fontSize: 14 }}>{fmt(grandTotal)}</Typography>
+              <Typography sx={{ fontWeight: "bold", fontSize: { xs: 12.5, sm: 14 } }}>Grand Total Balance/(Refund) :</Typography>
+              <Typography sx={{ fontWeight: "bold", color: "red", fontSize: { xs: 12.5, sm: 14 } }}>{fmt(grandTotal)}</Typography>
             </Box>
           </Box>
         ) : (
-          <TableContainer component={Paper}>
-            <Table>
+          <TableContainer component={Paper} sx={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+            <Table sx={{ minWidth: 960 }}>
               <TableHead>
                 <TableRow sx={{ backgroundColor: "#990000" }}>
                   {["School Year", "Semester", "Year Level", "Scholarship", "Payment Description", "O.R. Date", "O.R. No.", "Assessment", "Payment", "Balance"].map((h) => (
-                    <TableCell key={h} sx={{ color: "white", fontWeight: "bold", border: `1px solid ${borderColor}`, textAlign: "center", padding: "6px" }}>
+                    <TableCell key={h} sx={{ color: "white", fontWeight: "bold", border: `1px solid ${borderColor}`, textAlign: "center", padding: "6px", whiteSpace: "nowrap" }}>
                       {h}
                     </TableCell>
                   ))}

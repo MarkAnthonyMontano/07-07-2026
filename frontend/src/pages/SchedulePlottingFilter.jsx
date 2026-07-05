@@ -218,12 +218,31 @@ const ScheduleFilterer = () => {
       setDepartmentList(previousRows);
       setToggleError(
         err.response?.data?.message ||
-          "Failed to update department plotting access. Make sure you have edit permission on this page.",
+        "Failed to update department plotting access. Make sure you have edit permission on this page.",
       );
     } finally {
       setUpdatingAllowedId(null);
     }
   };
+
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 🔒 Block DevTools shortcuts + Ctrl+P silently
+  document.addEventListener("keydown", (e) => {
+    const isBlockedKey =
+      e.key === "F12" ||
+      e.key === "F11" ||
+      (e.ctrlKey &&
+        e.shiftKey &&
+        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+      (e.ctrlKey && e.key.toLowerCase() === "u") ||
+      (e.ctrlKey && e.key.toLowerCase() === "p");
+
+    if (isBlockedKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   const selectedTableDepartment = departmentList.find(
     (department) => String(department.dprtmnt_id) === String(tableDepartmentId),

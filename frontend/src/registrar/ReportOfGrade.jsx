@@ -1,5 +1,6 @@
 import { Box, Typography, TextField, Snackbar, Alert, FormControl, InputLabel, Select, MenuItem, Paper, TableContainer, Card, Table, TableHead, TableBody, TableRow, TableCell } from "@mui/material";
 import React, { useState, useEffect, useContext, useRef } from "react";
+import { flushSync } from "react-dom";
 import { SettingsContext } from "../App";
 import EaristLogo from "../assets/EaristLogo.png";
 import { Search } from "@mui/icons-material";
@@ -500,6 +501,86 @@ const ReportOfGrade = () => {
 
     const divToPrintRef = useRef();
 
+    // The printable report is authored at a fixed "design" width (matches
+    // the sum of the rem-based widths used throughout the markup below,
+    // ~80rem = 1280px) and shrunk down with a CSS transform so it reads at
+    // a sensible size both on screen and on a physical A4 sheet. Because
+    // the number of enrolled subjects varies per student, the report's
+    // *height* is not fixed -- so instead of hardcoding a shrink factor
+    // for height (which breaks for students with more/fewer subjects), we
+    // measure the real rendered height with a ResizeObserver and size the
+    // surrounding box to match exactly.
+    const REPORT_DESIGN_WIDTH = 1280; // px, ~80rem
+    const REPORT_SCALE = 0.55; // on-screen preview scale
+    const [reportContentHeight, setReportContentHeight] = useState(0);
+
+    // --- Exact-margin print geometry ----------------------------------
+    // We want EXACTLY 1.5rem of white space on the left, right, and top
+    // of the physical A4 sheet when printed. Getting an *exact* right-hand
+    // margin (not just "whatever's left over") means the report's printed
+    // width has to be calculated precisely as:
+    //   pageWidth - leftMargin - rightMargin
+    // We compute that here in plain geometry (assuming the standard
+    // 16px = 1rem root font size and the standard 96 CSS-px-per-inch used
+    // by browsers), then derive the transform scale needed to make the
+    // ~1280px-wide design fit exactly that computed width.
+    const PRINT_MARGIN_REM = 1.5;
+    const PX_PER_REM = 16;
+    const PX_PER_MM = 96 / 25.4; // ≈ 3.7795
+    const A4_WIDTH_MM = 210;
+
+    const printMarginPx = PRINT_MARGIN_REM * PX_PER_REM; // 24px ≈ 1.5rem
+    const a4WidthPx = A4_WIDTH_MM * PX_PER_MM; // ≈ 793.7px
+    const printContentWidthPx = a4WidthPx - printMarginPx * 2; // exact fit width
+    const PRINT_SCALE = printContentWidthPx / REPORT_DESIGN_WIDTH; // ≈ 0.583
+
+    // Inline styles can't branch on a CSS media query by themselves, so we
+    // track whether we're actively printing with the beforeprint/afterprint
+    // events and switch the scale/box size in JS. This lets the same box
+    // be sized precisely for the screen preview (REPORT_SCALE) and for the
+    // physical page (PRINT_SCALE) without fighting CSS specificity.
+    //
+    // IMPORTANT: window.print() can tell the browser to start laying out
+    // the print document before React has actually re-rendered the DOM
+    // with the new scale/margin values from a plain setIsPrinting(true) --
+    // React normally batches/defers that update to the next tick, which
+    // can be too late. flushSync forces the state update and the resulting
+    // DOM changes to be applied synchronously, before this handler returns
+    // control back to the browser's print pipeline.
+    const [isPrinting, setIsPrinting] = useState(false);
+
+    useEffect(() => {
+        const handleBeforePrint = () => {
+            flushSync(() => setIsPrinting(true));
+        };
+        const handleAfterPrint = () => {
+            flushSync(() => setIsPrinting(false));
+        };
+
+        window.addEventListener("beforeprint", handleBeforePrint);
+        window.addEventListener("afterprint", handleAfterPrint);
+
+        return () => {
+            window.removeEventListener("beforeprint", handleBeforePrint);
+            window.removeEventListener("afterprint", handleAfterPrint);
+        };
+    }, []);
+
+    const activeScale = isPrinting ? PRINT_SCALE : REPORT_SCALE;
+
+    useEffect(() => {
+        const node = divToPrintRef.current;
+        if (!node) return;
+
+        const measure = () => setReportContentHeight(node.scrollHeight);
+        measure();
+
+        const resizeObserver = new ResizeObserver(measure);
+        resizeObserver.observe(node);
+
+        return () => resizeObserver.disconnect();
+    }, [filteredStudents, studentData, campusAddress, companyName]);
+
     const printDiv = () => {
         window.print();
     };
@@ -547,6 +628,7 @@ const ReportOfGrade = () => {
                 padding: 2,
             }}
         >
+            <Box className="no-print">
             <Box
                 sx={{
                     display: "flex",
@@ -707,41 +789,114 @@ const ReportOfGrade = () => {
 
             <style>
                 {`
+                /* =========================================================
+                   Screen-only "paper" look for the Report of Grades.
+                   .rog-page-outer  -> gray backdrop, centers the sheet
+                   .rog-page-card   -> a white bordered/shadowed "paper"
+                                       frame; auto-sized (fit-content) around
+                                       whatever is inside it, so it never
+                                       needs a magic-number height itself.
+                   .rog-scale-box   -> a box explicitly sized (via inline
+                                       style, computed in JS from the real
+                                       measured content height) to exactly
+                                       match the scaled-down report. This
+                                       avoids clipping/overlap when a
+                                       student has more or fewer enrolled
+                                       subjects than another.
+                   .rog-content     -> the real printable content, scaled
+                                       down with a CSS transform and
+                                       absolutely positioned at the top
+                                       left of .rog-scale-box.
+                   None of this is inside @media print, so it only affects
+                   normal on-screen viewing.
+                   ========================================================= */
+                .rog-page-outer {
+                    display: flex;
+                    justify-content: center;
+                    background: #e7e7e7;
+                    padding: 2rem 0;
+                }
+                .rog-page-card {
+                
+                    background: #ffffff;
+                    border: 1px solid #b8b8b8;
+                    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+                    box-sizing: content-box;
+                    width: fit-content;
+                    padding: 32px;
+                    margin: 0 auto;
+                }
+                .rog-scale-box {
+                    margin-top: -1.5rem !important;
+                    margin-left: 1.5rem !important;
+                    position: relative;
+                    overflow: hidden;
+                }
+
                 @media print {
                     @page {
-                        margin: 0; 
-                        padding-right: 3rem;
-                        size:  216mm 165mm;
-                    }
-                
-                    body * {
-                        visibility: hidden;
-                        
+                        size: 210mm 297mm; /* A4, portrait */
+                        margin: 0;
                     }
 
-                    .body{
-                        margin-top: -17rem;
-                        margin-left: -27rem;
-                        overflow: visible !important;  /* show all content */
-                        height: auto !important;       /* expand height */
-                        max-height: none !important;   /* no max height limit */
-                        
+                    /* The sidebar and top header bar you see on every page
+                       are rendered by a parent layout component that wraps
+                       this page -- they live outside ReportOfGrade.jsx, so
+                       a "no-print" class only defined/used inside this
+                       component can never reach them. Hiding everything in
+                       the whole document with visibility:hidden (a rule
+                       that applies globally, regardless of which component
+                       rendered an element) and then re-revealing only the
+                       report solves that.
+
+                       visibility:hidden alone would normally still reserve
+                       the hidden elements' layout space, which is why the
+                       report also gets position:fixed below -- that takes
+                       it completely out of the normal document flow and
+                       anchors it to the physical page's top-left corner
+                       regardless of how much space any hidden sibling or
+                       ancestor still occupies. */
+                    .no-print {
+                        display: none !important;
                     }
-                    .print-container, .print-container * {
-                        visibility: visible;
+
+                    body * {
+                        visibility: hidden !important;
                     }
-                    .print-container {
-                        scale: 0.9;
-                        position: absolute;
-                        left:1%;
-                        top: -4rem;
-                        width: 100%;
-                        font-family: "Poppins", sans-serif;
-                        margin-top: -4.5rem;
-                        padding: 0;
+
+                    .rog-page-outer,
+                    .rog-page-outer * {
+                        visibility: visible !important;
                     }
+
+                    .rog-page-outer {
+                        position: fixed !important;
+                        top: 0;
+                        left: 0;
+                        width: 210mm;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: none !important;
+                        display: block !important;
+                    }
+
+                    .rog-page-card {
+                        all: unset;
+                        margin-top: 1.5rem !important;
+                        margin-left: 1rem !important;
+                        display: block !important;
+                        visibility: visible !important;
+                    }
+
+                    /* Width/height/scale/margin for .rog-scale-box and
+                       .rog-content are computed precisely in JS (see
+                       PRINT_SCALE, PRINT_MARGIN_REM) and applied as inline
+                       styles once printing starts, so the report gets
+                       EXACTLY 1.5rem on the left, right, and top of the
+                       physical page. */
+
                     button {
-                        display: none !important; /* hide buttons */
+                        display: none !important;
                     }
                 }
                 `}
@@ -830,369 +985,384 @@ const ReportOfGrade = () => {
                     </Box>
                 </Box>
             </TableContainer>
-            <Box
-                className="print-container"
-                style={{
-                    paddingRight: "1.5rem",
-                    marginTop: "2rem",
-                    marginBottom: "10%",
-                    paddingBottom: "1.5rem",
-                    minWidth: "215.9mm",
-                    maxWidth: "215.9mm",
-                    minHeight: "165mm",
-                    maxHeight: "165mm"
-                }}
-                ref={divToPrintRef}
-            >
-                <table>
-                    <thead
+            </Box>
+            <Box className="rog-page-outer">
+                <Box className="rog-page-card">
+                    <Box
+                        className="rog-scale-box"
                         style={{
-                            display: "flex",
-                            alignItems: "center",
-                            width: "70rem",
-                            justifyContent: "center",
-                            gap: "0.5rem", // ✅ adds spacing between logo and text
+                            width: REPORT_DESIGN_WIDTH * activeScale,
+                            height: reportContentHeight
+                                ? reportContentHeight * activeScale
+                                : undefined,
+                            marginTop: isPrinting ? `${PRINT_MARGIN_REM}rem` : undefined,
+                            marginLeft: isPrinting ? `${PRINT_MARGIN_REM}rem` : undefined,
                         }}
                     >
-                        {/* LEFT - Logo */}
-                        <tr
-                            style={{
-                                paddingTop: "1.5rem",
-                                paddingRight: "3rem",
-                            }}
-                        >
-                            <td>
-                                <img
-                                    src={fetchedLogo || EaristLogo} // ✅ Use dynamic logo with fallback
-                                    alt="School Logo"
-                                    style={{
-                                        width: "8rem",
-                                        height: "8rem",
-                                        display: "block",
-                                        objectFit: "cover",
-                                        borderRadius: "50%",
-                                    }}
-                                />
-                            </td>
-                        </tr>
-
-                        {/* CENTER - School Info */}
-                        <tr style={{ marginTop: "1.5rem" }}>
-                            <td
-                                colSpan={15}
+                    <Box
+                        className="print-container rog-content"
+                        ref={divToPrintRef}
+                        style={{
+                            width: REPORT_DESIGN_WIDTH,
+                            transform: `scale(${activeScale})`,
+                            transformOrigin: "top left",
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                        }}
+                    >
+                        <table>
+                            <thead
                                 style={{
-                                    textAlign: "center",
-                                    fontFamily: "Poppins, sans-serif",
-                                    fontSize: "10px",
-                                    lineHeight: "1.5",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    width: "70rem",
+                                    justifyContent: "center",
+                                    gap: "0.5rem", // ✅ adds spacing between logo and text
                                 }}
                             >
-                                <div style={{ fontFamily: "Arial", fontSize: "13px" }}>
-                                    Republic of the Philippines
-                                </div>
-                                {/* ✅ Dynamically split company name into two lines */}
-                                {companyName ? (
-                                    (() => {
-                                        const name = companyName.trim();
-                                        const words = name.split(" ");
-                                        const middleIndex = Math.ceil(words.length / 2);
-                                        const firstLine = words.slice(0, middleIndex).join(" ");
-                                        const secondLine = words.slice(middleIndex).join(" ");
+                                {/* LEFT - Logo */}
+                                <tr
+                                    style={{
+                                        paddingTop: "1.5rem",
+                                        paddingRight: "3rem",
+                                    }}
+                                >
+                                    <td>
+                                        <img
+                                            src={fetchedLogo || EaristLogo} // ✅ Use dynamic logo with fallback
+                                            alt="School Logo"
+                                            style={{
+                                                width: "8rem",
+                                                height: "8rem",
+                                                display: "block",
+                                                objectFit: "cover",
+                                                borderRadius: "50%",
+                                            }}
+                                        />
+                                    </td>
+                                </tr>
 
-                                        return (
-                                            <>
-                                                <Typography
-                                                    style={{
-                                                        textAlign: "center",
-                                                        marginTop: "0rem",
-                                                        lineHeight: "1",
-                                                        fontSize: "1.6rem",
-                                                        letterSpacing: "-1px",
-                                                        fontWeight: "600",
-                                                        fontFamily: "Times New Roman",
-                                                    }}
-                                                >
-                                                    {firstLine} <br />
-                                                    {secondLine}
-                                                </Typography>
+                                {/* CENTER - School Info */}
+                                <tr style={{ marginTop: "1.5rem" }}>
+                                    <td
+                                        colSpan={15}
+                                        style={{
+                                            textAlign: "center",
+                                            fontFamily: "Poppins, sans-serif",
+                                            fontSize: "10px",
+                                            lineHeight: "1.5",
+                                        }}
+                                    >
+                                        <div style={{ fontFamily: "Arial", fontSize: "13px" }}>
+                                            Republic of the Philippines
+                                        </div>
+                                        {/* ✅ Dynamically split company name into two lines */}
+                                        {companyName ? (
+                                            (() => {
+                                                const name = companyName.trim();
+                                                const words = name.split(" ");
+                                                const middleIndex = Math.ceil(words.length / 2);
+                                                const firstLine = words.slice(0, middleIndex).join(" ");
+                                                const secondLine = words.slice(middleIndex).join(" ");
 
-                                                {/* ✅ Dynamic Campus Address */}
-                                                {campusAddress && (
-                                                    <Typography
-                                                        style={{
-                                                            mt: 1,
-                                                            textAlign: "center",
-                                                            fontSize: "12px",
-                                                            letterSpacing: "1px",
+                                                return (
+                                                    <>
+                                                        <Typography
+                                                            style={{
+                                                                textAlign: "center",
+                                                                marginTop: "0rem",
+                                                                lineHeight: "1",
+                                                                fontSize: "1.6rem",
+                                                                letterSpacing: "-1px",
+                                                                fontWeight: "600",
+                                                                fontFamily: "Times New Roman",
+                                                            }}
+                                                        >
+                                                            {firstLine} <br />
+                                                            {secondLine}
+                                                        </Typography>
 
-                                                        }}
-                                                    >
-                                                        {campusAddress}
-                                                    </Typography>
-                                                )}
-                                            </>
-                                        );
-                                    })()
-                                ) : (
-                                    <div style={{ height: "24px" }}></div>
-                                )}
-                            </td>
-                        </tr>
-                    </thead>
-                </table>
+                                                        {/* ✅ Dynamic Campus Address */}
+                                                        {campusAddress && (
+                                                            <Typography
+                                                                style={{
+                                                                    mt: 1,
+                                                                    textAlign: "center",
+                                                                    fontSize: "12px",
+                                                                    letterSpacing: "1px",
 
-                {filteredStudents.length > 0 && (
-                    <Box style={{ marginTop: "-1rem" }}>
-                        <Typography style={{ marginLeft: "1rem", textAlign: "center", width: "80rem", fontSize: "1.6rem", letterSpacing: "-1px", fontWeight: "500", textDecoration: "underline", textUnderlineOffset: "0.4rem", }}>REPORT OF GRADES</Typography>
-                        <Typography style={{ marginLeft: "1rem", marginTop: "-0.2rem", width: "80rem", textAlign: "center", letterSpacing: "-1px" }}>{filteredStudents[0]?.semester_description},  School Year {filteredStudents[0]?.current_year} - {filteredStudents[0]?.next_year}</Typography>
+                                                                }}
+                                                            >
+                                                                {campusAddress}
+                                                            </Typography>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()
+                                        ) : (
+                                            <div style={{ height: "24px" }}></div>
+                                        )}
+                                    </td>
+                                </tr>
+                            </thead>
+                        </table>
+
+                        {filteredStudents.length > 0 && (
+                            <Box style={{ marginTop: "-1rem" }}>
+                                <Typography style={{ marginLeft: "1rem", textAlign: "center", width: "80rem", fontSize: "1.6rem", letterSpacing: "-1px", fontWeight: "500", textDecoration: "underline", textUnderlineOffset: "0.4rem", }}>REPORT OF GRADES</Typography>
+                                <Typography style={{ marginLeft: "1rem", marginTop: "-0.2rem", width: "80rem", textAlign: "center", letterSpacing: "-1px" }}>{filteredStudents[0]?.semester_description},  School Year {filteredStudents[0]?.current_year} - {filteredStudents[0]?.next_year}</Typography>
+                            </Box>
+                        )}
+
+                        <Box style={{ display: "flex" }}>
+                            <Box style={{ marginTop: "-1rem" }}>
+                                <Box sx={{ padding: "1rem", marginLeft: "1rem", width: "70rem" }}>
+                                    <Box sx={{ display: "flex" }}>
+                                        <Box style={{ display: "flex", width: "38rem" }}>
+                                            <Typography style={{ width: "9rem", fontSize: "1.05rem", letterSpacing: "-1px" }}>Full Name:</Typography>
+                                            <Typography style={{ fontSize: "1.06rem", fontWeight: "500" }}>{studentFullName}</Typography>
+                                        </Box>
+                                        <Box style={{ display: "flex", width: "38rem" }}>
+                                            <Typography style={{ width: "9rem", fontSize: "1.05rem", letterSpacing: "-1px" }}>Student No:</Typography>
+                                            <Typography style={{ fontSize: "1.06rem", fontWeight: "500" }}>{studentData.student_number}</Typography>
+                                        </Box>
+                                    </Box>
+                                    <Box sx={{ display: "flex" }}>
+                                        <Box style={{ display: "flex", width: "38rem" }}>
+                                            <Typography style={{ width: "9rem", fontSize: "1.05rem", letterSpacing: "-1px" }}>Gender:</Typography>
+                                            <Typography style={{ fontSize: "1.06rem", fontWeight: "500" }}>{studentData.gender === 0 ? "Male" : studentData.gender === 1 ? "Female" : ""}</Typography>
+                                        </Box>
+                                        <Box style={{ display: "flex", width: "38rem" }}>
+                                            <Typography style={{ width: "9rem", fontSize: "1.05rem", letterSpacing: "-1px" }}>Academic Year:</Typography>
+                                            {filteredStudents.length > 0 && (
+                                                <>
+                                                    <Typography style={{ fontSize: "1.06rem", fontWeight: "500" }}>{getShortTerm(filteredStudents[0]?.semester_description)} , {filteredStudents[0]?.current_year} - {filteredStudents[0]?.next_year}</Typography>
+                                                </>
+                                            )}
+                                        </Box>
+                                    </Box>
+                                    <Box sx={{ display: "flex" }}>
+                                        <Box style={{ display: "flex", width: "34rem" }}>
+                                            <Typography style={{ width: "9rem", fontSize: "1.05rem", letterSpacing: "-1px" }}>College:</Typography>
+                                            <Typography style={{ fontSize: "1.06rem", fontWeight: "500" }}>{studentData.dprtmnt_name}</Typography>
+                                        </Box>
+                                        <Box style={{ display: "flex" }}>
+                                            <Typography style={{ width: "9rem", fontSize: "1.05rem", letterSpacing: "-1px" }}>Year Level:</Typography>
+                                            {filteredStudents.length > 0 && (
+                                                <>
+                                                    <Typography style={{ fontSize: "1.06rem", fontWeight: "500" }}>{getLevelBySection(filteredStudents[0]?.section)}</Typography>
+                                                </>
+                                            )}
+                                        </Box>
+                                    </Box>
+                                    <Box style={{ display: "flex", width: "38rem" }}>
+                                        <Typography style={{ width: "9rem", fontSize: "1.05rem", letterSpacing: "-1px" }}>Program:</Typography>
+                                        <Typography style={{ fontSize: "1.06rem", fontWeight: "500" }}>{studentData.program_description}</Typography>
+                                    </Box>
+                                    <Box sx={{ display: "flex" }}>
+                                        <Box style={{ display: "flex", width: "38rem" }}>
+                                            <Typography style={{ width: "9rem", fontSize: "1.05rem", letterSpacing: "-1px" }}>Major:</Typography>
+                                            <Typography style={{ fontSize: "1.06rem", fontWeight: "500" }}>{studentData.major}</Typography>
+                                        </Box>
+                                        <Box style={{ display: "flex", width: "38rem" }}>
+                                            <Typography style={{ width: "9rem", fontSize: "1.05rem", letterSpacing: "-1px" }}>Rentention Status: </Typography>
+                                            <Typography style={{ fontSize: "1.06rem", fontWeight: "500" }}></Typography>
+                                        </Box>
+                                    </Box>
+                                </Box>
+                                <Box style={{ display: "flex", flexWrap: "wrap", marginTop: "-1rem" }}>
+                                    <Box style={{ paddingLeft: "1rem", flex: "0 0 50%", marginBottom: "1rem", boxSizing: "border-box" }}>
+                                        <table style={{ border: "black 1px solid" }}>
+                                            <thead>
+                                                <tr style={{ borderBottom: "1px solid black" }}>
+                                                    <td style={{ display: "flex", height: "35px", alignItems: "center", justifyContent: "center", fontWeight: "600" }}>{studentData.program_description}</td>
+                                                </tr>
+                                                <tr style={{ display: "flex", height: "50px", borderBottom: "solid 1px black" }}>
+                                                    <td style={{ fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", width: "10rem" }}>
+                                                        <span>CODE</span>
+                                                    </td>
+                                                    <td style={{ fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", width: "24rem" }}>
+                                                        <span>TITLE</span>
+                                                    </td>
+                                                    <td style={{ fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", width: "12rem" }}>
+                                                        <span>CLASS SECTION</span>
+                                                    </td>
+                                                    <td style={{ fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", width: "6rem" }}>
+                                                        <span>GRADES</span>
+                                                    </td>
+                                                    <td style={{ fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", width: "6rem" }}>
+                                                        <span>RE-EXAM</span>
+                                                    </td>
+                                                    <td style={{ fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", width: "6rem" }}>
+                                                        <span style={{ textAlign: "center" }}>CREDIT UNIT</span>
+                                                    </td>
+                                                    <td style={{ fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", width: "10rem" }}>
+                                                        <span style={{ textAlign: "center" }}>REMARKS</span>
+                                                    </td>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {filteredStudents.map((p) => (
+                                                    <tr style={{ display: "flex", height: "25px", alignItems: "start" }} key={p.enrolled_id}>
+                                                        <td style={{ display: "flex", alignItems: "center", justifyContent: "left", fontSize: "14px", width: "8rem" }}>
+                                                            <span style={{ paddingLeft: "5px" }}>{p.course_code}</span>
+                                                        </td>
+                                                        <td style={{ display: "flex", width: "26rem" }}>
+                                                            <span style={{ margin: "0", padding: "0", fontSize: "14px" }}>{p.course_description}</span>
+                                                        </td>
+                                                        <td style={{ display: "flex", width: "12rem", justifyContent: "center" }}>
+                                                            <span style={{ margin: "0", padding: "0", fontSize: "14px" }}>{p.program_code} {p.section}</span>
+                                                        </td>
+                                                        <td>
+                                                            <span style={{ margin: "0", padding: "0", display: "flex", justifyContent: "center", width: "6rem" }}>{getConvertedFinalGrade(p)}</span>
+                                                        </td>
+                                                        <td>
+                                                            <span style={{ margin: "0", padding: "0", display: "flex", justifyContent: "center", width: "6rem" }}></span>
+                                                        </td>
+                                                        <td>
+                                                            <span style={{ margin: "0", padding: "0", display: "flex", justifyContent: "center", width: "6rem" }}>
+                                                                {totalUnitPerSubject(p.course_unit, p.lab_unit)}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <span style={{ margin: "0", padding: "0", display: "flex", justifyContent: "center", width: "10rem" }}>
+                                                                {p.en_remarks === 0 ? "Ongoing" :
+                                                                    p.en_remarks === 1 ? "PASSED" :
+                                                                        p.en_remarks === 2 ? "FAILED" :
+                                                                            p.en_remarks === 3 ? "INCOMPLETE" :
+                                                                                p.en_remarks === 4 ? "DROPPED" :
+                                                                                    ""
+                                                                }
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                <tr>
+                                                    <td style={{ display: "flex", justifyContent: "center", alignItems: "center", marginTop: "0.5rem" }}>
+                                                        <div>
+                                                            ***
+                                                        </div>
+                                                        <div style={{ height: "30px", margin: "0px 5px", fontSize: "0.9rem" }}>
+                                                            Nothing Follows
+                                                        </div>
+                                                        <div>
+                                                            ***
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </Box>
+                                </Box>
+                                <Box style={{ display: "flex", marginTop: "-1rem" }}>
+                                    <Box style={{ maxWidth: "47rem" }}>
+                                        <Box style={{ display: "flex", justifyContent: "end" }}>
+                                            <Typography style={{ width: "45rem", display: "flex", justifyContent: "end", fontSize: "0.9rem" }}>Total Subject Enrolled:</Typography>
+                                            <Typography style={{ padding: "0rem 0.5rem", display: "flex", justifyContent: "end", fontSize: "0.9rem", width: "3rem" }}>
+                                                {filteredStudents.length}
+                                            </Typography>
+                                        </Box>
+                                        <Box style={{ display: "flex", justifyContent: "end" }}>
+                                            <Typography style={{ width: "45rem", display: "flex", justifyContent: "end", fontSize: "0.9rem" }}>Total Credits Enrolled:</Typography>
+                                            <Typography style={{ padding: "0rem 0.5rem", display: "flex", justifyContent: "end", fontSize: "0.9rem", width: "3rem" }}>
+                                                {filteredStudents
+                                                    .reduce((total, subj) => total + (Number(subj.course_unit) || 0) + (Number(subj.lab_unit) || 0), 0)
+                                                    .toFixed(1)
+                                                }
+                                            </Typography>
+                                        </Box>
+                                        <Box style={{ display: "flex", justifyContent: "end" }}>
+                                            <Typography style={{ width: "45rem", display: "flex", justifyContent: "end", fontSize: "0.9rem" }}>Total Credits Earned:</Typography>
+                                            <Typography style={{ padding: "0rem 0.5rem", display: "flex", justifyContent: "end", fontSize: "0.9rem", width: "3rem" }}>
+                                                {filteredStudents
+                                                    .filter(subj => subj.en_remarks === 1)
+                                                    .reduce((total, subj) => total + (Number(subj.course_unit) || 0) + (Number(subj.lab_unit) || 0), 0)
+                                                }
+                                            </Typography>
+                                        </Box>
+                                        <Box style={{ display: "flex", justifyContent: "end" }}>
+                                            <Typography style={{ width: "45rem", display: "flex", justifyContent: "end", fontSize: "0.9rem" }}>Grade Point Average:</Typography>
+                                            <Typography style={{ padding: "0rem 0.5rem", display: "flex", justifyContent: "end", fontSize: "0.9rem", width: "3rem" }}>
+                                                {getGradePointAverage(filteredStudents)}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                    <Box style={{ height: "4.5rem", marginLeft: "6rem", width: "100%", display: "flex", flexDirection: "column", alignItems: "end", justifyContent: "end" }}>
+                                        <Box style={{ width: "100%", textAlign: "center", margin: "0", padding: "0" }}>
+                                            <Typography style={{ borderBottom: "1px black solid", width: "100%" }}></Typography>
+                                            <Typography style={{ fontSize: "0.7rem", marginBottom: "-0.2rem" }}>Registrar</Typography>
+                                        </Box>
+                                    </Box>
+                                </Box>
+                                <Box style={{ border: "black solid 1px", marginLeft: "1rem", padding: "0.5rem" }}>
+                                    <Box>
+                                        <Typography style={{ fontSize: "0.9rem" }}>Grading System</Typography>
+                                    </Box>
+                                    <Box style={{ display: "flex", alignItems: "center" }}>
+                                        <Box style={{ display: "flex", marginLeft: "1.2rem" }}>
+                                            <Box>
+                                                <Typography style={{ width: "6.5rem", fontSize: "0.9rem" }}>1.00 (97 - 100)</Typography>
+                                                <Typography style={{ fontSize: "0.9rem" }}>1.25 (94 - 96)</Typography>
+                                                <Typography style={{ fontSize: "0.9rem" }}>1.50 (91 - 93)</Typography>
+                                                <Typography style={{ fontSize: "0.9rem" }}>1.75 (88 - 90)</Typography>
+                                                <Typography style={{ fontSize: "0.9rem" }}>2.00 (85 - 87)</Typography>
+                                            </Box>
+                                            <Box>
+                                                <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Marked Excellent</Typography>
+                                                <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Excellent</Typography>
+                                                <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Very Superior</Typography>
+                                                <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Superior</Typography>
+                                                <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Very Good</Typography>
+                                            </Box>
+                                        </Box>
+                                        <Box style={{ display: "flex" }}>
+                                            <Box>
+                                                <Typography style={{ width: "6.5rem", fontSize: "0.9rem" }}>2.00 (82 - 84)</Typography>
+                                                <Typography style={{ width: "6.5rem", fontSize: "0.9rem" }}>2.25 (79 - 81)</Typography>
+                                                <Typography style={{ width: "6.5rem", fontSize: "0.9rem" }}>2.50 (76 - 78)</Typography>
+                                                <Typography style={{ width: "6.5rem", fontSize: "0.9rem" }}>3.00 (75)</Typography>
+                                                <Typography style={{ width: "6.5rem", fontSize: "0.9rem" }}>4.00 (70 - 74)</Typography>
+                                            </Box>
+                                            <Box>
+                                                <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Good</Typography>
+                                                <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Satisfactory</Typography>
+                                                <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Fair</Typography>
+                                                <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Passed</Typography>
+                                                <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Conditional Failure</Typography>
+                                            </Box>
+                                        </Box>
+                                        <Box style={{ display: "flex" }}>
+                                            <Box>
+                                                <Typography style={{ width: "6rem", fontSize: "0.9rem" }}>5.00 (Below 70)</Typography>
+                                                <Typography style={{ width: "6rem", fontSize: "0.9rem" }}>INC</Typography>
+                                                <Typography style={{ width: "6rem", fontSize: "0.9rem" }}>DRP</Typography>
+                                                <Typography style={{ width: "6rem", fontSize: "0.9rem" }}></Typography>
+                                                <Typography style={{ width: "6rem", fontSize: "0.9rem" }}></Typography>
+                                            </Box>
+                                            <Box>
+                                                <Typography style={{ fontSize: "0.9rem" }}>Failed</Typography>
+                                                <Typography style={{ fontSize: "0.9rem" }}>Incomplete</Typography>
+                                                <Typography style={{ fontSize: "0.9rem" }}>Drop Subject</Typography>
+                                                <Typography style={{ fontSize: "0.9rem", height: "20px" }}></Typography>
+                                                <Typography style={{ fontSize: "0.9rem", height: "20px" }}></Typography>
+                                            </Box>
+                                        </Box>
+                                    </Box>
+                                </Box>
+                                <Snackbar
+                                    open={openSnackbar}
+                                    autoHideDuration={4000}
+                                    onClose={() => setOpenSnackbar(false)}
+                                    anchorOrigin={{ vertical: "top", horizontal: "center" }}
+                                >
+                                    <Alert onClose={() => setOpenSnackbar(false)} severity="warning" sx={{ width: "100%" }}>
+                                        {snackbarMessage}
+                                    </Alert>
+                                </Snackbar>
+                            </Box>
+                        </Box>
                     </Box>
-                )}
-
-                <Box style={{ display: "flex" }}>
-                    <Box style={{ marginTop: "-1rem" }}>
-                        <Box sx={{ padding: "1rem", marginLeft: "1rem", width: "70rem" }}>
-                            <Box sx={{ display: "flex" }}>
-                                <Box style={{ display: "flex", width: "38rem" }}>
-                                    <Typography style={{ width: "9rem", fontSize: "1.05rem", letterSpacing: "-1px" }}>Full Name:</Typography>
-                                    <Typography style={{ fontSize: "1.06rem", fontWeight: "500" }}>{studentFullName}</Typography>
-                                </Box>
-                                <Box style={{ display: "flex", width: "38rem" }}>
-                                    <Typography style={{ width: "9rem", fontSize: "1.05rem", letterSpacing: "-1px" }}>Student No:</Typography>
-                                    <Typography style={{ fontSize: "1.06rem", fontWeight: "500" }}>{studentData.student_number}</Typography>
-                                </Box>
-                            </Box>
-                            <Box sx={{ display: "flex" }}>
-                                <Box style={{ display: "flex", width: "38rem" }}>
-                                    <Typography style={{ width: "9rem", fontSize: "1.05rem", letterSpacing: "-1px" }}>Gender:</Typography>
-                                    <Typography style={{ fontSize: "1.06rem", fontWeight: "500" }}>{studentData.gender === 0 ? "Male" : studentData.gender === 1 ? "Female" : ""}</Typography>
-                                </Box>
-                                <Box style={{ display: "flex", width: "38rem" }}>
-                                    <Typography style={{ width: "9rem", fontSize: "1.05rem", letterSpacing: "-1px" }}>Academic Year:</Typography>
-                                    {filteredStudents.length > 0 && (
-                                        <>
-                                            <Typography style={{ fontSize: "1.06rem", fontWeight: "500" }}>{getShortTerm(filteredStudents[0]?.semester_description)} , {filteredStudents[0]?.current_year} - {filteredStudents[0]?.next_year}</Typography>
-                                        </>
-                                    )}
-                                </Box>
-                            </Box>
-                            <Box sx={{ display: "flex" }}>
-                                <Box style={{ display: "flex", width: "34rem" }}>
-                                    <Typography style={{ width: "9rem", fontSize: "1.05rem", letterSpacing: "-1px" }}>College:</Typography>
-                                    <Typography style={{ fontSize: "1.06rem", fontWeight: "500" }}>{studentData.dprtmnt_name}</Typography>
-                                </Box>
-                                <Box style={{ display: "flex" }}>
-                                    <Typography style={{ width: "9rem", fontSize: "1.05rem", letterSpacing: "-1px" }}>Year Level:</Typography>
-                                    {filteredStudents.length > 0 && (
-                                        <>
-                                            <Typography style={{ fontSize: "1.06rem", fontWeight: "500" }}>{getLevelBySection(filteredStudents[0]?.section)}</Typography>
-                                        </>
-                                    )}
-                                </Box>
-                            </Box>
-                            <Box style={{ display: "flex", width: "38rem" }}>
-                                <Typography style={{ width: "9rem", fontSize: "1.05rem", letterSpacing: "-1px" }}>Program:</Typography>
-                                <Typography style={{ fontSize: "1.06rem", fontWeight: "500" }}>{studentData.program_description}</Typography>
-                            </Box>
-                            <Box sx={{ display: "flex" }}>
-                                <Box style={{ display: "flex", width: "38rem" }}>
-                                    <Typography style={{ width: "9rem", fontSize: "1.05rem", letterSpacing: "-1px" }}>Major:</Typography>
-                                    <Typography style={{ fontSize: "1.06rem", fontWeight: "500" }}>{studentData.major}</Typography>
-                                </Box>
-                                <Box style={{ display: "flex", width: "38rem" }}>
-                                    <Typography style={{ width: "9rem", fontSize: "1.05rem", letterSpacing: "-1px" }}>Rentention Status: </Typography>
-                                    <Typography style={{ fontSize: "1.06rem", fontWeight: "500" }}></Typography>
-                                </Box>
-                            </Box>
-                        </Box>
-                        <Box style={{ display: "flex", flexWrap: "wrap", marginTop: "-1rem" }}>
-                            <Box style={{ paddingLeft: "1rem", flex: "0 0 50%", marginBottom: "1rem", boxSizing: "border-box" }}>
-                                <table style={{ border: "black 1px solid" }}>
-                                    <thead>
-                                        <tr style={{ borderBottom: "1px solid black" }}>
-                                            <td style={{ display: "flex", height: "35px", alignItems: "center", justifyContent: "center", fontWeight: "600" }}>{studentData.program_description}</td>
-                                        </tr>
-                                        <tr style={{ display: "flex", height: "50px", borderBottom: "solid 1px black" }}>
-                                            <td style={{ fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", width: "10rem" }}>
-                                                <span>CODE</span>
-                                            </td>
-                                            <td style={{ fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", width: "24rem" }}>
-                                                <span>TITLE</span>
-                                            </td>
-                                            <td style={{ fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", width: "12rem" }}>
-                                                <span>CLASS SECTION</span>
-                                            </td>
-                                            <td style={{ fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", width: "6rem" }}>
-                                                <span>GRADES</span>
-                                            </td>
-                                            <td style={{ fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", width: "6rem" }}>
-                                                <span>RE-EXAM</span>
-                                            </td>
-                                            <td style={{ fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", width: "6rem" }}>
-                                                <span style={{ textAlign: "center" }}>CREDIT UNIT</span>
-                                            </td>
-                                            <td style={{ fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", width: "10rem" }}>
-                                                <span style={{ textAlign: "center" }}>REMARKS</span>
-                                            </td>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredStudents.map((p) => (
-                                            <tr style={{ display: "flex", height: "25px", alignItems: "start" }} key={p.enrolled_id}>
-                                                <td style={{ display: "flex", alignItems: "center", justifyContent: "left", fontSize: "14px", width: "8rem" }}>
-                                                    <span style={{ paddingLeft: "5px" }}>{p.course_code}</span>
-                                                </td>
-                                                <td style={{ display: "flex", width: "26rem" }}>
-                                                    <span style={{ margin: "0", padding: "0", fontSize: "14px" }}>{p.course_description}</span>
-                                                </td>
-                                                <td style={{ display: "flex", width: "12rem", justifyContent: "center" }}>
-                                                    <span style={{ margin: "0", padding: "0", fontSize: "14px" }}>{p.program_code} {p.section}</span>
-                                                </td>
-                                                <td>
-                                                    <span style={{ margin: "0", padding: "0", display: "flex", justifyContent: "center", width: "6rem" }}>{getConvertedFinalGrade(p)}</span>
-                                                </td>
-                                                <td>
-                                                    <span style={{ margin: "0", padding: "0", display: "flex", justifyContent: "center", width: "6rem" }}></span>
-                                                </td>
-                                                <td>
-                                                    <span style={{ margin: "0", padding: "0", display: "flex", justifyContent: "center", width: "6rem" }}>
-                                                        {totalUnitPerSubject(p.course_unit, p.lab_unit)}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <span style={{ margin: "0", padding: "0", display: "flex", justifyContent: "center", width: "10rem" }}>
-                                                        {p.en_remarks === 0 ? "Ongoing" :
-                                                            p.en_remarks === 1 ? "PASSED" :
-                                                                p.en_remarks === 2 ? "FAILED" :
-                                                                    p.en_remarks === 3 ? "INCOMPLETE" :
-                                                                        p.en_remarks === 4 ? "DROPPED" :
-                                                                            ""
-                                                        }
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        <tr>
-                                            <td style={{ display: "flex", justifyContent: "center", alignItems: "center", marginTop: "0.5rem" }}>
-                                                <div>
-                                                    ***
-                                                </div>
-                                                <div style={{ height: "30px", margin: "0px 5px", fontSize: "0.9rem" }}>
-                                                    Nothing Follows
-                                                </div>
-                                                <div>
-                                                    ***
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </Box>
-                        </Box>
-                        <Box style={{ display: "flex", marginTop: "-1rem" }}>
-                            <Box style={{ maxWidth: "47rem" }}>
-                                <Box style={{ display: "flex", justifyContent: "end" }}>
-                                    <Typography style={{ width: "45rem", display: "flex", justifyContent: "end", fontSize: "0.9rem" }}>Total Subject Enrolled:</Typography>
-                                    <Typography style={{ padding: "0rem 0.5rem", display: "flex", justifyContent: "end", fontSize: "0.9rem", width: "3rem" }}>
-                                        {filteredStudents.length}
-                                    </Typography>
-                                </Box>
-                                <Box style={{ display: "flex", justifyContent: "end" }}>
-                                    <Typography style={{ width: "45rem", display: "flex", justifyContent: "end", fontSize: "0.9rem" }}>Total Credits Enrolled:</Typography>
-                                    <Typography style={{ padding: "0rem 0.5rem", display: "flex", justifyContent: "end", fontSize: "0.9rem", width: "3rem" }}>
-                                        {filteredStudents
-                                            .reduce((total, subj) => total + (Number(subj.course_unit) || 0) + (Number(subj.lab_unit) || 0), 0)
-                                            .toFixed(1)
-                                        }
-                                    </Typography>
-                                </Box>
-                                <Box style={{ display: "flex", justifyContent: "end" }}>
-                                    <Typography style={{ width: "45rem", display: "flex", justifyContent: "end", fontSize: "0.9rem" }}>Total Credits Earned:</Typography>
-                                    <Typography style={{ padding: "0rem 0.5rem", display: "flex", justifyContent: "end", fontSize: "0.9rem", width: "3rem" }}>
-                                        {filteredStudents
-                                            .filter(subj => subj.en_remarks === 1)
-                                            .reduce((total, subj) => total + (Number(subj.course_unit) || 0) + (Number(subj.lab_unit) || 0), 0)
-                                        }
-                                    </Typography>
-                                </Box>
-                                <Box style={{ display: "flex", justifyContent: "end" }}>
-                                    <Typography style={{ width: "45rem", display: "flex", justifyContent: "end", fontSize: "0.9rem" }}>Grade Point Average:</Typography>
-                                    <Typography style={{ padding: "0rem 0.5rem", display: "flex", justifyContent: "end", fontSize: "0.9rem", width: "3rem" }}>
-                                        {getGradePointAverage(filteredStudents)}
-                                    </Typography>
-                                </Box>
-                            </Box>
-                            <Box style={{ height: "4.5rem", marginLeft: "6rem", width: "100%", display: "flex", flexDirection: "column", alignItems: "end", justifyContent: "end" }}>
-                                <Box style={{ width: "100%", textAlign: "center", margin: "0", padding: "0" }}>
-                                    <Typography style={{ borderBottom: "1px black solid", width: "100%" }}></Typography>
-                                    <Typography style={{ fontSize: "0.7rem", marginBottom: "-0.2rem" }}>Registrar</Typography>
-                                </Box>
-                            </Box>
-                        </Box>
-                        <Box style={{ border: "black solid 1px", marginLeft: "1rem", padding: "0.5rem" }}>
-                            <Box>
-                                <Typography style={{ fontSize: "0.9rem" }}>Grading System</Typography>
-                            </Box>
-                            <Box style={{ display: "flex", alignItems: "center" }}>
-                                <Box style={{ display: "flex", marginLeft: "1.2rem" }}>
-                                    <Box>
-                                        <Typography style={{ width: "6.5rem", fontSize: "0.9rem" }}>1.00 (97 - 100)</Typography>
-                                        <Typography style={{ fontSize: "0.9rem" }}>1.25 (94 - 96)</Typography>
-                                        <Typography style={{ fontSize: "0.9rem" }}>1.50 (91 - 93)</Typography>
-                                        <Typography style={{ fontSize: "0.9rem" }}>1.75 (88 - 90)</Typography>
-                                        <Typography style={{ fontSize: "0.9rem" }}>2.00 (85 - 87)</Typography>
-                                    </Box>
-                                    <Box>
-                                        <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Marked Excellent</Typography>
-                                        <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Excellent</Typography>
-                                        <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Very Superior</Typography>
-                                        <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Superior</Typography>
-                                        <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Very Good</Typography>
-                                    </Box>
-                                </Box>
-                                <Box style={{ display: "flex" }}>
-                                    <Box>
-                                        <Typography style={{ width: "6.5rem", fontSize: "0.9rem" }}>2.00 (82 - 84)</Typography>
-                                        <Typography style={{ width: "6.5rem", fontSize: "0.9rem" }}>2.25 (79 - 81)</Typography>
-                                        <Typography style={{ width: "6.5rem", fontSize: "0.9rem" }}>2.50 (76 - 78)</Typography>
-                                        <Typography style={{ width: "6.5rem", fontSize: "0.9rem" }}>3.00 (75)</Typography>
-                                        <Typography style={{ width: "6.5rem", fontSize: "0.9rem" }}>4.00 (70 - 74)</Typography>
-                                    </Box>
-                                    <Box>
-                                        <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Good</Typography>
-                                        <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Satisfactory</Typography>
-                                        <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Fair</Typography>
-                                        <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Passed</Typography>
-                                        <Typography style={{ width: "20rem", fontSize: "0.9rem" }}>Conditional Failure</Typography>
-                                    </Box>
-                                </Box>
-                                <Box style={{ display: "flex" }}>
-                                    <Box>
-                                        <Typography style={{ width: "6rem", fontSize: "0.9rem" }}>5.00 (Below 70)</Typography>
-                                        <Typography style={{ width: "6rem", fontSize: "0.9rem" }}>INC</Typography>
-                                        <Typography style={{ width: "6rem", fontSize: "0.9rem" }}>DRP</Typography>
-                                        <Typography style={{ width: "6rem", fontSize: "0.9rem" }}></Typography>
-                                        <Typography style={{ width: "6rem", fontSize: "0.9rem" }}></Typography>
-                                    </Box>
-                                    <Box>
-                                        <Typography style={{ fontSize: "0.9rem" }}>Failed</Typography>
-                                        <Typography style={{ fontSize: "0.9rem" }}>Incomplete</Typography>
-                                        <Typography style={{ fontSize: "0.9rem" }}>Drop Subject</Typography>
-                                        <Typography style={{ fontSize: "0.9rem", height: "20px" }}></Typography>
-                                        <Typography style={{ fontSize: "0.9rem", height: "20px" }}></Typography>
-                                    </Box>
-                                </Box>
-                            </Box>
-                        </Box>
-                        <Snackbar
-                            open={openSnackbar}
-                            autoHideDuration={4000}
-                            onClose={() => setOpenSnackbar(false)}
-                            anchorOrigin={{ vertical: "top", horizontal: "center" }}
-                        >
-                            <Alert onClose={() => setOpenSnackbar(false)} severity="warning" sx={{ width: "100%" }}>
-                                {snackbarMessage}
-                            </Alert>
-                        </Snackbar>
                     </Box>
                 </Box>
             </Box>

@@ -1,26 +1,18 @@
 import React, { useState, useEffect, useContext, useRef } from "react";
 import { SettingsContext } from "../App";
-
 import axios from "axios";
 import {
   Button,
   Box,
-  TextField,
-  Container,
   Card,
-  Modal,
   Typography,
-  FormControl,
-  FormHelperText,
-  InputLabel,
-  Select,
-  MenuItem,
-  Checkbox,
-  FormControlLabel,
   Snackbar,
   Alert,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import PersonIcon from "@mui/icons-material/Person";
 import FamilyRestroomIcon from "@mui/icons-material/FamilyRestroom";
 import SchoolIcon from "@mui/icons-material/School";
@@ -30,167 +22,141 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ErrorIcon from "@mui/icons-material/Error";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import ExamPermit from "./ExamPermit";
 import API_BASE_URL from "../apiConfig";
 
-// ─── Mobile style tokens ──────────────────────────────────────────────────────
-const S = {
-  screen: {
-    minHeight: "100vh",
-    backgroundColor: "#f5f5f5",
-    fontFamily: "'Segoe UI', sans-serif",
-    paddingBottom: 80,
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    margin: "12px 12px 0",
-    overflow: "hidden",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-  },
-  cardHeader: {
-    color: "#fff",
-    padding: "10px 14px",
-    fontSize: 13,
-    fontWeight: 700,
-    letterSpacing: 0.3,
-  },
-  cardBody: { padding: "14px 14px" },
-  subHeader: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: "#6D2323",
-    marginBottom: 8,
-    marginTop: 14,
-    paddingBottom: 4,
-    borderBottom: "1px solid #e0e0e0",
-  },
-  fieldWrap: { marginBottom: 14 },
-  label: {
-    display: "block",
-    fontSize: 12,
-    fontWeight: 600,
-    color: "#444",
-    marginBottom: 5,
-  },
-  required: { color: "#d32f2f" },
-  input: (hasError) => ({
-    width: "100%",
-    height: 42,
-    padding: "0 12px",
-    border: `1px solid ${hasError ? "#d32f2f" : "#ccc"}`,
-    borderRadius: 8,
-    fontSize: 14,
-    backgroundColor: "#fff",
-    boxSizing: "border-box",
-    outline: "none",
-    color: "#222",
-  }),
-  select: (hasError) => ({
-    width: "100%",
-    height: 42,
-    padding: "0 12px",
-    border: `1px solid ${hasError ? "#d32f2f" : "#ccc"}`,
-    borderRadius: 8,
-    fontSize: 14,
-    backgroundColor: "#fff",
-    boxSizing: "border-box",
-    outline: "none",
-    color: "#222",
-    appearance: "none",
-    WebkitAppearance: "none",
-    backgroundImage:
-      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none'/%3E%3C/svg%3E\")",
-    backgroundRepeat: "no-repeat",
-    backgroundPosition: "right 12px center",
-    paddingRight: 32,
-  }),
-  helperError: { color: "#d32f2f", fontSize: 11, marginTop: 3 },
-  row: { display: "flex", gap: 10 },
-  flex1: { flex: 1 },
-  checkRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-    fontSize: 13,
-    color: "#333",
-    cursor: "pointer",
-  },
-  checkbox: { width: 18, height: 18, accentColor: "#6D2323", cursor: "pointer" },
-  deceasedBanner: {
-    backgroundColor: "#FFF3E0",
-    border: "1px solid #FFA726",
-    borderRadius: 8,
-    padding: "10px 12px",
-    fontSize: 12,
-    color: "#E65100",
-    marginBottom: 10,
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-  },
-  toast: (severity) => ({
-    position: "fixed",
-    top: 16,
-    left: "50%",
-    transform: "translateX(-50%)",
-    zIndex: 9999,
-    backgroundColor:
-      severity === "success"
-        ? "#2e7d32"
-        : severity === "error"
-          ? "#c62828"
-          : "#e65100",
-    color: "#fff",
-    padding: "10px 20px",
-    borderRadius: 24,
-    fontSize: 13,
-    boxShadow: "0 3px 10px rgba(0,0,0,0.25)",
-    maxWidth: "90vw",
-    textAlign: "center",
-  }),
-};
-
-// ─── Reusable mobile field components ────────────────────────────────────────
+// ─── Reusable field components (responsive) ──────────────────────────────────
 const Field = ({ label, required, error, helperText, children }) => (
-  <div style={S.fieldWrap}>
+  <div style={{ marginBottom: 14 }}>
     {label && (
-      <label style={S.label}>
+      <label
+        style={{
+          display: "block",
+          fontSize: "clamp(11px, 1.4vw, 13px)",
+          fontWeight: 600,
+          color: "#444",
+          marginBottom: 5,
+        }}
+      >
         {label}
-        {required && <span style={S.required}> *</span>}
+        {required && <span style={{ color: "#d32f2f" }}> *</span>}
       </label>
     )}
     {children}
-    {error && helperText && <div style={S.helperError}>{helperText}</div>}
+    {error && helperText && (
+      <div style={{ color: "#d32f2f", fontSize: 11, marginTop: 3 }}>{helperText}</div>
+    )}
   </div>
 );
 
+const baseControlStyle = (hasError) => ({
+  width: "100%",
+  height: 42,
+  padding: "0 12px",
+  border: `1px solid ${hasError ? "#d32f2f" : "#ccc"}`,
+  borderRadius: 8,
+  fontSize: "clamp(13px, 1.6vw, 14px)",
+  backgroundColor: "#fff",
+  boxSizing: "border-box",
+  outline: "none",
+  color: "#222",
+});
+
 const MInput = ({ error, style, ...props }) => (
-  <input style={{ ...S.input(error), ...style }} {...props} />
+  <input style={{ ...baseControlStyle(error), ...style }} {...props} />
 );
 
 const MSelect = ({ error, style, children, ...props }) => (
-  <select style={{ ...S.select(error), ...style }} {...props}>
+  <select
+    style={{
+      ...baseControlStyle(error),
+      appearance: "none",
+      WebkitAppearance: "none",
+      backgroundImage:
+        "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none'/%3E%3C/svg%3E\")",
+      backgroundRepeat: "no-repeat",
+      backgroundPosition: "right 12px center",
+      paddingRight: 32,
+      ...style,
+    }}
+    {...props}
+  >
     {children}
   </select>
+);
+
+const CheckRow = ({ checked, onChange, children }) => (
+  <label
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 12,
+      fontSize: "clamp(12px, 1.5vw, 14px)",
+      color: "#333",
+      cursor: "pointer",
+    }}
+  >
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      style={{ width: 18, height: 18, accentColor: "#6D2323", cursor: "pointer" }}
+    />
+    {children}
+  </label>
+);
+
+const SubHeader = ({ children }) => (
+  <div
+    style={{
+      fontSize: "clamp(12px, 1.5vw, 14px)",
+      fontWeight: 700,
+      color: "#6D2323",
+      marginBottom: 8,
+      marginTop: 14,
+      paddingBottom: 4,
+      borderBottom: "1px solid #e0e0e0",
+    }}
+  >
+    {children}
+  </div>
+);
+
+const DeceasedBanner = ({ children }) => (
+  <div
+    style={{
+      backgroundColor: "#FFF3E0",
+      border: "1px solid #FFA726",
+      borderRadius: 8,
+      padding: "10px 12px",
+      fontSize: 12,
+      color: "#E65100",
+      marginBottom: 10,
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+    }}
+  >
+    {children}
+  </div>
 );
 
 const EXT_OPTIONS = ["Jr.", "Sr.", "I", "II", "III", "IV", "V"];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-const ApplicantFamilyBackgroundMobile = (props) => {
+const ApplicantFamilyBackgroundResponsive = (props) => {
   const settings = useContext(SettingsContext);
+  const navigate = useNavigate();
+  const theme = useTheme();
 
-  // ── Detect mobile ──────────────────────────────────────────────────────────
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  // Breakpoints: phone < 600px, tablet 600–959px, desktop >= 960px
+  const isPhone = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
+  const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
+
+  // Two-column fields stack on phone, sit side-by-side from tablet up
+  const gridCols2 = { display: "grid", gridTemplateColumns: isPhone ? "1fr" : "1fr 1fr", gap: 16 };
 
   // ── Theme / settings state ─────────────────────────────────────────────────
   const [titleColor, setTitleColor] = useState("#000000");
@@ -198,11 +164,8 @@ const ApplicantFamilyBackgroundMobile = (props) => {
   const [borderColor, setBorderColor] = useState("#000000");
   const [mainButtonColor, setMainButtonColor] = useState("#1976d2");
   const [subButtonColor, setSubButtonColor] = useState("#ffffff");
-  const [stepperColor, setStepperColor] = useState("#000000");
-  const [fetchedLogo, setFetchedLogo] = useState(null);
   const [companyName, setCompanyName] = useState("");
   const [shortTerm, setShortTerm] = useState("");
-  const [campusAddress, setCampusAddress] = useState("");
 
   useEffect(() => {
     if (!settings) return;
@@ -211,18 +174,11 @@ const ApplicantFamilyBackgroundMobile = (props) => {
     if (settings.border_color) setBorderColor(settings.border_color);
     if (settings.main_button_color) setMainButtonColor(settings.main_button_color);
     if (settings.sub_button_color) setSubButtonColor(settings.sub_button_color);
-    if (settings.stepper_color) setStepperColor(settings.stepper_color);
-    if (settings.logo_url) {
-      setFetchedLogo(`${API_BASE_URL}${settings.logo_url}`);
-    }
     if (settings.company_name) setCompanyName(settings.company_name);
     if (settings.short_term) setShortTerm(settings.short_term);
-    if (settings.campus_address) setCampusAddress(settings.campus_address);
   }, [settings]);
 
-  const navigate = useNavigate();
   const [userID, setUserID] = useState("");
-  const [user, setUser] = useState("");
   const [userRole, setUserRole] = useState("");
 
   // ── Person state ───────────────────────────────────────────────────────────
@@ -275,11 +231,7 @@ const ApplicantFamilyBackgroundMobile = (props) => {
   });
 
   // ── Snackbar ───────────────────────────────────────────────────────────────
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "warning",
-  });
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "warning" });
 
   const handleCloseSnackbar = (event, reason) => {
     if (reason === "clickaway") return;
@@ -288,13 +240,9 @@ const ApplicantFamilyBackgroundMobile = (props) => {
 
   const showSnackbar = (message, severity = "warning") => {
     setSnackbar({ open: true, message, severity });
-    // For mobile, auto-dismiss via timeout (toast style)
-    if (isMobile) {
-      setTimeout(() => setSnackbar((p) => ({ ...p, open: false })), 3000);
-    }
   };
 
-  // ── Auth & init ────────────────────────────────────────────────────────────
+  // ── Auth & init (do not alter) ──────────────────────────────────────────────
   useEffect(() => {
     const storedUser = localStorage.getItem("email");
     const storedRole = localStorage.getItem("role");
@@ -314,7 +262,6 @@ const ApplicantFamilyBackgroundMobile = (props) => {
     }
 
     if (storedUser && storedRole && storedID) {
-      setUser(storedUser);
       setUserRole(storedRole);
       setUserID(storedID);
 
@@ -347,10 +294,10 @@ const ApplicantFamilyBackgroundMobile = (props) => {
       const newClickedSteps = [...clickedSteps];
       newClickedSteps[index] = true;
       setClickedSteps(newClickedSteps);
-      showSnackbar("Your record has been saved successfully!", "success");   // ADD
-      setTimeout(() => navigate(stepsWithPaths[index].path), 1000);         // CHANGE
+      showSnackbar("Your record has been saved successfully!", "success");
+      setTimeout(() => navigate(stepsWithPaths[index].path), 1000);
     } else {
-      setSnackbar({ open: true, message: "Please fill all required fields before proceeding.", severity: "error" });
+      showSnackbar("Please fill all required fields before proceeding.", "error");
     }
   };
 
@@ -388,7 +335,7 @@ const ApplicantFamilyBackgroundMobile = (props) => {
     setPerson(updatedPerson);
   };
 
-  // ── Fetch person data ──────────────────────────────────────────────────────
+  // ── Fetch person data (do not alter) ────────────────────────────────────────
   const fetchPersonData = async (id) => {
     try {
       const res = await axios.get(`${API_BASE_URL}/api/person/${id}`);
@@ -409,7 +356,7 @@ const ApplicantFamilyBackgroundMobile = (props) => {
     }
   };
 
-  // ── Auto-save ──────────────────────────────────────────────────────────────
+  // ── Auto-save (do not alter) ────────────────────────────────────────────────
   const handleUpdate = async (updatedPerson) => {
     try {
       if (!updatedPerson || Object.keys(updatedPerson).length === 0) {
@@ -423,7 +370,7 @@ const ApplicantFamilyBackgroundMobile = (props) => {
     }
   };
 
-  // ── Handle change with income auto-calc ───────────────────────────────────
+  // ── Handle change with income auto-calc ────────────────────────────────────
   const handleChange = (e) => {
     const { name, type, checked, value } = e.target;
     const updatedPerson = {
@@ -459,7 +406,7 @@ const ApplicantFamilyBackgroundMobile = (props) => {
     handleUpdate(updatedPerson);
   };
 
-  // ── Deceased state derivations ─────────────────────────────────────────────
+  // ── Deceased state derivations ──────────────────────────────────────────────
   const [isFatherDeceased, setIsFatherDeceased] = useState(false);
   const [isMotherDeceased, setIsMotherDeceased] = useState(false);
 
@@ -479,7 +426,7 @@ const ApplicantFamilyBackgroundMobile = (props) => {
     }
   }, [person.parent_type]);
 
-  // ── Form validation ────────────────────────────────────────────────────────
+  // ── Form validation (do not alter) ──────────────────────────────────────────
   const [errors, setErrors] = useState({});
 
   const isFormValid = () => {
@@ -550,10 +497,10 @@ const ApplicantFamilyBackgroundMobile = (props) => {
     return isValid;
   };
 
-  // ── Solo parent ────────────────────────────────────────────────────────────
+  // ── Solo parent ──────────────────────────────────────────────────────────────
   const [soloParentChoice, setSoloParentChoice] = useState("");
 
-  // ── Exam permit ────────────────────────────────────────────────────────────
+  // ── Exam permit ──────────────────────────────────────────────────────────────
   const divToPrintRef = useRef();
   const [showPrintView, setShowPrintView] = useState(false);
   const [examPermitError, setExamPermitError] = useState("");
@@ -639,58 +586,64 @@ const ApplicantFamilyBackgroundMobile = (props) => {
       to: "/office_of_the_registrar",
       label: `Application For ${shortTerm ? shortTerm.toUpperCase() : ""} College Admission`,
     },
-    {
-      to: "/admission_services",
-      label: "Application/Student Satisfactory Survey",
-    },
+    { to: "/admission_services", label: "Application/Student Satisfactory Survey" },
     { label: "Examination Permit", onClick: handleExamPermitClick },
   ];
 
-  // 🔒 Disable right-click
-  document.addEventListener("contextmenu", (e) => e.preventDefault());
+   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  // 🔒 Block DevTools shortcuts + Ctrl+P silently
-  document.addEventListener("keydown", (e) => {
-    const isBlockedKey =
-      e.key === "F12" ||
-      e.key === "F11" ||
-      (e.ctrlKey &&
-        e.shiftKey &&
-        (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
-      (e.ctrlKey && e.key.toLowerCase() === "u") ||
-      (e.ctrlKey && e.key.toLowerCase() === "p");
+    // 🔒 Block DevTools shortcuts + Ctrl+P silently
+    document.addEventListener("keydown", (e) => {
+        const isBlockedKey =
+            e.key === "F12" ||
+            e.key === "F11" ||
+            (e.ctrlKey &&
+                e.shiftKey &&
+                (e.key.toLowerCase() === "i" || e.key.toLowerCase() === "j")) ||
+            (e.ctrlKey && e.key.toLowerCase() === "u") ||
+            (e.ctrlKey && e.key.toLowerCase() === "p");
 
-    if (isBlockedKey) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  });
+        if (isBlockedKey) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    });
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // ── MOBILE RENDER ─────────────────────────────────────────────────────────
-  // ══════════════════════════════════════════════════════════════════════════
-  if (isMobile) {
-    return (
-      <div style={S.screen}>
-        {/* Toast notification */}
-        <Snackbar
-          open={snackbar.open}
-          autoHideDuration={1000}
-          onClose={handleCloseSnackbar}
-          anchorOrigin={{ vertical: "top", horizontal: "center" }}
-        >
-          <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: "100%" }}>
-            {snackbar.message}
-          </Alert>
-        </Snackbar>
+  // Cards per row depending on viewport
+  const cardBasis = isPhone ? "calc(50% - 6px)" : isTablet ? "calc(33.333% - 8px)" : "calc(20% - 13px)";
 
-        {/* Hidden print view */}
-        {showPrintView && (
-          <div ref={divToPrintRef} style={{ display: "block" }}>
-            <ExamPermit />
-          </div>
-        )}
+  // Content max width so it doesn't stretch edge-to-edge on large desktop monitors
+  const contentMaxWidth = isDesktop ? 1000 : "100%";
 
+  return (
+    <Box
+      sx={{
+        minHeight: "100vh",
+        backgroundColor: "#f5f5f5",
+        fontFamily: "'Segoe UI', sans-serif",
+        pb: { xs: 8, md: 4 },
+      }}
+    >
+      {/* Toast notification */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={2000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: "100%" }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+
+      {/* Hidden print view */}
+      {showPrintView && (
+        <div ref={divToPrintRef} style={{ display: "block" }}>
+          <ExamPermit />
+        </div>
+      )}
+
+      <Box sx={{ maxWidth: contentMaxWidth, mx: "auto", px: { xs: 0, md: 2 } }}>
         {/* Page Title */}
         <Box
           sx={{
@@ -699,7 +652,7 @@ const ApplicantFamilyBackgroundMobile = (props) => {
             alignItems: "center",
             flexWrap: "wrap",
             mb: 1,
-            padding: 1,
+            p: { xs: 1, md: 2 },
           }}
         >
           <Typography
@@ -707,7 +660,7 @@ const ApplicantFamilyBackgroundMobile = (props) => {
             sx={{
               fontWeight: "bold",
               color: titleColor,
-              fontSize: { xs: "22px", sm: "28px" },
+              fontSize: { xs: "22px", sm: "28px", md: "36px" },
             }}
           >
             FAMILY BACKGROUND
@@ -722,16 +675,15 @@ const ApplicantFamilyBackgroundMobile = (props) => {
             display: "flex",
             alignItems: "flex-start",
             gap: 1.5,
-            mx: "12px",
+            mx: { xs: "12px", md: 0 },
             mt: "12px",
-            p: "10px 12px",
+            p: { xs: "10px 12px", md: "14px 16px" },
             borderRadius: "8px",
             backgroundColor: "#fffaf5",
             border: "1px solid #6D2323",
             boxShadow: "0px 2px 8px rgba(0,0,0,0.05)",
           }}
         >
-          {/* Icon */}
           <Box
             sx={{
               display: "flex",
@@ -739,76 +691,61 @@ const ApplicantFamilyBackgroundMobile = (props) => {
               justifyContent: "center",
               backgroundColor: "#800000",
               borderRadius: "6px",
-              width: 36,
-              height: 36,
+              width: { xs: 36, md: 48 },
+              height: { xs: 36, md: 48 },
               flexShrink: 0,
             }}
           >
-            <ErrorIcon sx={{ color: "white", fontSize: 22 }} />
+            <ErrorIcon sx={{ color: "white", fontSize: { xs: 22, md: 30 } }} />
           </Box>
 
-          {/* Text */}
           <Typography
             sx={{
-              fontSize: "20px",
+              fontSize: { xs: "13px", sm: "14px", md: "16px" },
               fontFamily: "Poppins, sans-serif",
               color: "#3e3e3e",
-              lineHeight: 1.3,
-              whiteSpace: "normal",
-              overflow: "hidden",
+              lineHeight: 1.5,
             }}
           >
             <strong style={{ color: "maroon" }}>Important Notice:</strong>
             <br />
-
-
-
-            <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+            <span style={{ margin: "0 8px" }}>➔</span>
             Please indicate <strong>“NA”</strong> or <strong>“N/A”</strong> in fields where the
             requested information is not applicable or no response can be provided.
             <br />
-
-            <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+            <span style={{ margin: "0 8px" }}>➔</span>
             To enter the letter <strong>“Ñ”</strong>, press and hold the ALT key while typing
             <strong> 165</strong>. For <strong>“ñ”</strong>, press and hold the ALT key while
             typing <strong> 164</strong>.
             <br />
-
-            <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
+            <span style={{ margin: "0 8px" }}>➔</span>
             Please complete all information from <strong>Personal Information</strong> up to
             <strong> Other Information</strong> before printing your documents.
-            <br />
           </Typography>
         </Box>
+
         {/* Printable Documents */}
-        <Box sx={{ px: "12px", pt: "12px" }}>
+        <Box sx={{ px: { xs: "12px", md: 0 }, pt: "12px" }}>
           <Typography
             sx={{
-              fontSize: "24px",
+              fontSize: { xs: "22px", md: "28px" },
               fontWeight: "bold",
               textAlign: "center",
               color: "black",
-              marginTop: "20px",
+              mt: "20px",
               mb: 2,
             }}
           >
             PRINTABLE DOCUMENTS
           </Typography>
-          <Box
-            sx={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 1,
-              justifyContent: "center",
-            }}
-          >
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.25, justifyContent: "center" }}>
             {links.map((lnk, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.07, duration: 0.3 }}
-                style={{ width: "calc(50% - 4px)" }}
+                transition={{ delay: i * 0.06, duration: 0.3 }}
+                style={{ width: cardBasis, minWidth: 140 }}
               >
                 <Card
                   sx={{
@@ -819,7 +756,7 @@ const ApplicantFamilyBackgroundMobile = (props) => {
                     gap: 0.75,
                     px: 1.5,
                     py: 1.25,
-                    height: 52,
+                    height: { xs: 52, md: 60 },
                     width: "100%",
                     borderRadius: "12px",
                     border: `1px solid ${borderColor || "#6D2323"}`,
@@ -827,6 +764,7 @@ const ApplicantFamilyBackgroundMobile = (props) => {
                     cursor: "pointer",
                     transition: "all 0.25s ease-in-out",
                     "&:hover": {
+                      transform: { md: "scale(1.04)" },
                       backgroundColor: settings?.header_color || "#6D2323",
                       "& .chip-icon": { color: "#fff" },
                       "& .chip-text": { color: "#fff" },
@@ -842,20 +780,15 @@ const ApplicantFamilyBackgroundMobile = (props) => {
                 >
                   <PictureAsPdfIcon
                     className="chip-icon"
-                    sx={{
-                      fontSize: 18,
-                      color: mainButtonColor || "#6D2323",
-                      flexShrink: 0,
-                    }}
+                    sx={{ fontSize: { xs: 18, md: 22 }, color: mainButtonColor || "#6D2323", flexShrink: 0 }}
                   />
                   <Typography
                     className="chip-text"
                     sx={{
-                      fontSize: 11,
+                      fontSize: { xs: 11, md: 13 },
                       fontWeight: 600,
                       color: mainButtonColor || "#6D2323",
                       fontFamily: "Poppins, sans-serif",
-                      whiteSpace: "normal",
                       lineHeight: 1.3,
                       textAlign: "center",
                     }}
@@ -869,19 +802,20 @@ const ApplicantFamilyBackgroundMobile = (props) => {
         </Box>
 
         {/* Form intro */}
-        <div style={{ padding: "16px 14px 0", textAlign: "center" }}>
-          <h1
-            style={{
-              fontSize: "28px",
+        <Box sx={{ px: { xs: "14px", md: 0 }, pt: 2, textAlign: "center" }}>
+          <Typography
+            component="h1"
+            sx={{
+              fontSize: { xs: "24px", sm: "32px", md: "42px" },
               fontWeight: "bold",
               textAlign: "center",
               color: subtitleColor,
-              marginTop: "20px",
+              mt: "20px",
             }}
           >
             APPLICANT FORM
-          </h1>
-          <div style={{ textAlign: "center", fontSize: 13, color: "#555" }}>
+          </Typography>
+          <Typography sx={{ fontSize: { xs: 13, md: 15 }, color: "#555" }}>
             Complete the applicant form to secure your place for the upcoming
             academic year at{" "}
             {shortTerm ? (
@@ -894,167 +828,241 @@ const ApplicantFamilyBackgroundMobile = (props) => {
               companyName || ""
             )}
             .
-          </div>
-        </div>
+          </Typography>
+        </Box>
 
         {/* Stepper */}
-        <Box sx={{ display: "flex", justifyContent: "center", width: "100%", px: 2, py: 1.5, borderBottom: "1px solid #e0e0e0" }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            width: "100%",
+            px: { xs: 2, md: 4 },
+            py: 1.5,
+            borderBottom: "1px solid #e0e0e0",
+            overflowX: "auto",
+          }}
+        >
           {stepsWithPaths.map((step, index) => (
             <React.Fragment key={index}>
-              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer" }} onClick={() => handleStepClick(index)}>
-                <Box sx={{
-                  width: 46, height: 46, borderRadius: "50%", border: `2px solid ${borderColor}`,
-                  backgroundColor: activeStep === index ? (settings?.header_color || "#6D2323") : "#E8C999",
-                  color: activeStep === index ? "#fff" : "#333",
-                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, transition: "all 0.2s",
-                }}>
+              <Box
+                sx={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer" }}
+                onClick={() => handleStepClick(index)}
+              >
+                <Box
+                  sx={{
+                    width: { xs: 42, md: 52 },
+                    height: { xs: 42, md: 52 },
+                    borderRadius: "50%",
+                    border: `2px solid ${borderColor}`,
+                    backgroundColor: activeStep === index ? (settings?.header_color || "#6D2323") : "#E8C999",
+                    color: activeStep === index ? "#fff" : "#333",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: { xs: 18, md: 22 },
+                    transition: "all 0.2s",
+                    flexShrink: 0,
+                  }}
+                >
                   {step.icon}
                 </Box>
-                <Typography sx={{ mt: 0.75, color: activeStep === index ? "#6D2323" : "#555", fontWeight: activeStep === index ? 700 : 400, fontSize: { xs: 10, sm: 12 }, textAlign: "center", maxWidth: 72, lineHeight: 1.3 }}>
+                <Typography
+                  sx={{
+                    mt: 0.75,
+                    color: activeStep === index ? "#6D2323" : "#555",
+                    fontWeight: activeStep === index ? 700 : 400,
+                    fontSize: { xs: 10, sm: 12, md: 13 },
+                    textAlign: "center",
+                    maxWidth: { xs: 64, md: 96 },
+                    lineHeight: 1.3,
+                  }}
+                >
                   {step.label}
                 </Typography>
               </Box>
               {index < stepsWithPaths.length - 1 && (
-                <Box sx={{ height: "2px", backgroundColor: mainButtonColor, flex: 1, alignSelf: "center", mx: 1, mb: 3 }} />
+                <Box
+                  sx={{
+                    height: "2px",
+                    backgroundColor: mainButtonColor,
+                    flex: 1,
+                    minWidth: { xs: 16, md: 32 },
+                    alignSelf: "center",
+                    mx: { xs: 0.75, md: 1.5 },
+                    mb: 3,
+                  }}
+                />
               )}
             </React.Fragment>
           ))}
         </Box>
 
-
-        {/* ── Solo Parent ────────────────────────────────────────────────────── */}
-        <div style={{ ...S.card, border: `1px solid ${borderColor}`, }}>
-          <div style={{ ...S.cardHeader, backgroundColor: settings?.header_color || "#1976d2" }}>
+        {/* ── Solo Parent ────────────────────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
             Family Information
-          </div>
-          <div style={S.cardBody}>
-            <label style={S.checkRow}>
-              <input
-                type="checkbox"
-                style={S.checkbox}
-                checked={person.solo_parent === 1}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  const newPerson = {
-                    ...person,
-                    solo_parent: checked ? 1 : 0,
-                    father_deceased:
-                      checked && soloParentChoice === "Mother" ? 1 : checked ? 0 : null,
-                    mother_deceased:
-                      checked && soloParentChoice === "Father" ? 1 : checked ? 0 : null,
-                  };
-                  setPerson(newPerson);
-                  handleUpdate(newPerson);
-                }}
-              />
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <CheckRow
+              checked={person.solo_parent === 1}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                const newPerson = {
+                  ...person,
+                  solo_parent: checked ? 1 : 0,
+                  father_deceased: checked && soloParentChoice === "Mother" ? 1 : checked ? 0 : null,
+                  mother_deceased: checked && soloParentChoice === "Father" ? 1 : checked ? 0 : null,
+                };
+                setPerson(newPerson);
+                handleUpdate(newPerson);
+              }}
+            >
               Solo Parent
-            </label>
+            </CheckRow>
 
             {person.solo_parent === 1 && (
-              <Field label="Solo Parent Type">
-                <MSelect
-                  value={soloParentChoice}
-                  onChange={(e) => {
-                    const choice = e.target.value;
-                    setSoloParentChoice(choice);
-                    const updated = {
-                      ...person,
-                      father_deceased: choice === "Mother" ? 1 : 0,
-                      mother_deceased: choice === "Father" ? 1 : 0,
-                    };
-                    setPerson(updated);
-                    handleUpdate(updated);
-                  }}
-                >
-                  <option value="">Select...</option>
-                  <option value="Father">Father (Mother is solo parent)</option>
-                  <option value="Mother">Mother (Father is solo parent)</option>
-                </MSelect>
-              </Field>
+              <Box sx={{ maxWidth: { md: 420 } }}>
+                <Field label="Solo Parent Type">
+                  <MSelect
+                    value={soloParentChoice}
+                    onChange={(e) => {
+                      const choice = e.target.value;
+                      setSoloParentChoice(choice);
+                      const updated = {
+                        ...person,
+                        father_deceased: choice === "Mother" ? 1 : 0,
+                        mother_deceased: choice === "Father" ? 1 : 0,
+                      };
+                      setPerson(updated);
+                      handleUpdate(updated);
+                    }}
+                  >
+                    <option value="">Select...</option>
+                    <option value="Father">Father (Mother is solo parent)</option>
+                    <option value="Mother">Mother (Father is solo parent)</option>
+                  </MSelect>
+                </Field>
+              </Box>
             )}
-          </div>
-        </div>
+          </Box>
+        </Box>
 
-        {/* ── Father's Details ───────────────────────────────────────────────── */}
-        <div style={{ ...S.card, border: `1px solid ${borderColor}`, }}>
-          <div style={{ ...S.cardHeader, backgroundColor: settings?.header_color || "#1976d2" }}>
+        {/* ── Father's Details ───────────────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
             Father's Details
-          </div>
-          <div style={S.cardBody}>
-            <label style={S.checkRow}>
-              <input
-                type="checkbox"
-                style={S.checkbox}
-                checked={person.father_deceased === 1}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  const updated = { ...person, father_deceased: checked ? 1 : 0 };
-                  setPerson(updated);
-                  handleUpdate(updated);
-                }}
-              />
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <CheckRow
+              checked={person.father_deceased === 1}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                const updated = { ...person, father_deceased: checked ? 1 : 0 };
+                setPerson(updated);
+                handleUpdate(updated);
+              }}
+            >
               Father Separated / Deceased
-            </label>
+            </CheckRow>
 
             {isFatherDeceased ? (
-              <div style={S.deceasedBanner}>
-                ⚠️ Father marked as separated/deceased. Fields hidden.
-              </div>
+              <DeceasedBanner>⚠️ Father marked as separated/deceased. Fields hidden.</DeceasedBanner>
             ) : (
               <>
-                <div style={S.row}>
-                  <div style={S.flex1}>
-                    <Field label="Last Name" required error={errors.father_family_name} helperText="Required">
-                      <MInput
-                        name="father_family_name"
-                        value={person.father_family_name || ""}
-                        onChange={handleChange}
-                        onBlur={() => handleUpdate(person)}
-                        error={errors.father_family_name}
-                        placeholder="Enter your Father Last Name"
-                      />
-                    </Field>
-                  </div>
-                  <div style={S.flex1}>
-                    <Field label="First Name" required error={errors.father_given_name} helperText="Required">
-                      <MInput
-                        name="father_given_name"
-                        value={person.father_given_name || ""}
-                        onChange={handleChange}
-                        onBlur={() => handleUpdate(person)}
-                        error={errors.father_given_name}
-                        placeholder="Enter your Father First Name"
-                      />
-                    </Field>
-                  </div>
+                <div style={gridCols2}>
+                  <Field label="Last Name" required error={errors.father_family_name} helperText="Required">
+                    <MInput
+                      name="father_family_name"
+                      value={person.father_family_name || ""}
+                      onChange={handleChange}
+                      onBlur={() => handleUpdate(person)}
+                      error={errors.father_family_name}
+                      placeholder="Enter your Father Last Name"
+                    />
+                  </Field>
+                  <Field label="First Name" required error={errors.father_given_name} helperText="Required">
+                    <MInput
+                      name="father_given_name"
+                      value={person.father_given_name || ""}
+                      onChange={handleChange}
+                      onBlur={() => handleUpdate(person)}
+                      error={errors.father_given_name}
+                      placeholder="Enter your Father First Name"
+                    />
+                  </Field>
                 </div>
 
-                <div style={S.row}>
-                  <div style={S.flex1}>
-                    <Field label="Middle Name">
-                      <MInput
-                        name="father_middle_name"
-                        value={person.father_middle_name || ""}
-                        onChange={handleChange}
-                        onBlur={() => handleUpdate(person)}
-                        placeholder="Enter your Father Middle Name"
-                      />
-                    </Field>
-                  </div>
-                  <div style={{ width: 110 }}>
-                    <Field label="Extension">
-                      <MSelect
-                        name="father_ext"
-                        value={person.father_ext || ""}
-                        onChange={handleChange}
-                        onBlur={() => handleUpdate(person)}
-                      >
-                        <option value="">None</option>
-                        {EXT_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
-                      </MSelect>
-                    </Field>
-                  </div>
-                </div>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: isPhone ? "1fr" : "1fr 140px",
+                    gap: 2,
+                  }}
+                >
+                  <Field label="Middle Name">
+                    <MInput
+                      name="father_middle_name"
+                      value={person.father_middle_name || ""}
+                      onChange={handleChange}
+                      onBlur={() => handleUpdate(person)}
+                      placeholder="Enter your Father Middle Name"
+                    />
+                  </Field>
+                  <Field label="Extension">
+                    <MSelect
+                      name="father_ext"
+                      value={person.father_ext || ""}
+                      onChange={handleChange}
+                      onBlur={() => handleUpdate(person)}
+                    >
+                      <option value="">None</option>
+                      {EXT_OPTIONS.map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </MSelect>
+                  </Field>
+                </Box>
 
                 <Field label="Nickname">
                   <MInput
@@ -1066,34 +1074,30 @@ const ApplicantFamilyBackgroundMobile = (props) => {
                   />
                 </Field>
 
-                {/* Father Education */}
-                <div style={S.subHeader}> Father's Educational Background</div>
-                <label style={S.checkRow}>
-                  <input
-                    type="checkbox"
-                    style={S.checkbox}
-                    checked={person.father_education === 1}
-                    onChange={(e) => {
-                      const isChecked = e.target.checked;
-                      const updated = {
-                        ...person,
-                        father_education: isChecked ? 1 : 0,
-                        ...(isChecked
-                          ? {
+                <SubHeader>Father's Educational Background</SubHeader>
+                <CheckRow
+                  checked={person.father_education === 1}
+                  onChange={(e) => {
+                    const isChecked = e.target.checked;
+                    const updated = {
+                      ...person,
+                      father_education: isChecked ? 1 : 0,
+                      ...(isChecked
+                        ? {
                             father_education_level: "",
                             father_last_school: "",
                             father_course: "",
                             father_year_graduated: "",
                             father_school_address: "",
                           }
-                          : {}),
-                      };
-                      setPerson(updated);
-                      handleUpdate(updated);
-                    }}
-                  />
+                        : {}),
+                    };
+                    setPerson(updated);
+                    handleUpdate(updated);
+                  }}
+                >
                   Father's education not applicable
-                </label>
+                </CheckRow>
 
                 {person.father_education !== 1 && (
                   <>
@@ -1107,235 +1111,236 @@ const ApplicantFamilyBackgroundMobile = (props) => {
                         placeholder="Enter your Father Education Level"
                       />
                     </Field>
-                    <div style={S.row}>
-                      <div style={S.flex1}>
-                        <Field label="Last School Attended" required error={errors.father_last_school} helperText="Required">
-                          <MInput
-                            name="father_last_school"
-                            value={person.father_last_school || ""}
-                            onChange={handleChange}
-                            onBlur={() => handleUpdate(person)}
-                            error={errors.father_last_school}
-                            placeholder="Enter your Father Last School"
-                          />
-                        </Field>
-                      </div>
-                      <div style={S.flex1}>
-                        <Field label="Course" required error={errors.father_course} helperText="Required">
-                          <MInput
-                            name="father_course"
-                            value={person.father_course || ""}
-                            onChange={handleChange}
-                            onBlur={() => handleUpdate(person)}
-                            error={errors.father_course}
-                            placeholder="Enter your Father Course"
-                          />
-                        </Field>
-                      </div>
+                    <div style={gridCols2}>
+                      <Field label="Last School Attended" required error={errors.father_last_school} helperText="Required">
+                        <MInput
+                          name="father_last_school"
+                          value={person.father_last_school || ""}
+                          onChange={handleChange}
+                          onBlur={() => handleUpdate(person)}
+                          error={errors.father_last_school}
+                          placeholder="Enter your Father Last School"
+                        />
+                      </Field>
+                      <Field label="Course" required error={errors.father_course} helperText="Required">
+                        <MInput
+                          name="father_course"
+                          value={person.father_course || ""}
+                          onChange={handleChange}
+                          onBlur={() => handleUpdate(person)}
+                          error={errors.father_course}
+                          placeholder="Enter your Father Course"
+                        />
+                      </Field>
                     </div>
-                    <div style={S.row}>
-                      <div style={S.flex1}>
-                        <Field label="Year Graduated" required error={errors.father_year_graduated} helperText="Required">
-                          <MInput
-                            type="number"
-                            name="father_year_graduated"
-                            value={person.father_year_graduated || ""}
-                            onChange={handleChange}
-                            onBlur={() => handleUpdate(person)}
-                            error={errors.father_year_graduated}
-                            placeholder="Enter your Father Year Graduated"
-                          />
-                        </Field>
-                      </div>
-                      <div style={S.flex1}>
-                        <Field label="School Address" required error={errors.father_school_address} helperText="Required">
-                          <MInput
-                            name="father_school_address"
-                            value={person.father_school_address || ""}
-                            onChange={handleChange}
-                            onBlur={() => handleUpdate(person)}
-                            error={errors.father_school_address}
-                            placeholder="Enter your Father School Address"
-                          />
-                        </Field>
-                      </div>
+                    <div style={gridCols2}>
+                      <Field label="Year Graduated" required error={errors.father_year_graduated} helperText="Required">
+                        <MInput
+                          type="number"
+                          name="father_year_graduated"
+                          value={person.father_year_graduated || ""}
+                          onChange={handleChange}
+                          onBlur={() => handleUpdate(person)}
+                          error={errors.father_year_graduated}
+                          placeholder="Enter your Father Year Graduated"
+                        />
+                      </Field>
+                      <Field label="School Address" required error={errors.father_school_address} helperText="Required">
+                        <MInput
+                          name="father_school_address"
+                          value={person.father_school_address || ""}
+                          onChange={handleChange}
+                          onBlur={() => handleUpdate(person)}
+                          error={errors.father_school_address}
+                          placeholder="Enter your Father School Address"
+                        />
+                      </Field>
                     </div>
                   </>
                 )}
 
-                {/* Father Contact */}
-                <div style={S.subHeader}> Father's Contact Information</div>
-                <div style={S.row}>
-                  <div style={S.flex1}>
-                    <Field label="Contact Number" required error={errors.father_contact} helperText="Required">
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontWeight: 700, fontSize: 13, flexShrink: 0 }}>+63</span>
-                        <MInput
-                          name="father_contact"
-                          value={person.father_contact || ""}
-                          onChange={(e) =>
-                            handleChange({
-                              target: { name: "father_contact", value: e.target.value.replace(/\D/g, "") },
-                            })
-                          }
-                          onBlur={() => handleUpdate(person)}
-                          error={errors.father_contact}
-                          placeholder="9XXXXXXXXX"
-                          maxLength={10}
-                          style={{ flex: 1 }}
-                        />
-                      </div>
-                    </Field>
-                  </div>
-                  <div style={S.flex1}>
-                    <Field label="Occupation" required error={errors.father_occupation} helperText="Required">
+                <SubHeader>Father's Contact Information</SubHeader>
+                <div style={gridCols2}>
+                  <Field label="Contact Number" required error={errors.father_contact} helperText="Required">
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, flexShrink: 0 }}>+63</span>
                       <MInput
-                        name="father_occupation"
-                        value={person.father_occupation || ""}
-                        onChange={handleChange}
-                        onBlur={() => handleUpdate(person)}
-                        error={errors.father_occupation}
-                        placeholder="Enter your Father Occupation"
-                      />
-                    </Field>
-                  </div>
-                </div>
-                <div style={S.row}>
-                  <div style={S.flex1}>
-                    <Field label="Employer" required error={errors.father_employer} helperText="Required">
-                      <MInput
-                        name="father_employer"
-                        value={person.father_employer || ""}
-                        onChange={handleChange}
-                        onBlur={() => handleUpdate(person)}
-                        error={errors.father_employer}
-                        placeholder="Enter your Father Employer"
-                      />
-                    </Field>
-                  </div>
-                  <div style={S.flex1}>
-                    <Field label="Monthly Income" required error={errors.father_income} helperText="Required">
-                      <MInput
-                        type="number"
-                        name="father_income"
-                        value={person.father_income ?? ""}
+                        name="father_contact"
+                        value={person.father_contact || ""}
                         onChange={(e) =>
                           handleChange({
-                            target: {
-                              name: "father_income",
-                              value: e.target.value === "" ? null : Number(e.target.value),
-                            },
+                            target: { name: "father_contact", value: e.target.value.replace(/\D/g, "") },
                           })
                         }
                         onBlur={() => handleUpdate(person)}
-                        error={errors.father_income}
-                        placeholder="Enter your Father Income"
+                        error={errors.father_contact}
+                        placeholder="9XXXXXXXXX"
+                        maxLength={10}
+                        style={{ flex: 1 }}
                       />
-                    </Field>
-                  </div>
+                    </div>
+                  </Field>
+                  <Field label="Occupation" required error={errors.father_occupation} helperText="Required">
+                    <MInput
+                      name="father_occupation"
+                      value={person.father_occupation || ""}
+                      onChange={handleChange}
+                      onBlur={() => handleUpdate(person)}
+                      error={errors.father_occupation}
+                      placeholder="Enter your Father Occupation"
+                    />
+                  </Field>
                 </div>
-                <Field label="Email Address">
-                  <MInput
-                    name="father_email"
-                    value={person.father_email || ""}
-                    onChange={(e) =>
-                      handleChange({ target: { name: "father_email", value: e.target.value.replace(/\s/g, "") } })
-                    }
-                    onBlur={(e) => {
-                      let value = e.target.value.trim();
-                      if (value && !value.includes("@")) value += "@gmail.com";
-                      handleChange({ target: { name: "father_email", value } });
-                      handleUpdate(person);
-                    }}
-                    placeholder="Enter your Father Email Address"
-                    type="email"
-                  />
-                </Field>
+                <div style={gridCols2}>
+                  <Field label="Employer" required error={errors.father_employer} helperText="Required">
+                    <MInput
+                      name="father_employer"
+                      value={person.father_employer || ""}
+                      onChange={handleChange}
+                      onBlur={() => handleUpdate(person)}
+                      error={errors.father_employer}
+                      placeholder="Enter your Father Employer"
+                    />
+                  </Field>
+                  <Field label="Monthly Income" required error={errors.father_income} helperText="Required">
+                    <MInput
+                      type="number"
+                      name="father_income"
+                      value={person.father_income ?? ""}
+                      onChange={(e) =>
+                        handleChange({
+                          target: {
+                            name: "father_income",
+                            value: e.target.value === "" ? null : Number(e.target.value),
+                          },
+                        })
+                      }
+                      onBlur={() => handleUpdate(person)}
+                      error={errors.father_income}
+                      placeholder="Enter your Father Income"
+                    />
+                  </Field>
+                </div>
+                <Box sx={{ maxWidth: { md: 480 } }}>
+                  <Field label="Email Address">
+                    <MInput
+                      name="father_email"
+                      value={person.father_email || ""}
+                      onChange={(e) =>
+                        handleChange({ target: { name: "father_email", value: e.target.value.replace(/\s/g, "") } })
+                      }
+                      onBlur={(e) => {
+                        let value = e.target.value.trim();
+                        if (value && !value.includes("@")) value += "@gmail.com";
+                        handleChange({ target: { name: "father_email", value } });
+                        handleUpdate(person);
+                      }}
+                      placeholder="Enter your Father Email Address"
+                      type="email"
+                    />
+                  </Field>
+                </Box>
               </>
             )}
-          </div>
-        </div>
+          </Box>
+        </Box>
 
-        {/* ── Mother's Details ───────────────────────────────────────────────── */}
-        <div style={{ ...S.card, border: `1px solid ${borderColor}`, }}>
-          <div style={{ ...S.cardHeader, backgroundColor: settings?.header_color || "#1976d2" }}>
+        {/* ── Mother's Details ───────────────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
             Mother's Details (Maiden)
-          </div>
-          <div style={S.cardBody}>
-            <label style={S.checkRow}>
-              <input
-                type="checkbox"
-                style={S.checkbox}
-                checked={person.mother_deceased === 1}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  const updated = { ...person, mother_deceased: checked ? 1 : 0 };
-                  setPerson(updated);
-                  handleUpdate(updated);
-                }}
-              />
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <CheckRow
+              checked={person.mother_deceased === 1}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                const updated = { ...person, mother_deceased: checked ? 1 : 0 };
+                setPerson(updated);
+                handleUpdate(updated);
+              }}
+            >
               Mother Separated / Deceased
-            </label>
+            </CheckRow>
 
             {isMotherDeceased ? (
-              <div style={S.deceasedBanner}>
-                ⚠️ Mother marked as separated/deceased. Fields hidden.
-              </div>
+              <DeceasedBanner>⚠️ Mother marked as separated/deceased. Fields hidden.</DeceasedBanner>
             ) : (
               <>
-                <div style={S.row}>
-                  <div style={S.flex1}>
-                    <Field label="Last Name" required error={errors.mother_family_name} helperText="Required">
-                      <MInput
-                        name="mother_family_name"
-                        value={person.mother_family_name || ""}
-                        onChange={handleChange}
-                        onBlur={() => handleUpdate(person)}
-                        error={errors.mother_family_name}
-                        placeholder="Enter your Mother Last Name"
-                      />
-                    </Field>
-                  </div>
-                  <div style={S.flex1}>
-                    <Field label="First Name" required error={errors.mother_given_name} helperText="Required">
-                      <MInput
-                        name="mother_given_name"
-                        value={person.mother_given_name || ""}
-                        onChange={handleChange}
-                        onBlur={() => handleUpdate(person)}
-                        error={errors.mother_given_name}
-                        placeholder="Enter your Mother First Name"
-                      />
-                    </Field>
-                  </div>
+                <div style={gridCols2}>
+                  <Field label="Last Name" required error={errors.mother_family_name} helperText="Required">
+                    <MInput
+                      name="mother_family_name"
+                      value={person.mother_family_name || ""}
+                      onChange={handleChange}
+                      onBlur={() => handleUpdate(person)}
+                      error={errors.mother_family_name}
+                      placeholder="Enter your Mother Last Name"
+                    />
+                  </Field>
+                  <Field label="First Name" required error={errors.mother_given_name} helperText="Required">
+                    <MInput
+                      name="mother_given_name"
+                      value={person.mother_given_name || ""}
+                      onChange={handleChange}
+                      onBlur={() => handleUpdate(person)}
+                      error={errors.mother_given_name}
+                      placeholder="Enter your Mother First Name"
+                    />
+                  </Field>
                 </div>
 
-                <div style={S.row}>
-                  <div style={S.flex1}>
-                    <Field label="Middle Name">
-                      <MInput
-                        name="mother_middle_name"
-                        value={person.mother_middle_name || ""}
-                        onChange={handleChange}
-                        onBlur={() => handleUpdate(person)}
-                        placeholder="Enter your Mother Middle Name"
-                      />
-                    </Field>
-                  </div>
-                  <div style={{ width: 110 }}>
-                    <Field label="Extension">
-                      <MSelect
-                        name="mother_ext"
-                        value={person.mother_ext || ""}
-                        onChange={handleChange}
-                        onBlur={() => handleUpdate(person)}
-                      >
-                        <option value="">None</option>
-                        {EXT_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
-                      </MSelect>
-                    </Field>
-                  </div>
-                </div>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: isPhone ? "1fr" : "1fr 140px",
+                    gap: 2,
+                  }}
+                >
+                  <Field label="Middle Name">
+                    <MInput
+                      name="mother_middle_name"
+                      value={person.mother_middle_name || ""}
+                      onChange={handleChange}
+                      onBlur={() => handleUpdate(person)}
+                      placeholder="Enter your Mother Middle Name"
+                    />
+                  </Field>
+                  <Field label="Extension">
+                    <MSelect
+                      name="mother_ext"
+                      value={person.mother_ext || ""}
+                      onChange={handleChange}
+                      onBlur={() => handleUpdate(person)}
+                    >
+                      <option value="">None</option>
+                      {EXT_OPTIONS.map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </MSelect>
+                  </Field>
+                </Box>
 
                 <Field label="Nickname">
                   <MInput
@@ -1347,34 +1352,30 @@ const ApplicantFamilyBackgroundMobile = (props) => {
                   />
                 </Field>
 
-                {/* Mother Education */}
-                <div style={S.subHeader}> Mother's Educational Background</div>
-                <label style={S.checkRow}>
-                  <input
-                    type="checkbox"
-                    style={S.checkbox}
-                    checked={person.mother_education === 1}
-                    onChange={(e) => {
-                      const isChecked = e.target.checked;
-                      const updated = {
-                        ...person,
-                        mother_education: isChecked ? 1 : 0,
-                        ...(isChecked
-                          ? {
+                <SubHeader>Mother's Educational Background</SubHeader>
+                <CheckRow
+                  checked={person.mother_education === 1}
+                  onChange={(e) => {
+                    const isChecked = e.target.checked;
+                    const updated = {
+                      ...person,
+                      mother_education: isChecked ? 1 : 0,
+                      ...(isChecked
+                        ? {
                             mother_education_level: "",
                             mother_last_school: "",
                             mother_course: "",
                             mother_year_graduated: "",
                             mother_school_address: "",
                           }
-                          : {}),
-                      };
-                      setPerson(updated);
-                      handleUpdate(updated);
-                    }}
-                  />
+                        : {}),
+                    };
+                    setPerson(updated);
+                    handleUpdate(updated);
+                  }}
+                >
                   Mother's education not applicable
-                </label>
+                </CheckRow>
 
                 {person.mother_education !== 1 && (
                   <>
@@ -1388,399 +1389,489 @@ const ApplicantFamilyBackgroundMobile = (props) => {
                         placeholder="Enter your Mother Education Level"
                       />
                     </Field>
-                    <div style={S.row}>
-                      <div style={S.flex1}>
-                        <Field label="Last School Attended" required error={errors.mother_last_school} helperText="Required">
-                          <MInput
-                            name="mother_last_school"
-                            value={person.mother_last_school || ""}
-                            onChange={handleChange}
-                            onBlur={() => handleUpdate(person)}
-                            error={errors.mother_last_school}
-                            placeholder="Enter your Mother Last School"
-                          />
-                        </Field>
-                      </div>
-                      <div style={S.flex1}>
-                        <Field label="Course" required error={errors.mother_course} helperText="Required">
-                          <MInput
-                            name="mother_course"
-                            value={person.mother_course || ""}
-                            onChange={handleChange}
-                            onBlur={() => handleUpdate(person)}
-                            error={errors.mother_course}
-                            placeholder="Enter your Mother Course"
-                          />
-                        </Field>
-                      </div>
+                    <div style={gridCols2}>
+                      <Field label="Last School Attended" required error={errors.mother_last_school} helperText="Required">
+                        <MInput
+                          name="mother_last_school"
+                          value={person.mother_last_school || ""}
+                          onChange={handleChange}
+                          onBlur={() => handleUpdate(person)}
+                          error={errors.mother_last_school}
+                          placeholder="Enter your Mother Last School"
+                        />
+                      </Field>
+                      <Field label="Course" required error={errors.mother_course} helperText="Required">
+                        <MInput
+                          name="mother_course"
+                          value={person.mother_course || ""}
+                          onChange={handleChange}
+                          onBlur={() => handleUpdate(person)}
+                          error={errors.mother_course}
+                          placeholder="Enter your Mother Course"
+                        />
+                      </Field>
                     </div>
-                    <div style={S.row}>
-                      <div style={S.flex1}>
-                        <Field label="Year Graduated" required error={errors.mother_year_graduated} helperText="Required">
-                          <MInput
-                            type="number"
-                            name="mother_year_graduated"
-                            value={person.mother_year_graduated || ""}
-                            onChange={handleChange}
-                            onBlur={() => handleUpdate(person)}
-                            error={errors.mother_year_graduated}
-                            placeholder="Enter your Mother Year Graduated"
-                          />
-                        </Field>
-                      </div>
-                      <div style={S.flex1}>
-                        <Field label="School Address" required error={errors.mother_school_address} helperText="Required">
-                          <MInput
-                            name="mother_school_address"
-                            value={person.mother_school_address || ""}
-                            onChange={handleChange}
-                            onBlur={() => handleUpdate(person)}
-                            error={errors.mother_school_address}
-                            placeholder="Enter your Mother School Address"
-                          />
-                        </Field>
-                      </div>
+                    <div style={gridCols2}>
+                      <Field label="Year Graduated" required error={errors.mother_year_graduated} helperText="Required">
+                        <MInput
+                          type="number"
+                          name="mother_year_graduated"
+                          value={person.mother_year_graduated || ""}
+                          onChange={handleChange}
+                          onBlur={() => handleUpdate(person)}
+                          error={errors.mother_year_graduated}
+                          placeholder="Enter your Mother Year Graduated"
+                        />
+                      </Field>
+                      <Field label="School Address" required error={errors.mother_school_address} helperText="Required">
+                        <MInput
+                          name="mother_school_address"
+                          value={person.mother_school_address || ""}
+                          onChange={handleChange}
+                          onBlur={() => handleUpdate(person)}
+                          error={errors.mother_school_address}
+                          placeholder="Enter your Mother School Address"
+                        />
+                      </Field>
                     </div>
                   </>
                 )}
 
-                {/* Mother Contact */}
-                <div style={S.subHeader}> Mother's Contact Information</div>
-                <div style={S.row}>
-                  <div style={S.flex1}>
-                    <Field label="Contact Number" required error={errors.mother_contact} helperText="Required">
-                      <MInput
-                        name="mother_contact"
-                        value={person.mother_contact || ""}
-                        onChange={(e) =>
-                          handleChange({
-                            target: { name: "mother_contact", value: e.target.value.replace(/\D/g, "") },
-                          })
-                        }
-                        onBlur={() => handleUpdate(person)}
-                        error={errors.mother_contact}
-                        placeholder="9XXXXXXXXX"
-                      />
-                    </Field>
-                  </div>
-                  <div style={S.flex1}>
-                    <Field label="Occupation" required error={errors.mother_occupation} helperText="Required">
-                      <MInput
-                        name="mother_occupation"
-                        value={person.mother_occupation || ""}
-                        onChange={handleChange}
-                        onBlur={() => handleUpdate(person)}
-                        error={errors.mother_occupation}
-                        placeholder="Enter your Mother Occupation"
-                      />
-                    </Field>
-                  </div>
+                <SubHeader>Mother's Contact Information</SubHeader>
+                <div style={gridCols2}>
+                  <Field label="Contact Number" required error={errors.mother_contact} helperText="Required">
+                    <MInput
+                      name="mother_contact"
+                      value={person.mother_contact || ""}
+                      onChange={(e) =>
+                        handleChange({
+                          target: { name: "mother_contact", value: e.target.value.replace(/\D/g, "") },
+                        })
+                      }
+                      onBlur={() => handleUpdate(person)}
+                      error={errors.mother_contact}
+                      placeholder="9XXXXXXXXX"
+                    />
+                  </Field>
+                  <Field label="Occupation" required error={errors.mother_occupation} helperText="Required">
+                    <MInput
+                      name="mother_occupation"
+                      value={person.mother_occupation || ""}
+                      onChange={handleChange}
+                      onBlur={() => handleUpdate(person)}
+                      error={errors.mother_occupation}
+                      placeholder="Enter your Mother Occupation"
+                    />
+                  </Field>
                 </div>
-                <div style={S.row}>
-                  <div style={S.flex1}>
-                    <Field label="Employer" required error={errors.mother_employer} helperText="Required">
-                      <MInput
-                        name="mother_employer"
-                        value={person.mother_employer || ""}
-                        onChange={handleChange}
-                        onBlur={() => handleUpdate(person)}
-                        error={errors.mother_employer}
-                        placeholder="Enter your Mother Employer"
-                      />
-                    </Field>
-                  </div>
-                  <div style={S.flex1}>
-                    <Field label="Monthly Income" required error={errors.mother_income} helperText="Required">
-                      <MInput
-                        type="number"
-                        name="mother_income"
-                        value={person.mother_income ?? ""}
-                        onChange={(e) =>
-                          handleChange({
-                            target: {
-                              name: "mother_income",
-                              value: e.target.value === "" ? null : Number(e.target.value),
-                            },
-                          })
-                        }
-                        onBlur={() => handleUpdate(person)}
-                        error={errors.mother_income}
-                        placeholder="Enter your Mother Income"
-                      />
-                    </Field>
-                  </div>
+                <div style={gridCols2}>
+                  <Field label="Employer" required error={errors.mother_employer} helperText="Required">
+                    <MInput
+                      name="mother_employer"
+                      value={person.mother_employer || ""}
+                      onChange={handleChange}
+                      onBlur={() => handleUpdate(person)}
+                      error={errors.mother_employer}
+                      placeholder="Enter your Mother Employer"
+                    />
+                  </Field>
+                  <Field label="Monthly Income" required error={errors.mother_income} helperText="Required">
+                    <MInput
+                      type="number"
+                      name="mother_income"
+                      value={person.mother_income ?? ""}
+                      onChange={(e) =>
+                        handleChange({
+                          target: {
+                            name: "mother_income",
+                            value: e.target.value === "" ? null : Number(e.target.value),
+                          },
+                        })
+                      }
+                      onBlur={() => handleUpdate(person)}
+                      error={errors.mother_income}
+                      placeholder="Enter your Mother Income"
+                    />
+                  </Field>
                 </div>
-                <Field label="Email Address">
-                  <MInput
-                    name="mother_email"
-                    value={person.mother_email || ""}
-                    onChange={(e) =>
-                      handleChange({ target: { name: "mother_email", value: e.target.value.replace(/\s/g, "") } })
-                    }
-                    onBlur={(e) => {
-                      let value = e.target.value.trim();
-                      if (value && !value.includes("@")) value += "@gmail.com";
-                      handleChange({ target: { name: "mother_email", value } });
-                      handleUpdate(person);
-                    }}
-                    placeholder="Enter your Mother Email Address"
-                    type="email"
-                  />
-                </Field>
+                <Box sx={{ maxWidth: { md: 480 } }}>
+                  <Field label="Email Address">
+                    <MInput
+                      name="mother_email"
+                      value={person.mother_email || ""}
+                      onChange={(e) =>
+                        handleChange({ target: { name: "mother_email", value: e.target.value.replace(/\s/g, "") } })
+                      }
+                      onBlur={(e) => {
+                        let value = e.target.value.trim();
+                        if (value && !value.includes("@")) value += "@gmail.com";
+                        handleChange({ target: { name: "mother_email", value } });
+                        handleUpdate(person);
+                      }}
+                      placeholder="Enter your Mother Email Address"
+                      type="email"
+                    />
+                  </Field>
+                </Box>
               </>
             )}
-          </div>
-        </div>
+          </Box>
+        </Box>
 
-        {/* ── Guardian ───────────────────────────────────────────────────────── */}
-        <div style={{ ...S.card, border: `1px solid ${borderColor}`, }}>
-          <div style={{ ...S.cardHeader, backgroundColor: settings?.header_color || "#1976d2" }}>
+        {/* ── Guardian ───────────────────────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
             In Case of Emergency — Guardian
-          </div>
-          <div style={S.cardBody}>
-            <Field label="Guardian Relationship" required error={errors.guardian} helperText="This field is required.">
-              <MSelect
-                name="guardian"
-                value={person.guardian || ""}
-                onChange={handleGuardianChange}
-                onBlur={() => handleUpdate(person)}
-                error={errors.guardian}
-              >
-                <option value="">Select Guardian</option>
-                {[
-                  "Father", "Mother", "Brother/Sister", "Uncle", "Aunt",
-                  "StepFather", "StepMother", "Cousin", "Father in Law",
-                  "Mother in Law", "Sister in Law", "GrandMother", "GrandFather",
-                  "Spouse", "Others",
-                ].map((v) => <option key={v} value={v}>{v}</option>)}
-              </MSelect>
-            </Field>
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <Box sx={{ maxWidth: { md: 420 } }}>
+              <Field label="Guardian Relationship" required error={errors.guardian} helperText="This field is required.">
+                <MSelect
+                  name="guardian"
+                  value={person.guardian || ""}
+                  onChange={handleGuardianChange}
+                  onBlur={() => handleUpdate(person)}
+                  error={errors.guardian}
+                >
+                  <option value="">Select Guardian</option>
+                  {[
+                    "Father",
+                    "Mother",
+                    "Brother/Sister",
+                    "Uncle",
+                    "Aunt",
+                    "StepFather",
+                    "StepMother",
+                    "Cousin",
+                    "Father in Law",
+                    "Mother in Law",
+                    "Sister in Law",
+                    "GrandMother",
+                    "GrandFather",
+                    "Spouse",
+                    "Others",
+                  ].map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </MSelect>
+              </Field>
+            </Box>
 
-            <div style={S.row}>
-              <div style={S.flex1}>
-                <Field label="Last Name" required error={errors.guardian_family_name} helperText="Required">
-                  <MInput
-                    name="guardian_family_name"
-                    value={person.guardian_family_name || ""}
-                    onChange={handleChange}
-                    onBlur={() => handleUpdate(person)}
-                    error={errors.guardian_family_name}
-                    placeholder="Enter your Guardian Last Name"
-                  />
-                </Field>
-              </div>
-              <div style={S.flex1}>
-                <Field label="First Name" required error={errors.guardian_given_name} helperText="Required">
-                  <MInput
-                    name="guardian_given_name"
-                    value={person.guardian_given_name || ""}
-                    onChange={handleChange}
-                    onBlur={() => handleUpdate(person)}
-                    error={errors.guardian_given_name}
-                    placeholder="Enter your Guardian First Name"
-                  />
-                </Field>
-              </div>
+            <div style={gridCols2}>
+              <Field label="Last Name" required error={errors.guardian_family_name} helperText="Required">
+                <MInput
+                  name="guardian_family_name"
+                  value={person.guardian_family_name || ""}
+                  onChange={handleChange}
+                  onBlur={() => handleUpdate(person)}
+                  error={errors.guardian_family_name}
+                  placeholder="Enter your Guardian Last Name"
+                />
+              </Field>
+              <Field label="First Name" required error={errors.guardian_given_name} helperText="Required">
+                <MInput
+                  name="guardian_given_name"
+                  value={person.guardian_given_name || ""}
+                  onChange={handleChange}
+                  onBlur={() => handleUpdate(person)}
+                  error={errors.guardian_given_name}
+                  placeholder="Enter your Guardian First Name"
+                />
+              </Field>
             </div>
 
-            <div style={S.row}>
-              <div style={S.flex1}>
-                <Field label="Middle Name">
-                  <MInput
-                    name="guardian_middle_name"
-                    value={person.guardian_middle_name || ""}
-                    onChange={handleChange}
-                    onBlur={() => handleUpdate(person)}
-                    placeholder="Enter your Guardian Middle Name"
-                  />
-                </Field>
-              </div>
-              <div style={{ width: 110 }}>
-                <Field label="Extension">
-                  <MSelect
-                    name="guardian_ext"
-                    value={person.guardian_ext || ""}
-                    onChange={handleChange}
-                    onBlur={() => handleUpdate(person)}
-                  >
-                    <option value="">None</option>
-                    {EXT_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
-                  </MSelect>
-                </Field>
-              </div>
-            </div>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: isPhone ? "1fr" : "1fr 140px",
+                gap: 2,
+              }}
+            >
+              <Field label="Middle Name">
+                <MInput
+                  name="guardian_middle_name"
+                  value={person.guardian_middle_name || ""}
+                  onChange={handleChange}
+                  onBlur={() => handleUpdate(person)}
+                  placeholder="Enter your Guardian Middle Name"
+                />
+              </Field>
+              <Field label="Extension">
+                <MSelect
+                  name="guardian_ext"
+                  value={person.guardian_ext || ""}
+                  onChange={handleChange}
+                  onBlur={() => handleUpdate(person)}
+                >
+                  <option value="">None</option>
+                  {EXT_OPTIONS.map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </MSelect>
+              </Field>
+            </Box>
 
-            <Field label="Nickname">
-              <MInput
-                name="guardian_nickname"
-                value={person.guardian_nickname || ""}
-                onChange={handleChange}
-                onBlur={() => handleUpdate(person)}
-                placeholder="Enter your Guardian Nickname"
-              />
-            </Field>
+            <Box sx={{ maxWidth: { md: 480 } }}>
+              <Field label="Nickname">
+                <MInput
+                  name="guardian_nickname"
+                  value={person.guardian_nickname || ""}
+                  onChange={handleChange}
+                  onBlur={() => handleUpdate(person)}
+                  placeholder="Enter your Guardian Nickname"
+                />
+              </Field>
 
-            <Field label="Complete Address" required error={errors.guardian_address} helperText="This field is required.">
-              <MInput
-                name="guardian_address"
-                value={person.guardian_address || ""}
-                onChange={handleChange}
-                onBlur={() => handleUpdate(person)}
+              <Field
+                label="Complete Address"
+                required
                 error={errors.guardian_address}
-                placeholder="Enter your Guardian Address"
-              />
-            </Field>
-
-            <div style={S.row}>
-              <div style={S.flex1}>
-                <Field label="Contact Number" required error={errors.guardian_contact} helperText="Required">
-                  <MInput
-                    name="guardian_contact"
-                    value={person.guardian_contact || ""}
-                    onChange={(e) =>
-                      handleChange({
-                        target: { name: "guardian_contact", value: e.target.value.replace(/\D/g, "") },
-                      })
-                    }
-                    onBlur={() => handleUpdate(person)}
-                    error={errors.guardian_contact}
-                    placeholder="9XXXXXXXXX"
-                  />
-                </Field>
-              </div>
-              <div style={S.flex1}>
-                <Field label="Email Address">
-                  <MInput
-                    name="guardian_email"
-                    value={person.guardian_email || ""}
-                    onChange={(e) =>
-                      handleChange({ target: { name: "guardian_email", value: e.target.value.replace(/\s/g, "") } })
-                    }
-                    onBlur={(e) => {
-                      let value = e.target.value.trim();
-                      if (value && !value.includes("@")) value += "@gmail.com";
-                      handleChange({ target: { name: "guardian_email", value } });
-                      handleUpdate(person);
-                    }}
-                    placeholder="Enter your Guardian Email Address"
-                    type="email"
-                  />
-                </Field>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Annual Income ──────────────────────────────────────────────────── */}
-        <div style={{ ...S.card, border: `1px solid ${borderColor}`, }}>
-          <div style={{ ...S.cardHeader, backgroundColor: settings?.header_color || "#1976d2" }}>
-            Family Annual Income
-          </div>
-          <div style={S.cardBody}>
-
-            <Field label="Annual Income Bracket" required error={errors.annual_income} helperText="This field is required.">
-              <MSelect
-                name="annual_income"
-                value={person.annual_income || ""}
-                onChange={handleChange}
-                onBlur={() => handleUpdate(person)}
-                error={errors.annual_income}
+                helperText="This field is required."
               >
-                <option value="">Select Annual Income</option>
-                {[
-                  "80,000 and below",
-                  "80,000 to 135,000",
-                  "135,000 to 250,000",
-                  "250,000 to 500,000",
-                  "500,000 to 1,000,000",
-                  "1,000,000 and above",
-                ].map((v) => <option key={v} value={v}>{v}</option>)}
-              </MSelect>
-            </Field>
+                <MInput
+                  name="guardian_address"
+                  value={person.guardian_address || ""}
+                  onChange={handleChange}
+                  onBlur={() => handleUpdate(person)}
+                  error={errors.guardian_address}
+                  placeholder="Enter your Guardian Address"
+                />
+              </Field>
+            </Box>
 
-            <Box display="flex" justifyContent="space-between" mt={4}>
+            <div style={gridCols2}>
+              <Field label="Contact Number" required error={errors.guardian_contact} helperText="Required">
+                <MInput
+                  name="guardian_contact"
+                  value={person.guardian_contact || ""}
+                  onChange={(e) =>
+                    handleChange({
+                      target: { name: "guardian_contact", value: e.target.value.replace(/\D/g, "") },
+                    })
+                  }
+                  onBlur={() => handleUpdate(person)}
+                  error={errors.guardian_contact}
+                  placeholder="9XXXXXXXXX"
+                />
+              </Field>
+              <Field label="Email Address">
+                <MInput
+                  name="guardian_email"
+                  value={person.guardian_email || ""}
+                  onChange={(e) =>
+                    handleChange({ target: { name: "guardian_email", value: e.target.value.replace(/\s/g, "") } })
+                  }
+                  onBlur={(e) => {
+                    let value = e.target.value.trim();
+                    if (value && !value.includes("@")) value += "@gmail.com";
+                    handleChange({ target: { name: "guardian_email", value } });
+                    handleUpdate(person);
+                  }}
+                  placeholder="Enter your Guardian Email Address"
+                  type="email"
+                />
+              </Field>
+            </div>
+          </Box>
+        </Box>
+
+        {/* ── Annual Income + Navigation ───────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            mb: 3,
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
+            Family Annual Income
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <Box sx={{ maxWidth: { md: 420 } }}>
+              <Field
+                label="Annual Income Bracket"
+                required
+                error={errors.annual_income}
+                helperText="This field is required."
+              >
+                <MSelect
+                  name="annual_income"
+                  value={person.annual_income || ""}
+                  onChange={handleChange}
+                  onBlur={() => handleUpdate(person)}
+                  error={errors.annual_income}
+                >
+                  <option value="">Select Annual Income</option>
+                  {[
+                    "80,000 and below",
+                    "80,000 to 135,000",
+                    "135,000 to 250,000",
+                    "250,000 to 500,000",
+                    "500,000 to 1,000,000",
+                    "1,000,000 and above",
+                  ].map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </MSelect>
+              </Field>
+            </Box>
+
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column-reverse", sm: "row" },
+                justifyContent: "space-between",
+                gap: 1.5,
+                mt: 3,
+              }}
+            >
               <Button
+                fullWidth={isPhone}
                 variant="contained"
                 onClick={() => {
                   handleUpdate(person);
-                  showSnackbar("Your record has been saved successfully!", "success");   // ADD
-                  setTimeout(() => navigate(`/applicant_personal_information/${keys.step1}`), 1000);         // CHANGE
+                  showSnackbar("Your record has been saved successfully!", "success");
+                  setTimeout(() => navigate(`/applicant_personal_information/${keys.step1}`), 1000);
                 }}
                 startIcon={<ArrowBackIcon sx={{ color: "#000", transition: "color 0.3s" }} />}
                 sx={{
-                  backgroundColor: subButtonColor, border: `1px solid ${borderColor}`, color: "#000",
-                  "&:hover": { backgroundColor: "#000000", color: "#fff", "& .MuiSvgIcon-root": { color: "#fff" } },
+                  backgroundColor: subButtonColor,
+                  border: `1px solid ${borderColor}`,
+                  color: "#000",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  "&:hover": {
+                    backgroundColor: "#000000",
+                    color: "#fff",
+                    "& .MuiSvgIcon-root": { color: "#fff" },
+                  },
                 }}
               >
                 Previous Step
               </Button>
 
               <Button
+                fullWidth={isPhone}
                 variant="contained"
                 onClick={() => {
                   handleUpdate(person);
                   if (isFormValid()) {
-                    showSnackbar("Your record has been saved successfully!", "success"); // ADD
-                    setTimeout(() => navigate(`/applicant_educational_attainment/${keys.step3}`), 1000);       // CHANGE
+                    showSnackbar("Your record has been saved successfully!", "success");
+                    setTimeout(() => navigate(`/applicant_educational_attainment/${keys.step3}`), 1000);
                   } else {
-                    showSnackbar("Please complete all required fields before proceeding.");
+                    showSnackbar("Please complete all required fields before proceeding.", "error");
                   }
                 }}
                 endIcon={<ArrowForwardIcon sx={{ color: "#fff", transition: "color 0.3s" }} />}
                 sx={{
-                  backgroundColor: mainButtonColor, border: `1px solid ${borderColor}`, color: "#fff",
-                  "&:hover": { backgroundColor: "#000000", color: "#fff", "& .MuiSvgIcon-root": { color: "#fff" } },
+                  backgroundColor: mainButtonColor,
+                  border: `1px solid ${borderColor}`,
+                  color: "#fff",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  "&:hover": {
+                    backgroundColor: "#000000",
+                    color: "#fff",
+                    "& .MuiSvgIcon-root": { color: "#fff" },
+                  },
                 }}
               >
                 Next Step
               </Button>
             </Box>
+          </Box>
+        </Box>
+      </Box>
 
-          </div>
-
-
-
-          {/* Exam Permit Modal (mobile uses a simpler inline alert) */}
-          {examPermitModalOpen && (
-            <div
-              style={{
-                position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)",
-                zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center",
-              }}
+      {/* ── Exam Permit Notice Modal ─────────────────────────────────────── */}
+      {examPermitModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            zIndex: 9000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onClick={handleCloseExamPermitModal}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 12,
+              padding: 24,
+              maxWidth: 360,
+              width: "90%",
+              textAlign: "center",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ErrorIcon sx={{ color: mainButtonColor, fontSize: 44, mb: 1 }} />
+            <p style={{ color: "maroon", fontWeight: 700, fontSize: 16, margin: "8px 0" }}>
+              Exam Permit Notice
+            </p>
+            <p style={{ fontSize: 13, color: "#444", margin: "8px 0 16px" }}>{examPermitError}</p>
+            <button
               onClick={handleCloseExamPermitModal}
+              style={{
+                backgroundColor: mainButtonColor,
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                padding: "10px 28px",
+                fontSize: 14,
+                cursor: "pointer",
+              }}
             >
-              <div
-                style={{
-                  background: "#fff", borderRadius: 12, padding: 24, maxWidth: 320,
-                  width: "90%", textAlign: "center", boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <ErrorIcon sx={{ color: mainButtonColor, fontSize: 44, mb: 1 }} />
-                <p style={{ color: "maroon", fontWeight: 700, fontSize: 16, margin: "8px 0" }}>
-                  Exam Permit Notice
-                </p>
-                <p style={{ fontSize: 13, color: "#444", margin: "8px 0 16px" }}>{examPermitError}</p>
-                <button
-                  onClick={handleCloseExamPermitModal}
-                  style={{
-                    backgroundColor: mainButtonColor, color: "#fff", border: "none",
-                    borderRadius: 8, padding: "10px 28px", fontSize: 14, cursor: "pointer",
-                  }}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          )}
-
-
+              Close
+            </button>
+          </div>
         </div>
-      </div>
-    );
-  }
-
-
+      )}
+    </Box>
+  );
 };
 
-export default ApplicantFamilyBackgroundMobile;
+export default ApplicantFamilyBackgroundResponsive;

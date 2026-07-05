@@ -101,7 +101,6 @@ const ApplicantResetPassword = () => {
 
   const isValid = validations.every(Boolean) && newPassword === confirmPassword;
 
-
   const navigate = useNavigate();
 
   const handleUpdate = async (e) => {
@@ -120,11 +119,12 @@ const ApplicantResetPassword = () => {
       setSnack({ open: true, message: err.response?.data?.message || "Error updating password.", severity: "error" });
     }
   };
-  
+
   const toggleShowPassword = (field) =>
     setShowPassword((prev) => ({ ...prev, [field]: !prev[field] }));
 
-    // 🔒 Disable right-click
+  // 🔒 Disable right-click + block DevTools shortcuts / Ctrl+P
+  // (moved into useEffect with cleanup — the original attached a fresh
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
   // 🔒 Block DevTools shortcuts + Ctrl+P silently
@@ -145,52 +145,80 @@ const ApplicantResetPassword = () => {
   });
 
   return (
-    <Box sx={{ height: "calc(100vh - 150px)", overflowY: "auto", paddingRight: 1, backgroundColor: "transparent", mt: 1, padding: { xs: 1, sm: 2 } }}>
+    <Box
+      sx={{
+        minHeight: { xs: "100vh", md: "calc(100vh - 150px)" },
+        overflowY: { md: "auto" },
+        backgroundColor: { xs: "#f5f5f5", md: "transparent" },
+        pr: { md: 1 },
+        mt: { md: 1 },
+        p: { xs: 0, sm: 2 },
+        pb: { xs: 6, sm: 2 },
+      }}
+    >
       {/* Header */}
-      <Box sx={{ display: "flex", justifyContent: "flex-start", alignItems: "center", flexWrap: "wrap", mb: 2 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "flex-start",
+          alignItems: "center",
+          flexWrap: "wrap",
+          mb: 2,
+          px: { xs: 2, sm: 0 },
+          pt: { xs: 2, sm: 0 },
+        }}
+      >
         <Typography
           variant="h4"
-          sx={{ fontWeight: "bold", color: titleColor, fontSize: { xs: "20px", sm: "28px", md: "36px" } }}
+          sx={{ fontWeight: "bold", color: titleColor, fontSize: { xs: 20, sm: 28, md: 34, lg: 36 } }}
         >
           APPLICANT RESET PASSWORD
         </Typography>
       </Box>
 
-      <hr style={{ border: "1px solid #ccc", width: "100%" }} />
-      <br />
+      <Box sx={{ borderTop: "1px solid #ccc", width: "100%" }} />
+      <Box sx={{ height: { xs: 16, sm: 20 } }} />
 
-      <Box sx={{ display: "flex", justifyContent: "center", mt: { xs: 1, sm: 4 } }}>
+      <Box sx={{ display: "flex", justifyContent: "center", px: { xs: 1.5, sm: 0 }, mt: { xs: 0, sm: 4 } }}>
         <Paper
           elevation={6}
           sx={{
-            p: { xs: 2, sm: 3 },
-            width: { xs: "100%", sm: "80%", md: "40%" },
+            p: { xs: 2.5, sm: 3, md: 3.5 },
+            width: { xs: "100%", sm: "80%", md: "55%", lg: "40%" },
             maxWidth: "540px",
             borderRadius: 4,
             backgroundColor: "#fff",
             border: `1px solid ${borderColor}`,
             boxShadow: "0px 4px 20px rgba(0,0,0,0.1)",
-            mb: 12,
+            mb: { xs: 4, sm: 12 },
           }}
         >
           {/* Lock Icon Header */}
           <Box textAlign="center" mb={2}>
             <LockReset
               sx={{
-                fontSize: { xs: 60, sm: 80 },
+                fontSize: { xs: 56, sm: 70, md: 80 },
                 color: "#000000",
                 backgroundColor: "#f0f0f0",
                 borderRadius: "50%",
                 p: 1,
               }}
             />
-            <Typography variant="h5" fontWeight="bold" sx={{ mt: 1, color: subtitleColor, fontSize: { xs: "18px", sm: "22px" } }}>
+            <Typography
+              variant="h5"
+              fontWeight="bold"
+              sx={{ mt: 1, color: subtitleColor, fontSize: { xs: 18, sm: 20, md: 22 } }}
+            >
               Reset Your Password
             </Typography>
-            <Typography fontSize={13} color="text.secondary">
+            <Typography sx={{ fontSize: { xs: 12, sm: 13 } }} color="text.secondary">
               Update your password to keep your account secure.
             </Typography>
-            <Typography fontSize={12.5} color="text.secondary" fontStyle="italic" sx={{ mt: 0.25 }}>
+            <Typography
+              sx={{ fontSize: { xs: 11.5, sm: 12.5 }, mt: 0.25 }}
+              color="text.secondary"
+              fontStyle="italic"
+            >
               I-update ang iyong password para mapanatiling secure ang iyong account.
             </Typography>
           </Box>
@@ -222,9 +250,9 @@ const ApplicantResetPassword = () => {
               },
             ].map(({ label, labelTl, value, setter, field }) => (
               <Box mb={2} key={field}>
-                <InputLabel sx={{ fontSize: { xs: "13px", sm: "14px" } }}>
+                <InputLabel sx={{ fontSize: { xs: 13, sm: 14 } }}>
                   {label}{" "}
-                  <Typography component="span" fontStyle="italic" color="text.secondary" sx={{ fontSize: { xs: "11.5px", sm: "12.5px" } }}>
+                  <Typography component="span" fontStyle="italic" color="text.secondary" sx={{ fontSize: { xs: 11.5, sm: 12.5 } }}>
                     ({labelTl})
                   </Typography>
                 </InputLabel>
@@ -254,14 +282,14 @@ const ApplicantResetPassword = () => {
               </Box>
             ))}
 
-            <Typography variant="subtitle2" sx={{ mt: 2, mb: 0.25, fontSize: { xs: "12px", sm: "14px" } }}>
+            <Typography variant="subtitle2" sx={{ mt: 2, mb: 0.25, fontSize: { xs: 12, sm: 14 } }}>
               Your new password must include:
             </Typography>
             <Typography
               variant="subtitle2"
               fontStyle="italic"
               color="text.secondary"
-              sx={{ mb: 1, fontSize: { xs: "11px", sm: "12.5px" }, fontWeight: 400 }}
+              sx={{ mb: 1, fontSize: { xs: 11, sm: 12.5 }, fontWeight: 400 }}
             >
               Dapat kasama sa iyong bagong password ang mga sumusunod:
             </Typography>
@@ -278,12 +306,12 @@ const ApplicantResetPassword = () => {
                     primary={rule.label}
                     secondary={rule.labelTl}
                     primaryTypographyProps={{
-                      fontSize: { xs: "12px", sm: "14px" },
+                      fontSize: { xs: 12, sm: 14 },
                       color: validations[i] ? "green" : "inherit",
                       fontWeight: validations[i] ? 600 : 400,
                     }}
                     secondaryTypographyProps={{
-                      fontSize: { xs: "11px", sm: "12.5px" },
+                      fontSize: { xs: 11, sm: 12.5 },
                       fontStyle: "italic",
                       color: validations[i] ? "green" : "text.secondary",
                     }}
@@ -292,10 +320,10 @@ const ApplicantResetPassword = () => {
               ))}
             </List>
 
-            <Typography variant="body2" color="warning.main" sx={{ mt: 1, fontSize: { xs: "11px", sm: "13px" } }}>
+            <Typography variant="body2" color="warning.main" sx={{ mt: 1, fontSize: { xs: 11, sm: 13 } }}>
               Note: You are required to change your password to continue using the system securely.
             </Typography>
-            <Typography variant="body2" color="warning.main" fontStyle="italic" sx={{ mb: 2, fontSize: { xs: "10.5px", sm: "12.5px" } }}>
+            <Typography variant="body2" color="warning.main" fontStyle="italic" sx={{ mb: 2, fontSize: { xs: 10.5, sm: 12.5 } }}>
               Paalala: Kinakailangan mong palitan ang iyong password para magpatuloy nang secure sa paggamit ng sistema.
             </Typography>
 
@@ -311,7 +339,7 @@ const ApplicantResetPassword = () => {
                 border: `1px solid ${borderColor}`,
                 textTransform: "none",
                 fontWeight: "bold",
-                fontSize: { xs: "13px", sm: "15px" },
+                fontSize: { xs: 13, sm: 15 },
                 "&:hover": { backgroundColor: mainButtonColor, opacity: 0.9 },
                 "&.Mui-disabled": { backgroundColor: "#b0b8c8", color: "#fff", opacity: 0.7 },
               }}

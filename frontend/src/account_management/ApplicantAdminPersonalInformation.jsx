@@ -55,6 +55,7 @@ import { Snackbar, Alert } from "@mui/material";
 import API_BASE_URL from "../apiConfig";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import DateField from "../components/DateField";
+import FormalExample from "../assets/formalexample.png";
 
 const SuperAdminApplicantDashboard1 = () => {
   const settings = useContext(SettingsContext);
@@ -3956,214 +3957,241 @@ const SuperAdminApplicantDashboard1 = () => {
                   alignItems: "center",
                   justifyContent: "center",
                   height: "100vh",
-                  // subtle blur for modern look
                 }}
               >
                 <Box
                   sx={{
                     position: "relative",
-                    width: 600,
+                    width: 900,
+                    maxWidth: "95vw",
                     bgcolor: "background.paper",
                     borderRadius: 3,
                     boxShadow: 24,
-                    p: 4,
                     maxHeight: "90vh",
-                    overflowY: "auto",
+                    overflow: "hidden",
+                    display: "flex",
+                    flexDirection: "column",
                   }}
                 >
-                  {/* Close (X) Button in top-right */}
-                  <IconButton
-                    aria-label="close"
-                    onClick={handleClose}
-                    sx={{
-                      position: "absolute",
-                      top: 8,
-                      right: 8,
-                      color: "#fff",
-                      backgroundColor: settings?.header_color || "#1976d2",
-
-                      border: `1px solid ${borderColor}`,
-
-                      "&:hover": {
-                        bgcolor: "#000",
-                      },
-                    }}
-                  >
-                    <CloseIcon />
-                  </IconButton>
-
-                  {/* Header */}
+                  {/* Header — matches the DialogTitle style from your email modal */}
                   <Box
                     sx={{
-                      backgroundColor: settings?.header_color || "#1976d2",
-
-                      border: `1px solid ${borderColor}`,
-
+                      bgcolor: settings?.header_color || "#1976d2",
                       color: "white",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
                       py: 2,
                       px: 3,
-                      borderRadius: 2,
-                      textAlign: "center",
-                      mb: 3,
                     }}
                   >
                     <Typography variant="h6" fontWeight="bold">
                       Upload Your Photo
                     </Typography>
-                  </Box>
-
-                  {/* Preview Image */}
-                  {(preview || person.profile_img) && (
-                    <Box
+                    <IconButton
+                      onClick={handleClose}
                       sx={{
-                        display: "flex",
-                        justifyContent: "center",
-                        my: 2,
-                        position: "relative",
+                        color: "white",
+                        border: "2px solid rgba(255,255,255,0.6)",
+                        borderRadius: "50%",
+                        width: 40,
+                        height: 40,
+                        padding: 0,
+                        "&:hover": {
+                          backgroundColor: "rgba(255,255,255,0.2)",
+                          border: "2px solid white",
+                        },
                       }}
                     >
-                      <Box
-                        component="img"
-                        src={
-                          preview
-                            ? preview
-                            : `${API_BASE_URL}/uploads/Student1by1/${person.profile_img}`
-                        }
-                        alt="Preview"
-                        sx={{
-                          width: "192px",
-                          height: "192px",
-                          objectFit: "cover",
-                          border: `1px solid ${borderColor}`,
-                          borderRadius: 2,
-                        }}
-                      />
+                      <CloseIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Box>
 
-                      {/* ❌ REMOVE BUTTON */}
-                      <Button
-                        size="small"
-                        onClick={async () => {
-                          setSelectedFile(null);
-                          setPreview(null);
-
-                          const updatedPerson = {
-                            ...person,
-                            profile_img: "",
-                          };
-
-                          setPerson(updatedPerson);
-
-                          await handleUpdate(updatedPerson); // saves to DB
-
-                          setSnackbar({
-                            open: true,
-                            message: "Image removed successfully.",
-                            severity: "info",
-                          });
-                        }}
-                        sx={{
-                          position: "absolute",
-                          top: -8,
-                          right: "calc(50% - 96px)",
-                          minWidth: 0,
-                          width: 28,
-                          height: 28,
-                          fontSize: "18px",
-                          p: 0,
-                          color: "#fff",
-                          bgcolor: "#d32f2f",
-                          borderRadius: "50%",
-                          "&:hover": { bgcolor: "#b71c1c" },
-                        }}
-                      >
-                        ×
-                      </Button>
-                    </Box>
-                  )}
-
-                  {/* Guidelines Section */}
+                  {/* Body — dividers style like DialogContent dividers */}
                   <Box
                     sx={{
-                      border: "2px dashed #ccc",
-                      p: 2,
-                      borderRadius: 2,
-                      mb: 3,
-                      backgroundColor: "#f9f9f9",
+                      p: 3,
+                      overflowY: "auto",
+                      borderTop: "1px solid #e0e0e0",
+                      borderBottom: "1px solid #e0e0e0",
                     }}
                   >
-                    <Typography variant="body1" fontWeight="bold" mb={1}>
-                      Guidelines:
-                    </Typography>
-                    <Box sx={{ ml: 2, fontSize: "15px" }}>
-                      - Size: 2" x 2"
-                      <br />
-                      - Color: Your photo must be in colored.
-                      <br />
-                      - Background: White.
-                      <br />
-                      - Head size and position: Look directly into the camera at
-                      a straight angle, face centered.
-                      <br />
-                      - File types: JPEG, JPG, PNG
-                      <br />
-                      - Attire must be formal.
-                      <br />- Required File Size: 2mb
-                    </Box>
+                    <Box sx={{ display: "flex", gap: 3, alignItems: "flex-start" }}>
+                      {/* LEFT SIDE — Sample/Reference Photo */}
+                      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+                        <Typography variant="subtitle2" color="text.secondary" fontWeight={600}>
+                          ✅ Sample Format (Follow this exactly)
+                        </Typography>
 
-                    <Typography variant="body1" fontWeight="bold" mt={2}>
-                      How to Change the Photo?
-                    </Typography>
-                    <Box sx={{ ml: 2, fontSize: "15px" }}>
-                      - Click the X Button
-                      <br />
-                      - Choose a new file
-                      <br />- Click the Upload button
+                        <Box
+                          component="img"
+                          src={FormalExample}
+                          alt="Formal Photo Example"
+                          sx={{
+                            width: "100%",
+                            maxWidth: 420,
+                            height: 260,
+                            mx: "auto",
+                            border: `1px solid ${borderColor}`,
+                            borderRadius: 2,
+                            backgroundColor: "#fff",
+                          }}
+                        />
+
+                        <Box
+                          sx={{
+                            border: "2px dashed #ccc",
+                            p: 2,
+                            borderRadius: 2,
+                            backgroundColor: "#f9f9f9",
+                          }}
+                        >
+                          <Typography variant="body1" fontWeight="bold" mb={1}>
+                            Guidelines:
+                          </Typography>
+                          <Box sx={{ ml: 1, fontSize: "14px" }}>
+                            - Size: 2" x 2"
+                            <br />
+                            - Color: Your photo must be in colored.
+                            <br />
+                            - Background: White.
+                            <br />
+                            - Head size and position: Look directly into the camera at a
+                            straight angle, face centered.
+                            <br />
+                            - File types: JPEG, JPG, PNG
+                            <br />
+                            - Attire must be formal.
+                            <br />
+                            - Required File Size: 2mb
+                          </Box>
+                        </Box>
+                      </Box>
+
+                      {/* RIGHT SIDE — Upload area */}
+                      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+                        <Typography variant="subtitle2" color="text.secondary" fontWeight={600}>
+                          📤 Your Photo
+                        </Typography>
+
+                        {/* Preview */}
+                        {(preview || person.profile_img) && (
+                          <Box sx={{ display: "flex", justifyContent: "center", position: "relative" }}>
+                            <Box
+                              component="img"
+                              src={
+                                preview
+                                  ? preview
+                                  : `${API_BASE_URL}/uploads/Applicant1by1/${person.profile_img}`
+                              }
+                              alt="Preview"
+                              sx={{
+                                width: "192px",
+                                height: "192px",
+                                objectFit: "cover",
+                                border: `1px solid ${borderColor}`,
+                                borderRadius: 2,
+                              }}
+                            />
+
+                            <Button
+                              size="small"
+                              onClick={async () => {
+                                setSelectedFile(null);
+                                setPreview(null);
+
+                                const updatedPerson = { ...person, profile_img: "" };
+                                setPerson(updatedPerson);
+                                await handleUpdate(updatedPerson);
+
+                                setSnackbar({
+                                  open: true,
+                                  message: "Image removed successfully.",
+                                  severity: "info",
+                                });
+                              }}
+                              sx={{
+                                position: "absolute",
+                                top: -8,
+                                right: "calc(50% - 96px)",
+                                minWidth: 0,
+                                width: 28,
+                                height: 28,
+                                fontSize: "18px",
+                                p: 0,
+                                color: "#fff",
+                                bgcolor: "#d32f2f",
+                                borderRadius: "50%",
+                                "&:hover": { bgcolor: "#b71c1c" },
+                              }}
+                            >
+                              ×
+                            </Button>
+                          </Box>
+                        )}
+
+                        {!preview && !person.profile_img && (
+                          <Box
+                            sx={{
+                              height: 192,
+                              border: "1px dashed #ccc",
+                              borderRadius: 2,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: "text.secondary",
+                              fontSize: 13,
+                              textAlign: "center",
+                              px: 2,
+                            }}
+                          >
+                            No photo selected yet — match the sample on the left.
+                          </Box>
+                        )}
+
+                        <Typography
+                          sx={{ fontSize: "16px", color: mainButtonColor, fontWeight: "bold" }}
+                        >
+                          Select Your Image:
+                        </Typography>
+                        <input
+                          type="file"
+                          accept=".jpg,.jpeg,.png"
+                          onClick={(e) => (e.target.value = null)}
+                          onChange={handleFileChange}
+                          style={{
+                            display: "block",
+                            width: "100%",
+                            padding: "10px",
+                            border: "1px solid #ccc",
+                            borderRadius: "4px",
+                          }}
+                        />
+
+                        <Typography variant="caption" color="text.secondary">
+                          Click the × on your preview to remove it, choose a new file, then
+                          press Upload.
+                        </Typography>
+                      </Box>
                     </Box>
                   </Box>
 
-                  {/* File Input */}
-                  <Typography
-                    sx={{
-                      fontSize: "18px",
-                      color: mainButtonColor,
-                      fontWeight: "bold",
-                      mb: 1,
-                    }}
-                  >
-                    Select Your Image:
-                  </Typography>
-                  <input
-                    type="file"
-                    accept=".jpg,.jpeg,.png"
-                    onClick={(e) => (e.target.value = null)}
-                    onChange={handleFileChange}
-                    style={{
-                      display: "block",
-                      width: "100%",
-                      padding: "10px",
-                      border: "1px solid #ccc",
-                      borderRadius: "4px",
-                      marginBottom: "16px",
-                    }}
-                  />
+                  {/* Footer — matches DialogActions */}
+                  <Box sx={{ p: 2, display: "flex", justifyContent: "space-between" }}>
+                    <Button onClick={handleClose} color="error" variant="outlined">
+                      Cancel
+                    </Button>
 
-                  {/* Upload Button */}
-                  <Button
-                    variant="contained"
-                    fullWidth
-                    onClick={handleUpload}
-                    sx={{
-                      backgroundColor: settings?.header_color || "#1976d2",
-                      border: `1px solid ${borderColor}`,
-                      color: "white",
-                      fontWeight: "bold",
-                      "&:hover": {
-                        backgroundColor: "#000",
-                      },
-                    }}
-                  >
-                    Upload
-                  </Button>
+                    <Button
+                      onClick={handleUpload}
+                      variant="contained"
+                      color="success"
+                      size="small"
+                      sx={{ minWidth: "140px", height: "40px" }}
+                    >
+                      Upload
+                    </Button>
+                  </Box>
                 </Box>
               </Box>
             </Modal>

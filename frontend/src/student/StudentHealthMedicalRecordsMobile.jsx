@@ -7,25 +7,13 @@ import DateField from "../components/DateField";
 import {
   Button,
   Box,
-  TextField,
-  Container,
   Typography,
   Card,
-  TableContainer,
-  Paper,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  FormHelperText,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Modal,
-  FormControlLabel,
   Checkbox,
-  IconButton,
+  Snackbar,
+  Alert,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import PersonIcon from "@mui/icons-material/Person";
 import FamilyRestroomIcon from "@mui/icons-material/FamilyRestroom";
@@ -33,15 +21,14 @@ import SchoolIcon from "@mui/icons-material/School";
 import HealthAndSafetyIcon from "@mui/icons-material/HealthAndSafety";
 import InfoIcon from "@mui/icons-material/Info";
 import ErrorIcon from "@mui/icons-material/Error";
-import LockIcon from "@mui/icons-material/Lock";           // ✅ ADDED
+import LockIcon from "@mui/icons-material/Lock";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import { motion } from "framer-motion";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { Snackbar, Alert } from "@mui/material";
+import { motion } from "framer-motion";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ✅ ADDED: Same helper used in the desktop StudentDashboard4.
+// Field-level permission helper (unchanged logic):
 //   • non-students → always editable
 //   • still loading (null) → optimistic editable
 //   • otherwise → follow stored permission (false = locked by admin)
@@ -52,129 +39,7 @@ const canStudentEdit = (permissions, fieldId, userRole) => {
   return permissions[fieldId] !== false;
 };
 
-// ─── Style tokens ─────────────────────────────────────────────────────────────
-const S = {
-  screen: {
-    minHeight: "100vh",
-    backgroundColor: "#f5f5f5",
-    fontFamily: "'Segoe UI', sans-serif",
-    paddingBottom: 80,
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    margin: "12px 12px 0",
-    overflow: "hidden",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-  },
-  cardHeader: {
-    color: "#fff",
-    padding: "10px 14px",
-    fontSize: 13,
-    fontWeight: 700,
-    letterSpacing: 0.3,
-  },
-  cardBody: { padding: "14px 14px" },
-  fieldWrap: { marginBottom: 14 },
-  label: {
-    display: "block",
-    fontSize: 12,
-    fontWeight: 600,
-    color: "#444",
-    marginBottom: 5,
-  },
-  // ✅ UPDATED: accepts locked param for greyed-out styling
-  input: (hasError, locked) => ({
-    width: "100%",
-    height: 42,
-    padding: "0 12px",
-    border: `1px solid ${hasError ? "#d32f2f" : "#ccc"}`,
-    borderRadius: 8,
-    fontSize: 14,
-    backgroundColor: locked ? "#f5f5f5" : "#fff",
-    boxSizing: "border-box",
-    outline: "none",
-    color: locked ? "#999" : "#222",
-    cursor: locked ? "not-allowed" : "text",
-  }),
-  // ✅ UPDATED: accepts locked param for greyed-out styling
-  textarea: (locked) => ({
-    width: "100%",
-    padding: "10px 12px",
-    border: "1px solid #ccc",
-    borderRadius: 8,
-    fontSize: 14,
-    backgroundColor: locked ? "#f5f5f5" : "#fff",
-    boxSizing: "border-box",
-    outline: "none",
-    color: locked ? "#999" : "#222",
-    cursor: locked ? "not-allowed" : "text",
-    resize: locked ? "none" : "vertical",
-    minHeight: 80,
-    fontFamily: "'Segoe UI', sans-serif",
-  }),
-  divider: {
-    border: "none",
-    borderTop: "1px solid #e0e0e0",
-    margin: "14px 0 10px",
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: "#6D2323",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 10,
-  },
-  checkRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
-  },
-  checkLabel: { fontSize: 14, color: "#333" },
-  yesNoRow: { display: "flex", gap: 16, alignItems: "center" },
-  yesNoItem: { display: "flex", alignItems: "center", gap: 4 },
-  conditionRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 6,
-    borderBottom: "1px solid #f0f0f0",
-    marginBottom: 8,
-    paddingBottom: 8,
-  },
-  conditionLabel: { fontSize: 13, color: "#333", flex: 1 },
-  bottomBar: {
-    position: "fixed",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "#fff",
-    borderTop: "1px solid #e0e0e0",
-    padding: "10px 14px",
-    display: "flex",
-    gap: 10,
-    zIndex: 200,
-  },
-};
-
-const steps = [
-  { label: "Personal Information", icon: <PersonIcon /> },
-  { label: "Family Background", icon: <FamilyRestroomIcon /> },
-  { label: "Educational Attainment", icon: <SchoolIcon /> },
-  { label: "Health Medical Records", icon: <HealthAndSafetyIcon /> },
-  { label: "Other Information", icon: <InfoIcon /> },
-];
-const STEP_PATHS = [
-  "/student_personal_information",
-  "/student_family_background",
-  "/student_educational_attainment",
-  "/student_health_medical_records",
-  "/student_other_information",
-];
-
-// ─── ✅ ADDED: Locked badge — shown inline next to field labels ───────────────
+// ─── Locked badge — shown inline next to field labels ─────────────────────────
 const LockedBadge = () => (
   <span
     style={{
@@ -187,7 +52,7 @@ const LockedBadge = () => (
       backgroundColor: "#fce4ec",
       color: "#c62828",
       fontSize: 10,
-      fontWeight: "bold",
+      fontWeight: 700,
       verticalAlign: "middle",
     }}
   >
@@ -196,39 +61,81 @@ const LockedBadge = () => (
   </span>
 );
 
-// ─── Reusable field wrapper ───────────────────────────────────────────────────
-const Field = ({ label, locked, children }) => (
-  <div style={S.fieldWrap}>
+// ─── Reusable field wrapper (responsive) ──────────────────────────────────────
+const Field = ({ label, lockedBadge, children }) => (
+  <div style={{ marginBottom: 14 }}>
     {label && (
-      <label style={S.label}>
+      <label
+        style={{
+          display: "block",
+          fontSize: "clamp(11px, 1.4vw, 13px)",
+          fontWeight: 600,
+          color: "#444",
+          marginBottom: 5,
+        }}
+      >
         {label}
-        {locked && <LockedBadge />}   {/* ✅ ADDED */}
+        {lockedBadge && <LockedBadge />}
       </label>
     )}
     {children}
   </div>
 );
 
+const inputStyle = (hasError, locked, extra = {}) => ({
+  width: "100%",
+  height: 42,
+  padding: "0 12px",
+  border: `1px solid ${hasError ? "#d32f2f" : "#ccc"}`,
+  borderRadius: 8,
+  fontSize: "clamp(13px, 1.6vw, 14px)",
+  backgroundColor: locked ? "#f5f5f5" : "#fff",
+  boxSizing: "border-box",
+  outline: "none",
+  color: locked ? "#999" : "#222",
+  cursor: locked ? "not-allowed" : "text",
+  ...extra,
+});
+
+const textareaStyle = (locked) => ({
+  width: "100%",
+  padding: "10px 12px",
+  border: "1px solid #ccc",
+  borderRadius: 8,
+  fontSize: "clamp(13px, 1.6vw, 14px)",
+  backgroundColor: locked ? "#f5f5f5" : "#fff",
+  boxSizing: "border-box",
+  outline: "none",
+  color: locked ? "#999" : "#222",
+  cursor: locked ? "not-allowed" : "text",
+  resize: locked ? "none" : "vertical",
+  minHeight: 80,
+  fontFamily: "'Segoe UI', sans-serif",
+});
+
 // ─── YES / NO toggle ──────────────────────────────────────────────────────────
-// ✅ UPDATED: disabled prop now driven by permission, not hardcoded true
 const YesNo = ({ fieldKey, person, onChange, disabled }) => (
-  <div style={S.yesNoRow}>
-    <div style={S.yesNoItem}>
+  <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
       <input
         type="checkbox"
         disabled={disabled}
         checked={person[fieldKey] === 1}
-        onChange={() => { if (!disabled) onChange(fieldKey, person[fieldKey] === 1 ? null : 1); }}
+        onChange={() => {
+          if (!disabled) onChange(fieldKey, person[fieldKey] === 1 ? null : 1);
+        }}
         style={{ width: 16, height: 16, accentColor: "#6D2323" }}
       />
       <span style={{ fontSize: 13, color: disabled ? "#999" : "#333" }}>Yes</span>
     </div>
-    <div style={S.yesNoItem}>
+    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
       <input
         type="checkbox"
         disabled={disabled}
         checked={person[fieldKey] === 0}
-        onChange={() => { if (!disabled) onChange(fieldKey, person[fieldKey] === 0 ? null : 0); }}
+        onChange={() => {
+          if (!disabled) onChange(fieldKey, person[fieldKey] === 0 ? null : 0);
+        }}
         style={{ width: 16, height: 16, accentColor: "#6D2323" }}
       />
       <span style={{ fontSize: 13, color: disabled ? "#999" : "#333" }}>No</span>
@@ -237,10 +144,30 @@ const YesNo = ({ fieldKey, person, onChange, disabled }) => (
 );
 
 // ─── Condition row ────────────────────────────────────────────────────────────
-// ✅ UPDATED: passes locked state through to YesNo + shows lock icon on label
 const ConditionRow = ({ label, fieldKey, person, onChange, locked }) => (
-  <div style={S.conditionRow}>
-    <span style={{ ...S.conditionLabel, color: locked ? "#999" : "#333", display: "flex", alignItems: "center", gap: 4 }}>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      borderBottom: "1px solid #f0f0f0",
+      marginBottom: 8,
+      paddingBottom: 8,
+      gap: 12,
+      flexWrap: "wrap",
+    }}
+  >
+    <span
+      style={{
+        fontSize: "clamp(12px, 1.5vw, 14px)",
+        color: locked ? "#999" : "#333",
+        flex: 1,
+        minWidth: 140,
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+      }}
+    >
       {label}
       {locked && <LockIcon style={{ fontSize: 12, color: "#c62828" }} />}
     </span>
@@ -248,30 +175,70 @@ const ConditionRow = ({ label, fieldKey, person, onChange, locked }) => (
   </div>
 );
 
+const medicalConditions = [
+  { label: "Asthma", key: "asthma" },
+  { label: "Fainting Spells and Seizures", key: "faintingSpells" },
+  { label: "Heart Disease", key: "heartDisease" },
+  { label: "Tuberculosis", key: "tuberculosis" },
+  { label: "Frequent Headaches", key: "frequentHeadaches" },
+  { label: "Hernia", key: "hernia" },
+  { label: "Chronic Cough", key: "chronicCough" },
+  { label: "Head or Neck Injury", key: "headNeckInjury" },
+  { label: "H.I.V", key: "hiv" },
+  { label: "High Blood Pressure", key: "highBloodPressure" },
+  { label: "Diabetes Mellitus", key: "diabetesMellitus" },
+  { label: "Allergies", key: "allergies" },
+  { label: "Cancer", key: "cancer" },
+  { label: "Smoking of Cigarette/Day", key: "smokingCigarette" },
+  { label: "Alcohol Drinking", key: "alcoholDrinking" },
+];
+
+const vaccineColumns = [
+  { label: "1st Dose", brandKey: "vaccine1Brand", dateKey: "vaccine1Date" },
+  { label: "2nd Dose", brandKey: "vaccine2Brand", dateKey: "vaccine2Date" },
+  { label: "Booster 1", brandKey: "booster1Brand", dateKey: "booster1Date" },
+  { label: "Booster 2", brandKey: "booster2Brand", dateKey: "booster2Date" },
+];
+
+const stepsWithIcons = [
+  { label: "Personal Information", icon: <PersonIcon /> },
+  { label: "Family Background", icon: <FamilyRestroomIcon /> },
+  { label: "Educational Attainment", icon: <SchoolIcon /> },
+  { label: "Health Medical Records", icon: <HealthAndSafetyIcon /> },
+  { label: "Other Information", icon: <InfoIcon /> },
+];
+
+const STEP_PATHS = [
+  "/student_personal_information",
+  "/student_family_background",
+  "/student_educational_attainment",
+  "/student_health_medical_records",
+  "/student_other_information",
+];
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 const StudentDashboard4Mobile = () => {
   const settings = useContext(SettingsContext);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const theme = useTheme();
 
+  // Breakpoints: phone < 600px, tablet 600–959px, desktop >= 960px
+  const isPhone = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
+  const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
+
+  // Two-column fields stack on phone, sit side-by-side from tablet up
+  const gridCols2 = { display: "grid", gridTemplateColumns: isPhone ? "1fr" : "1fr 1fr", gap: 16 };
+
+  // ── Theme / settings state ─────────────────────────────────────────────────
   const [titleColor, setTitleColor] = useState("#000000");
   const [subtitleColor, setSubtitleColor] = useState("#555555");
   const [borderColor, setBorderColor] = useState("#000000");
   const [mainButtonColor, setMainButtonColor] = useState("#1976d2");
   const [subButtonColor, setSubButtonColor] = useState("#ffffff");
-  const [stepperColor, setStepperColor] = useState("#000000");
-
-  const [fetchedLogo, setFetchedLogo] = useState(null);
   const [companyName, setCompanyName] = useState("");
   const [shortTerm, setShortTerm] = useState("");
-  const [campusAddress, setCampusAddress] = useState("");
-  const [branches, setBranches] = useState([]);
-
-  // ✅ ADDED: field-level permissions fetched from the shared store
-  const [fieldPermissions, setFieldPermissions] = useState(null);
-  // ✅ ADDED: userRole — needed by canStudentEdit
-  const [userRole, setUserRole] = useState("");
-
-  // ✅ ADDED: convenience wrapper — same pattern as desktop StudentDashboard4
-  const isFieldEditable = (fieldId) => canStudentEdit(fieldPermissions, fieldId, userRole);
 
   useEffect(() => {
     if (!settings) return;
@@ -280,21 +247,15 @@ const StudentDashboard4Mobile = () => {
     if (settings.border_color) setBorderColor(settings.border_color);
     if (settings.main_button_color) setMainButtonColor(settings.main_button_color);
     if (settings.sub_button_color) setSubButtonColor(settings.sub_button_color);
-    if (settings.stepper_color) setStepperColor(settings.stepper_color);
-    if (settings.logo_url) setFetchedLogo(`${API_BASE_URL}${settings.logo_url}`);
     if (settings.company_name) setCompanyName(settings.company_name);
     if (settings.short_term) setShortTerm(settings.short_term);
-    if (settings.campus_address) setCampusAddress(settings.campus_address);
-    if (settings.branches) {
-      setBranches(
-        typeof settings.branches === "string"
-          ? JSON.parse(settings.branches)
-          : settings.branches
-      );
-    }
   }, [settings]);
 
-  // ✅ ADDED: fetch field permissions from the shared store
+  // ── Field-level permissions (student-specific, unchanged) ──────────────────
+  const [fieldPermissions, setFieldPermissions] = useState(null);
+  const [userRole, setUserRole] = useState("");
+  const isFieldEditable = (fieldId) => canStudentEdit(fieldPermissions, fieldId, userRole);
+
   useEffect(() => {
     const loadPermissions = async () => {
       try {
@@ -308,18 +269,9 @@ const StudentDashboard4Mobile = () => {
     loadPermissions();
   }, []);
 
-  const navigate = useNavigate();
-  const location = useLocation();
-
   const [userID, setUserID] = useState("");
-  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "warning" });
-  const [errors, setErrors] = useState({});
 
-  const handleCloseSnackbar = (event, reason) => {
-    if (reason === "clickaway") return;
-    setSnackbar((p) => ({ ...p, open: false }));
-  };
-
+  // ── Person state ───────────────────────────────────────────────────────────
   const [person, setPerson] = useState({
     cough: "", colds: "", fever: "",
     asthma: "", faintingSpells: "", heartDisease: "", tuberculosis: "",
@@ -338,33 +290,27 @@ const StudentDashboard4Mobile = () => {
     remarks: "",
   });
 
-  const docLinks = [
-    { label: "ECAT Application Form", to: "/student_ecat_application_form" },
-    { label: "Admission Form Process", to: "/student_form_process" },
-    { label: "Personal Data Form", to: "/student_personal_data_form" },
-    { label: `Application For ${shortTerm?.toUpperCase() || ""} Admission`, to: "/student_office_of_the_registrar" },
-    { label: "Admission Services", to: "/student_admission_services" },
-  ];
+  // ── Snackbar ───────────────────────────────────────────────────────────────
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "warning" });
 
-  const [activeStep, setActiveStep] = useState(3);
+  const handleCloseSnackbar = (event, reason) => {
+    if (reason === "clickaway") return;
+    setSnackbar((prev) => ({ ...prev, open: false }));
+  };
 
   const showSnackbar = (message, severity = "warning") => {
     setSnackbar({ open: true, message, severity });
-    setTimeout(() => setSnackbar((p) => ({ ...p, open: false })), 3000);
   };
 
-  useEffect(() => {
-    if (!settings) return;
-    if (settings.short_term) setShortTerm(settings.short_term);
-    if (settings.company_name) setCompanyName(settings.company_name);
-  }, [settings]);
-
-  // ✅ UPDATED: also reads and sets userRole
+  // ── Auth & init (student logic, unchanged) ──────────────────────────────────
   useEffect(() => {
     const loggedInPersonId = localStorage.getItem("person_id");
     const storedRole = localStorage.getItem("role");
-    if (!loggedInPersonId) { window.location.href = "/login"; return; }
-    if (storedRole) setUserRole(storedRole);   // ✅ ADDED
+    if (!loggedInPersonId) {
+      window.location.href = "/login";
+      return;
+    }
+    if (storedRole) setUserRole(storedRole);
     const queryParams = new URLSearchParams(location.search);
     const queryPersonId = queryParams.get("person_id");
     setUserID(queryPersonId || loggedInPersonId);
@@ -372,72 +318,56 @@ const StudentDashboard4Mobile = () => {
 
   useEffect(() => {
     if (!userID) return;
-    axios.get(`${API_BASE_URL}/api/student_data_as_applicant/${userID}`)
-      .then((res) => { if (res.data) setPerson(res.data); })
+    axios
+      .get(`${API_BASE_URL}/api/student_data_as_applicant/${userID}`)
+      .then((res) => {
+        if (res.data) setPerson(res.data);
+      })
       .catch(console.error);
   }, [userID]);
 
+  // ── Auto-save (student endpoint, unchanged) ─────────────────────────────────
   const handleUpdate = async (updated) => {
     try {
       const { person_id, created_at, current_step, ...clean } = updated;
       await axios.put(`${API_BASE_URL}/api/enrollment/person/${userID}`, clean);
-    } catch (err) { console.error("Auto-save failed:", err); }
+    } catch (err) {
+      console.error("Auto-save failed:", err);
+    }
   };
 
-  // ✅ UPDATED: guard locked fields
+  // ── Change helpers, all guarded by field permission (unchanged logic) ──────
   const handleChange = (e) => {
     const { name, type, checked, value } = e.target;
-    if (!isFieldEditable(name)) return;   // ✅ ADDED
+    if (!isFieldEditable(name)) return;
     const updated = { ...person, [name]: type === "checkbox" ? (checked ? 1 : 0) : value };
     setPerson(updated);
     handleUpdate(updated);
   };
 
-  const handleStepClick = (index) => {
-    showSnackbar("Your record has been saved successfully!", "success");
-    setTimeout(() => { setActiveStep(index); navigate(STEP_PATHS[index]); }, 1000);
-  };
-
-  // ✅ UPDATED: guard locked fields
   const handleToggle = (fieldKey, newValue) => {
-    if (!isFieldEditable(fieldKey)) return;   // ✅ ADDED
+    if (!isFieldEditable(fieldKey)) return;
     const updated = { ...person, [fieldKey]: newValue };
     setPerson(updated);
     handleUpdate(updated);
   };
 
-  // ✅ UPDATED: guard locked fields
   const handleTextChange = (name, value) => {
-    if (!isFieldEditable(name)) return;   // ✅ ADDED
+    if (!isFieldEditable(name)) return;
     const updated = { ...person, [name]: value };
     setPerson(updated);
     handleUpdate(updated);
   };
 
-  const medicalConditions = [
-    { label: "Asthma", key: "asthma" },
-    { label: "Fainting Spells and Seizures", key: "faintingSpells" },
-    { label: "Heart Disease", key: "heartDisease" },
-    { label: "Tuberculosis", key: "tuberculosis" },
-    { label: "Frequent Headaches", key: "frequentHeadaches" },
-    { label: "Hernia", key: "hernia" },
-    { label: "Chronic Cough", key: "chronicCough" },
-    { label: "Head or Neck Injury", key: "headNeckInjury" },
-    { label: "H.I.V", key: "hiv" },
-    { label: "High Blood Pressure", key: "highBloodPressure" },
-    { label: "Diabetes Mellitus", key: "diabetesMellitus" },
-    { label: "Allergies", key: "allergies" },
-    { label: "Cancer", key: "cancer" },
-    { label: "Smoking of Cigarette/Day", key: "smokingCigarette" },
-    { label: "Alcohol Drinking", key: "alcoholDrinking" },
-  ];
+  const [activeStep, setActiveStep] = useState(3);
 
-  const vaccineColumns = [
-    { label: "1st Dose", brandKey: "vaccine1Brand", dateKey: "vaccine1Date" },
-    { label: "2nd Dose", brandKey: "vaccine2Brand", dateKey: "vaccine2Date" },
-    { label: "Booster 1", brandKey: "booster1Brand", dateKey: "booster1Date" },
-    { label: "Booster 2", brandKey: "booster2Brand", dateKey: "booster2Date" },
-  ];
+  const handleStepClick = (index) => {
+    showSnackbar("Your record has been saved successfully!", "success");
+    setTimeout(() => {
+      setActiveStep(index);
+      navigate(STEP_PATHS[index]);
+    }, 1000);
+  };
 
   // 🔒 Disable right-click
   document.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -459,12 +389,38 @@ const StudentDashboard4Mobile = () => {
     }
   });
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  const docLinks = [
+    { label: "ECAT Application Form", to: "/student_ecat_application_form" },
+    { label: "Admission Form Process", to: "/student_form_process" },
+    { label: "Personal Data Form", to: "/student_personal_data_form" },
+    {
+      label: `Application For ${shortTerm ? shortTerm.toUpperCase() : ""} Admission`,
+      to: "/student_office_of_the_registrar",
+    },
+    { label: "Application/Student Satisfactory Survey", to: "/student_admission_services" },
+  ];
+
+  // Cards per row depending on viewport
+  const cardBasis = isPhone ? "calc(50% - 6px)" : isTablet ? "calc(33.333% - 8px)" : "calc(20% - 13px)";
+
+  // Content max width so it doesn't stretch edge-to-edge on large desktop monitors
+  const contentMaxWidth = isDesktop ? 1000 : "100%";
+
+  const symptomsAllLocked = !isFieldEditable("cough") && !isFieldEditable("colds") && !isFieldEditable("fever");
+
   return (
-    <div style={S.screen}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        backgroundColor: "#f5f5f5",
+        fontFamily: "'Segoe UI', sans-serif",
+        pb: { xs: 8, md: 4 },
+      }}
+    >
+      {/* Toast */}
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={1000}
+        autoHideDuration={2000}
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
@@ -473,441 +429,847 @@ const StudentDashboard4Mobile = () => {
         </Alert>
       </Snackbar>
 
-      {/* Header */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", mb: 1, padding: 1 }}>
-        <Typography variant="h4" sx={{ fontWeight: "bold", color: titleColor, fontSize: { xs: "22px", sm: "28px", md: "36px" } }}>
-          HEALTH MEDICAL RECORDS
-        </Typography>
-      </Box>
-      <hr style={{ border: "1px solid #ccc", width: "100%" }} />
-      <br />
-
-      {/* Notice */}
-      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, mx: "12px", mt: "12px", p: "10px 12px", borderRadius: "8px", backgroundColor: "#fffaf5", border: "1px solid #6D2323", boxShadow: "0px 2px 8px rgba(0,0,0,0.05)" }}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#800000", borderRadius: "6px", width: 36, height: 36, flexShrink: 0 }}>
-          <ErrorIcon sx={{ color: "white", fontSize: 22 }} />
-        </Box>
-        <Typography
+      <Box sx={{ maxWidth: contentMaxWidth, mx: "auto", px: { xs: 0, md: 2 } }}>
+        {/* Page Title */}
+        <Box
           sx={{
-            fontSize: "20px",
-            fontFamily: "Poppins, sans-serif",
-            color: "#3e3e3e",
-            lineHeight: 1.3,
-            whiteSpace: "normal",
-            overflow: "hidden",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            mb: 1,
+            p: { xs: 1, md: 2 },
           }}
         >
-          <strong style={{ color: "maroon" }}>Important Notice:</strong>
-          <br />
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: "bold",
+              color: titleColor,
+              fontSize: { xs: "22px", sm: "28px", md: "36px" },
+            }}
+          >
+            HEALTH MEDICAL RECORDS
+          </Typography>
+        </Box>
+        <hr style={{ border: "1px solid #ccc", width: "100%" }} />
+        <br />
 
+        {/* Notice */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 1.5,
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            p: { xs: "10px 12px", md: "14px 16px" },
+            borderRadius: "8px",
+            backgroundColor: "#fffaf5",
+            border: "1px solid #6D2323",
+            boxShadow: "0px 2px 8px rgba(0,0,0,0.05)",
+          }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "#800000",
+              borderRadius: "6px",
+              width: { xs: 36, md: 48 },
+              height: { xs: 36, md: 48 },
+              flexShrink: 0,
+            }}
+          >
+            <ErrorIcon sx={{ color: "white", fontSize: { xs: 22, md: 30 } }} />
+          </Box>
 
+          <Typography
+            sx={{
+              fontSize: { xs: "13px", sm: "14px", md: "16px" },
+              fontFamily: "Poppins, sans-serif",
+              color: "#3e3e3e",
+              lineHeight: 1.5,
+            }}
+          >
+            <strong style={{ color: "maroon" }}>Important Notice:</strong>
+            <br />
+            <span style={{ margin: "0 8px" }}>➔</span>
+            Please indicate <strong>“NA”</strong> or <strong>“N/A”</strong> in fields where the
+            requested information is not applicable or no response can be provided.
+            <br />
+            <span style={{ margin: "0 8px" }}>➔</span>
+            To enter the letter <strong>“Ñ”</strong>, press and hold the ALT key while typing
+            <strong> 165</strong>. For <strong>“ñ”</strong>, press and hold the ALT key while
+            typing <strong> 164</strong>.
+            <br />
+            <span style={{ margin: "0 8px" }}>➔</span>
+            Please complete all information from <strong>Personal Information</strong> up to
+            <strong> Other Information</strong> before printing your documents.
+          </Typography>
+        </Box>
 
-          <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
-          Please indicate <strong>“NA”</strong> or <strong>“N/A”</strong> in fields where the
-          requested information is not applicable or no response can be provided.
-          <br />
-
-          <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
-          To enter the letter <strong>“Ñ”</strong>, press and hold the ALT key while typing
-          <strong> 165</strong>. For <strong>“ñ”</strong>, press and hold the ALT key while
-          typing <strong> 164</strong>.
-          <br />
-
-          <span style={{ fontSize: "1.2em", margin: "0 15px" }}>➔</span>
-          Please complete all information from <strong>Personal Information</strong> up to
-          <strong> Other Information</strong> before printing your documents.
-          <br />
-        </Typography>
-      </Box>
-
-      {/* Printable Documents */}
-      <Box sx={{ px: "12px", pt: "12px" }}>
-        <Typography sx={{ fontSize: "30px", fontWeight: "bold", textAlign: "center", color: "black", marginTop: "25px", mb: 2 }}>
-          PRINTABLE DOCUMENTS
-        </Typography>
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, justifyContent: "center" }}>
-          {docLinks.map((d, i) => (
-            <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07, duration: 0.3 }} style={{ width: "calc(50% - 4px)" }}>
-              <Card
-                sx={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 0.75, px: 1.5, py: 1.25, height: 52, width: "100%", borderRadius: "12px", border: `1px solid ${borderColor || "#6D2323"}`, backgroundColor: "#fff", cursor: "pointer", transition: "all 0.25s ease-in-out", "&:hover": { backgroundColor: settings?.header_color || "#6D2323", "& .chip-icon": { color: "#fff" }, "& .chip-text": { color: "#fff" } } }}
-                onClick={() => navigate(d.to)}
+        {/* Printable Documents */}
+        <Box sx={{ px: { xs: "12px", md: 0 }, pt: "12px" }}>
+          <Typography
+            sx={{
+              fontSize: { xs: "22px", md: "28px" },
+              fontWeight: "bold",
+              textAlign: "center",
+              color: "black",
+              mt: "20px",
+              mb: 2,
+            }}
+          >
+            PRINTABLE DOCUMENTS
+          </Typography>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.25, justifyContent: "center" }}>
+            {docLinks.map((lnk, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.06, duration: 0.3 }}
+                style={{ width: cardBasis, minWidth: 140 }}
               >
-                <PictureAsPdfIcon className="chip-icon" sx={{ fontSize: 18, color: mainButtonColor || "#6D2323", flexShrink: 0 }} />
-                <Typography className="chip-text" sx={{ fontSize: 11, fontWeight: 600, color: mainButtonColor || "#6D2323", fontFamily: "Poppins, sans-serif", whiteSpace: "normal", lineHeight: 1.3, textAlign: "center" }}>
-                  {d.label}
+                <Card
+                  sx={{
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 0.75,
+                    px: 1.5,
+                    py: 1.25,
+                    height: { xs: 52, md: 60 },
+                    width: "100%",
+                    borderRadius: "12px",
+                    border: `1px solid ${borderColor || "#6D2323"}`,
+                    backgroundColor: "#fff",
+                    cursor: "pointer",
+                    transition: "all 0.25s ease-in-out",
+                    "&:hover": {
+                      transform: { md: "scale(1.04)" },
+                      backgroundColor: settings?.header_color || "#6D2323",
+                      "& .chip-icon": { color: "#fff" },
+                      "& .chip-text": { color: "#fff" },
+                    },
+                  }}
+                  onClick={() => navigate(lnk.to)}
+                >
+                  <PictureAsPdfIcon
+                    className="chip-icon"
+                    sx={{ fontSize: { xs: 18, md: 22 }, color: mainButtonColor || "#6D2323", flexShrink: 0 }}
+                  />
+                  <Typography
+                    className="chip-text"
+                    sx={{
+                      fontSize: { xs: 11, md: 13 },
+                      fontWeight: 600,
+                      color: mainButtonColor || "#6D2323",
+                      fontFamily: "Poppins, sans-serif",
+                      lineHeight: 1.3,
+                      textAlign: "center",
+                    }}
+                  >
+                    {lnk.label}
+                  </Typography>
+                </Card>
+              </motion.div>
+            ))}
+          </Box>
+        </Box>
+
+        {/* Form intro */}
+        <Box sx={{ px: { xs: "14px", md: 0 }, pt: 2, textAlign: "center" }}>
+          <Typography
+            component="h1"
+            sx={{
+              fontSize: { xs: "24px", sm: "32px", md: "42px" },
+              fontWeight: "bold",
+              textAlign: "center",
+              color: subtitleColor,
+              mt: "20px",
+            }}
+          >
+            STUDENT FORM
+          </Typography>
+          <Typography sx={{ fontSize: { xs: 13, md: 15 }, color: "#555" }}>
+            Please update your personal information to keep your student records accurate and
+            up to date for the upcoming academic year at{" "}
+            {shortTerm ? (
+              <>
+                <strong>{shortTerm.toUpperCase()}</strong>
+                <br />
+                {companyName || ""}
+              </>
+            ) : (
+              companyName || ""
+            )}
+            .
+          </Typography>
+        </Box>
+
+        {/* Stepper */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            width: "100%",
+            px: { xs: 2, md: 4 },
+            py: 1.5,
+            borderBottom: "1px solid #e0e0e0",
+            overflowX: "auto",
+          }}
+        >
+          {stepsWithIcons.map((step, index) => (
+            <React.Fragment key={index}>
+              <Box
+                sx={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer" }}
+                onClick={() => handleStepClick(index)}
+              >
+                <Box
+                  sx={{
+                    width: { xs: 42, md: 52 },
+                    height: { xs: 42, md: 52 },
+                    borderRadius: "50%",
+                    border: `2px solid ${borderColor}`,
+                    backgroundColor: activeStep === index ? (settings?.header_color || "#6D2323") : "#E8C999",
+                    color: activeStep === index ? "#fff" : "#333",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: { xs: 18, md: 22 },
+                    transition: "all 0.2s",
+                    flexShrink: 0,
+                  }}
+                >
+                  {step.icon}
+                </Box>
+                <Typography
+                  sx={{
+                    mt: 0.75,
+                    color: activeStep === index ? "#6D2323" : "#555",
+                    fontWeight: activeStep === index ? 700 : 400,
+                    fontSize: { xs: 10, sm: 12, md: 13 },
+                    textAlign: "center",
+                    maxWidth: { xs: 64, md: 96 },
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {step.label}
                 </Typography>
-              </Card>
-            </motion.div>
+              </Box>
+              {index < stepsWithIcons.length - 1 && (
+                <Box
+                  sx={{
+                    height: "2px",
+                    backgroundColor: mainButtonColor,
+                    flex: 1,
+                    minWidth: { xs: 16, md: 32 },
+                    alignSelf: "center",
+                    mx: { xs: 0.75, md: 1.5 },
+                    mb: 3,
+                  }}
+                />
+              )}
+            </React.Fragment>
           ))}
         </Box>
-      </Box>
 
-      {/* Form Intro */}
-      <div style={{ padding: "16px 14px 0", textAlign: "center" }}>
-        <Container>
-          <h1 style={{ fontSize: "32px", fontWeight: "bold", textAlign: "center", color: subtitleColor, marginTop: "25px" }}>
-            STUDENT FORM
-          </h1>
-          <div style={{ textAlign: "center" }}>
-            Please update your personal information to keep your student records accurate and up to date for the upcoming academic year at{" "}
-            {shortTerm ? <><strong>{shortTerm.toUpperCase()}</strong> - {companyName || ""}</> : companyName || ""}.
-          </div>
-        </Container>
-      </div>
+        {/* ── Step Header Bar ────────────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: settings?.header_color || "#1976d2",
+            border: `1px solid ${borderColor}`,
+            color: "white",
+            borderRadius: 2,
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            p: { xs: "10px 14px", md: "12px 18px" },
+          }}
+        >
+          <Typography sx={{ fontSize: { xs: 14, md: 16 }, fontFamily: "Poppins, sans-serif" }}>
+            Step 4: Health and Medical Records
+          </Typography>
+        </Box>
 
-      {/* Stepper */}
-      <Box sx={{ display: "flex", justifyContent: "center", width: "100%", px: 2, py: 1.5, borderBottom: "1px solid #e0e0e0" }}>
-        {steps.map((step, index) => (
-          <React.Fragment key={index}>
-            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer" }} onClick={() => handleStepClick(index)}>
-              <Box sx={{ width: 46, height: 46, borderRadius: "50%", border: `2px solid ${borderColor}`, backgroundColor: activeStep === index ? (settings?.header_color || "#6D2323") : "#E8C999", color: activeStep === index ? "#fff" : "#333", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, transition: "all 0.2s" }}>
-                {step.icon}
-              </Box>
-              <Typography sx={{ mt: 0.75, color: activeStep === index ? "#6D2323" : "#555", fontWeight: activeStep === index ? 700 : 400, fontSize: { xs: 10, sm: 12 }, textAlign: "center", maxWidth: 72, lineHeight: 1.3 }}>
-                {step.label}
-              </Typography>
+        {/* ── I. Symptoms Today ────────────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
+            I. Symptoms Today
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <div style={{ fontSize: 12, color: "#555", marginBottom: 12, display: "flex", alignItems: "center" }}>
+              Do you have any of the following symptoms today?
+              {symptomsAllLocked && <LockedBadge />}
+            </div>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: { xs: 0, md: 4 } }}>
+              {["cough", "colds", "fever"].map((symptom) => {
+                const locked = !isFieldEditable(symptom);
+                return (
+                  <div key={symptom} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <Checkbox
+                      name={symptom}
+                      disabled={locked}
+                      checked={person[symptom] === 1}
+                      onChange={(e) => {
+                        if (locked) return;
+                        const updated = { ...person, [symptom]: e.target.checked ? 1 : 0 };
+                        setPerson(updated);
+                        handleUpdate(updated);
+                      }}
+                      sx={{ p: 0.5, "& .MuiSvgIcon-root": { fontSize: 20 } }}
+                    />
+                    <span style={{ fontSize: 14, color: locked ? "#999" : "#333", display: "flex", alignItems: "center", gap: 4 }}>
+                      {symptom.charAt(0).toUpperCase() + symptom.slice(1)}
+                      {locked && <LockIcon style={{ fontSize: 12, color: "#c62828" }} />}
+                    </span>
+                  </div>
+                );
+              })}
             </Box>
-            {index < steps.length - 1 && (
-              <Box sx={{ height: "2px", backgroundColor: mainButtonColor, flex: 1, alignSelf: "center", mx: 1, mb: 3 }} />
-            )}
-          </React.Fragment>
-        ))}
-      </Box>
+          </Box>
+        </Box>
 
-      {/* ── I. Symptoms Today ─────────────────────────────────────────────── */}
-      <div style={{ ...S.card, border: `1px solid ${borderColor}` }}>
-        <div style={{ ...S.cardHeader, backgroundColor: settings?.header_color || "#1976d2" }}>
-          I. Symptoms Today
-        </div>
-        <div style={S.cardBody}>
-          <div style={{ fontSize: 12, color: "#555", marginBottom: 12 }}>
-            Do you have any of the following symptoms today?
-            {/* ✅ Show badge if all three symptom fields are locked */}
-            {!isFieldEditable("cough") && !isFieldEditable("colds") && !isFieldEditable("fever") && <LockedBadge />}
-          </div>
-          {["cough", "colds", "fever"].map((symptom) => {
-            const locked = !isFieldEditable(symptom);
-            return (
-              <div key={symptom} style={S.checkRow}>
-                {/* ✅ UPDATED: disabled and onChange wired to permissions */}
+        {/* ── II. Medical History ─────────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
+            II. Medical History
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <div style={{ fontSize: 12, color: "#555", marginBottom: 12 }}>
+              Have you suffered from, or been told you had, any of the following
+              conditions?
+            </div>
+
+            <Box
+              sx={{
+                columnCount: { xs: 1, md: 2 },
+                columnGap: "32px",
+              }}
+            >
+              {medicalConditions.map(({ label, key }) => (
+                <Box key={key} sx={{ breakInside: "avoid" }}>
+                  <ConditionRow
+                    label={label}
+                    fieldKey={key}
+                    person={person}
+                    onChange={handleToggle}
+                    locked={!isFieldEditable(key)}
+                  />
+                </Box>
+              ))}
+            </Box>
+
+            <hr style={{ border: "none", borderTop: "1px solid #e0e0e0", margin: "14px 0 10px" }} />
+
+            {/* Hospitalization */}
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#6D2323",
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+                marginBottom: 10,
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              Hospitalization History
+              {!isFieldEditable("hospitalized") && <LockedBadge />}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 10 }}>
+              <span style={{ fontSize: 13, color: !isFieldEditable("hospitalized") ? "#999" : "#333" }}>
+                Do you have any previous history of hospitalization or operation?
+              </span>
+              <YesNo
+                fieldKey="hospitalized"
+                person={person}
+                onChange={handleToggle}
+                disabled={!isFieldEditable("hospitalized")}
+              />
+            </div>
+
+            <Box sx={{ maxWidth: { md: 480 } }}>
+              <Field label="If Yes, Please Specify:" lockedBadge={!isFieldEditable("hospitalizationDetails")}>
                 <input
-                  type="checkbox"
-                  disabled={locked}
-                  checked={person[symptom] === 1}
+                  type="text"
+                  name="hospitalizationDetails"
+                  readOnly={!isFieldEditable("hospitalizationDetails")}
+                  value={person.hospitalizationDetails || ""}
+                  onChange={(e) => handleTextChange("hospitalizationDetails", e.target.value)}
+                  style={inputStyle(false, !isFieldEditable("hospitalizationDetails"))}
+                  placeholder="Enter details..."
+                />
+              </Field>
+            </Box>
+          </Box>
+        </Box>
+
+        {/* ── III. Medication ─────────────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
+            III. Medication
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <Field label="List all current medications:" lockedBadge={!isFieldEditable("medications")}>
+              <textarea
+                name="medications"
+                readOnly={!isFieldEditable("medications")}
+                value={person.medications || ""}
+                onChange={(e) => handleTextChange("medications", e.target.value)}
+                style={textareaStyle(!isFieldEditable("medications"))}
+                placeholder="Enter medications or type NA"
+              />
+            </Field>
+          </Box>
+        </Box>
+
+        {/* ── IV. COVID Profile ────────────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
+            IV. COVID Profile
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#6D2323",
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+                marginBottom: 10,
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              A. COVID-19 History
+              {!isFieldEditable("hadCovid") && <LockedBadge />}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 10 }}>
+              <span style={{ fontSize: 13, color: !isFieldEditable("hadCovid") ? "#999" : "#333" }}>
+                Do you have history of COVID-19?
+              </span>
+              <YesNo
+                fieldKey="hadCovid"
+                person={person}
+                onChange={handleToggle}
+                disabled={!isFieldEditable("hadCovid")}
+              />
+            </div>
+
+            <Box sx={{ maxWidth: { md: 300 } }}>
+              <Field label="If Yes, When:" lockedBadge={!isFieldEditable("covidDate")}>
+                <DateField
+                  size="small"
+                  name="covidDate"
+                  readOnly={!isFieldEditable("covidDate")}
+                  value={person.covidDate || ""}
+                  onChange={(e) => handleTextChange("covidDate", e.target.value)}
+                  style={inputStyle(false, !isFieldEditable("covidDate"))}
+                />
+              </Field>
+            </Box>
+
+            <hr style={{ border: "none", borderTop: "1px solid #e0e0e0", margin: "14px 0 10px" }} />
+
+            {/* B. Vaccinations */}
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#6D2323",
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+                marginBottom: 10,
+              }}
+            >
+              B. COVID Vaccinations
+            </div>
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                gap: 1.5,
+              }}
+            >
+              {vaccineColumns.map(({ label, brandKey, dateKey }) => {
+                const brandLocked = !isFieldEditable(brandKey);
+                const dateLocked = !isFieldEditable(dateKey);
+                return (
+                  <Box
+                    key={brandKey}
+                    sx={{
+                      backgroundColor: "#fafafa",
+                      border: "1px solid #e8e8e8",
+                      borderRadius: 2,
+                      p: "10px 12px",
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#6D2323", marginBottom: 8 }}>{label}</div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 4 }}>
+                          Brand
+                          {brandLocked && <LockedBadge />}
+                        </label>
+                        <input
+                          type="text"
+                          name={brandKey}
+                          readOnly={brandLocked}
+                          value={person[brandKey] || ""}
+                          onChange={(e) => handleTextChange(brandKey, e.target.value)}
+                          style={inputStyle(false, brandLocked, { height: 38 })}
+                          placeholder="Brand name"
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 4 }}>
+                          Date
+                          {dateLocked && <LockedBadge />}
+                        </label>
+                        <DateField
+                          size="small"
+                          name={dateKey}
+                          readOnly={dateLocked}
+                          value={person[dateKey] || ""}
+                          onChange={(e) => handleTextChange(dateKey, e.target.value)}
+                          style={inputStyle(false, dateLocked, { height: 38 })}
+                        />
+                      </div>
+                    </div>
+                  </Box>
+                );
+              })}
+            </Box>
+          </Box>
+        </Box>
+
+        {/* ── V. Laboratory Results ───────────────────────────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
+            V. Laboratory Results
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" } }}>
+            <div style={{ fontSize: 12, color: "#555", marginBottom: 12 }}>
+              Please indicate the result of the following:
+            </div>
+            <div style={gridCols2}>
+              {[
+                { label: "Chest X-ray", key: "chestXray" },
+                { label: "CBC", key: "cbc" },
+                { label: "Urinalysis", key: "urinalysis" },
+                { label: "Other Workups", key: "otherworkups" },
+              ].map(({ label, key }) => {
+                const locked = !isFieldEditable(key);
+                return (
+                  <Field key={key} label={label} lockedBadge={locked}>
+                    <input
+                      type="text"
+                      name={key}
+                      readOnly={locked}
+                      value={person[key] || ""}
+                      onChange={(e) => handleTextChange(key, e.target.value)}
+                      style={inputStyle(false, locked)}
+                      placeholder="Enter result or NA"
+                    />
+                  </Field>
+                );
+              })}
+            </div>
+          </Box>
+        </Box>
+
+        {/* ── VI. Diagnosis — system-locked for students ───────────────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
+            VI. Diagnosis
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" }, backgroundColor: userRole === "student" ? "#fafafa" : undefined }}>
+            <div
+              style={{
+                fontSize: 13,
+                color: userRole === "student" ? "#999" : "#333",
+                marginBottom: 12,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              Diagnosis Result:
+              {userRole === "student" && <LockedBadge />}
+            </div>
+            <Box sx={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <Checkbox
+                  name="symptomsToday"
+                  disabled={userRole === "student"}
+                  checked={person.symptomsToday === 0}
                   onChange={() => {
-                    if (locked) return;
-                    const updated = { ...person, [symptom]: person[symptom] === 1 ? 0 : 1 };
+                    if (userRole === "student") return;
+                    const updated = { ...person, symptomsToday: person.symptomsToday === 0 ? null : 0 };
                     setPerson(updated);
                     handleUpdate(updated);
                   }}
-                  style={{ width: 18, height: 18, accentColor: "#6D2323" }}
+                  sx={{ p: 0.5 }}
                 />
-                <span style={{ ...S.checkLabel, color: locked ? "#999" : "#333", display: "flex", alignItems: "center", gap: 4 }}>
-                  {symptom.charAt(0).toUpperCase() + symptom.slice(1)}
-                  {locked && <LockIcon style={{ fontSize: 12, color: "#c62828" }} />}
+                <span style={{ fontSize: 13, marginLeft: 4, color: userRole === "student" ? "#999" : "#333" }}>
+                  Physically Fit
                 </span>
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── II. Medical History ───────────────────────────────────────────── */}
-      <div style={{ ...S.card, border: `1px solid ${borderColor}` }}>
-        <div style={{ ...S.cardHeader, backgroundColor: settings?.header_color || "#1976d2" }}>
-          II. Medical History
-        </div>
-        <div style={S.cardBody}>
-          <div style={{ fontSize: 12, color: "#555", marginBottom: 12 }}>
-            Have you suffered from, or been told you had, any of the following conditions?
-          </div>
-          {/* ✅ UPDATED: passes locked prop to ConditionRow */}
-          {medicalConditions.map(({ label, key }) => (
-            <ConditionRow
-              key={key}
-              label={label}
-              fieldKey={key}
-              person={person}
-              onChange={handleToggle}
-              locked={!isFieldEditable(key)}
-            />
-          ))}
-
-          <hr style={S.divider} />
-
-          {/* Hospitalization */}
-          <div style={S.sectionLabel}>
-            Hospitalization History
-            {!isFieldEditable("hospitalized") && <LockedBadge />}
-          </div>
-          <div style={{ ...S.conditionRow, flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
-            <span style={{ fontSize: 13, color: !isFieldEditable("hospitalized") ? "#999" : "#333" }}>
-              Do you have any previous history of hospitalization or operation?
-            </span>
-            {/* ✅ UPDATED: disabled wired to permission */}
-            <YesNo fieldKey="hospitalized" person={person} onChange={handleToggle} disabled={!isFieldEditable("hospitalized")} />
-          </div>
-
-          {/* ✅ UPDATED: locked prop wired to permission */}
-          <Field label="If Yes, Please Specify:" locked={!isFieldEditable("hospitalizationDetails")}>
-            <input
-              type="text"
-              name="hospitalizationDetails"
-              readOnly={!isFieldEditable("hospitalizationDetails")}
-              value={person.hospitalizationDetails || ""}
-              onChange={(e) => handleTextChange("hospitalizationDetails", e.target.value)}
-              style={S.input(false, !isFieldEditable("hospitalizationDetails"))}
-              placeholder="Enter details..."
-            />
-          </Field>
-        </div>
-      </div>
-
-      {/* ── III. Medication ───────────────────────────────────────────────── */}
-      <div style={{ ...S.card, border: `1px solid ${borderColor}` }}>
-        <div style={{ ...S.cardHeader, backgroundColor: settings?.header_color || "#1976d2" }}>
-          III. Medication
-        </div>
-        <div style={S.cardBody}>
-          {/* ✅ UPDATED: locked prop wired to permission */}
-          <Field label="List all current medications:" locked={!isFieldEditable("medications")}>
-            <textarea
-              name="medications"
-              readOnly={!isFieldEditable("medications")}
-              value={person.medications || ""}
-              onChange={(e) => handleTextChange("medications", e.target.value)}
-              style={S.textarea(!isFieldEditable("medications"))}
-              placeholder="Enter medications or type NA"
-            />
-          </Field>
-        </div>
-      </div>
-
-      {/* ── IV. COVID Profile ─────────────────────────────────────────────── */}
-      <div style={{ ...S.card, border: `1px solid ${borderColor}` }}>
-        <div style={{ ...S.cardHeader, backgroundColor: settings?.header_color || "#1976d2" }}>
-          IV. COVID Profile
-        </div>
-        <div style={S.cardBody}>
-
-          {/* A. COVID History */}
-          <div style={S.sectionLabel}>
-            A. COVID-19 History
-            {!isFieldEditable("hadCovid") && <LockedBadge />}
-          </div>
-          <div style={{ ...S.conditionRow, flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
-            <span style={{ fontSize: 13, color: !isFieldEditable("hadCovid") ? "#999" : "#333" }}>
-              Do you have history of COVID-19?
-            </span>
-            {/* ✅ UPDATED: disabled wired to permission */}
-            <YesNo fieldKey="hadCovid" person={person} onChange={handleToggle} disabled={!isFieldEditable("hadCovid")} />
-          </div>
-
-          {/* ✅ UPDATED: locked prop wired to permission */}
-          <Field label="If Yes, When:" locked={!isFieldEditable("covidDate")}>
-            <DateField
-              size="small"
-              name="covidDate"
-              readOnly={!isFieldEditable("covidDate")}
-              value={person.covidDate || ""}
-              onChange={(e) => handleTextChange("covidDate", e.target.value)}
-              style={S.input(false, !isFieldEditable("covidDate"))}
-            />
-          </Field>
-
-          <hr style={S.divider} />
-
-          {/* B. Vaccinations */}
-          <div style={S.sectionLabel}>B. COVID Vaccinations</div>
-          {vaccineColumns.map(({ label, brandKey, dateKey }) => {
-            const brandLocked = !isFieldEditable(brandKey);
-            const dateLocked = !isFieldEditable(dateKey);
-            return (
-              <div key={brandKey} style={{ backgroundColor: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 8, padding: "10px 12px", marginBottom: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#6D2323", marginBottom: 8 }}>{label}</div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <div style={{ flex: 1 }}>
-                    {/* ✅ UPDATED: locked prop and readOnly wired to permission */}
-                    <Field label="Brand" locked={brandLocked}>
-                      <input
-                        type="text"
-                        name={brandKey}
-                        readOnly={brandLocked}
-                        value={person[brandKey] || ""}
-                        onChange={(e) => handleTextChange(brandKey, e.target.value)}
-                        style={{ ...S.input(false, brandLocked), height: 38 }}
-                        placeholder="Brand name"
-                      />
-                    </Field>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    {/* ✅ UPDATED: locked prop and readOnly wired to permission */}
-                    <Field label="Date" locked={dateLocked}>
-                      <DateField
-                        size="small"
-                        name={dateKey}
-                        readOnly={dateLocked}
-                        value={person[dateKey] || ""}
-                        onChange={(e) => handleTextChange(dateKey, e.target.value)}
-                        style={{ ...S.input(false, dateLocked), height: 38 }}
-                      />
-                    </Field>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── V. Lab Results ────────────────────────────────────────────────── */}
-      <div style={{ ...S.card, border: `1px solid ${borderColor}` }}>
-        <div style={{ ...S.cardHeader, backgroundColor: settings?.header_color || "#1976d2" }}>
-          V. Laboratory Results
-        </div>
-        <div style={S.cardBody}>
-          <div style={{ fontSize: 12, color: "#555", marginBottom: 12 }}>
-            Please indicate the result of the following:
-          </div>
-          {[
-            { label: "Chest X-ray", key: "chestXray" },
-            { label: "CBC", key: "cbc" },
-            { label: "Urinalysis", key: "urinalysis" },
-            { label: "Other Workups", key: "otherworkups" },
-          ].map(({ label, key }) => {
-            const locked = !isFieldEditable(key);
-            return (
-              // ✅ UPDATED: locked prop wired to permission
-              <Field key={key} label={label} locked={locked}>
-                <input
-                  type="text"
-                  name={key}
-                  readOnly={locked}
-                  value={person[key] || ""}
-                  onChange={(e) => handleTextChange(key, e.target.value)}
-                  style={S.input(false, locked)}
-                  placeholder="Enter result or NA"
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <Checkbox
+                  name="symptomsToday"
+                  disabled={userRole === "student"}
+                  checked={person.symptomsToday === 1}
+                  onChange={() => {
+                    if (userRole === "student") return;
+                    const updated = { ...person, symptomsToday: person.symptomsToday === 1 ? null : 1 };
+                    setPerson(updated);
+                    handleUpdate(updated);
+                  }}
+                  sx={{ p: 0.5 }}
                 />
-              </Field>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── VI. Diagnosis — system-locked for students (matches desktop) ── */}
-      <div style={{ ...S.card, border: `1px solid ${borderColor}` }}>
-        <div style={{ ...S.cardHeader, backgroundColor: settings?.header_color || "#1976d2" }}>
-          VI. Diagnosis
-        </div>
-        <div style={{ ...S.cardBody, backgroundColor: userRole === "student" ? "#fafafa" : undefined }}>
-          <div style={{ fontSize: 13, color: userRole === "student" ? "#999" : "#333", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-            Diagnosis Result:
-            {/* ✅ System-locked for students — same rule as desktop */}
-            {userRole === "student" && <LockedBadge />}
-          </div>
-          <div style={{ display: "flex", gap: 20 }}>
-            <div style={S.yesNoItem}>
-              <input
-                type="checkbox"
-                disabled={userRole === "student"}
-                checked={person.symptomsToday === 0}
-                onChange={() => {
-                  if (userRole === "student") return;
-                  const updated = { ...person, symptomsToday: person.symptomsToday === 0 ? null : 0 };
-                  setPerson(updated);
-                  handleUpdate(updated);
-                }}
-                style={{ width: 16, height: 16, accentColor: "#6D2323" }}
-              />
-              <span style={{ fontSize: 13, marginLeft: 4, color: userRole === "student" ? "#999" : "#333" }}>Physically Fit</span>
-            </div>
-            <div style={S.yesNoItem}>
-              <input
-                type="checkbox"
-                disabled={userRole === "student"}
-                checked={person.symptomsToday === 1}
-                onChange={() => {
-                  if (userRole === "student") return;
-                  const updated = { ...person, symptomsToday: person.symptomsToday === 1 ? null : 1 };
-                  setPerson(updated);
-                  handleUpdate(updated);
-                }}
-                style={{ width: 16, height: 16, accentColor: "#6D2323" }}
-              />
-              <span style={{ fontSize: 13, marginLeft: 4, color: userRole === "student" ? "#999" : "#333" }}>For Compliance</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── VII. Remarks — system-locked for students (matches desktop) ── */}
-      <div style={{ ...S.card, marginBottom: 16, border: `1px solid ${borderColor}` }}>
-        <div style={{ ...S.cardHeader, backgroundColor: settings?.header_color || "#1976d2" }}>
-          VII. Remarks
-        </div>
-        <div style={{ ...S.cardBody, backgroundColor: userRole === "student" ? "#fafafa" : undefined }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 5, display: "flex", alignItems: "center", gap: 6 }}>
-            Remarks:
-            {/* ✅ System-locked for students — matches desktop */}
-            {userRole === "student" && <LockedBadge />}
-          </div>
-          <textarea
-            name="remarks"
-            disabled={userRole === "student"}
-            value={person.remarks || ""}
-            onChange={(e) => {
-              if (userRole === "student") return;
-              handleTextChange("remarks", e.target.value);
-            }}
-            style={S.textarea(userRole === "student")}
-            placeholder="Remarks from physician..."
-          />
-        </div>
-
-        {/* Navigation Buttons */}
-        <Box display="flex" justifyContent="space-between" mt={1} mx="12px" mb={3}>
-          <Button
-            variant="contained"
-            onClick={() => {
-              handleUpdate(person);
-              showSnackbar("Your record has been saved successfully!", "success");
-              setTimeout(() => navigate("/student_educational_attainment"), 1000);
-            }}
-            startIcon={<ArrowBackIcon sx={{ color: "#000", transition: "color 0.3s" }} />}
-            sx={{
-              backgroundColor: subButtonColor,
-              border: `1px solid ${borderColor}`,
-              color: "#000",
-              textTransform: "none",
-              fontWeight: 600,
-              "&:hover": { backgroundColor: "#000", color: "#fff", "& .MuiSvgIcon-root": { color: "#fff" } },
-            }}
-          >
-            Previous Step
-          </Button>
-
-          <Button
-            variant="contained"
-            onClick={() => {
-              handleUpdate(person);
-              showSnackbar("Your record has been saved successfully!", "success");
-              setTimeout(() => navigate("/student_other_information"), 1000);
-            }}
-            endIcon={<ArrowForwardIcon sx={{ color: "#fff", transition: "color 0.3s" }} />}
-            sx={{
-              backgroundColor: mainButtonColor,
-              border: `1px solid ${borderColor}`,
-              color: "#fff",
-              textTransform: "none",
-              fontWeight: 600,
-              "&:hover": { backgroundColor: "#000", color: "#fff", "& .MuiSvgIcon-root": { color: "#fff" } },
-            }}
-          >
-            Next Step
-          </Button>
+                <span style={{ fontSize: 13, marginLeft: 4, color: userRole === "student" ? "#999" : "#333" }}>
+                  For Compliance
+                </span>
+              </div>
+            </Box>
+          </Box>
         </Box>
-      </div>
-    </div>
+
+        {/* ── VII. Remarks + Navigation — system-locked for students ────── */}
+        <Box
+          sx={{
+            backgroundColor: "#fff",
+            borderRadius: "10px",
+            mx: { xs: "12px", md: 0 },
+            mt: "12px",
+            mb: 3,
+            overflow: "hidden",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            border: `1px solid ${borderColor}`,
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: settings?.header_color || "#1976d2",
+              color: "#fff",
+              p: { xs: "10px 14px", md: "12px 18px" },
+              fontSize: { xs: 13, md: 15 },
+              fontWeight: 700,
+              letterSpacing: 0.3,
+            }}
+          >
+            VII. Remarks
+          </Box>
+          <Box sx={{ p: { xs: "14px", md: "20px" }, backgroundColor: userRole === "student" ? "#fafafa" : undefined }}>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                fontSize: "clamp(11px, 1.4vw, 13px)",
+                fontWeight: 600,
+                color: "#444",
+                marginBottom: 5,
+              }}
+            >
+              Remarks:
+              {userRole === "student" && <LockedBadge />}
+            </label>
+            <textarea
+              name="remarks"
+              readOnly={userRole === "student"}
+              value={person.remarks || ""}
+              onChange={(e) => {
+                if (userRole === "student") return;
+                handleTextChange("remarks", e.target.value);
+              }}
+              style={textareaStyle(userRole === "student")}
+              placeholder="Remarks from physician..."
+            />
+
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column-reverse", sm: "row" },
+                justifyContent: "space-between",
+                gap: 1.5,
+                mt: 3,
+              }}
+            >
+              <Button
+                fullWidth={isPhone}
+                variant="contained"
+                onClick={() => {
+                  handleUpdate(person);
+                  showSnackbar("Your record has been saved successfully!", "success");
+                  setTimeout(() => navigate("/student_educational_attainment"), 1000);
+                }}
+                startIcon={<ArrowBackIcon sx={{ color: "#000", transition: "color 0.3s" }} />}
+                sx={{
+                  backgroundColor: subButtonColor,
+                  border: `1px solid ${borderColor}`,
+                  color: "#000",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  "&:hover": {
+                    backgroundColor: "#000",
+                    color: "#fff",
+                    "& .MuiSvgIcon-root": { color: "#fff" },
+                  },
+                }}
+              >
+                Previous Step
+              </Button>
+
+              <Button
+                fullWidth={isPhone}
+                variant="contained"
+                onClick={() => {
+                  handleUpdate(person);
+                  showSnackbar("Your record has been saved successfully!", "success");
+                  setTimeout(() => navigate("/student_other_information"), 1000);
+                }}
+                endIcon={<ArrowForwardIcon sx={{ color: "#fff", transition: "color 0.3s" }} />}
+                sx={{
+                  backgroundColor: mainButtonColor,
+                  border: `1px solid ${borderColor}`,
+                  color: "#fff",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  "&:hover": {
+                    backgroundColor: "#000",
+                    color: "#fff",
+                    "& .MuiSvgIcon-root": { color: "#fff" },
+                  },
+                }}
+              >
+                Next Step
+              </Button>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 };
 

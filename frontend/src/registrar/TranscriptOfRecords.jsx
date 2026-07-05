@@ -877,7 +877,29 @@ const TOR = () => {
       <br />
       <br />
       <style>
-        {`  
+        {`
+            /* ===== Screen-only "separate pages" look =====
+               These rules are NOT inside @media print, so they apply
+               only to normal on-screen viewing. Each print-container
+               (one per physical page) gets its own card styling with
+               a fixed page size, border, shadow and gap so pages look
+               visually separated instead of one continuous block. */
+            .page-container {
+                background: #e7e7e7;
+                padding-top: 2rem;
+            }
+            .page-card {
+                background: white;
+                border: 1px solid #b8b8b8;
+                box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+                box-sizing: border-box;
+                width: fit-content;
+                min-width: 215.9mm;
+                min-height: 356mm;
+                padding: 10mm 12mm;
+                margin: 0 auto 2.5rem;
+            }
+
             @media print {
                 @page {
                     margin: 0 !important; 
@@ -903,6 +925,7 @@ const TOR = () => {
                     zoom: 0.85 !important;
                     position: absolute;
                     top: 0;
+                    left: 26%;
                 }
                 .print-container, .print-container *, .page, .page *{
                     visibility: visible;
@@ -924,6 +947,8 @@ const TOR = () => {
                 }
                 .page-container{
                     display: block !important;
+                    background: transparent !important;
+                    padding: 0 !important;
                 }   
                 .print-container:last-child {
                     page-break-after: auto;
@@ -933,7 +958,7 @@ const TOR = () => {
                     top: 0;
                 }
                 .page-header{
-                    margin-top: -2rem !important;
+                    margin-top: -0.5rem !important;
                     height: 10rem !important;
                 }
                 .table{
@@ -947,6 +972,25 @@ const TOR = () => {
                 }
                 button {
                     display: none !important; /* hide buttons */
+                }
+
+                /* ✅ The screen-only "page card" look (border/shadow/fixed
+                   size/gap) must disappear when printing, since the print
+                   layout already handles page sizing via .print-container
+                   and the @page rule above. Note: we deliberately do NOT
+                   reset margin-left here, because .print-container relies
+                   on margin-left: -23.5% (set above) to center the page —
+                   resetting the full margin shorthand would break that. */
+                .page-card {
+                    background: transparent !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    padding: 0 !important;
+                    width: 100% !important;
+                    min-height: 13.5in !important;
+                    margin-top: 0 !important;
+                    margin-right: 0 !important;
+                    margin-bottom: 0 !important;
                 }
 
             }
@@ -1521,36 +1565,22 @@ const TOR = () => {
         className="page-container"
       >
         <Box
-          className="print-container"
-          style={{
-            backgroundColor: "#ffffff",
-            border: "1px solid #b8b8b8",
-            boxShadow: "0 6px 18px rgba(0, 0, 0, 0.14)",
-            boxSizing: "border-box",
-            minHeight: "297mm",
-            padding: "12mm",
-            margin: "-1rem auto 2rem",
-
-          }}
-
+          ref={divToPrintRef}
+          className="page"
+          style={{ minWidth: "215.9mm" }}
         >
-          <Box
-            ref={divToPrintRef}
-            className="page"
-            style={{ minWidth: "215.9mm", minHeight: "356mm" }}
-          >
-            {paginatedSubjects.map((pageGroups, pageIndex) => (
-              <Box
-                key={pageIndex}
-                className={`print-container print-container-${pageIndex + 1}`}
-                style={{
-                  pageBreakAfter: "always",
-                  breakAfter: "page",
-                  paddingRight: "1.5rem",
-                  marginTop: "3rem",
-                  paddingBottom: "1.5rem",
-                }}
-              >
+          {paginatedSubjects.map((pageGroups, pageIndex) => (
+            <Box
+              key={pageIndex}
+              className={`print-container print-container-${pageIndex + 1} page-card`}
+              style={{
+                pageBreakAfter: "always",
+                breakAfter: "page",
+                paddingRight: "3.5rem",
+                marginTop: "3rem",
+                paddingBottom: "1.5rem",
+              }}
+            >
                 {/* Start Of Header */}
                 <Box
                   className="page-header"
@@ -1830,7 +1860,7 @@ const TOR = () => {
                             <Typography
                               style={{
                                 fontSize: "22px",
-                                marginTop: "-1px",
+                                marginTop: "-5px",
                                 marginLeft: "2.3rem",
                                 fontWeight: "400",
                                 letterSpacing: "-1.5px",
@@ -2429,7 +2459,7 @@ const TOR = () => {
                                         marginRight: "2px",
                                       }}
                                     >
-                                      {"earist".repeat(13)} xxx{" "}
+                                      {shortTerm?.toLowerCase().repeat(13)} xxx{" "}
                                     </span>
                                     NOTHING FOLLOWS
                                     <span
@@ -2439,7 +2469,7 @@ const TOR = () => {
                                       }}
                                     >
                                       {" "}
-                                      xxx {"earist".repeat(13)}
+                                      xxx {shortTerm?.toLowerCase().repeat(13)}
                                     </span>
                                   </span>
                                 </td>
@@ -3197,8 +3227,7 @@ const TOR = () => {
                   </Box>
                 </Box>
               </Box>
-            ))}
-          </Box>
+          ))}
         </Box>
       </Box>
       <Snackbar

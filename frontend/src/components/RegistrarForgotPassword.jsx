@@ -27,21 +27,7 @@ import {
 } from "@mui/icons-material";
 import { SettingsContext } from "../App";
 import API_BASE_URL from "../apiConfig";
-
-/* ─── Mobile breakpoint hook ─── */
-const useIsMobile = (bp = 768) => {
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== "undefined" ? window.innerWidth <= bp : false
-  );
-
-  useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth <= bp);
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
-  }, [bp]);
-
-  return isMobile;
-};
+import { useResponsive } from "../hooks/useResponsive";
 
 /* ═══════════════════════════════════════════════════════════
    FORGOT PASSWORD TOTP MODAL
@@ -58,9 +44,12 @@ const ForgotPasswordTotpModal = ({
   manualKey,
   mainButtonColor,
   borderColor,
-  isMobile,
+  device, // "mobile" | "tablet" | "desktop"
   navigate,
 }) => {
+  const isMobile = device === "mobile";
+  const isTablet = device === "tablet";
+
   // step: "scan" | "verify" | "submitting" | "done"
   const [step, setStep] = useState("scan");
   const [showManualKey, setShowManualKey] = useState(false);
@@ -69,6 +58,14 @@ const ForgotPasswordTotpModal = ({
   const [tempPassword, setTempPassword] = useState("");
   const [copied, setCopied] = useState(false);
   const inputRefs = useRef([]);
+
+  // Size tokens per device tier
+  const modalWidth = isMobile ? "calc(100% - 24px)" : isTablet ? 440 : 480;
+  const modalPadding = isMobile ? 2.5 : isTablet ? 3.5 : 4;
+  const qrSize = isMobile ? 172 : isTablet ? 192 : 210;
+  const digitBoxWidth = isMobile ? 38 : isTablet ? 48 : 54;
+  const digitBoxHeight = isMobile ? 48 : isTablet ? 56 : 62;
+  const digitGap = isMobile ? 0.75 : 1.5;
 
   // Reset internal state every time the modal is (re)opened
   useEffect(() => {
@@ -160,16 +157,17 @@ const ForgotPasswordTotpModal = ({
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          width: isMobile ? "calc(100% - 32px)" : 480,
+          width: modalWidth,
           maxWidth: 480,
           bgcolor: "#fff",
-          borderRadius: "20px",
+          borderRadius: isMobile ? "16px" : "20px",
           boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
-          p: isMobile ? 3 : 4,
+          p: modalPadding,
           border: "1px solid #eee",
           outline: "none",
-          maxHeight: "90vh",
+          maxHeight: "92dvh",
           overflowY: "auto",
+          WebkitOverflowScrolling: "touch",
         }}
       >
         {/* Close button */}
@@ -177,12 +175,24 @@ const ForgotPasswordTotpModal = ({
           <button
             onClick={onClose}
             style={{
-              position: "absolute", top: "12px", right: "12px",
-              backgroundColor: "black", color: "white", border: "none",
-              borderRadius: "50%", width: "34px", height: "34px",
-              cursor: "pointer", fontSize: "16px", fontWeight: "bold",
-              display: "flex", alignItems: "center", justifyContent: "center",
+              position: "absolute",
+              top: "12px",
+              right: "12px",
+              backgroundColor: "black",
+              color: "white",
+              border: "none",
+              borderRadius: "50%",
+              width: "36px",
+              height: "36px",
+              cursor: "pointer",
+              fontSize: "16px",
+              fontWeight: "bold",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              touchAction: "manipulation",
             }}
+            aria-label="Close"
           >
             ✕
           </button>
@@ -192,17 +202,27 @@ const ForgotPasswordTotpModal = ({
         {step === "scan" && (
           <>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
-              <Box sx={{
-                width: 42, height: 42, borderRadius: "50%", bgcolor: mainButtonColor,
-                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-              }}>
+              <Box
+                sx={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: "50%",
+                  bgcolor: mainButtonColor,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
                 <PhoneAndroidIcon sx={{ color: "#fff", fontSize: 22 }} />
               </Box>
-              <Box>
+              <Box sx={{ minWidth: 0 }}>
                 <Typography fontWeight={700} fontSize={isMobile ? 15 : 17}>
                   Re-link Google Authenticator
                 </Typography>
-                <Typography fontSize={12} color="#888">Step 1 of 2 — Scan the QR code</Typography>
+                <Typography fontSize={12} color="#888">
+                  Step 1 of 2 — Scan the QR code
+                </Typography>
               </Box>
             </Box>
 
@@ -227,15 +247,27 @@ const ForgotPasswordTotpModal = ({
                   src={qrDataUrl}
                   alt="Google Authenticator QR Code"
                   style={{
-                    width: isMobile ? 180 : 210, height: isMobile ? 180 : 210,
-                    border: "3px solid #000", borderRadius: "12px", display: "inline-block",
+                    width: qrSize,
+                    height: qrSize,
+                    border: "3px solid #000",
+                    borderRadius: "12px",
+                    display: "inline-block",
+                    maxWidth: "100%",
                   }}
                 />
               ) : (
-                <Box sx={{
-                  width: 210, height: 210, bgcolor: "#f5f5f5", borderRadius: "12px",
-                  display: "flex", alignItems: "center", justifyContent: "center", mx: "auto",
-                }}>
+                <Box
+                  sx={{
+                    width: qrSize,
+                    height: qrSize,
+                    bgcolor: "#f5f5f5",
+                    borderRadius: "12px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    mx: "auto",
+                  }}
+                >
                   <CircularProgress size={32} sx={{ color: mainButtonColor }} />
                 </Box>
               )}
@@ -246,39 +278,64 @@ const ForgotPasswordTotpModal = ({
                 <button
                   onClick={() => setShowManualKey((v) => !v)}
                   style={{
-                    background: "none", border: "none", cursor: "pointer",
-                    color: mainButtonColor, fontSize: "13px", fontWeight: 600,
-                    padding: 0, textDecoration: "underline",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: mainButtonColor,
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    padding: 0,
+                    textDecoration: "underline",
+                    touchAction: "manipulation",
                   }}
                 >
                   {showManualKey ? "Hide manual key" : "Can't scan? Enter key manually"}
                 </button>
                 {showManualKey && (
-                  <Box sx={{
-                    mt: 1, p: "10px 14px", bgcolor: "#f5f5f5", borderRadius: "8px",
-                    border: "1px solid #ddd", fontFamily: "monospace",
-                    fontSize: isMobile ? "12px" : "13.5px", letterSpacing: "0.08em",
-                    color: "#222", wordBreak: "break-all", userSelect: "all",
-                  }}>
+                  <Box
+                    sx={{
+                      mt: 1,
+                      p: "10px 14px",
+                      bgcolor: "#f5f5f5",
+                      borderRadius: "8px",
+                      border: "1px solid #ddd",
+                      fontFamily: "monospace",
+                      fontSize: isMobile ? "12px" : "13.5px",
+                      letterSpacing: "0.08em",
+                      color: "#222",
+                      wordBreak: "break-all",
+                      userSelect: "all",
+                    }}
+                  >
                     {manualKey}
                   </Box>
                 )}
                 {showManualKey && (
                   <Typography fontSize={11.5} color="#888" sx={{ mt: 0.5 }}>
-                    In Google Authenticator: tap + → Enter a setup key → paste this key, select "Time based".
+                    In Google Authenticator: tap + → Enter a setup key → paste this key, select
+                    "Time based".
                   </Typography>
                 )}
               </Box>
             )}
 
-            <Box sx={{
-              display: "flex", gap: 1, alignItems: "flex-start", bgcolor: "#fffbf2",
-              border: "1px solid #f5a623", borderRadius: "8px", p: 1.5, mb: 2.5,
-            }}>
+            <Box
+              sx={{
+                display: "flex",
+                gap: 1,
+                alignItems: "flex-start",
+                bgcolor: "#fffbf2",
+                border: "1px solid #f5a623",
+                borderRadius: "8px",
+                p: 1.5,
+                mb: 2.5,
+              }}
+            >
               <span style={{ fontSize: 16, flexShrink: 0 }}>⏱️</span>
               <Typography fontSize={12} color="#5d4037" lineHeight={1.5}>
                 This QR code expires in <strong>10 minutes</strong>, and your old authenticator
-                keeps working until you finish the next step. If it expires, close this dialog and start over.
+                keeps working until you finish the next step. If it expires, close this dialog and
+                start over.
               </Typography>
             </Box>
 
@@ -293,8 +350,14 @@ const ForgotPasswordTotpModal = ({
               }}
               disabled={!qrDataUrl}
               sx={{
-                backgroundColor: mainButtonColor, color: "#fff", fontWeight: 700,
-                fontSize: "15px", borderRadius: "12px", py: 1.5, textTransform: "none",
+                backgroundColor: mainButtonColor,
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: "15px",
+                borderRadius: "12px",
+                py: 1.5,
+                textTransform: "none",
+                minHeight: 48,
                 "&:hover": { backgroundColor: mainButtonColor, opacity: 0.92 },
               }}
             >
@@ -307,13 +370,21 @@ const ForgotPasswordTotpModal = ({
         {(step === "verify" || step === "submitting") && (
           <>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
-              <Box sx={{
-                width: 42, height: 42, borderRadius: "50%", bgcolor: mainButtonColor,
-                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-              }}>
+              <Box
+                sx={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: "50%",
+                  bgcolor: mainButtonColor,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
                 <CheckCircleIcon sx={{ color: "#fff", fontSize: 22 }} />
               </Box>
-              <Box>
+              <Box sx={{ minWidth: 0 }}>
                 <Typography fontWeight={700} fontSize={isMobile ? 15 : 17}>
                   Enter Authenticator Code
                 </Typography>
@@ -325,31 +396,46 @@ const ForgotPasswordTotpModal = ({
 
             <Box sx={{ bgcolor: "#f8f9ff", borderRadius: "12px", p: 2, mb: 2.5, border: "1px solid #e8eaff" }}>
               <Typography fontSize={13} color="#444" lineHeight={1.7}>
-                Open <strong>Google Authenticator</strong> and enter the <strong>6-digit code</strong> for
-                the entry you just scanned.
+                Open <strong>Google Authenticator</strong> and enter the <strong>6-digit code</strong>{" "}
+                for the entry you just scanned.
               </Typography>
               <Typography fontSize={12} color="#888" sx={{ mt: 0.5 }}>
                 The code refreshes every 30 seconds — use the current one.
               </Typography>
             </Box>
 
-            <Box sx={{ display: "flex", justifyContent: "center", gap: isMobile ? 1 : 1.5, mb: 2.5 }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                gap: digitGap,
+                mb: 2.5,
+                flexWrap: "nowrap",
+              }}
+            >
               {totpCode.map((digit, index) => (
                 <input
                   key={index}
                   ref={(el) => (inputRefs.current[index] = el)}
                   type="text"
                   inputMode="numeric"
+                  autoComplete="one-time-code"
                   maxLength={1}
                   value={digit}
                   onChange={(e) => handleDigitChange(e.target.value, index)}
                   onKeyDown={(e) => handleDigitKeyDown(e, index)}
                   disabled={step === "submitting"}
                   style={{
-                    width: isMobile ? "42px" : "54px", height: isMobile ? "52px" : "62px",
-                    fontSize: "24px", fontWeight: 700, textAlign: "center", borderRadius: "12px",
-                    border: error ? "2px solid #f44336" : "2px solid #ddd", outline: "none",
-                    background: step === "submitting" ? "#f5f5f5" : "#fff", transition: "border 0.2s",
+                    width: `${digitBoxWidth}px`,
+                    height: `${digitBoxHeight}px`,
+                    fontSize: isMobile ? "20px" : "24px",
+                    fontWeight: 700,
+                    textAlign: "center",
+                    borderRadius: "12px",
+                    border: error ? "2px solid #f44336" : "2px solid #ddd",
+                    outline: "none",
+                    background: step === "submitting" ? "#f5f5f5" : "#fff",
+                    transition: "border 0.2s",
                   }}
                 />
               ))}
@@ -357,7 +443,9 @@ const ForgotPasswordTotpModal = ({
 
             {error && (
               <Box sx={{ bgcolor: "#fff5f5", border: "1px solid #f44336", borderRadius: "8px", p: 1.5, mb: 2 }}>
-                <Typography fontSize={13} color="#c62828">{error}</Typography>
+                <Typography fontSize={13} color="#c62828">
+                  {error}
+                </Typography>
               </Box>
             )}
 
@@ -367,8 +455,15 @@ const ForgotPasswordTotpModal = ({
               onClick={handleConfirm}
               disabled={step === "submitting" || totpCode.join("").length !== 6}
               sx={{
-                backgroundColor: mainButtonColor, color: "#fff", fontWeight: 700,
-                fontSize: "15px", borderRadius: "12px", py: 1.5, textTransform: "none", mb: 1.5,
+                backgroundColor: mainButtonColor,
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: "15px",
+                borderRadius: "12px",
+                py: 1.5,
+                textTransform: "none",
+                minHeight: 48,
+                mb: 1.5,
                 "&:hover": { backgroundColor: mainButtonColor, opacity: 0.92 },
               }}
             >
@@ -377,19 +472,28 @@ const ForgotPasswordTotpModal = ({
                   <CircularProgress size={18} sx={{ color: "#fff" }} />
                   Verifying…
                 </Box>
-              ) : "Confirm & Reset Password"}
+              ) : (
+                "Confirm & Reset Password"
+              )}
             </Button>
 
             <Button
               fullWidth
               variant="outlined"
-              onClick={() => { setStep("scan"); setError(""); }}
+              onClick={() => {
+                setStep("scan");
+                setError("");
+              }}
               disabled={step === "submitting"}
               sx={{
-                fontWeight: 600, fontSize: "13px",
-                borderRadius: "12px", py: 1.25,
-                textTransform: "none", color: "#555",
+                fontWeight: 600,
+                fontSize: "13px",
+                borderRadius: "12px",
+                py: 1.25,
+                textTransform: "none",
+                color: "#555",
                 borderColor: "#ddd",
+                minHeight: 44,
                 "&:hover": { borderColor: "#bbb", bgcolor: "#fafafa" },
               }}
             >
@@ -401,10 +505,19 @@ const ForgotPasswordTotpModal = ({
         {/* ── STEP: done ── */}
         {step === "done" && (
           <Box sx={{ textAlign: "center" }}>
-            <Box sx={{
-              width: 42, height: 42, borderRadius: "50%", bgcolor: "#2e7d32",
-              display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 2,
-            }}>
+            <Box
+              sx={{
+                width: 42,
+                height: 42,
+                borderRadius: "50%",
+                bgcolor: "#2e7d32",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                mx: "auto",
+                mb: 2,
+              }}
+            >
               <CheckCircleIcon sx={{ color: "#fff", fontSize: 22 }} />
             </Box>
 
@@ -416,11 +529,28 @@ const ForgotPasswordTotpModal = ({
             </Typography>
 
             <Typography sx={{ fontWeight: 600, mb: 1 }}>Your temporary password:</Typography>
-            <Paper variant="outlined" sx={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 1,
-              p: 1.5, mb: 2, border: `2px solid ${borderColor}`, borderRadius: "8px",
-            }}>
-              <Typography sx={{ fontFamily: "monospace", fontSize: "1.1rem", letterSpacing: 1 }}>
+            <Paper
+              variant="outlined"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexWrap: "wrap",
+                gap: 1,
+                p: 1.5,
+                mb: 2,
+                border: `2px solid ${borderColor}`,
+                borderRadius: "8px",
+              }}
+            >
+              <Typography
+                sx={{
+                  fontFamily: "monospace",
+                  fontSize: isMobile ? "0.95rem" : "1.1rem",
+                  letterSpacing: 1,
+                  wordBreak: "break-all",
+                }}
+              >
                 {tempPassword}
               </Typography>
               <Tooltip title={copied ? "Copied!" : "Copy"}>
@@ -438,10 +568,16 @@ const ForgotPasswordTotpModal = ({
               onClick={() => navigate("/login")}
               variant="contained"
               sx={{
-                width: "100%", py: 1.5, backgroundColor: mainButtonColor,
-                border: `2px solid ${borderColor}`, color: "white", height: "50px",
-                borderRadius: "10px", fontSize: isMobile ? "14px" : "15px",
-                textTransform: "none", fontWeight: 600,
+                width: "100%",
+                py: 1.5,
+                backgroundColor: mainButtonColor,
+                border: `2px solid ${borderColor}`,
+                color: "white",
+                height: isMobile ? "48px" : "50px",
+                borderRadius: "10px",
+                fontSize: isMobile ? "14px" : "15px",
+                textTransform: "none",
+                fontWeight: 600,
               }}
             >
               Go to Login
@@ -456,7 +592,7 @@ const ForgotPasswordTotpModal = ({
 // page step machine is now just "identify" — the rest lives in the modal
 const RegistrarForgotPasswordQR = () => {
   const settings = useContext(SettingsContext);
-  const isMobile = useIsMobile();
+  const { device, isMobile, isTablet, isDesktop } = useResponsive();
   const navigate = useNavigate();
 
   const [borderColor, setBorderColor] = useState("#000000");
@@ -481,7 +617,7 @@ const RegistrarForgotPasswordQR = () => {
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [manualKey, setManualKey] = useState("");
 
-  // ── NEW: modal open/close state ──
+  // modal open/close state
   const [showTotpModal, setShowTotpModal] = useState(false);
 
   const [snack, setSnack] = useState({ open: false, message: "", severity: "info" });
@@ -496,10 +632,17 @@ const RegistrarForgotPasswordQR = () => {
     setSnack((prev) => ({ ...prev, open: false }));
   };
 
+  // ── Layout tokens per device tier ──
+  const cardWidth = isMobile ? "calc(100% - 32px)" : isTablet ? "min(520px, 92vw)" : undefined;
+  const cardMaxWidth = isMobile ? 480 : isTablet ? 540 : undefined;
+  const cardBorderWidth = isMobile ? "3px" : isTablet ? "4px" : "5px";
+  const bodyPadding = isMobile ? "16px" : isTablet ? "20px" : "24px";
+  const fieldHeight = isMobile ? 48 : 50;
+
   const fieldSx = {
     "& .MuiOutlinedInput-root": {
-      height: isMobile ? "48px" : "50px",
-      "& input": { height: isMobile ? "48px" : "50px", padding: "0 10px", boxSizing: "border-box" },
+      height: `${fieldHeight}px`,
+      "& input": { height: `${fieldHeight}px`, padding: "0 10px", boxSizing: "border-box" },
     },
   };
 
@@ -508,7 +651,7 @@ const RegistrarForgotPasswordQR = () => {
     ? `url(${API_BASE_URL}${settings.bg_image})`
     : "linear-gradient(to right, #f5f5f5, #fafafa)";
 
-  // ── STEP 1: identify — on success, POP UP the modal instead of switching page content ──
+  // ── STEP 1: identify — on success, pop up the modal instead of switching page content ──
   const handleIdentify = async () => {
     if (identifyLoading) return;
 
@@ -529,7 +672,7 @@ const RegistrarForgotPasswordQR = () => {
         setAccountType(res.data.type);
         setQrDataUrl(res.data.qrDataUrl);
         setManualKey(res.data.manualKey || "");
-        setShowTotpModal(true); // ← open the dialog instead of setStep("scan")
+        setShowTotpModal(true);
       } else {
         setSnack({ open: true, message: res.data?.message || "Account not found.", severity: "error" });
       }
@@ -552,25 +695,33 @@ const RegistrarForgotPasswordQR = () => {
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
         width: "100%",
-        minHeight: "100vh",
+        minHeight: "100dvh",
         display: "flex",
-        alignItems: isMobile ? "flex-start" : "center",
+        alignItems: isDesktop ? "center" : "flex-start",
         justifyContent: "center",
-        marginTop: isMobile ? 0 : "-50px",
-        overflowY: isMobile ? "auto" : "hidden",
-        py: isMobile ? 2 : 0,
+        marginTop: isDesktop ? "-50px" : 0,
+        overflowY: isDesktop ? "hidden" : "auto",
+        py: isDesktop ? 0 : isTablet ? 4 : 2,
+        px: isMobile ? 0 : 2,
+        pb: isMobile ? "calc(16px + env(safe-area-inset-bottom))" : undefined,
       }}
     >
       <Container
-        style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: isMobile ? "0" : undefined }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: isMobile ? "0" : undefined,
+          width: "100%",
+        }}
         maxWidth={false}
       >
         <div
           className="Container"
           style={{
-            border: isMobile ? "3px solid black" : "5px solid black",
-            width: isMobile ? "calc(100% - 32px)" : undefined,
-            maxWidth: isMobile ? 480 : undefined,
+            border: `${cardBorderWidth} solid black`,
+            width: cardWidth,
+            maxWidth: cardMaxWidth,
           }}
         >
           {/* Header */}
@@ -578,7 +729,7 @@ const RegistrarForgotPasswordQR = () => {
             className="Header"
             style={{
               backgroundColor: settings?.header_color || "#1976d2",
-              padding: isMobile ? "12px 10px" : "1rem 0",
+              padding: isMobile ? "12px 10px" : isTablet ? "14px 12px" : "1rem 0",
               borderBottom: "3px solid black",
             }}
           >
@@ -600,7 +751,7 @@ const RegistrarForgotPasswordQR = () => {
           </div>
 
           {/* Body — always just the identify form now */}
-          <div className="Body" style={{ padding: isMobile ? "16px" : "24px" }}>
+          <div className="Body" style={{ padding: bodyPadding }}>
             <Typography fontWeight={700} fontSize={isMobile ? 15 : 17} sx={{ mb: 2 }}>
               Forgot Password
             </Typography>
@@ -640,10 +791,17 @@ const RegistrarForgotPasswordQR = () => {
                 variant="contained"
                 disabled={identifyLoading || !identifier.trim() || !email.trim()}
                 sx={{
-                  width: "100%", py: 1.5, backgroundColor: mainButtonColor,
-                  border: `2px solid ${borderColor}`, color: "white", height: "50px",
-                  borderRadius: "10px", fontSize: isMobile ? "14px" : "15px",
-                  textTransform: "none", fontWeight: 600,
+                  width: "100%",
+                  py: 1.5,
+                  backgroundColor: mainButtonColor,
+                  border: `2px solid ${borderColor}`,
+                  color: "white",
+                  height: isMobile ? "48px" : "50px",
+                  borderRadius: "10px",
+                  fontSize: isMobile ? "14px" : "15px",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  touchAction: "manipulation",
                 }}
               >
                 {identifyLoading ? "Checking..." : "Continue"}
@@ -652,7 +810,11 @@ const RegistrarForgotPasswordQR = () => {
 
             <div className="LinkContainer" style={{ marginTop: "1rem" }}>
               <p>To go to login page,</p>
-              <span><Link to="/" style={{ textDecoration: "underline" }}>Click here</Link></span>
+              <span>
+                <Link to="/" style={{ textDecoration: "underline" }}>
+                  Click here
+                </Link>
+              </span>
             </div>
           </div>
 
@@ -677,7 +839,7 @@ const RegistrarForgotPasswordQR = () => {
         manualKey={manualKey}
         mainButtonColor={mainButtonColor}
         borderColor={borderColor}
-        isMobile={isMobile}
+        device={device}
         navigate={navigate}
       />
 
