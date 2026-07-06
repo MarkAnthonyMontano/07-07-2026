@@ -188,7 +188,6 @@ const getDepartmentSectionLabel = async (departmentSectionId) => {
       .filter(Boolean)
       .join(" ");
   } catch (error) {
-    console.error("Student history section lookup failed:", error);
     return "Unknown Section";
   }
 };
@@ -210,7 +209,7 @@ const getSchoolYearLabel = async (activeSchoolYearId) => {
     );
 
     if (rows?.[0]) {
-      return `${rows[0].year_description} ${rows[0].semester_description}`;
+      return `${rows[0].year_description}-${parseInt(rows[0].year_description) + 1}, ${rows[0].semester_description}`;
     }
   } catch (error) {
     console.error("Student history school year lookup failed:", error);
@@ -229,9 +228,17 @@ const getCourseLabel = async (courseId) => {
     if (!course) return `Course ${courseId}`;
     return `${course.course_code || "N/A"} (${course.course_description || "Unknown Course"})`;
   } catch (error) {
-    console.error("Student history course lookup failed:", error);
     return `Course ${courseId}`;
   }
+};
+const getExpectedTaggedCourseCount = async (curriculumId, yearLevelId, semesterId) => {
+  const [rows] = await db3.query(
+    `SELECT COUNT(DISTINCT course_id) AS total
+     FROM program_tagging_table
+     WHERE curriculum_id = ? AND year_level_id = ? AND semester_id = ?`,
+    [curriculumId, yearLevelId, semesterId],
+  );
+  return Number(rows?.[0]?.total || 0);
 };
 
 const buildStudentHistoryMessage = ({ actor, body }) => {
@@ -246,6 +253,7 @@ const buildStudentHistoryMessage = ({ actor, body }) => {
   const courseLabel = String(body?.course_label || body?.courseLabel || "").trim();
   const paymentTarget = String(body?.payment_target || body?.paymentTarget || "").trim();
   const grade = body?.grade ?? body?.final_grade;
+  const courseCount = Array.isArray(body?.courses) ? body.courses.length : 0;
 
   switch (body?.action) {
     case "assign_student_number":
@@ -254,7 +262,7 @@ const buildStudentHistoryMessage = ({ actor, body }) => {
       );
     case "bulk_enroll":
       return truncateMessage(
-        `${actorLabel} Enrolled Student (${studentNumber}) ${studentName} to ${sectionLabel} for ${schoolYearLabel}. ${formatCourseList(body?.courses)}`,
+        `${actorLabel} enrolled ${courseCount} ${courseCount === 1 ? "subject" : "subjects"} for Student (${studentNumber}) ${studentName} in ${sectionLabel} for Academic Year ${schoolYearLabel}.`
       );
     case "enroll_course":
       return truncateMessage(
@@ -266,7 +274,7 @@ const buildStudentHistoryMessage = ({ actor, body }) => {
       );
     case "unenroll_all":
       return truncateMessage(
-        `${actorLabel} unenrolled all courses from Student (${studentNumber}) ${studentName}. ${formatCourseList(body?.courses)}`,
+        `${actorLabel} unenrolled ${courseCount} ${courseCount === 1 ? "subject" : "subjects"} for Student (${studentNumber}) ${studentName} in ${sectionLabel} for Academic Year ${schoolYearLabel}.`
       );
     case "save_matriculation":
       return truncateMessage(
@@ -370,6 +378,7 @@ module.exports = {
   getEmployeeActorFromIds,
   getEmployeeActorFromRequest,
   getSchoolYearLabel,
+  getExpectedTaggedCourseCount,
   getStudentNameByNumber,
   insertStudentHistoryLog,
   logStudentHistoryFromActor,

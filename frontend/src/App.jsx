@@ -753,7 +753,7 @@ function App() {
                       <Route path="/schedule_checker/:dprtmnt_id" element={<ProtectedRoute><ScheduleChecker /></ProtectedRoute>} />
                       <Route path="/change_grade_period" element={<ProtectedRoute><ChangeGradingPeriod /></ProtectedRoute>} />
                       <Route path="/department_room" element={<ProtectedRoute><DepartmentRoom /></ProtectedRoute>} />
-                      <Route path="/registrar_course_tagging_summer" element={<ProtectedRoute><SearchCertificateOfRegistration /></ProtectedRoute>} />
+                      <Route path="/registrar_search_certificate_of_registration" element={<ProtectedRoute><SearchCertificateOfRegistration /></ProtectedRoute>} />
                       <Route path="/college_search_certification_of_registration" element={<ProtectedRoute><CollegeSearchCertificateOfRegistration /></ProtectedRoute>} />
                       <Route path="/cor" element={<ProtectedRoute><CertificateOfRegistration /></ProtectedRoute>} />
                       <Route path="/college_certificate_of_registration" element={<ProtectedRoute><CollegeCertificateOfRegistration /></ProtectedRoute>} />

@@ -199,7 +199,6 @@ module.exports = function registerSocketHandlers({
 
 
   io.on("connection", (socket) => {
-    console.log(" Socket.IO client connected");
 
     // ---------------------- Forgot Password: Applicant ----------------------
     socket.on("forgot-password-applicant", async (data) => {
@@ -312,9 +311,6 @@ Thank you,
 ${shortTerm} Information System
       `,
         });
-
-        console.log("Password reset email sent:", info.response);
-
         // =========================
         // AUDIT LOG
         // =========================
@@ -408,7 +404,6 @@ ${shortTerm} Information System
     app.get("/api/applicant-schedule/:applicantNumber", async (req, res) => {
       try {
         const { applicantNumber } = req.params;
-        console.log("Receive Applicant Number: ", applicantNumber);
 
         const [rows] = await db.query(
           `SELECT
@@ -592,8 +587,6 @@ WHERE proctor LIKE ?
           qualifying_exam_score,
           qualifying_interview_score,
         } = req.body;
-        console.log("  Payload:", req.body);
-
         // 1  Find person_id of applicant
         const [rows] = await db.query(
           "SELECT person_id FROM applicant_numbering_table WHERE applicant_number = ?",
@@ -983,9 +976,6 @@ WHERE proctor LIKE ?
           person_data.current_step,             // 149 current_step
         ];
 
-        // Safety check — logs the count so you can verify it's 148
-        console.log("[assign-student-number] personValues count:", personValues.length);
-
         const placeholders = personValues.map(() => "?").join(", ");
 
         const [personInsertResult] = await conn.query(
@@ -1026,7 +1016,6 @@ WHERE proctor LIKE ?
 
         // ── Real person_id from MySQL auto-increment ─────────────────────────────
         const personIdForStudent = personInsertResult.insertId;
-        console.log("[assign-student-number] personIdForStudent:", personIdForStudent);
 
         // ── Insert into student_numbering_table ──────────────────────────────────
         await conn.query(
@@ -1388,7 +1377,6 @@ Click the link below to log in:
         text: `Your new temporary password is: ${tempPassword}\n\nPlease change it after logging in.`,
       });
 
-      console.log(`${shortTerm} reset email sent to ${to}`);
     } catch (emailErr) {
       console.error("Email send error:", emailErr);
     }
@@ -1703,7 +1691,6 @@ Click the link below to log in:
 
   // ================== INTERVIEW SOCKET EVENTS ==================
   io.on("connection", (socket) => {
-    console.log(" New client connected for Interview Scheduling");
 
     // Assign applicants (single, 40, custom  all handled here)
     socket.on(
@@ -2043,8 +2030,6 @@ Click the link below to log in:
   });
 
   io.on("connection", (socket) => {
-    console.log(" Socket.IO client connected");
-
     // ENTRANCE EXAM
     socket.on(
       "update_schedule",
@@ -2055,7 +2040,6 @@ Click the link below to log in:
         audit_actor_role,
       }) => {
         try {
-          console.log(schedule_id);
           if (
             !schedule_id ||
             !applicant_numbers ||
@@ -2123,10 +2107,6 @@ Click the link below to log in:
             }
           }
 
-          console.log(" Assigned:", assigned);
-          console.log("  Updated:", updated);
-          console.log("   Skipped:", skipped);
-
           const changedApplicants = [...assigned, ...updated];
           if (changedApplicants.length > 0) {
             const safeActor = audit_actor_id || "unknown";
@@ -2169,7 +2149,6 @@ Click the link below to log in:
         audit_actor_role,
       }) => {
         try {
-          console.log("For Interview: ", schedule_id);
           if (
             !schedule_id ||
             !applicant_numbers ||
@@ -2236,11 +2215,6 @@ Click the link below to log in:
               assigned.push(applicant_number);
             }
           }
-
-          console.log(" Assigned:", assigned);
-          console.log("  Updated:", updated);
-          console.log("   Skipped:", skipped);
-
           const changedApplicants = [...assigned, ...updated];
           if (changedApplicants.length > 0) {
             const safeActor = audit_actor_id || "unknown";
@@ -2888,7 +2862,6 @@ Click the link below to log in:
           selectedActiveSchoolYear,
           profID,
         ]);
-        console.log(result);
         res.json(result);
       } catch (err) {
         console.error("Server Error: ", err);
@@ -2919,7 +2892,6 @@ Click the link below to log in:
           department_section_id,
           school_year_id,
         ]);
-        console.log(result);
         res.json(result);
       } catch (err) {
         console.error("Server Error: ", err);
@@ -3415,15 +3387,6 @@ Click the link below to log in:
       const earliest = timeToMinutes("7:00 AM");
       const latest = timeToMinutes("9:00 PM");
 
-      console.log({
-        start_time,
-        end_time,
-        startMinutes,
-        endMinutes,
-        earliest,
-        latest,
-      });
-
       if (endMinutes <= startMinutes) {
         return res.status(409).json({
           conflict: true,
@@ -3867,7 +3830,6 @@ Click the link below to log in:
       const params = [curriculumId, ...sectionIds, activeSchoolYearId];
       if (courseId) params.push(courseId);
       const [rows] = await db3.query(query, params);
-      console.log("Enrolled counts:", rows);
       return res.status(200).json(rows);
     } catch (err) {
       console.error("Error fetching slot monitoring enrolled counts:", err);
@@ -4115,7 +4077,6 @@ Click the link below to log in:
           selectedSchoolYear,
           selectedSchoolSemester,
         ]);
-        console.log(result);
         res.json(result);
       } catch (err) {
         console.error("Server Error: ", err);
@@ -4421,14 +4382,6 @@ Click the link below to log in:
       student_number,
       subject_id,
     } = req.body;
-    console.log("Received data:", {
-      midterm,
-      finals,
-      final_grade,
-      en_remarks,
-      student_number,
-      subject_id,
-    });
 
     try {
       const [rows] = await db3.execute(
@@ -4511,7 +4464,6 @@ Click the link below to log in:
       const [result] = await db3.query(query, [profID, roomID]);
       res.json(result);
     } catch (error) {
-      console.log(error);
       res.status(500).send({ message: "ERROR:", error });
     }
   });
@@ -4744,7 +4696,6 @@ Click the link below to log in:
     `;
       const [profList] = await db3.execute(query, [cID, dstID]);
 
-      console.log(profList);
       res.json(profList);
     } catch (err) {
       console.error("Error fetching data:", err);
@@ -4782,7 +4733,6 @@ Click the link below to log in:
           courseID,
           professorID,
         ]);
-        console.log(studentList);
         res.json(studentList);
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -4831,7 +4781,6 @@ Click the link below to log in:
           courseID,
           professorID,
         ]);
-        console.log(class_data);
         res.json(class_data);
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -4872,7 +4821,6 @@ Click the link below to log in:
 
   app.get("/api/departments/:dprtmnt_id", async (req, res) => {
     const { dprtmnt_id } = req.params;
-    console.log(dprtmnt_id);
     try {
       const [departments] = await db3.execute(
         `
@@ -5045,7 +4993,6 @@ Click the link below to log in:
     const { id } = req.params;
 
     try {
-      console.log("Fetching student details for person_id:", id);
       const [rows] = await db3.execute(
         `
     SELECT DISTINCT
@@ -5250,7 +5197,6 @@ Click the link below to log in:
 
   app.delete("/api/delete/schedule/:scheduleId", async (req, res) => {
     const { scheduleId } = req.params;
-    console.log("Room Id: ", scheduleId);
 
     try {
       const deleteQuery = `DELETE FROM time_table WHERE id = ?`;
@@ -6146,14 +6092,6 @@ Click the link below to log in:
         [actor.employee_id, department_id, program_id]
       );
 
-      console.log("📧 Template lookup:", {
-        employee_id: actor.employee_id,
-        department_id,
-        program_id,
-        results_found: userEmailRows.length,
-        sender: userEmailRows[0]?.sender_name || "none",
-      });
-
       const templateRow = userEmailRows[0];
 
       if (!templateRow) {
@@ -6298,13 +6236,6 @@ Click the link below to log in:
         }
       });
 
-      console.log("🔍 active-senders lookup:", {
-        employee_id,
-        department_id,
-        program_id,
-        allProgramIds,
-      });
-
       // ✅ Step 2: Search email_template_programs with all possible program_id values
       const placeholders = allProgramIds.map(() => "?").join(", ");
 
@@ -6321,8 +6252,6 @@ Click the link below to log in:
        LIMIT 1`,
         [employee_id, department_id, ...allProgramIds]
       );
-
-      console.log("📧 active-senders result:", rows);
 
       if (rows.length === 0) {
         return res.status(404).json({
@@ -6646,7 +6575,6 @@ Click the link below to log in:
 
   app.get("/api/student-person-data/:id", async (req, res) => {
     const { id } = req.params;
-    console.log("id: ");
 
     try {
       const [rows] = await db3.query(
@@ -6661,7 +6589,6 @@ Click the link below to log in:
       }
 
       res.json(rows[0]);
-      console.log("Person Data: ", rows[0]);
     } catch (err) {
       console.error("Error fetching person data:", err);
       res.status(500).json({ error: "Database error" });
@@ -7108,9 +7035,7 @@ Click the link below to log in:
       };
 
       res.json(studentInfo);
-      console.log(studentInfo);
     } catch (error) {
-      console.log("Database Error", error);
       res.status(500).send({ message: "Database/Server Error", error });
     }
   });
@@ -7218,7 +7143,6 @@ Click the link below to log in:
 
   app.get("/api/my_schedule/:prof_id", async (req, res) => {
     const { prof_id } = req.params;
-    console.log("Professor Id: ", prof_id);
     try {
       const sql = `
     SELECT rdt.description, rt.room_description, tt.school_time_start, tt.school_time_end, ct.course_code, pgt.program_code, st.description AS section  FROM time_table AS tt
@@ -7235,7 +7159,9 @@ Click the link below to log in:
 
       res.json(rows);
     } catch (err) {
-      console.log("Internal Server Error");
+      res
+        .status(500)
+        .json({ message: "Internal Server Error" });
     }
   });
 
@@ -7288,7 +7214,6 @@ Click the link below to log in:
         res.json(rows);
       } catch (err) {
         res.status(500).send({ message: "Student Data is not found" });
-        console.log("Database / Server Error", err);
       }
     },
   );
@@ -7574,7 +7499,6 @@ Click the link below to log in:
 
     try {
       const [rows] = await db3.query(query, [id]);
-      console.log(rows);
       res.json(rows);
     } catch (error) {
       console.error(error);
@@ -8010,7 +7934,6 @@ Click the link below to log in:
 
         try {
           await fs.promises.unlink(fullPath);
-          console.log("    File deleted:", fullPath);
         } catch (err) {
           if (err.code === "ENOENT") {
             console.warn("   File already missing:", fullPath);
@@ -8700,11 +8623,6 @@ Click the link below to log in:
       return res.status(400).json({ error: "Missing parameters" });
     }
 
-    console.log("Course: ", course_id);
-    console.log("Student Number: ", student_number);
-    console.log("Curriculum: ", currId);
-    console.log("School Year", active_school_year_id);
-
     try {
       const sql = `
       INSERT INTO enrolled_subject
@@ -8739,11 +8657,6 @@ Click the link below to log in:
       return res.status(400).json({ error: "Missing parameters" });
     }
 
-    console.log("Course: ", course_id);
-    console.log("Student Number: ", student_number);
-    console.log("Curriculum: ", currId);
-    console.log("School Year", active_school_year_id);
-
     try {
       // Dynamic conversion keeps subject updates aligned with grade_conversion records.
       const gradeConversions = await getGradeConversions();
@@ -8776,7 +8689,6 @@ Click the link below to log in:
   });
 
   io.on("connection", (socket) => {
-    console.log(" Socket connected (VERIFY)");
 
     socket.on(
       "send_verify_schedule_emails",
@@ -8789,7 +8701,6 @@ Click the link below to log in:
         audit_actor_id,
         audit_actor_role,
       }) => {
-        console.log(applicant_numbers);
 
         try {
           if (

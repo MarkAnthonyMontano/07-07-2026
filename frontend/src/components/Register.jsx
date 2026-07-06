@@ -20,6 +20,7 @@ import {
   FormControlLabel,
   MenuItem,
   CircularProgress,
+  IconButton,
 } from "@mui/material";
 import {
   Email as EmailIcon,
@@ -694,9 +695,12 @@ const PasswordRulesNotice = ({ password, isMobile, mainButtonColor, showChecklis
 
 /* ═══════════════════════════════════════════════════════════
    TOTP SETUP MODAL
-   - Step 1: show QR code for user to scan
+   - Step 1: show QR code for user to scan (two columns —
+             instructions on the left, QR code on the right)
    - Step 2: user enters the 6-digit code to confirm setup,
              then the full /register call is made
+   Bilingual (English / Tagalog) throughout so applicants who
+   are more comfortable in Tagalog aren't lost mid-setup.
 ════════════════════════════════════════════════════════════ */
 const TotpSetupModal = ({
   open,
@@ -711,6 +715,7 @@ const TotpSetupModal = ({
   // step: "loading" | "scan" | "verify" | "submitting"
   const [step, setStep] = useState("loading");
   const [qrDataUrl, setQrDataUrl] = useState("");
+  const [qrScale, setQrScale] = useState(1);
   const [manualKey, setManualKey] = useState("");
   const [showManualKey, setShowManualKey] = useState(false);
   const [totpCode, setTotpCode] = useState(["", "", "", "", "", ""]);
@@ -725,6 +730,7 @@ const TotpSetupModal = ({
     setError("");
     setTotpCode(["", "", "", "", "", ""]);
     setShowManualKey(false);
+    setQrScale(1);
 
     axios
       .post(`${API_BASE_URL}/api/register-totp-setup`, { email })
@@ -768,7 +774,7 @@ const TotpSetupModal = ({
   const handleVerifyAndRegister = async () => {
     const code = totpCode.join("");
     if (!/^\d{6}$/.test(code)) {
-      setError("Please enter the complete 6-digit code from Google Authenticator.");
+      setError("Please enter the complete 6-digit code from Google Authenticator. / Pakilagay ang kumpletong 6-digit na code mula sa Google Authenticator.");
       return;
     }
     setError("");
@@ -800,351 +806,464 @@ const TotpSetupModal = ({
       <Box sx={{
         position: "absolute", top: "50%", left: "50%",
         transform: "translate(-50%, -50%)",
-        width: isMobile ? "calc(100% - 32px)" : 480,
-        maxWidth: 480,
+        width: isMobile ? "calc(100% - 32px)" : (step === "scan" ? 760 : 480),
+        maxWidth: step === "scan" ? 760 : 480,
         bgcolor: "#fff",
         borderRadius: "20px",
         boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
-        p: isMobile ? 3 : 4,
-        border: "1px solid #eee",
+
         outline: "none",
         maxHeight: "90vh",
-        overflowY: "auto",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
       }}>
-        {/* Close button */}
-        {step !== "submitting" && (
-          <button
-            onClick={onClose}
-            style={{
-              position: "absolute", top: "12px", right: "12px",
-              backgroundColor: "black", color: "white", border: "none",
-              borderRadius: "50%", width: "34px", height: "34px",
-              cursor: "pointer", fontSize: "16px", fontWeight: "bold",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}
-          >
-            ✕
-          </button>
-        )}
+        {/* ── Colored header bar ── */}
+        {step !== "loading" && (
+          <Box sx={{
+            bgcolor: mainButtonColor,
+            color: "white",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            px: isMobile ? 2.5 : 3,
+            py: 2,
+            flexShrink: 0,
+          }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box sx={{
+                width: 40, height: 40, borderRadius: "50%",
+                bgcolor: "rgba(255,255,255,0.2)",
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                {step === "scan" ? (
+                  <PhoneAndroidIcon sx={{ color: "#fff", fontSize: 21 }} />
+                ) : (
+                  <CheckCircleIcon sx={{ color: "#fff", fontSize: 21 }} />
+                )}
+              </Box>
+              <Box>
+                <Typography fontWeight={700} fontSize={isMobile ? 15 : 17} color="white" lineHeight={1.2}>
+                  {step === "scan" ? "Set Up Google Authenticator" : "Enter Authenticator Code"}
+                </Typography>
+                <Typography fontSize={12} color="rgba(255,255,255,0.85)" lineHeight={1.3}>
+                  {step === "scan"
+                    ? "One-time setup — Step 1 of 2"
+                    : "Step 2 of 2 — Confirm & complete registration"}
+                </Typography>
+                <Typography fontSize={11} color="rgba(255,255,255,0.7)" fontStyle="italic" lineHeight={1.3}>
+                  {step === "scan"
+                    ? "Isang beses na setup — Hakbang 1 ng 2"
+                    : "Hakbang 2 ng 2 — Kumpirmahin at tapusin ang pagpaparehistro"}
+                </Typography>
+              </Box>
+            </Box>
 
-        {/* ── Loading state ── */}
-        {step === "loading" && (
-          <Box sx={{ textAlign: "center", py: 5 }}>
-            <CircularProgress sx={{ color: mainButtonColor }} />
-            <Typography sx={{ mt: 2, color: "#666", fontSize: "14px" }}>
-              Generating your authenticator QR code…
-            </Typography>
+            <IconButton
+              onClick={onClose}
+              disabled={step === "submitting"}
+              sx={{
+                color: "white",
+                border: "2px solid rgba(255,255,255,0.6)",
+                borderRadius: "50%",
+                width: 40,
+                height: 40,
+                padding: 0,
+                flexShrink: 0,
+                "&:hover": {
+                  backgroundColor: "rgba(255,255,255,0.2)",
+                  border: "2px solid white",
+                },
+              }}
+            >
+              <CloseIcon sx={{ fontSize: 18 }} />
+            </IconButton>
           </Box>
         )}
 
-        {/* ── Scan QR step ── */}
-        {step === "scan" && (
-          <>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
-              <Box sx={{
-                width: 42, height: 42, borderRadius: "50%",
-                bgcolor: mainButtonColor,
-                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-              }}>
-                <PhoneAndroidIcon sx={{ color: "#fff", fontSize: 22 }} />
-              </Box>
-              <Box>
-                <Typography fontWeight={700} fontSize={isMobile ? 15 : 17}>
-                  Set Up Google Authenticator
-                </Typography>
-                <Typography fontSize={12} color="#888">
-                  Step 1 of 2 — Scan the QR code
-                </Typography>
-              </Box>
+        {/* ── Body (scrollable) ── */}
+        <Box sx={{ p: isMobile ? 2.5 : 3.5, overflowY: "auto" }}>
+
+          {/* ── Loading state ── */}
+          {step === "loading" && (
+            <Box sx={{ textAlign: "center", py: 5 }}>
+              <CircularProgress sx={{ color: mainButtonColor }} />
+              <Typography sx={{ mt: 2, color: "#666", fontSize: "14px" }}>
+                Generating your authenticator QR code…
+              </Typography>
+              <Typography sx={{ mt: 0.5, color: "#999", fontSize: "12.5px", fontStyle: "italic" }}>
+                Ginagawa ang iyong QR code…
+              </Typography>
             </Box>
+          )}
 
-            <Box
-              sx={{
-                bgcolor: "#f8f9ff",
-                borderRadius: "12px",
-                p: 2,
-                mb: 2.5,
-                border: "1px solid #e8eaff",
-              }}
-            >
-              {/* ── FIXED: each step on its own clear line ── */}
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
-
-                {/* Step 1 label */}
-                <Typography fontSize={13} color="#444" fontWeight={600}>
-                  1. Download and install <strong>Google Authenticator</strong>:
-                </Typography>
-
-                {/* Download buttons — each on its own row */}
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, pl: 1 }}>
-                  <Box sx={{
-                    display: "flex", alignItems: "center", gap: 1,
-                    bgcolor: "#fff", border: "1px solid #dde3ff",
-                    borderRadius: "8px", px: 1.5, py: 1,
-                  }}>
-                    <span style={{ fontSize: 18, lineHeight: 1 }}>📱</span>
-                    <MuiLink
-                      href="https://apps.apple.com/app/google-authenticator/id388497605"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      underline="always"
-                      fontWeight="bold"
-                      fontSize={13}
-                      color="inherit"
-                    >
-                      App Store <span style={{ fontWeight: 400, color: "#888" }}>(iPhone / iPad)</span>
-                    </MuiLink>
-                  </Box>
-
-                  <Box sx={{
-                    display: "flex", alignItems: "center", gap: 1,
-                    bgcolor: "#fff", border: "1px solid #dde3ff",
-                    borderRadius: "8px", px: 1.5, py: 1,
-                  }}>
-                    <span style={{ fontSize: 18, lineHeight: 1 }}>🤖</span>
-                    <MuiLink
-                      href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      underline="always"
-                      fontWeight="bold"
-                      fontSize={13}
-                      color="inherit"
-                    >
-                      Google Play <span style={{ fontWeight: 400, color: "#888" }}>(Android)</span>
-                    </MuiLink>
-                  </Box>
-                </Box>
-
-                {/* Step 2 */}
-                <Typography fontSize={13} color="#444" lineHeight={1.6}>
-                  <strong>2.</strong> Open the app → tap <strong>"+"</strong> → <strong>"Scan a QR code"</strong>.
-                </Typography>
-
-                {/* Step 3 */}
-                <Typography fontSize={13} color="#444" lineHeight={1.6}>
-                  <strong>3.</strong> Scan the QR code below.
-                </Typography>
-
-              </Box>
-            </Box>
-
-            {/* QR code display */}
-            {error ? (
-              <Box sx={{
-                border: "1px solid #f44336", borderRadius: "12px",
-                p: 2, mb: 2.5, textAlign: "center",
-              }}>
-                <Typography color="error" fontSize={13}>{error}</Typography>
-              </Box>
-            ) : (
-              <Box sx={{ textAlign: "center", mb: 2.5 }}>
-                {qrDataUrl ? (
-                  <img
-                    src={qrDataUrl}
-                    alt="Google Authenticator QR Code"
-                    style={{
-                      width: isMobile ? 180 : 210,
-                      height: isMobile ? 180 : 210,
-                      border: "3px solid #000",
-                      borderRadius: "12px",
-                      display: "inline-block",
-                    }}
-                  />
-                ) : (
-                  <Box sx={{
-                    width: 210, height: 210,
-                    bgcolor: "#f5f5f5", borderRadius: "12px",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    mx: "auto",
-                  }}>
-                    <CircularProgress size={32} sx={{ color: mainButtonColor }} />
-                  </Box>
-                )}
-              </Box>
-            )}
-
-            {/* Manual key fallback */}
-            {manualKey && (
-              <Box sx={{ mb: 2.5 }}>
-                <button
-                  onClick={() => setShowManualKey((v) => !v)}
-                  style={{
-                    background: "none", border: "none", cursor: "pointer",
-                    color: mainButtonColor, fontSize: "13px", fontWeight: 600,
-                    padding: 0, textDecoration: "underline",
+          {/* ── Scan QR step: left = instructions, right = QR code ── */}
+          {step === "scan" && (
+            <Box sx={{
+              display: "flex",
+              flexDirection: isMobile ? "column" : "row",
+              gap: isMobile ? 2.5 : 3.5,
+              alignItems: "flex-start",
+            }}>
+              {/* LEFT: Instructions */}
+              <Box sx={{ flex: 1.15, minWidth: 0, width: "100%" }}>
+                <Box
+                  sx={{
+                    bgcolor: "#f8f9ff",
+                    borderRadius: "12px",
+                    p: 2,
+                    mb: 2,
+                    border: "1px solid #e8eaff",
                   }}
                 >
-                  {showManualKey ? "Hide manual key" : "Can't scan? Enter key manually"}
-                </button>
-                {showManualKey && (
-                  <Box sx={{
-                    mt: 1, p: "10px 14px",
-                    bgcolor: "#f5f5f5", borderRadius: "8px",
-                    border: "1px solid #ddd",
-                    fontFamily: "monospace",
-                    fontSize: isMobile ? "12px" : "13.5px",
-                    letterSpacing: "0.08em",
-                    color: "#222",
-                    wordBreak: "break-all",
-                    userSelect: "all",
-                  }}>
-                    {manualKey}
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+
+                    {/* Step 1 label */}
+                    <Box>
+                      <Typography fontSize={13} color="#444" fontWeight={600}>
+                        1. Download and install <strong>Google Authenticator</strong>:
+                      </Typography>
+                      <Typography fontSize={11.5} color="#888" fontStyle="italic">
+                        1. I-download at i-install ang <strong>Google Authenticator</strong>:
+                      </Typography>
+                    </Box>
+
+                    {/* Download buttons — each on its own row */}
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, pl: 1 }}>
+                      <Box sx={{
+                        display: "flex", alignItems: "center", gap: 1,
+                        bgcolor: "#fff", border: "1px solid #dde3ff",
+                        borderRadius: "8px", px: 1.5, py: 1,
+                      }}>
+                        <span style={{ fontSize: 18, lineHeight: 1 }}>📱</span>
+                        <MuiLink
+                          href="https://apps.apple.com/app/google-authenticator/id388497605"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          underline="always"
+                          fontWeight="bold"
+                          fontSize={13}
+                          color="inherit"
+                        >
+                          App Store <span style={{ fontWeight: 400, color: "#888" }}>(iPhone / iPad)</span>
+                        </MuiLink>
+                      </Box>
+
+                      <Box sx={{
+                        display: "flex", alignItems: "center", gap: 1,
+                        bgcolor: "#fff", border: "1px solid #dde3ff",
+                        borderRadius: "8px", px: 1.5, py: 1,
+                      }}>
+                        <span style={{ fontSize: 18, lineHeight: 1 }}>🤖</span>
+                        <MuiLink
+                          href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          underline="always"
+                          fontWeight="bold"
+                          fontSize={13}
+                          color="inherit"
+                        >
+                          Google Play <span style={{ fontWeight: 400, color: "#888" }}>(Android)</span>
+                        </MuiLink>
+                      </Box>
+                    </Box>
+
+                    {/* Step 2 */}
+                    <Box>
+                      <Typography fontSize={13} color="#444" lineHeight={1.6}>
+                        <strong>2.</strong> Open the app → tap <strong>"+"</strong> → <strong>"Scan a QR code"</strong>.
+                      </Typography>
+                      <Typography fontSize={11.5} color="#888" fontStyle="italic" lineHeight={1.5}>
+                        <strong>2.</strong> Buksan ang app → pindutin ang <strong>"+"</strong> → <strong>"Scan a QR code"</strong>.
+                      </Typography>
+                    </Box>
+
+                    {/* Step 3 */}
+                    <Box>
+                      <Typography fontSize={13} color="#444" lineHeight={1.6}>
+                        <strong>3.</strong> Scan the QR code shown on the right.
+                      </Typography>
+                      <Typography fontSize={11.5} color="#888" fontStyle="italic" lineHeight={1.5}>
+                        <strong>3.</strong> I-scan ang QR code sa kanan.
+                      </Typography>
+                    </Box>
+
+                  </Box>
+                </Box>
+
+                {/* Manual key fallback */}
+                {manualKey && (
+                  <Box sx={{ mb: 2 }}>
+                    <button
+                      onClick={() => setShowManualKey((v) => !v)}
+                      style={{
+                        background: "none", border: "none", cursor: "pointer",
+                        color: mainButtonColor, fontSize: "13px", fontWeight: 600,
+                        padding: 0, textDecoration: "underline",
+                      }}
+                    >
+                      {showManualKey ? "Hide manual key" : "Can't scan? Enter key manually"}
+                    </button>
+                    <Typography fontSize={11} color="#aaa" fontStyle="italic" sx={{ mt: 0.3 }}>
+                      {showManualKey ? "Itago ang manual key" : "Hindi ma-scan? Ilagay ang key nang manu-mano"}
+                    </Typography>
+                    {showManualKey && (
+                      <Box sx={{
+                        mt: 1, p: "10px 14px",
+                        bgcolor: "#f5f5f5", borderRadius: "8px",
+                        border: "1px solid #ddd",
+                        fontFamily: "monospace",
+                        fontSize: isMobile ? "12px" : "13.5px",
+                        letterSpacing: "0.08em",
+                        color: "#222",
+                        wordBreak: "break-all",
+                        userSelect: "all",
+                      }}>
+                        {manualKey}
+                      </Box>
+                    )}
+                    {showManualKey && (
+                      <>
+                        <Typography fontSize={11.5} color="#888" sx={{ mt: 0.5 }}>
+                          In Google Authenticator: tap + → Enter a setup key → paste this key, select "Time based".
+                        </Typography>
+                        <Typography fontSize={11} color="#aaa" fontStyle="italic" sx={{ mt: 0.2 }}>
+                          Sa Google Authenticator: pindutin ang + → Enter a setup key → i-paste ang key na ito, piliin ang "Time based".
+                        </Typography>
+                      </>
+                    )}
                   </Box>
                 )}
-                {showManualKey && (
-                  <Typography fontSize={11.5} color="#888" sx={{ mt: 0.5 }}>
-                    In Google Authenticator: tap + → Enter a setup key → paste this key, select "Time based".
-                  </Typography>
-                )}
-              </Box>
-            )}
 
-            {/* Warning about 10-min expiry */}
-            <Box sx={{
-              display: "flex", gap: 1, alignItems: "flex-start",
-              bgcolor: "#fffbf2", border: "1px solid #f5a623",
-              borderRadius: "8px", p: 1.5, mb: 2.5,
-            }}>
-              <span style={{ fontSize: 16, flexShrink: 0 }}>⏱️</span>
-              <Typography fontSize={12} color="#5d4037" lineHeight={1.5}>
-                This QR code expires in <strong>10 minutes</strong>. If it expires, close this dialog and click "Submit Application" again.
-              </Typography>
-            </Box>
-
-            <Button
-              fullWidth
-              variant="contained"
-              onClick={() => {
-                setStep("verify");
-                setError("");
-                setTotpCode(["", "", "", "", "", ""]);
-                setTimeout(() => inputRefs.current[0]?.focus(), 150);
-              }}
-              disabled={!!error || !qrDataUrl}
-              sx={{
-                backgroundColor: mainButtonColor,
-                color: "#fff", fontWeight: 700,
-                fontSize: "15px", borderRadius: "12px",
-                py: 1.5, textTransform: "none",
-                "&:hover": { backgroundColor: mainButtonColor, opacity: 0.92 },
-              }}
-            >
-              I've scanned it — Enter the code →
-            </Button>
-          </>
-        )}
-
-        {/* ── Verify code step ── */}
-        {(step === "verify" || step === "submitting") && (
-          <>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
-              <Box sx={{
-                width: 42, height: 42, borderRadius: "50%",
-                bgcolor: mainButtonColor,
-                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-              }}>
-                <CheckCircleIcon sx={{ color: "#fff", fontSize: 22 }} />
-              </Box>
-              <Box>
-                <Typography fontWeight={700} fontSize={isMobile ? 15 : 17}>
-                  Enter Authenticator Code
-                </Typography>
-                <Typography fontSize={12} color="#888">
-                  Step 2 of 2 — Confirm & complete registration
-                </Typography>
-              </Box>
-            </Box>
-
-            <Box sx={{
-              bgcolor: "#f8f9ff", borderRadius: "12px",
-              p: 2, mb: 2.5, border: "1px solid #e8eaff",
-            }}>
-              <Typography fontSize={13} color="#444" lineHeight={1.7}>
-                Open <strong>Google Authenticator</strong> on your phone and enter the <strong>6-digit code</strong> shown for this account.
-              </Typography>
-              <Typography fontSize={12} color="#888" sx={{ mt: 0.5 }}>
-                The code refreshes every 30 seconds — use the current one.
-              </Typography>
-            </Box>
-
-            {/* 6-digit input boxes */}
-            <Box sx={{ display: "flex", justifyContent: "center", gap: isMobile ? 1 : 1.5, mb: 2.5 }}>
-              {totpCode.map((digit, index) => (
-                <input
-                  key={index}
-                  ref={(el) => (inputRefs.current[index] = el)}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handleDigitChange(e.target.value, index)}
-                  onKeyDown={(e) => handleDigitKeyDown(e, index)}
-                  disabled={step === "submitting"}
-                  style={{
-                    width: isMobile ? "42px" : "54px",
-                    height: isMobile ? "52px" : "62px",
-                    fontSize: "24px",
-                    fontWeight: 700,
-                    textAlign: "center",
-                    borderRadius: "12px",
-                    border: error ? "2px solid #f44336" : "2px solid #ddd",
-                    outline: "none",
-                    background: step === "submitting" ? "#f5f5f5" : "#fff",
-                    transition: "border 0.2s",
-                  }}
-                />
-              ))}
-            </Box>
-
-            {error && (
-              <Box sx={{
-                bgcolor: "#fff5f5", border: "1px solid #f44336",
-                borderRadius: "8px", p: 1.5, mb: 2,
-              }}>
-                <Typography fontSize={13} color="#c62828">{error}</Typography>
-              </Box>
-            )}
-
-            <Button
-              fullWidth
-              variant="contained"
-              onClick={handleVerifyAndRegister}
-              disabled={step === "submitting"}
-              sx={{
-                backgroundColor: mainButtonColor,
-                color: "#fff", fontWeight: 700,
-                fontSize: "15px", borderRadius: "12px",
-                py: 1.5, textTransform: "none", mb: 1.5,
-                "&:hover": { backgroundColor: mainButtonColor, opacity: 0.92 },
-              }}
-            >
-              {step === "submitting" ? (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                  <CircularProgress size={18} sx={{ color: "#fff" }} />
-                  Registering…
+                {/* Warning about 10-min expiry */}
+                <Box sx={{
+                  display: "flex", gap: 1, alignItems: "flex-start",
+                  bgcolor: "#fffbf2", border: "1px solid #f5a623",
+                  borderRadius: "8px", p: 1.5,
+                }}>
+                  <span style={{ fontSize: 16, flexShrink: 0 }}>⏱️</span>
+                  <Box>
+                    <Typography fontSize={12} color="#5d4037" lineHeight={1.5}>
+                      This QR code expires in <strong>10 minutes</strong>. If it expires, close this dialog and click "Submit Application" again.
+                    </Typography>
+                    <Typography fontSize={11} color="#7a4a00" fontStyle="italic" lineHeight={1.5} sx={{ mt: 0.4 }}>
+                      Ang QR code na ito ay mag-e-expire sa loob ng <strong>10 minuto</strong>. Kung mag-expire ito, isara ang dialog na ito at pindutin muli ang "Submit Application".
+                    </Typography>
+                  </Box>
                 </Box>
-              ) : "Verify & Complete Registration"}
-            </Button>
+              </Box>
 
-            {/* Back to QR scan */}
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={() => { setStep("scan"); setError(""); }}
-              disabled={step === "submitting"}
-              sx={{
-                fontWeight: 600, fontSize: "13px",
-                borderRadius: "12px", py: 1.25,
-                textTransform: "none", color: "#555",
-                borderColor: "#ddd",
-                "&:hover": { borderColor: "#bbb", bgcolor: "#fafafa" },
-              }}
-            >
-              ← Back to QR code
-            </Button>
-          </>
-        )}
+              {/* RIGHT: QR code */}
+              <Box sx={{
+                flex: 1,
+                width: "100%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                ...(isMobile ? {} : {
+                  position: "sticky",
+                  top: 0,
+                  borderLeft: "1px solid #eee",
+                  pl: 3.5,
+                }),
+              }}>
+                {error ? (
+                  <Box sx={{
+                    border: "1px solid #f44336", borderRadius: "12px",
+                    p: 2, textAlign: "center", width: "100%",
+                  }}>
+                    <Typography color="error" fontSize={13}>{error}</Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ textAlign: "center" }}>
+                    {qrDataUrl ? (
+                      <img
+                        src={qrDataUrl}
+                        alt="Google Authenticator QR Code"
+                        style={{
+                          width: (isMobile ? 190 : 220) * qrScale,
+                          height: (isMobile ? 190 : 220) * qrScale,
+                          border: "3px solid #000",
+                          borderRadius: "12px",
+                          display: "inline-block",
+                          transition: "width 0.2s ease, height 0.2s ease",
+                        }}
+                      />
+                    ) : (
+                      <Box sx={{
+                        width: 220, height: 220,
+                        bgcolor: "#f5f5f5", borderRadius: "12px",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        mx: "auto",
+                      }}>
+                        <CircularProgress size={32} sx={{ color: mainButtonColor }} />
+                      </Box>
+                    )}
+                  </Box>
+                )}
+
+                {/* Zoom controls for the QR code */}
+                {!error && qrDataUrl && (
+                  <Box sx={{ display: "flex", justifyContent: "center", gap: 1, mt: 1.5 }}>
+                    <button
+                      onClick={() => setQrScale((s) => Math.min(s + 0.25, 1.6))}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 4,
+                        background: "#f0f0f0", border: "1px solid #ddd", borderRadius: "20px",
+                        padding: "5px 12px", fontSize: "12px", fontWeight: 600, color: "#333",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <ZoomInIcon sx={{ fontSize: 16 }} /> Zoom in
+                    </button>
+                    <button
+                      onClick={() => setQrScale((s) => Math.max(s - 0.25, 1))}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 4,
+                        background: "#f0f0f0", border: "1px solid #ddd", borderRadius: "20px",
+                        padding: "5px 12px", fontSize: "12px", fontWeight: 600, color: "#333",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <ZoomOutIcon sx={{ fontSize: 16 }} /> Zoom out
+                    </button>
+                  </Box>
+                )}
+
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={() => {
+                    setStep("verify");
+                    setError("");
+                    setTotpCode(["", "", "", "", "", ""]);
+                    setTimeout(() => inputRefs.current[0]?.focus(), 150);
+                  }}
+                  disabled={!!error || !qrDataUrl}
+                  sx={{
+                    mt: 2.5,
+                    backgroundColor: mainButtonColor,
+                    color: "#fff", fontWeight: 700,
+                    fontSize: "15px", borderRadius: "12px",
+                    py: 1.25, textTransform: "none",
+                    "&:hover": { backgroundColor: mainButtonColor, opacity: 0.92 },
+                  }}
+                >
+                  I've scanned it — Enter the code →
+                </Button>
+                <Typography fontSize={11} color="#aaa" fontStyle="italic" textAlign="center" sx={{ mt: 0.7 }}>
+                  Na-scan ko na — Ilagay ang code →
+                </Typography>
+              </Box>
+            </Box>
+          )}
+
+          {/* ── Verify code step ── */}
+          {(step === "verify" || step === "submitting") && (
+            <>
+              <Box sx={{
+                bgcolor: "#f8f9ff", borderRadius: "12px",
+                p: 2, mb: 2.5, border: "1px solid #e8eaff",
+              }}>
+                <Typography fontSize={13} color="#444" lineHeight={1.7}>
+                  Open <strong>Google Authenticator</strong> on your phone and enter the <strong>6-digit code</strong> shown for this account.
+                </Typography>
+                <Typography fontSize={11.5} color="#888" fontStyle="italic" lineHeight={1.6} sx={{ mt: 0.4 }}>
+                  Buksan ang <strong>Google Authenticator</strong> sa iyong telepono at ilagay ang <strong>6-digit na code</strong> na ipinapakita para sa account na ito.
+                </Typography>
+                <Typography fontSize={12} color="#888" sx={{ mt: 0.8 }}>
+                  The code refreshes every 30 seconds — use the current one.
+                </Typography>
+                <Typography fontSize={11} color="#aaa" fontStyle="italic" sx={{ mt: 0.2 }}>
+                  Nagbabago ang code kada 30 segundo — gamitin ang kasalukuyang code.
+                </Typography>
+              </Box>
+
+              {/* 6-digit input boxes */}
+              <Box sx={{ display: "flex", justifyContent: "center", gap: isMobile ? 1 : 1.5, mb: 2.5 }}>
+                {totpCode.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={(el) => (inputRefs.current[index] = el)}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleDigitChange(e.target.value, index)}
+                    onKeyDown={(e) => handleDigitKeyDown(e, index)}
+                    disabled={step === "submitting"}
+                    style={{
+                      width: isMobile ? "42px" : "54px",
+                      height: isMobile ? "52px" : "62px",
+                      fontSize: "24px",
+                      fontWeight: 700,
+                      textAlign: "center",
+                      borderRadius: "12px",
+                      border: error ? "2px solid #f44336" : "2px solid #ddd",
+                      outline: "none",
+                      background: step === "submitting" ? "#f5f5f5" : "#fff",
+                      transition: "border 0.2s",
+                    }}
+                  />
+                ))}
+              </Box>
+
+              {error && (
+                <Box sx={{
+                  bgcolor: "#fff5f5", border: "1px solid #f44336",
+                  borderRadius: "8px", p: 1.5, mb: 2,
+                }}>
+                  <Typography fontSize={13} color="#c62828">{error}</Typography>
+                </Box>
+              )}
+
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={handleVerifyAndRegister}
+                disabled={step === "submitting"}
+                sx={{
+                  backgroundColor: mainButtonColor,
+                  color: "#fff", fontWeight: 700,
+                  fontSize: "15px", borderRadius: "12px",
+                  py: 1.5, textTransform: "none", mb: 0.5,
+                  "&:hover": { backgroundColor: mainButtonColor, opacity: 0.92 },
+                }}
+              >
+                {step === "submitting" ? (
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                    <CircularProgress size={18} sx={{ color: "#fff" }} />
+                    Registering…
+                  </Box>
+                ) : "Verify & Complete Registration"}
+              </Button>
+              <Typography fontSize={11} color="#aaa" fontStyle="italic" textAlign="center" sx={{ mb: 1.5 }}>
+                {step === "submitting" ? "Nirerehistro…" : "I-verify at Tapusin ang Pagpaparehistro"}
+              </Typography>
+
+              {/* Back to QR scan */}
+              <Button
+                fullWidth
+                color="error"
+                variant="outlined"
+                onClick={() => { setStep("scan"); setError(""); }}
+                disabled={step === "submitting"}
+                sx={{
+                  fontWeight: 600, fontSize: "13px",
+                  borderRadius: "12px", py: 1.25,
+                  textTransform: "none", color: "#555",
+
+                }}
+              >
+                ← Back to QR code
+              </Button>
+              <Typography fontSize={10.5} color="#bbb" fontStyle="italic" textAlign="center" sx={{ mt: 0.5 }}>
+                ← Bumalik sa QR code
+              </Typography>
+            </>
+          )}
+        </Box>
       </Box>
     </Modal>
   );
@@ -1914,9 +2033,14 @@ const Register = () => {
                 borderRadius: "10px", p: 1.5, mt: 2,
               }}>
                 <PhoneAndroidIcon sx={{ color: "#1565c0", fontSize: 20, flexShrink: 0, mt: 0.2 }} />
-                <Typography fontSize={12.5} color="#1a237e" lineHeight={1.6}>
-                  <strong>Two-factor authentication required.</strong> After clicking Submit, you will be asked to scan a QR code using <strong>Google Authenticator</strong> on your phone. Please have it ready.
-                </Typography>
+                <Box>
+                  <Typography fontSize={12.5} color="#1a237e" lineHeight={1.6}>
+                    <strong>Two-factor authentication required.</strong> After clicking Submit, you will be asked to scan a QR code using <strong>Google Authenticator</strong> on your phone. Please have it ready.
+                  </Typography>
+                  <Typography fontSize={11.5} color="#3949ab" fontStyle="italic" lineHeight={1.6} sx={{ mt: 0.4 }}>
+                    <strong>Kailangan ang two-factor authentication.</strong> Pagkatapos i-click ang Submit, hihilingin sa iyong mag-scan ng QR code gamit ang <strong>Google Authenticator</strong> sa iyong telepono. Ihanda na ito.
+                  </Typography>
+                </Box>
               </Box>
 
               <Box sx={{ display: "flex", justifyContent: "center", marginTop: "20px" }}>

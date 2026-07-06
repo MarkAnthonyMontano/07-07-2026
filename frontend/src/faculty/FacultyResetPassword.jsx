@@ -18,17 +18,40 @@ import {
   ListItemText,
   useMediaQuery,
   useTheme,
+  Chip
 } from "@mui/material";
 import {
-  Visibility,
-  VisibilityOff,
-  CheckCircle,
-  Cancel,
-  LockReset,
+  Visibility, VisibilityOff, CheckCircle, Cancel, Settings,
+  PhoneAndroid as PhoneAndroidIcon, LockOpen as LockOpenIcon,
 } from "@mui/icons-material";
 import axios from "axios";
 import API_BASE_URL from "../apiConfig";
 import { useNavigate } from "react-router-dom";
+
+
+// ── Custom large toggle styles ──────────────────────────────────────────────
+const makeToggleStyles = (onColor) => `
+  .big-totp-toggle { position: relative; display: inline-block; width: 56px; height: 30px; flex-shrink: 0; }
+  .big-totp-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .big-totp-slider {
+    position: absolute; inset: 0; cursor: pointer;
+    background: #ccc; border-radius: 15px;
+    transition: background 0.25s;
+  }
+  .big-totp-slider::before {
+    content: ''; position: absolute;
+    height: 22px; width: 22px;
+    left: 4px; bottom: 4px;
+    background: #fff; border-radius: 50%;
+    transition: transform 0.25s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  }
+  .big-totp-toggle input:checked + .big-totp-slider { background: ${onColor}; }
+  .big-totp-toggle input:checked + .big-totp-slider::before { transform: translateX(26px); }
+  .big-totp-toggle input:focus-visible + .big-totp-slider {
+    box-shadow: 0 0 0 3px rgba(25,118,210,0.35);
+  }
+`;
 
 
 const passwordRules = [
@@ -196,7 +219,7 @@ const FacultyResetPassword = () => {
     }
   });
 
-  return (
+ return (
     <Box
       sx={{
         minHeight: { xs: "100vh", md: "calc(100vh - 150px)" },
@@ -208,11 +231,12 @@ const FacultyResetPassword = () => {
         pb: { xs: 6, sm: 2 },
       }}
     >
+      <style>{makeToggleStyles(mainButtonColor)}</style>
+
       {/* Header */}
       <Box
         sx={{
           display: "flex",
-          justifyContent: "flex-start",
           alignItems: "center",
           flexWrap: "wrap",
           mb: 2,
@@ -231,7 +255,7 @@ const FacultyResetPassword = () => {
       <Box sx={{ borderTop: "1px solid #ccc", width: "100%" }} />
       <Box sx={{ height: { xs: 16, sm: 20 } }} />
 
-      <Box sx={{ display: "flex", justifyContent: "center", px: { xs: 1.5, sm: 0 }, mt: { xs: 0, sm: 4 } }}>
+      <Box sx={{ display: "flex", justifyContent: "center", px: { xs: 1.5, sm: 0 }, mt: { xs: 0, sm: 2 } }}>
         <Paper
           elevation={6}
           sx={{
@@ -242,15 +266,15 @@ const FacultyResetPassword = () => {
             backgroundColor: "#fff",
             border: `1px solid ${borderColor}`,
             boxShadow: "0px 4px 20px rgba(0,0,0,0.1)",
-            mb: { xs: 4, sm: 12 },
+            mb: { xs: 4, sm: 6 },
           }}
         >
-          {/* Lock Icon Header */}
+          {/* Icon + title */}
           <Box textAlign="center" mb={2}>
-            <LockReset
+            <Settings
               sx={{
                 fontSize: { xs: 56, sm: 70, md: 80 },
-                color: "#000000",
+                color: "#000",
                 backgroundColor: "#f0f0f0",
                 borderRadius: "50%",
                 p: 1,
@@ -277,31 +301,134 @@ const FacultyResetPassword = () => {
 
           <Divider sx={{ mb: 2 }} />
 
+          {/* ── Google Authenticator toggle ── */}
+          <Box
+            sx={{
+              mt: 2,
+              mb: 3,
+              p: { xs: 1.5, sm: 2 },
+              borderRadius: 3,
+              border: totpEnabled ? "1.5px solid #1976d2" : "1.5px solid #e0e0e0",
+              backgroundColor: totpEnabled ? "#f0f6ff" : "#fafafa",
+              transition: "all 0.2s",
+              opacity: totpUpdating ? 0.7 : 1,
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 1,
+                flexWrap: { xs: "wrap", sm: "nowrap" },
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+                <Box
+                  sx={{
+                    width: { xs: 38, sm: 44 },
+                    height: { xs: 38, sm: 44 },
+                    borderRadius: "50%",
+                    bgcolor: totpEnabled ? mainButtonColor : "#bdbdbd",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    transition: "background-color 0.2s",
+                  }}
+                >
+                  {totpEnabled
+                    ? <PhoneAndroidIcon sx={{ color: "#fff", fontSize: { xs: 19, sm: 22 } }} />
+                    : <LockOpenIcon sx={{ color: "#fff", fontSize: { xs: 19, sm: 22 } }} />
+                  }
+                </Box>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography fontWeight={700} sx={{ fontSize: { xs: 12.5, sm: 14 } }}>
+                    Google Authenticator
+                  </Typography>
+                  <Typography sx={{ fontSize: { xs: 11, sm: 12 } }} color="text.secondary">
+                    Two-factor login via authenticator app
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
+                <Chip
+                  label={totpEnabled ? "ON" : "OFF"}
+                  size="small"
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: "11px",
+                    bgcolor: totpEnabled ? "#e3f2fd" : "#f5f5f5",
+                    color: totpEnabled ? "#1565c0" : "#757575",
+                    border: totpEnabled ? "1px solid #90caf9" : "1px solid #e0e0e0",
+                  }}
+                />
+                <label className="big-totp-toggle" aria-label="Toggle Google Authenticator">
+                  <input
+                    type="checkbox"
+                    checked={totpEnabled}
+                    onChange={handleTotpToggle}
+                    disabled={totpUpdating}
+                  />
+                  <span className="big-totp-slider" />
+                </label>
+              </Box>
+            </Box>
+
+            {!totpEnabled && (
+              <Box
+                sx={{
+                  mt: 1.5,
+                  p: 1.5,
+                  bgcolor: "#fff8e1",
+                  borderRadius: 2,
+                  border: "1px solid #ffe082",
+                  display: "flex",
+                  gap: 1,
+                  alignItems: "flex-start",
+                }}
+              >
+                <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+                <Typography sx={{ fontSize: { xs: 11.5, sm: 12 } }} color="#5d4037" lineHeight={1.5}>
+                  Google Authenticator is <strong>disabled</strong>. Anyone with
+                  your password can log in without a second step. Re-enable it to
+                  protect your account.
+                </Typography>
+              </Box>
+            )}
+            {totpEnabled && (
+              <Box
+                sx={{
+                  mt: 1.5,
+                  p: 1.5,
+                  bgcolor: "#e8f5e9",
+                  borderRadius: 2,
+                  border: "1px solid #a5d6a7",
+                  display: "flex",
+                  gap: 1,
+                  alignItems: "flex-start",
+                }}
+              >
+                <span style={{ fontSize: 16, flexShrink: 0 }}>🔒</span>
+                <Typography sx={{ fontSize: { xs: 11.5, sm: 12 } }} color="#2e7d32" lineHeight={1.5}>
+                  Your account requires a Google Authenticator code every time
+                  you log in. Keep the app installed on your phone.
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
+          <Divider sx={{ mb: 3 }} />
+
+          {/* ── Password form ── */}
           <form onSubmit={handleUpdate}>
             {[
-              {
-                label: "Current Password",
-                labelTl: "Kasalukuyang Password",
-                value: currentPassword,
-                setter: setCurrentPassword,
-                field: "current",
-              },
-              {
-                label: "New Password",
-                labelTl: "Bagong Password",
-                value: newPassword,
-                setter: setNewPassword,
-                field: "new",
-              },
-              {
-                label: "Confirm Password",
-                labelTl: "Kumpirmahin ang Password",
-                value: confirmPassword,
-                setter: setConfirmPassword,
-                field: "confirm",
-              },
-            ].map(({ label, labelTl, value, setter, field }) => (
-              <Box mb={2} key={field}>
+              { key: "current", label: "Current Password", labelTl: "Kasalukuyang Password", value: currentPassword, setter: setCurrentPassword },
+              { key: "new", label: "New Password", labelTl: "Bagong Password", value: newPassword, setter: setNewPassword },
+              { key: "confirm", label: "Confirm Password", labelTl: "Kumpirmahin ang Password", value: confirmPassword, setter: setConfirmPassword },
+            ].map(({ key, label, labelTl, value, setter }) => (
+              <Box mb={2} key={key}>
                 <InputLabel sx={{ fontSize: { xs: 13, sm: 14 } }}>
                   {label}{" "}
                   <Typography component="span" fontStyle="italic" color="text.secondary" sx={{ fontSize: { xs: 11.5, sm: 12.5 } }}>
@@ -310,22 +437,19 @@ const FacultyResetPassword = () => {
                 </InputLabel>
                 <TextField
                   fullWidth
-                  type={showPassword[field] ? "text" : "password"}
                   size="small"
                   variant="outlined"
+                  type={showPassword[key] ? "text" : "password"}
                   value={value}
                   onChange={(e) => setter(e.target.value)}
-                  error={field === "confirm" && Boolean(confirmPassword && confirmPassword !== newPassword)}
-                  helperText={
-                    field === "confirm" && confirmPassword && confirmPassword !== newPassword
-                      ? "Passwords do not match / Hindi magkatugma ang password"
-                      : ""
-                  }
+                  error={key === "confirm" && Boolean(confirmPassword && confirmPassword !== newPassword)}
+                  helperText={key === "confirm" && confirmPassword && confirmPassword !== newPassword ? "Passwords do not match" : ""}
                   InputProps={{
+                    style: { fontSize: 14 },
                     endAdornment: (
                       <InputAdornment position="end">
-                        <IconButton onClick={() => toggleShowPassword(field)} edge="end" size={isMobile ? "small" : "medium"}>
-                          {showPassword[field] ? <Visibility /> : <VisibilityOff />}
+                        <IconButton onClick={() => toggleShowPassword(key)} edge="end" size={isMobile ? "small" : "medium"}>
+                          {showPassword[key] ? <Visibility fontSize="small" /> : <VisibilityOff fontSize="small" />}
                         </IconButton>
                       </InputAdornment>
                     ),
@@ -392,7 +516,7 @@ const FacultyResetPassword = () => {
                 textTransform: "none",
                 fontWeight: "bold",
                 fontSize: { xs: 13, sm: 15 },
-                "&:hover": { backgroundColor: mainButtonColor, opacity: 0.9 },
+                "&:hover": { backgroundColor: "#1565c0" },
                 "&.Mui-disabled": { backgroundColor: "#b0b8c8", color: "#fff", opacity: 0.7 },
               }}
             >
@@ -408,7 +532,11 @@ const FacultyResetPassword = () => {
         onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
-        <Alert severity={snack.severity} onClose={() => setSnack((prev) => ({ ...prev, open: false }))} sx={{ width: "100%" }}>
+        <Alert
+          severity={snack.severity}
+          onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
+          sx={{ width: "100%" }}
+        >
           {snack.message}
         </Alert>
       </Snackbar>

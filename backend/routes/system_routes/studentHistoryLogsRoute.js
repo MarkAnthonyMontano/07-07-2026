@@ -24,6 +24,7 @@ router.get("/student-history-logs/:student_number", async (req, res) => {
         pt.middle_name,
         pt.last_name,
         pt.emailAddress,
+        pt.created_at,
         active_sy.id AS active_school_year_id,
         sst.year_level_id,
         ylt.year_level_description,
@@ -132,7 +133,8 @@ router.get("/student-history-logs/:student_number", async (req, res) => {
                   student.matriculation_remark ||
                   student.matriculation_remark_fallback ||
                   "MATRICULATION"
-                : "MATRICULATION",
+                : "N/A",
+            created_at: student.created_at || null,
             current_curriculum_id: student.current_curriculum_id || null,
             current_curriculum: [
               student.current_program_code ? `(${student.current_program_code})` : "",

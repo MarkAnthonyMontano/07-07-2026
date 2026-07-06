@@ -317,7 +317,7 @@ router.put("/student_account/:person_id", async (req, res) => {
       if (hashedPassword) {
         await conn.query(
           `UPDATE user_accounts
-   SET force_password_change = 1, totp_enabled = 0
+   SET force_password_change = 1, totp_enabled = 1
    WHERE id = ?`,
           [accountRows[0].id]
         );
@@ -327,7 +327,7 @@ router.put("/student_account/:person_id", async (req, res) => {
       await conn.query(
         `INSERT INTO user_accounts
     (person_id, role, last_name, middle_name, first_name, email, password, status, force_password_change, totp_enabled)
-   VALUES (?, 'student', ?, ?, ?, ?, ?, 1, 1, 0)`,
+   VALUES (?, 'student', ?, ?, ?, ?, ?, 1, 1, 1)`,
         [person_id, nextLastName, nextMiddleName || null, nextFirstName, normalizedEmail, hashedPassword],
       );
     }

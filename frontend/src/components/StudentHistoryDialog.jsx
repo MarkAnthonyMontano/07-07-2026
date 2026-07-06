@@ -59,13 +59,20 @@ const StudentHistoryDialog = ({
   const infoRows = studentInfo
     ? [
         ["First Name", studentInfo.first_name],
-        ["Last Name", studentInfo.last_name],
         ["Middle Name", studentInfo.middle_name],
-        ["Student Number", studentInfo.student_number],
+        ["Last Name", studentInfo.last_name],
+
         ["Email Address", studentInfo.emailAddress],
-        ["Year Level", studentInfo.year_level_description || studentInfo.year_level_id],
+        ["Student Number", studentInfo.student_number],
+        [
+          "Year Level",
+          studentInfo.year_level_description || studentInfo.year_level_id,
+        ],
+
         ["Scholarship/Discount", studentInfo.scholarship_discount],
+        ["Enrollment Date", formatHistoryTimestamp(studentInfo.created_at)],
         ["Current Curriculum", studentInfo.current_curriculum],
+
         ["Current Department", studentInfo.current_department],
         ["Original Curriculum", studentInfo.original_curriculum],
         ["Original Department", studentInfo.original_department],
@@ -85,7 +92,8 @@ const StudentHistoryDialog = ({
     setError("");
 
     try {
-      const { student, logs: rows } = await fetchStudentHistoryDetails(safeStudentNumber);
+      const { student, logs: rows } =
+        await fetchStudentHistoryDetails(safeStudentNumber);
       setStudentInfo(student);
       setLogs(rows);
       if (!rows.length) {
@@ -140,6 +148,7 @@ const StudentHistoryDialog = ({
             borderRadius: "16px",
             overflow: "hidden",
             boxShadow: "0 24px 60px rgba(0,0,0,0.25)",
+            maxWidth: "calc(900px + 15rem)",
           },
         }}
       >
@@ -171,11 +180,22 @@ const StudentHistoryDialog = ({
               <HistoryIcon fontSize="small" sx={{ color: "white" }} />
             </Box>
             <Box>
-              <Typography fontWeight="bold" fontSize={16} color="white" lineHeight={1.2}>
+              <Typography
+                fontWeight="bold"
+                fontSize={16}
+                color="white"
+                lineHeight={1.2}
+              >
                 Student History Logs
               </Typography>
-              <Typography fontSize={12} color="rgba(255,255,255,0.8)" lineHeight={1.2}>
-                {studentNumber ? `Student Number: ${studentNumber}` : "Activity timeline"}
+              <Typography
+                fontSize={12}
+                color="rgba(255,255,255,0.8)"
+                lineHeight={1.2}
+              >
+                {studentNumber
+                  ? `Student Number: ${studentNumber}`
+                  : "Activity timeline"}
               </Typography>
             </Box>
           </Box>
@@ -221,7 +241,7 @@ const StudentHistoryDialog = ({
                   </Typography>
                   <Grid container spacing={1.5}>
                     {infoRows.map(([label, value]) => (
-                      <Grid item xs={12} sm={6} key={label}>
+                      <Grid item xs={12} sm={4} key={label}>
                         <Typography
                           sx={{
                             fontSize: 11,
@@ -266,7 +286,9 @@ const StudentHistoryDialog = ({
                   <Table size="small">
                     <TableHead>
                       <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
-                        <TableCell sx={{ fontWeight: 700, width: 180, color: "#333" }}>
+                        <TableCell
+                          sx={{ fontWeight: 700, width: 180, color: "#333" }}
+                        >
                           Date
                         </TableCell>
                         <TableCell sx={{ fontWeight: 700, color: "#333" }}>
@@ -278,7 +300,9 @@ const StudentHistoryDialog = ({
                       {logs.map((log) => (
                         <TableRow
                           key={log.id}
-                          sx={{ "&:hover": { backgroundColor: `${headerColor}0A` } }}
+                          sx={{
+                            "&:hover": { backgroundColor: `${headerColor}0A` },
+                          }}
                         >
                           <TableCell
                             sx={{
@@ -291,7 +315,11 @@ const StudentHistoryDialog = ({
                             {formatHistoryTimestamp(log.created_at)}
                           </TableCell>
                           <TableCell
-                            sx={{ verticalAlign: "top", fontSize: 13, color: "#333" }}
+                            sx={{
+                              verticalAlign: "top",
+                              fontSize: 13,
+                              color: "#333",
+                            }}
                           >
                             {log.message}
                           </TableCell>
@@ -307,7 +335,8 @@ const StudentHistoryDialog = ({
         <DialogActions sx={{ px: 3, pb: 2.5, pt: 1.5 }}>
           <Button
             onClick={() => setOpen(false)}
-            sx={{ color: headerColor, fontWeight: "bold", textTransform: "none" }}
+            color="error"
+            variant="outlined"
           >
             Close
           </Button>

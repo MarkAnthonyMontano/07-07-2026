@@ -18,7 +18,6 @@ const {
 const router = express.Router();
 const dns = require("dns").promises;
 
-
 // small helper so you're not repeating this SELECT everywhere
 async function getShortTerm() {
   const [rows] = await db.query(
@@ -837,18 +836,6 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════════════════════
-//  ROUTE: POST /login  (Student / Faculty / Registrar)
-//
-//  Supports login by: email, student number, or employee ID.
-//  Uses the same UNION ALL query as the original route.
-//
-//  TOTP gate — MANDATORY for all non-applicant accounts:
-//    totp_secret IS NULL  → requireTotpSetup: true  (first login — show QR)
-//    totp_secret NOT NULL → requireTotp: true        (returning — enter code)
-//
-//  The `require_otp` column has been DROPPED. TOTP is always on.
-// ════════════════════════════════════════════════════════════════════════════
 router.post("/login", async (req, res) => {
   const { email: loginCredentials, password } = req.body;
   const insertLoginAuditLog = getLoginAuditLogger(req);
@@ -896,33 +883,34 @@ router.post("/login", async (req, res) => {
     // Both tables carry totp_secret and totp_enabled.
     // totp_enabled = 0 → skip TOTP gate entirely, log in directly.
     const query = `
-      (
-        SELECT ua.id AS account_id, ua.person_id, ua.email, ua.password,
-               ua.employee_id, snt.student_number AS student_number, ua.role,
-               ua.totp_secret, ua.totp_enabled, NULL AS profile_image,
-               NULL AS fname, NULL AS mname, NULL AS lname,
-               ua.status, 'user' AS source, ua.dprtmnt_id,
-               dt.dprtmnt_name, NULL AS curriculum_id,
-               ua.force_password_change
-        FROM user_accounts AS ua
-        LEFT JOIN dprtmnt_table AS dt ON ua.dprtmnt_id = dt.dprtmnt_id
-        LEFT JOIN student_numbering_table AS snt ON snt.person_id = ua.person_id
-        WHERE ua.email = ? OR snt.student_number = ?
-      )
-      UNION ALL
-      (
-        SELECT ua.prof_id AS account_id, ua.person_id, ua.email, ua.password,
-               ua.employee_id, NULL AS student_number, ua.role,
-               ua.totp_secret, ua.totp_enabled, ua.profile_image,
-               ua.fname, ua.mname, ua.lname, ua.status,
-               'prof' AS source, NULL AS dprtmnt_id, NULL AS dprtmnt_name,
-               NULL AS curriculum_id, ua.force_password_change
-        FROM prof_table AS ua
-        WHERE ua.email = ? OR ua.employee_id = ?
-      )
-    `;
+    (
+      SELECT ua.id AS account_id, ua.person_id, ua.email, ua.password,
+            ua.employee_id, snt.student_number AS student_number, ua.role,
+            ua.totp_secret, ua.totp_enabled, NULL AS profile_image,
+            NULL AS fname, NULL AS mname, NULL AS lname,
+            ua.status, 'user' AS source, ua.dprtmnt_id,
+            dt.dprtmnt_name, NULL AS curriculum_id,
+            ua.force_password_change
+      FROM user_accounts AS ua
+      LEFT JOIN dprtmnt_table AS dt ON ua.dprtmnt_id = dt.dprtmnt_id
+      LEFT JOIN student_numbering_table AS snt ON snt.person_id = ua.person_id
+      WHERE ua.email = ? OR snt.student_number = ? OR ua.employee_id = ?
+    )
+    UNION ALL
+    (
+      SELECT ua.prof_id AS account_id, ua.person_id, ua.email, ua.password,
+            ua.employee_id, NULL AS student_number, ua.role,
+            ua.totp_secret, ua.totp_enabled, ua.profile_image,
+            ua.fname, ua.mname, ua.lname, ua.status,
+            'prof' AS source, NULL AS dprtmnt_id, NULL AS dprtmnt_name,
+            NULL AS curriculum_id, ua.force_password_change
+      FROM prof_table AS ua
+      WHERE ua.email = ? OR ua.employee_id = ?
+    )
+  `;
 
     const [results] = await db3.query(query, [
+      loginCredentials,
       loginCredentials,
       loginCredentials,
       loginCredentials,
@@ -1126,11 +1114,6 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════════════════════
-//  ROUTE: POST /login-totp-setup
-//  Called by the frontend AFTER /login returns requireTotpSetup=true.
-//  Generates a fresh TOTP secret and returns the QR code.
-// ════════════════════════════════════════════════════════════════════════════
 router.post("/login-totp-setup", async (req, res) => {
   try {
     const { email, source } = req.body;
@@ -1179,12 +1162,6 @@ router.post("/login-totp-setup", async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════════════════════
-//  ROUTE: POST /verify-login-totp
-//  Handles both:
-//    isSetup=true  → verify pending secret from otpStore, then persist to DB
-//    isSetup=false → verify against the secret already stored in DB
-// ════════════════════════════════════════════════════════════════════════════
 router.post("/verify-login-totp", async (req, res) => {
   try {
     const { email, token: totpToken, isSetup, source } = req.body;
@@ -1329,9 +1306,6 @@ router.post("/verify-login-totp", async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════════════════════
-//  ROUTE: POST /login_applicant
-// ════════════════════════════════════════════════════════════════════════════
 router.post("/login_applicant", async (req, res) => {
   const { email, password } = req.body;
   const insertLoginAuditLog = getLoginAuditLogger(req);

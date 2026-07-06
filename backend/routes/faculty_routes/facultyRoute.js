@@ -258,10 +258,9 @@ router.post(
       const [result] = await db3.query(sql, values);
       const prof_id = result.insertId;
 
-      // ✅ Force password change + disable OTP on first login
-      // REPLACE WITH:
+      // ✅ New account: force password change + require OTP setup on first login
       await db3.query(
-        `UPDATE prof_table SET force_password_change = 1, totp_enabled = 0 WHERE prof_id = ?`,
+        `UPDATE prof_table SET force_password_change = 1, totp_enabled = 1 WHERE prof_id = ?`,
         [prof_id]
       );
 
@@ -368,10 +367,10 @@ router.put(
 
       await db3.query(updateSQL, values);
 
-      // ✅ If admin set a new password, force password change + disable OTP
+      // ✅ If admin set a new password, force password change + require OTP setup
       if (password) {
         await db3.query(
-          `UPDATE prof_table SET force_password_change = 1, totp_enabled = 0 WHERE prof_id = ?`,
+          `UPDATE prof_table SET force_password_change = 1, totp_enabled = 1 WHERE prof_id = ?`,
           [id]
         );
       }
@@ -619,7 +618,7 @@ router.post("/import_professors", CanCreate, async (req, res) => {
         hashedPassword,
         1,         // status
         "faculty", // role
-        0,         // totp_enabled — disabled until first login
+        1,         // totp_enabled — required starting from first login
         1          // force_password_change
       ]);
 

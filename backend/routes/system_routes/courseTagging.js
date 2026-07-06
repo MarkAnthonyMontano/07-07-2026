@@ -8,9 +8,12 @@ const {
   getDepartmentSectionLabel,
   getSchoolYearLabel,
   getStudentNameByNumber,
+  getExpectedTaggedCourseCount,
   logStudentHistoryFromRequest,
 } = require("../../utils/studentHistoryLogger");
-const { resolveStudentScopeForEmployee } = require("../../utils/registrarScopeService");
+const {
+  resolveStudentScopeForEmployee,
+} = require("../../utils/registrarScopeService");
 
 const router = express.Router();
 
@@ -48,16 +51,20 @@ const insertCourseTaggingAuditLog = async ({ req, action, message }) => {
   });
 };
 
-const getRemainingEnrolledCourseLabels = async (studentNumber, activeSchoolYearId) => {
+const getRemainingEnrolledCourseLabels = async (
+  studentNumber,
+  activeSchoolYearId,
+  curriculumId,
+) => {
   const [rows] = await db3.query(
     `
     SELECT c.course_code, c.course_description
     FROM enrolled_subject es
     LEFT JOIN course_table c ON c.course_id = es.course_id
-    WHERE es.student_number = ? AND es.active_school_year_id = ?
+    WHERE es.student_number = ? AND es.active_school_year_id = ? AND es.curriculum_id = ?
     ORDER BY c.course_code ASC
     `,
-    [studentNumber, activeSchoolYearId],
+    [studentNumber, activeSchoolYearId, curriculumId],
   );
 
   return rows.map(
@@ -75,12 +82,13 @@ const logCourseTaggingStudentHistory = async ({
   courses = [],
   remainingCourses = [],
 }) => {
-  const [studentName, sectionLabel, schoolYearLabel, courseLabel] = await Promise.all([
-    getStudentNameByNumber(studentNumber),
-    getDepartmentSectionLabel(departmentSectionId),
-    getSchoolYearLabel(activeSchoolYearId),
-    courseId ? getCourseLabel(courseId) : Promise.resolve(""),
-  ]);
+  const [studentName, sectionLabel, schoolYearLabel, courseLabel] =
+    await Promise.all([
+      getStudentNameByNumber(studentNumber),
+      getDepartmentSectionLabel(departmentSectionId),
+      getSchoolYearLabel(activeSchoolYearId),
+      courseId ? getCourseLabel(courseId) : Promise.resolve(""),
+    ]);
 
   await logStudentHistoryFromRequest({
     req,
@@ -99,7 +107,7 @@ const logCourseTaggingStudentHistory = async ({
 
 const getEnrolledSubjectLabel = async (enrolledSubjectId) => {
   const [rows] = await db3.query(
-    `SELECT es.id, es.student_number, c.course_code, c.course_description
+    `SELECT es.id, es.student_number, es.department_section_id, c.course_code, c.course_description
      FROM enrolled_subject es
      LEFT JOIN course_table c ON c.course_id = es.course_id
      WHERE es.id = ?
@@ -125,7 +133,11 @@ const getActiveSchoolYearId = async (requestedSchoolYearId) => {
   return rows?.[0]?.id || null;
 };
 
-const getStudentSearchFailure = async ({ studentNumber, dprtmntId, activeSchoolYearId }) => {
+const getStudentSearchFailure = async ({
+  studentNumber,
+  dprtmntId,
+  activeSchoolYearId,
+}) => {
   const [studentRows] = await db3.query(
     `SELECT sn.student_number, ptbl.program
      FROM student_numbering_table AS sn
@@ -159,7 +171,8 @@ const getStudentSearchFailure = async ({ studentNumber, dprtmntId, activeSchoolY
   }
 
   const studentStatus = statusRows[0];
-  const effectiveCurriculum = studentStatus.active_curriculum || studentStatus.program;
+  const effectiveCurriculum =
+    studentStatus.active_curriculum || studentStatus.program;
 
   if (!effectiveCurriculum || Number(effectiveCurriculum) === 0) {
     return "This student has no curriculum/program assigned yet.";
@@ -215,7 +228,6 @@ router.get("/get_active_semester", async (req, res) => {
 
     res.json(semester[0]);
   } catch (err) {
-    console.log("Internal Server Error");
     res.status(500).json(err);
   }
 });
@@ -223,7 +235,6 @@ router.get("/get_active_semester", async (req, res) => {
 // COURSES BY CURRICULUM
 router.get("/courses/:currId", async (req, res) => {
   const { currId } = req.params;
-  console.log("cURRICULUM ID: ", currId);
 
   const sql = `
     SELECT
@@ -256,12 +267,8 @@ router.get("/courses/:currId", async (req, res) => {
 });
 
 router.get("/program-summer-subjects/check", async (req, res) => {
-  const {
-    curriculum_id,
-    semester_id,
-    active_school_year_id,
-    year_level_id,
-  } = req.query;
+  const { curriculum_id, semester_id, active_school_year_id, year_level_id } =
+    req.query;
 
   if (!curriculum_id) {
     return res.status(400).json({ message: "curriculum_id is required" });
@@ -291,11 +298,15 @@ router.get("/program-summer-subjects/check", async (req, res) => {
       schoolYearLabel = [
         schoolYearRows[0]?.year_description,
         schoolYearRows[0]?.semester_description,
-      ].filter(Boolean).join(", ");
+      ]
+        .filter(Boolean)
+        .join(", ");
     }
 
     if (!effectiveSemesterId) {
-      return res.status(400).json({ message: "semester_id or active_school_year_id is required" });
+      return res
+        .status(400)
+        .json({ message: "semester_id or active_school_year_id is required" });
     }
 
     const yearLevelClause = year_level_id ? "AND ptt.year_level_id = ?" : "";
@@ -344,15 +355,17 @@ router.get("/program-summer-subjects/check", async (req, res) => {
       schoolYearLabel,
     });
   } catch (err) {
-    console.error("Error checking summer subjects:", err);
-    return res.status(500).json({ message: "Database error", error: err.message });
+    return res
+      .status(500)
+      .json({ message: "Database error", error: err.message });
   }
 });
 
 // ENROLL ALL SUBJECTS (YEAR 1 + ACTIVE SEM)
 router.post("/add-all-to-enrolled-courses", async (req, res) => {
   const {
-    subject_id,
+    subject_ids,
+    subject_id, // backward-compat single id
     user_id,
     curriculumID,
     departmentSectionID,
@@ -360,12 +373,16 @@ router.post("/add-all-to-enrolled-courses", async (req, res) => {
     active_school_year_id,
     active_semester_id,
   } = req.body;
-  console.log("Received request:", {
-    subject_id,
-    user_id,
-    curriculumID,
-    departmentSectionID,
-  });
+
+  const subjectIdList = Array.isArray(subject_ids)
+    ? subject_ids
+    : subject_id != null
+      ? [subject_id]
+      : [];
+
+  if (!subjectIdList.length) {
+    return res.status(400).json({ message: "subject_ids is required" });
+  }
 
   try {
     let activeSchoolYearId = active_school_year_id;
@@ -374,181 +391,138 @@ router.post("/add-all-to-enrolled-courses", async (req, res) => {
     if (activeSchoolYearId && !activeSemesterId) {
       const [schoolYearRows] = await db3.query(
         `SELECT semester_id FROM active_school_year_table WHERE id = ? LIMIT 1`,
-        [activeSchoolYearId]
+        [activeSchoolYearId],
       );
       activeSemesterId = schoolYearRows[0]?.semester_id || null;
     }
 
     if (!activeSchoolYearId || !activeSemesterId) {
-      const activeYearSql = `SELECT id, semester_id FROM active_school_year_table WHERE astatus = 1 LIMIT 1`;
-      const [yearResult] = await db3.query(activeYearSql);
-
+      const [yearResult] = await db3.query(
+        `SELECT id, semester_id FROM active_school_year_table WHERE astatus = 1 LIMIT 1`,
+      );
       if (yearResult.length === 0) {
         return res.status(404).json({ error: "No active school year found" });
       }
-
       activeSchoolYearId = activeSchoolYearId || yearResult[0].id;
       activeSemesterId = activeSemesterId || yearResult[0].semester_id;
     }
-    console.log("Active semester ID:", activeSemesterId);
 
-    const checkSql = `
-      SELECT year_level_id, semester_id, curriculum_id
-      FROM program_tagging_table
-      WHERE course_id = ? AND curriculum_id = ?
-      LIMIT 1
-    `;
+    const results = [];
+    const enrolledLabels = [];
 
-    const [checkResult] = await db3.query(checkSql, [subject_id, curriculumID]);
-
-    if (!checkResult.length) {
-      console.warn(`Subject ${subject_id} not found in tagging table`);
-      return res.status(404).json({ message: "Subject not found" });
-    }
-
-    const { year_level_id, semester_id, curriculum_id } = checkResult[0];
-    console.log("Year level found:", year_level_id);
-    console.log("Subject semester:", semester_id);
-    console.log("Active semester:", activeSemesterId);
-    console.log("Curriculum found:", curriculum_id);
-
-    if (
-      Number(year_level_id) !== Number(year_level) ||
-      Number(semester_id) !== Number(activeSemesterId) ||
-      Number(curriculum_id) !== Number(curriculumID)
-    ) {
-      console.log(
-        `Skipping subject ${subject_id} (not Year 1, not active semester ${activeSemesterId}, or wrong curriculum)`
+    for (const subject_id of subjectIdList) {
+      const [checkResult] = await db3.query(
+        `SELECT year_level_id, semester_id, curriculum_id
+         FROM program_tagging_table
+         WHERE course_id = ? AND curriculum_id = ?
+         LIMIT 1`,
+        [subject_id, curriculumID],
       );
-      return res.status(200).json({
-        message:
-          "Skipped - Not Year 1 / Not Active Semester / Wrong Curriculum",
-        enrolled: false,
-        skipped: true,
-      });
-    }
 
-    const checkDuplicateSql = `
-      SELECT * FROM enrolled_subject
-      WHERE course_id = ? AND student_number = ? AND active_school_year_id = ?
-    `;
+      if (!checkResult.length) {
+        results.push({ subject_id, enrolled: false, skipped: true, reason: "NOT_FOUND" });
+        continue;
+      }
 
-    const [dupResult] = await db3.query(checkDuplicateSql, [
-      subject_id,
-      user_id,
-      activeSchoolYearId,
-    ]);
+      const { year_level_id, semester_id, curriculum_id } = checkResult[0];
 
-    if (dupResult.length > 0) {
-      console.log(
-        `Skipping subject ${subject_id}, already enrolled for student ${user_id}`
+      if (
+        Number(year_level_id) !== Number(year_level) ||
+        Number(semester_id) !== Number(activeSemesterId) ||
+        Number(curriculum_id) !== Number(curriculumID)
+      ) {
+        results.push({ subject_id, enrolled: false, skipped: true, reason: "WRONG_YEAR_SEM_CURR" });
+        continue;
+      }
+
+      const [dupResult] = await db3.query(
+        `SELECT * FROM enrolled_subject
+         WHERE course_id = ? AND student_number = ? AND active_school_year_id = ?`,
+        [subject_id, user_id, activeSchoolYearId],
       );
-      return res.status(200).json({
-        message: "Skipped - Already Enrolled",
-        enrolled: false,
-        skipped: true,
-      });
-    }
 
-    const insertSql = `
-      INSERT INTO enrolled_subject (course_id, student_number, active_school_year_id, curriculum_id, department_section_id, status)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `;
+      if (dupResult.length > 0) {
+        results.push({ subject_id, enrolled: false, skipped: true, reason: "ALREADY_ENROLLED" });
+        continue;
+      }
 
-    await db3.query(insertSql, [
-      subject_id,
-      user_id,
-      activeSchoolYearId,
-      curriculumID,
-      departmentSectionID,
-      1,
-    ]);
-    console.log(
-      `Student ${user_id} successfully enrolled in subject ${subject_id}`
-    );
-
-    const updateStatusSql = `
-      UPDATE student_status_table
-      SET enrolled_status = 1, active_curriculum = ?, year_level_id = ?, active_school_year_id = ?
-      WHERE student_number = ?
-    `;
-
-    await db3.query(updateStatusSql, [
-      curriculumID,
-      year_level,
-      activeSchoolYearId,
-      user_id,
-    ]);
-
-    const [getStudentNUmber] = await db3.query(
-      `
-      SELECT id, person_id FROM student_numbering_table WHERE student_number = ?
-    `,
-      [user_id]
-    );
-
-    if (getStudentNUmber.length === 0) {
-      console.log("Student number not found");
-    }
-
-    const student_numbering_id = getStudentNUmber[0].id;
-    const person_id = getStudentNUmber[0].person_id;
-
-    const [getDepartmentID] = await db3.query(
-      `
-      SELECT dprtmnt_id FROM dprtmnt_curriculum_table WHERE curriculum_id = ?
-    `,
-      [curriculumID]
-    );
-
-    if (getDepartmentID.length === 0) {
-      console.log("Department ID not found");
-    }
-
-    const department_id = getDepartmentID[0].dprtmnt_id;
-
-    const [checkExistingCurriculum] = await db3.query(
-      `
-      SELECT * FROM student_curriculum_table
-      WHERE student_numbering_id = ? AND curriculum_id = ?
-      `,
-      [student_numbering_id, curriculum_id]
-    );
-
-    await db3.query(
-      `
-        UPDATE user_accounts SET dprtmnt_id = ? WHERE person_id = ?
-      `,
-      [department_id, person_id]
-    );
-
-    if (checkExistingCurriculum.length === 0) {
       await db3.query(
-        `
-        INSERT INTO student_curriculum_table (student_numbering_id, curriculum_id)
-        VALUES (?, ?)
-        `,
-        [student_numbering_id, curriculum_id]
+        `INSERT INTO enrolled_subject
+         (course_id, student_number, active_school_year_id, curriculum_id, department_section_id, status)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [subject_id, user_id, activeSchoolYearId, curriculumID, departmentSectionID, 1],
       );
-    } else {
-      console.log(
-        `âš ï¸ Curriculum ${curriculum_id} already exists for student ${user_id}`
+
+      await db3.query(
+        `UPDATE student_status_table
+         SET enrolled_status = 1, active_curriculum = ?, year_level_id = ?, active_school_year_id = ?
+         WHERE student_number = ?`,
+        [curriculumID, year_level, activeSchoolYearId, user_id],
       );
+
+      const [getStudentNUmber] = await db3.query(
+        `SELECT id, person_id FROM student_numbering_table WHERE student_number = ?`,
+        [user_id],
+      );
+
+      if (getStudentNUmber.length > 0) {
+        const student_numbering_id = getStudentNUmber[0].id;
+        const person_id = getStudentNUmber[0].person_id;
+
+        const [getDepartmentID] = await db3.query(
+          `SELECT dprtmnt_id FROM dprtmnt_curriculum_table WHERE curriculum_id = ?`,
+          [curriculumID],
+        );
+
+        if (getDepartmentID.length > 0) {
+          await db3.query(
+            `UPDATE user_accounts SET dprtmnt_id = ? WHERE person_id = ?`,
+            [getDepartmentID[0].dprtmnt_id, person_id],
+          );
+        }
+
+        const [checkExistingCurriculum] = await db3.query(
+          `SELECT * FROM student_curriculum_table
+           WHERE student_numbering_id = ? AND curriculum_id = ?`,
+          [student_numbering_id, curriculum_id],
+        );
+
+        if (checkExistingCurriculum.length === 0) {
+          await db3.query(
+            `INSERT INTO student_curriculum_table (student_numbering_id, curriculum_id) VALUES (?, ?)`,
+            [student_numbering_id, curriculum_id],
+          );
+        }
+      }
+
+      const { actorId, actorRole } = getAuditActor(req);
+      const roleLabel = formatAuditActorRole(actorRole);
+      const courseLabel = await getCourseLabel(subject_id);
+      await insertCourseTaggingAuditLog({
+        req,
+        action: "COURSE_TAGGING_BULK_ENROLL",
+        message: `${roleLabel} (${actorId}) enrolled ${courseLabel} to Student (${user_id}) via bulk course tagging.`,
+      });
+
+      enrolledLabels.push(courseLabel);
+      results.push({ subject_id, enrolled: true, skipped: false });
     }
 
-    const { actorId, actorRole } = getAuditActor(req);
-    const roleLabel = formatAuditActorRole(actorRole);
-    const courseLabel = await getCourseLabel(subject_id);
-    await insertCourseTaggingAuditLog({
-      req,
-      action: "COURSE_TAGGING_BULK_ENROLL",
-      message: `${roleLabel} (${actorId}) enrolled ${courseLabel} to Student (${user_id}) via bulk course tagging.`,
-    });
+    if (enrolledLabels.length > 0) {
+      await logCourseTaggingStudentHistory({
+        req,
+        action: "bulk_enroll",
+        studentNumber: user_id,
+        departmentSectionId: departmentSectionID,
+        activeSchoolYearId,
+        courses: enrolledLabels,
+      });
+    }
 
     res.status(200).json({
-      message: "Course enrolled successfully",
-      enrolled: true,
-      skipped: false,
+      message: "Bulk enrollment processed",
+      enrolledCount: enrolledLabels.length,
+      results,
     });
   } catch (err) {
     console.error("Error:", err);
@@ -589,7 +563,7 @@ router.post("/add-to-enrolled-courses/:userId/:currId/", async (req, res) => {
       `
       SELECT id FROM student_numbering_table WHERE student_number = ?
     `,
-      [userId]
+      [userId],
     );
 
     if (getStudentNUmber.length === 0) {
@@ -603,7 +577,7 @@ router.post("/add-to-enrolled-courses/:userId/:currId/", async (req, res) => {
       SELECT * FROM student_curriculum_table
       WHERE student_numbering_id = ? AND curriculum_id = ?
       `,
-      [student_numbering_id, currId]
+      [student_numbering_id, currId],
     );
 
     if (checkExistingCurriculum.length === 0) {
@@ -612,12 +586,10 @@ router.post("/add-to-enrolled-courses/:userId/:currId/", async (req, res) => {
         INSERT INTO student_curriculum_table (student_numbering_id, curriculum_id)
         VALUES (?, ?)
         `,
-        [student_numbering_id, currId]
+        [student_numbering_id, currId],
       );
     } else {
-      console.log(
-        `âš ï¸ Curriculum ${currId} already exists for student ${userId}`
-      );
+      console.log(`Curriculum ${currId} already exists for student ${userId}`);
     }
 
     const { actorId, actorRole } = getAuditActor(req);
@@ -648,14 +620,12 @@ router.post("/add-student-courses/:userId", async (req, res) => {
   const { subject_id, active_school_year_id, curriculum_id } = req.body;
   const { userId } = req.params;
 
-  console.log("PARAMETER: ", subject_id, active_school_year_id, curriculum_id);
-
   try {
     let activeSchoolYearId = active_school_year_id;
 
     if (!activeSchoolYearId) {
       const [activeYearRows] = await db3.query(
-        "SELECT id FROM active_school_year_table WHERE astatus = 1 LIMIT 1"
+        "SELECT id FROM active_school_year_table WHERE astatus = 1 LIMIT 1",
       );
 
       if (activeYearRows.length === 0) {
@@ -669,9 +639,12 @@ router.post("/add-student-courses/:userId", async (req, res) => {
       return res.status(400).json({ message: "Missing required course data" });
     }
 
-    const [selectExistingRows] = await db3.query(`
+    const [selectExistingRows] = await db3.query(
+      `
         SELECT student_number FROM enrolled_subject WHERE course_id = ? AND student_number = ? AND active_school_year_id = ? AND curriculum_id = ?
-      `, [subject_id, userId, activeSchoolYearId, curriculum_id])
+      `,
+      [subject_id, userId, activeSchoolYearId, curriculum_id],
+    );
 
     if (selectExistingRows.length > 0) {
       return res.status(400).json({ message: "Record already existed" });
@@ -679,7 +652,7 @@ router.post("/add-student-courses/:userId", async (req, res) => {
 
     const sql =
       "INSERT INTO enrolled_subject (course_id, student_number, active_school_year_id, curriculum_id, department_section_id) VALUES (?, ?, ?, ?, ?)";
-    
+
     await db3.query(sql, [
       subject_id,
       userId,
@@ -809,26 +782,34 @@ router.delete("/courses/user/:userId", async (req, res) => {
     }
 
     const [enrolledBefore] = await db3.query(
-      `SELECT es.id, c.course_code, c.course_description
-       FROM enrolled_subject es
-       LEFT JOIN course_table c ON c.course_id = es.course_id
-       WHERE es.student_number = ? AND es.active_school_year_id = ?`,
-      [userId, effectiveActiveSchoolYearId],
-    );
+  `SELECT es.id, es.department_section_id, c.course_code, c.course_description
+   FROM enrolled_subject es
+   LEFT JOIN course_table c ON c.course_id = es.course_id
+   WHERE es.student_number = ? AND es.active_school_year_id = ?`,
+  [userId, effectiveActiveSchoolYearId],
+);
 
     const sql =
       "DELETE FROM enrolled_subject WHERE student_number = ? AND active_school_year_id = ?";
-    const [result] = await db3.query(sql, [userId, effectiveActiveSchoolYearId]);
+    const [result] = await db3.query(sql, [
+      userId,
+      effectiveActiveSchoolYearId,
+    ]);
 
     if (result.affectedRows > 0) {
       const { actorId, actorRole } = getAuditActor(req);
       const roleLabel = formatAuditActorRole(actorRole);
       const sampleCourses = enrolledBefore
         .slice(0, 5)
-        .map((row) => `${row.course_code || "N/A"} - ${row.course_description || "Unknown Course"}`)
+        .map(
+          (row) =>
+            `${row.course_code || "N/A"} - ${row.course_description || "Unknown Course"}`,
+        )
         .join(", ");
       const extraCount =
-        enrolledBefore.length > 5 ? ` and ${enrolledBefore.length - 5} more` : "";
+        enrolledBefore.length > 5
+          ? ` and ${enrolledBefore.length - 5} more`
+          : "";
 
       await insertCourseTaggingAuditLog({
         req,
@@ -837,13 +818,17 @@ router.delete("/courses/user/:userId", async (req, res) => {
       });
 
       const unenrolledCourses = enrolledBefore.map(
-        (row) => `${row.course_code || "N/A"} (${row.course_description || "Unknown Course"})`,
+        (row) =>
+          `${row.course_code || "N/A"} (${row.course_description || "Unknown Course"})`,
       );
+
+      const representativeSectionId = enrolledBefore.find((row) => row.department_section_id)?.department_section_id;
 
       await logCourseTaggingStudentHistory({
         req,
         action: "unenroll_all",
         studentNumber: userId,
+        departmentSectionId: representativeSectionId,
         activeSchoolYearId: effectiveActiveSchoolYearId,
         courses: unenrolledCourses,
       });
@@ -997,7 +982,7 @@ router.post("/student-tagging", async (req, res) => {
         extension: student.extension,
       },
       process.env.JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "24h" },
     );
 
     res.json({
@@ -1053,9 +1038,13 @@ router.post("/registrar/resolve-student-scope", async (req, res) => {
     null;
 
   try {
-    const result = await resolveStudentScopeForEmployee(employeeId, studentNumber, {
-      activeSchoolYearId: active_school_year_id,
-    });
+    const result = await resolveStudentScopeForEmployee(
+      employeeId,
+      studentNumber,
+      {
+        activeSchoolYearId: active_school_year_id,
+      },
+    );
 
     if (result.error) {
       return res.status(404).json({ message: result.error });
@@ -1064,7 +1053,9 @@ router.post("/registrar/resolve-student-scope", async (req, res) => {
     return res.json(result);
   } catch (err) {
     console.error("Failed to resolve student scope:", err);
-    return res.status(500).json({ message: "Failed to resolve student scope." });
+    return res
+      .status(500)
+      .json({ message: "Failed to resolve student scope." });
   }
 });
 
@@ -1072,7 +1063,6 @@ router.post("/registrar/resolve-student-scope", async (req, res) => {
 router.post("/student-tagging/dprtmnt", async (req, res) => {
   const { studentNumber, dprtmntId, active_school_year_id } = req.body;
 
-  console.log("Student Number: ", studentNumber);
   if (!studentNumber || dprtmntId == null) {
     return res.status(400).json({ message: "All fields are required" });
   }
@@ -1211,7 +1201,7 @@ router.post("/student-tagging/dprtmnt", async (req, res) => {
         extension: student.extension,
       },
       process.env.JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "24h" },
     );
 
     res.json({
@@ -1352,7 +1342,6 @@ router.post("/student-tagging-batch", async (req, res) => {
     return res.status(400).json({ message: "Student numbers are required" });
   }
 
-  console.log("student-tagging-batch:", { selectedYearLevel, activeSchoolYearId });
   try {
     // SQL: WHERE sn.student_number IN (?, ?, ?)
     const placeholders = studentNumbers.map(() => "?").join(",");
@@ -1545,7 +1534,6 @@ router.get("/department-sections", async (req, res) => {
   try {
     const [results] = await db3.query(query, [departmentId]);
     res.status(200).json(results);
-    console.log(results);
   } catch (err) {
     console.error("Error fetching department sections:", err);
     return res
@@ -1588,7 +1576,7 @@ router.put("/update-active-curriculum", async (req, res) => {
     `;
     const result = await db3.query(updateQuery, [curriculumId, studentId]);
     const data = result[0];
-    console.log(data);
+
     res.status(200).json({
       message: "Active curriculum updated successfully",
     });
@@ -1601,7 +1589,6 @@ router.put("/update-active-curriculum", async (req, res) => {
 // SEARCH STUDENT BY SECTION
 router.get("/search-student/:sectionId", async (req, res) => {
   const { sectionId } = req.params;
-  console.log("Section Id : ", sectionId);
 
   try {
     const [programResult] = await db3.query(
@@ -1615,7 +1602,7 @@ router.get("/search-student/:sectionId", async (req, res) => {
       INNER JOIN program_table pt ON ct.program_id = pt.program_id
       WHERE dst.id = ?
       `,
-      [sectionId]
+      [sectionId],
     );
 
     if (!programResult.length) {
@@ -1641,7 +1628,7 @@ router.get("/search-student/:sectionId", async (req, res) => {
   WHERE ct.curriculum_id = ?
   ORDER BY c.course_code
   `,
-      [curriculum_id]
+      [curriculum_id],
     );
 
     const formattedCourses = courses.map((c) => ({
@@ -1733,7 +1720,8 @@ router.get("/admin_data/:email", async (req, res) => {
     const { ensureDepartmentIsAllowedColumn } = require("./dprmntRoute");
     await ensureDepartmentIsAllowedColumn();
 
-    const departmentId = scopePayload.dprtmnt_id ?? userAccount.dprtmnt_id ?? null;
+    const departmentId =
+      scopePayload.dprtmnt_id ?? userAccount.dprtmnt_id ?? null;
     let is_allowed = 1;
 
     if (departmentId) {
@@ -1778,7 +1766,7 @@ router.post("/check-student-balance", async (req, res) => {
 
     if (!activeSchoolYearId) {
       const [activeYearRows] = await db3.query(
-        "SELECT id FROM active_school_year_table WHERE astatus = 1 LIMIT 1"
+        "SELECT id FROM active_school_year_table WHERE astatus = 1 LIMIT 1",
       );
 
       activeSchoolYearId = activeYearRows[0]?.id || null;
@@ -1792,7 +1780,7 @@ router.post("/check-student-balance", async (req, res) => {
          AND (? IS NULL OR active_school_year_id = ?)
        ORDER BY active_school_year_id DESC, id DESC
        LIMIT 1`,
-      [student_number, activeSchoolYearId, activeSchoolYearId]
+      [student_number, activeSchoolYearId, activeSchoolYearId],
     );
 
     if (unifastRows.length > 0) {
@@ -1802,7 +1790,8 @@ router.post("/check-student-balance", async (req, res) => {
         payment_type: "unifast",
         unifast_id: unifastRows[0].id,
         active_school_year_id: activeSchoolYearId,
-        message: "Student is under UNIFAST. Matriculation balance rule does not apply.",
+        message:
+          "Student is under UNIFAST. Matriculation balance rule does not apply.",
       });
     }
 
@@ -1818,11 +1807,13 @@ router.post("/check-student-balance", async (req, res) => {
          AND (? IS NULL OR active_school_year_id = ?)
        ORDER BY active_school_year_id DESC, id DESC
        LIMIT 1`,
-      [student_number, activeSchoolYearId, activeSchoolYearId]
+      [student_number, activeSchoolYearId, activeSchoolYearId],
     );
 
     const matriculation = rows[0] || null;
-    const balance = Number(String(matriculation?.balance ?? "0").replace(/,/g, ""));
+    const balance = Number(
+      String(matriculation?.balance ?? "0").replace(/,/g, ""),
+    );
     const safeBalance = Number.isFinite(balance) && balance > 0 ? balance : 0;
 
     return res.json({
@@ -1831,9 +1822,10 @@ router.post("/check-student-balance", async (req, res) => {
       payment_type: matriculation ? "matriculation" : null,
       matriculation_id: matriculation?.id || null,
       active_school_year_id: activeSchoolYearId,
-      message: safeBalance > 0
-        ? "Student still has a remaining matriculation balance."
-        : "Student has no remaining matriculation balance.",
+      message:
+        safeBalance > 0
+          ? "Student still has a remaining matriculation balance."
+          : "Student has no remaining matriculation balance.",
     });
   } catch (err) {
     console.error("Error in /check-student-balance:", err);
@@ -1845,7 +1837,10 @@ router.post("/check-student-balance", async (req, res) => {
   }
 });
 
-const loadStudentPrerequisiteGradeMap = async (studentNumber, courseIds = []) => {
+const loadStudentPrerequisiteGradeMap = async (
+  studentNumber,
+  courseIds = [],
+) => {
   const uniqueCourseIds = [...new Set(courseIds.filter(Boolean))];
   if (!uniqueCourseIds.length) {
     return new Map();
@@ -1998,7 +1993,10 @@ router.post("/check-prerequisites-batch", async (req, res) => {
 
     const courseIds = courses
       .map((course) => course?.course_id)
-      .filter((courseId) => courseId !== null && courseId !== undefined && courseId !== "");
+      .filter(
+        (courseId) =>
+          courseId !== null && courseId !== undefined && courseId !== "",
+      );
 
     if (!courseIds.length) {
       return res.status(400).json({
@@ -2088,9 +2086,11 @@ router.post("/check-prerequisites-batch", async (req, res) => {
 
       results[courseId] = {
         ...evaluation,
-        hasPrereq: !["NO_PREREQ", "PREREQ_NOT_FOUND", "NO_APPLICABLE_PREREQ"].includes(
-          evaluation.status,
-        ),
+        hasPrereq: ![
+          "NO_PREREQ",
+          "PREREQ_NOT_FOUND",
+          "NO_APPLICABLE_PREREQ",
+        ].includes(evaluation.status),
       };
     }
 
@@ -2117,7 +2117,7 @@ router.post("/check-prerequisite", async (req, res) => {
 
     const [courseRows] = await db3.query(
       "SELECT prereq, course_code FROM course_table WHERE course_id = ? LIMIT 1",
-      [course_id]
+      [course_id],
     );
 
     if (!courseRows.length) {
@@ -2129,8 +2129,6 @@ router.post("/check-prerequisite", async (req, res) => {
     }
 
     const { prereq, course_code } = courseRows[0];
-    console.log("Code and Prequiesite", prereq);
-    console.log("Code and Prequiesite", course_code);
 
     if (!prereq || String(prereq).trim() === "") {
       return res.json({
@@ -2161,7 +2159,7 @@ router.post("/check-prerequisite", async (req, res) => {
       FROM course_table
       WHERE course_code IN (${placeholders})
       `,
-      prereqCodes
+      prereqCodes,
     );
 
     if (!prereqCourses.length) {
@@ -2185,11 +2183,11 @@ router.post("/check-prerequisite", async (req, res) => {
         FROM program_tagging_table
         WHERE curriculum_id = ? AND course_id IN (${placeholders2})
         `,
-        [curriculum_id, ...prereqCourseIds]
+        [curriculum_id, ...prereqCourseIds],
       );
 
       const prereqSemesterMap = new Map(
-        tagRows.map((row) => [row.course_id, row.semester_id])
+        tagRows.map((row) => [row.course_id, row.semester_id]),
       );
 
       applicablePrereqCourses = prereqCourses.filter((p) => {
@@ -2223,7 +2221,7 @@ router.post("/check-prerequisite", async (req, res) => {
         FROM enrolled_subject
         WHERE student_number = ? AND course_id = ?
         `,
-        [student_number, prereqCourseId]
+        [student_number, prereqCourseId],
       );
 
       const { has_pass, has_fail } = gradeRows[0];
@@ -2242,7 +2240,7 @@ router.post("/check-prerequisite", async (req, res) => {
         failedPrereq,
         missingPrereq,
         message: `Student has FAILED prerequisite(s): ${failedPrereq.join(
-          ", "
+          ", ",
         )}. They must PASS these before enrolling in ${course_code}.`,
       });
     }
@@ -2254,7 +2252,7 @@ router.post("/check-prerequisite", async (req, res) => {
         failedPrereq,
         missingPrereq,
         message: `Student must FIRST ENROLL and PASS prerequisite(s): ${missingPrereq.join(
-          ", "
+          ", ",
         )} before taking ${course_code}.`,
       });
     }
@@ -2331,9 +2329,6 @@ router.post("/add-all-to-enrolled-courses-summer", async (req, res) => {
       Number(year_level_id) !== Number(year_level) ||
       Number(curriculum_id) !== Number(curriculumID)
     ) {
-      console.log(
-        `Skipping subject ${subject_id} (wrong year level or curriculum)`,
-      );
       return res.status(200).json({
         message: "Skipped - Wrong Year Level / Wrong Curriculum",
         enrolled: false,
@@ -2353,9 +2348,6 @@ router.post("/add-all-to-enrolled-courses-summer", async (req, res) => {
     ]);
 
     if (dupResult.length > 0) {
-      console.log(
-        `Skipping subject ${subject_id}, already enrolled for student ${user_id}`,
-      );
       return res.status(200).json({
         message: "Skipped - Already Enrolled",
         enrolled: false,
@@ -2376,9 +2368,6 @@ router.post("/add-all-to-enrolled-courses-summer", async (req, res) => {
       departmentSectionID,
       1,
     ]);
-    console.log(
-      `Student ${user_id} successfully enrolled in subject ${subject_id} (summer bulk)`,
-    );
 
     const updateStatusSql = `
       UPDATE student_status_table
@@ -2458,6 +2447,15 @@ router.post("/add-all-to-enrolled-courses-summer", async (req, res) => {
       message: `${roleLabel} (${actorId}) enrolled ${courseLabel} to Student (${user_id}) via summer bulk course tagging.`,
     });
 
+    await logCourseTaggingStudentHistory({
+      req,
+      action: "bulk_enroll",
+      studentNumber: user_id,
+      courseId: subject_id,
+      departmentSectionId: departmentSectionID,
+      activeSchoolYearId,
+    });
+
     res.status(200).json({
       message: "Course enrolled successfully",
       enrolled: true,
@@ -2466,7 +2464,7 @@ router.post("/add-all-to-enrolled-courses-summer", async (req, res) => {
   } catch (err) {
     console.error("Error:", err);
     return res.status(500).json({ error: err.message });
-  } 
+  }
 });
 
 module.exports = router;
