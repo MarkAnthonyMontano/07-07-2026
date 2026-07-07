@@ -4152,7 +4152,7 @@ const ReadmissionDashboard1 = () => {
                               sx={{
                                 position: "absolute",
                                 top: -8,
-                                right: "calc(50% - 96px)",
+                                right: "calc(50% - 103px)",
                                 minWidth: 0,
                                 width: 28,
                                 height: 28,

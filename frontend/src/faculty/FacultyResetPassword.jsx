@@ -57,30 +57,27 @@ const makeToggleStyles = (onColor) => `
 const passwordRules = [
   {
     label: "Minimum of 8 characters",
-    labelTl: "Dapat hindi bababa sa 8 na letra o karakter",
     test: (pw) => pw.length >= 8,
   },
   {
     label: "At least one lowercase letter (e.g. abc)",
-    labelTl: "Dapat may isa mang maliit na letra (halimbawa: abc)",
     test: (pw) => /[a-z]/.test(pw),
   },
   {
     label: "At least one uppercase letter (e.g. ABC)",
-    labelTl: "Dapat may isa mang malaking letra (halimbawa: ABC)",
     test: (pw) => /[A-Z]/.test(pw),
   },
   {
     label: "At least one number (e.g. 123)",
-    labelTl: "Dapat may isa mang numero (halimbawa: 123)",
     test: (pw) => /\d/.test(pw),
   },
   {
     label: "At least one special character (! # $ ^ * @ - . < > _ & % + = ?)",
-    labelTl: "Dapat may isa mang espesyal na karakter (! # $ ^ * @ - . < > _ & % + = ?)",
     test: (pw) => /[!#$^*@\-.<>_&%+=?]/.test(pw),
   },
 ];
+
+
 const FacultyResetPassword = () => {
   const settings = useContext(SettingsContext);
 
@@ -290,13 +287,7 @@ const FacultyResetPassword = () => {
             <Typography sx={{ fontSize: { xs: 12, sm: 13 } }} color="text.secondary">
               Update your password to keep your account secure.
             </Typography>
-            <Typography
-              sx={{ fontSize: { xs: 11.5, sm: 12.5 }, mt: 0.25 }}
-              color="text.secondary"
-              fontStyle="italic"
-            >
-              I-update ang iyong password para mapanatiling secure ang iyong account.
-            </Typography>
+  
           </Box>
 
           <Divider sx={{ mb: 2 }} />
@@ -424,15 +415,15 @@ const FacultyResetPassword = () => {
           {/* ── Password form ── */}
           <form onSubmit={handleUpdate}>
             {[
-              { key: "current", label: "Current Password", labelTl: "Kasalukuyang Password", value: currentPassword, setter: setCurrentPassword },
-              { key: "new", label: "New Password", labelTl: "Bagong Password", value: newPassword, setter: setNewPassword },
-              { key: "confirm", label: "Confirm Password", labelTl: "Kumpirmahin ang Password", value: confirmPassword, setter: setConfirmPassword },
+          { key: "current", label: "Current Password", value: currentPassword, setter: setCurrentPassword },
+              { key: "new", label: "New Password",  value: newPassword, setter: setNewPassword },
+              { key: "confirm", label: "Confirm Password",  value: confirmPassword, setter: setConfirmPassword },
             ].map(({ key, label, labelTl, value, setter }) => (
               <Box mb={2} key={key}>
                 <InputLabel sx={{ fontSize: { xs: 13, sm: 14 } }}>
                   {label}{" "}
                   <Typography component="span" fontStyle="italic" color="text.secondary" sx={{ fontSize: { xs: 11.5, sm: 12.5 } }}>
-                    ({labelTl})
+                    {labelTl}
                   </Typography>
                 </InputLabel>
                 <TextField
@@ -461,14 +452,7 @@ const FacultyResetPassword = () => {
             <Typography variant="subtitle2" sx={{ mt: 2, mb: 0.25, fontSize: { xs: 12, sm: 14 } }}>
               Your new password must include:
             </Typography>
-            <Typography
-              variant="subtitle2"
-              fontStyle="italic"
-              color="text.secondary"
-              sx={{ mb: 1, fontSize: { xs: 11, sm: 12.5 }, fontWeight: 400 }}
-            >
-              Dapat kasama sa iyong bagong password ang mga sumusunod:
-            </Typography>
+
 
             <List dense disablePadding>
               {passwordRules.map((rule, i) => (
@@ -499,9 +483,7 @@ const FacultyResetPassword = () => {
             <Typography variant="body2" color="warning.main" sx={{ mt: 1, fontSize: { xs: 11, sm: 13 } }}>
               Note: You are required to change your password to continue using the system securely.
             </Typography>
-            <Typography variant="body2" color="warning.main" fontStyle="italic" sx={{ mb: 2, fontSize: { xs: 10.5, sm: 12.5 } }}>
-              Paalala: Kinakailangan mong palitan ang iyong password para magpatuloy nang secure sa paggamit ng sistema.
-            </Typography>
+    
 
             <Button
               type="submit"

@@ -3498,7 +3498,7 @@ const ApplicantPersonalInformation = (props) => {
                                 height: "192px",
                                 objectFit: "cover",
                                 border: `1px solid ${borderColor}`,
-                                borderRadius: 2,
+                          
                               }}
                             />
 
@@ -3521,7 +3521,7 @@ const ApplicantPersonalInformation = (props) => {
                               sx={{
                                 position: "absolute",
                                 top: -8,
-                                right: "calc(50% - 96px)",
+                                right: "calc(50% - 103px)",
                                 minWidth: 0,
                                 width: 28,
                                 height: 28,

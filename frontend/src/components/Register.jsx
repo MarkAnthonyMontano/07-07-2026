@@ -589,27 +589,22 @@ const MobileAnnouncementBanner = ({ slides }) => {
 const passwordRules = [
   {
     label: "Minimum of 8 characters",
-    labelTl: "Dapat hindi bababa sa 8 na letra o karakter",
     test: (pw) => pw.length >= 8,
   },
   {
     label: "At least one lowercase letter (e.g. abc)",
-    labelTl: "Dapat may isa mang maliit na letra (halimbawa: abc)",
     test: (pw) => /[a-z]/.test(pw),
   },
   {
     label: "At least one uppercase letter (e.g. ABC)",
-    labelTl: "Dapat may isa mang malaking letra (halimbawa: ABC)",
     test: (pw) => /[A-Z]/.test(pw),
   },
   {
     label: "At least one number (e.g. 123)",
-    labelTl: "Dapat may isa mang numero (halimbawa: 123)",
     test: (pw) => /\d/.test(pw),
   },
   {
     label: "At least one special character (! # $ ^ * @ - . < > _ & % + = ?)",
-    labelTl: "Dapat may isa mang espesyal na karakter (! # $ ^ * @ - . < > _ & % + = ?)",
     test: (pw) => /[!#$^*@\-.<>_&%+=?]/.test(pw),
   },
 ];
