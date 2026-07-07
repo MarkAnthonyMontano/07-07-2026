@@ -633,7 +633,7 @@ const PasswordRulesNotice = ({ password, isMobile, mainButtonColor, showChecklis
             We're showing this now so you get familiar with it early — the same rules will be
             required every time you make or change a password on this system.
           </Typography>
-      
+
         </Box>
       </Box>
 
@@ -670,7 +670,7 @@ const PasswordRulesNotice = ({ password, isMobile, mainButtonColor, showChecklis
                     fontStyle: "italic",
                     lineHeight: 1.45,
                   }}>
-                    
+
                   </Typography>
                 </Box>
               </Box>
@@ -840,7 +840,7 @@ const TotpSetupModal = ({
                     ? "One-time setup — Step 1 of 2"
                     : "Step 2 of 2 — Confirm & complete registration"}
                 </Typography>
-                
+
               </Box>
             </Box>
 
@@ -876,9 +876,7 @@ const TotpSetupModal = ({
               <Typography sx={{ mt: 2, color: "#666", fontSize: "14px" }}>
                 Generating your authenticator QR code…
               </Typography>
-              <Typography sx={{ mt: 0.5, color: "#999", fontSize: "12.5px", fontStyle: "italic" }}>
-                Ginagawa ang iyong QR code…
-              </Typography>
+
             </Box>
           )}
 
@@ -908,9 +906,7 @@ const TotpSetupModal = ({
                       <Typography fontSize={13} color="#444" fontWeight={600}>
                         1. Download and install <strong>Google Authenticator</strong>:
                       </Typography>
-                      <Typography fontSize={11.5} color="#888" fontStyle="italic">
-                        1. I-download at i-install ang <strong>Google Authenticator</strong>:
-                      </Typography>
+
                     </Box>
 
                     {/* Download buttons — each on its own row */}
@@ -959,9 +955,7 @@ const TotpSetupModal = ({
                       <Typography fontSize={13} color="#444" lineHeight={1.6}>
                         <strong>2.</strong> Open the app → tap <strong>"+"</strong> → <strong>"Scan a QR code"</strong>.
                       </Typography>
-                      <Typography fontSize={11.5} color="#888" fontStyle="italic" lineHeight={1.5}>
-                        <strong>2.</strong> Buksan ang app → pindutin ang <strong>"+"</strong> → <strong>"Scan a QR code"</strong>.
-                      </Typography>
+
                     </Box>
 
                     {/* Step 3 */}
@@ -969,9 +963,7 @@ const TotpSetupModal = ({
                       <Typography fontSize={13} color="#444" lineHeight={1.6}>
                         <strong>3.</strong> Scan the QR code shown on the right.
                       </Typography>
-                      <Typography fontSize={11.5} color="#888" fontStyle="italic" lineHeight={1.5}>
-                        <strong>3.</strong> I-scan ang QR code sa kanan.
-                      </Typography>
+
                     </Box>
 
                   </Box>
@@ -990,7 +982,7 @@ const TotpSetupModal = ({
                     >
                       {showManualKey ? "Hide manual key" : "Can't scan? Enter key manually"}
                     </button>
-                    
+
                     {showManualKey && (
                       <Box sx={{
                         mt: 1, p: "10px 14px",
@@ -1011,7 +1003,7 @@ const TotpSetupModal = ({
                         <Typography fontSize={11.5} color="#888" sx={{ mt: 0.5 }}>
                           In Google Authenticator: tap + → Enter a setup key → paste this key, select "Time based".
                         </Typography>
-                        
+
                       </>
                     )}
                   </Box>
@@ -1028,7 +1020,7 @@ const TotpSetupModal = ({
                     <Typography fontSize={12} color="#5d4037" lineHeight={1.5}>
                       This QR code expires in <strong>10 minutes</strong>. If it expires, close this dialog and click "Submit Application" again.
                     </Typography>
-                    
+
                   </Box>
                 </Box>
               </Box>
@@ -1131,7 +1123,7 @@ const TotpSetupModal = ({
                 >
                   I've scanned it — Enter the code →
                 </Button>
-                
+
               </Box>
             </Box>
           )}
@@ -1146,11 +1138,11 @@ const TotpSetupModal = ({
                 <Typography fontSize={13} color="#444" lineHeight={1.7}>
                   Open <strong>Google Authenticator</strong> on your phone and enter the <strong>6-digit code</strong> shown for this account.
                 </Typography>
-                
+
                 <Typography fontSize={12} color="#888" sx={{ mt: 0.8 }}>
                   The code refreshes every 30 seconds — use the current one.
                 </Typography>
-                
+
               </Box>
 
               {/* 6-digit input boxes */}
@@ -1211,7 +1203,7 @@ const TotpSetupModal = ({
                   </Box>
                 ) : "Verify & Complete Registration"}
               </Button>
-              
+
 
               {/* Back to QR scan */}
               <Button
@@ -1229,7 +1221,7 @@ const TotpSetupModal = ({
               >
                 ← Back to QR code
               </Button>
-              
+
             </>
           )}
         </Box>
@@ -2006,7 +1998,7 @@ const Register = () => {
                   <Typography fontSize={12.5} color="#1a237e" lineHeight={1.6}>
                     <strong>Two-factor authentication required.</strong> After clicking Submit, you will be asked to scan a QR code using <strong>Google Authenticator</strong> on your phone. Please have it ready.
                   </Typography>
-            
+
                 </Box>
               </Box>
 
@@ -2045,8 +2037,8 @@ const Register = () => {
                   if (!isSubmitting) handleRegister();
                 }}
                 style={{
-                  opacity: registrationOpen && branchSelected && !emailDomainSuggestion && emailDomainStatus !== "invalid" ? 1 : 0.5,
-                  cursor: emailDomainSuggestion || emailDomainStatus === "invalid" ? "not-allowed" : "pointer",
+                  opacity: reminderChecked && registrationOpen && branchSelected && !emailDomainSuggestion && emailDomainStatus !== "invalid" ? 1 : 0.5,
+                  cursor: !reminderChecked || emailDomainSuggestion || emailDomainStatus === "invalid" ? "not-allowed" : "pointer",
                   marginTop: isMobile ? "24px" : "40px",
                   backgroundColor: mainButtonColor,
                   height: "50px",
@@ -2062,11 +2054,13 @@ const Register = () => {
               >
                 {!registrationOpen
                   ? "REGISTRATION CLOSED"
-                  : emailDomainSuggestion || emailDomainStatus === "invalid"
-                    ? "FIX EMAIL TO CONTINUE"
-                    : isSubmitting
-                      ? "VALIDATING..."
-                      : "SUBMIT APPLICATION"}
+                  : !reminderChecked
+                    ? "AGREE TO TERMS TO CONTINUE"
+                    : emailDomainSuggestion || emailDomainStatus === "invalid"
+                      ? "FIX EMAIL TO CONTINUE"
+                      : isSubmitting
+                        ? "VALIDATING..."
+                        : "SUBMIT APPLICATION"}
               </div>
 
               <div className="LinkContainer RegistrationLink" style={{ margin: "0.1rem 0rem", fontSize: isMobile ? "13px" : undefined }}>

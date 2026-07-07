@@ -245,11 +245,7 @@ const TotpLoginModal = ({
                     ? "One-time setup — Step 1 of 2"
                     : "Step 2 of 2 — Confirm & complete registration"}
                 </Typography>
-                <Typography fontSize={11} color="rgba(255,255,255,0.7)" fontStyle="italic" lineHeight={1.3}>
-                  {step === "scan"
-                    ? "Isang beses na setup — Hakbang 1 ng 2"
-                    : "Hakbang 2 ng 2 — Kumpirmahin at tapusin ang pagpaparehistro"}
-                </Typography>
+            
               </Box>
             </Box>
 
@@ -285,9 +281,7 @@ const TotpLoginModal = ({
               <Typography sx={{ mt: 2, color: "#666", fontSize: "14px" }}>
                 Generating your authenticator QR code…
               </Typography>
-              <Typography sx={{ mt: 0.5, color: "#999", fontSize: "12.5px", fontStyle: "italic" }}>
-                Ginagawa ang iyong QR code…
-              </Typography>
+            
             </Box>
           )}
 
@@ -317,9 +311,7 @@ const TotpLoginModal = ({
                       <Typography fontSize={13} color="#444" fontWeight={600}>
                         1. Download and install <strong>Google Authenticator</strong>:
                       </Typography>
-                      <Typography fontSize={11.5} color="#888" fontStyle="italic">
-                        1. I-download at i-install ang <strong>Google Authenticator</strong>:
-                      </Typography>
+                    
                     </Box>
 
                     {/* Download buttons — each on its own row */}
@@ -368,9 +360,7 @@ const TotpLoginModal = ({
                       <Typography fontSize={13} color="#444" lineHeight={1.6}>
                         <strong>2.</strong> Open the app → tap <strong>"+"</strong> → <strong>"Scan a QR code"</strong>.
                       </Typography>
-                      <Typography fontSize={11.5} color="#888" fontStyle="italic" lineHeight={1.5}>
-                        <strong>2.</strong> Buksan ang app → pindutin ang <strong>"+"</strong> → <strong>"Scan a QR code"</strong>.
-                      </Typography>
+                  
                     </Box>
 
                     {/* Step 3 */}
@@ -378,9 +368,7 @@ const TotpLoginModal = ({
                       <Typography fontSize={13} color="#444" lineHeight={1.6}>
                         <strong>3.</strong> Scan the QR code shown on the right.
                       </Typography>
-                      <Typography fontSize={11.5} color="#888" fontStyle="italic" lineHeight={1.5}>
-                        <strong>3.</strong> I-scan ang QR code sa kanan.
-                      </Typography>
+                    
                     </Box>
 
                   </Box>
@@ -422,9 +410,7 @@ const TotpLoginModal = ({
                         <Typography fontSize={11.5} color="#888" sx={{ mt: 0.5 }}>
                           In Google Authenticator: tap + → Enter a setup key → paste this key, select "Time based".
                         </Typography>
-                        <Typography fontSize={11} color="#aaa" fontStyle="italic" sx={{ mt: 0.2 }}>
-                          Sa Google Authenticator: pindutin ang + → Enter a setup key → i-paste ang key na ito, piliin ang "Time based".
-                        </Typography>
+                    
                       </>
                     )}
                   </Box>
@@ -441,9 +427,7 @@ const TotpLoginModal = ({
                     <Typography fontSize={12} color="#5d4037" lineHeight={1.5}>
                       This QR code expires in <strong>10 minutes</strong>. If it expires, close this dialog and click "Submit Application" again.
                     </Typography>
-                    <Typography fontSize={11} color="#7a4a00" fontStyle="italic" lineHeight={1.5} sx={{ mt: 0.4 }}>
-                      Ang QR code na ito ay mag-e-expire sa loob ng <strong>10 minuto</strong>. Kung mag-expire ito, isara ang dialog na ito at pindutin muli ang "Submit Application".
-                    </Typography>
+                 
                   </Box>
                 </Box>
               </Box>
@@ -546,9 +530,7 @@ const TotpLoginModal = ({
                 >
                   I've scanned it — Enter the code →
                 </Button>
-                <Typography fontSize={11} color="#aaa" fontStyle="italic" textAlign="center" sx={{ mt: 0.7 }}>
-                  Na-scan ko na — Ilagay ang code →
-                </Typography>
+                
               </Box>
             </Box>
           )}
@@ -563,15 +545,11 @@ const TotpLoginModal = ({
                 <Typography fontSize={13} color="#444" lineHeight={1.7}>
                   Open <strong>Google Authenticator</strong> on your phone and enter the <strong>6-digit code</strong> shown for this account.
                 </Typography>
-                <Typography fontSize={11.5} color="#888" fontStyle="italic" lineHeight={1.6} sx={{ mt: 0.4 }}>
-                  Buksan ang <strong>Google Authenticator</strong> sa iyong telepono at ilagay ang <strong>6-digit na code</strong> na ipinapakita para sa account na ito.
-                </Typography>
+            
                 <Typography fontSize={12} color="#888" sx={{ mt: 0.8 }}>
                   The code refreshes every 30 seconds — use the current one.
                 </Typography>
-                <Typography fontSize={11} color="#aaa" fontStyle="italic" sx={{ mt: 0.2 }}>
-                  Nagbabago ang code kada 30 segundo — gamitin ang kasalukuyang code.
-                </Typography>
+              
               </Box>
 
               {/* 6-digit input boxes */}
@@ -652,9 +630,7 @@ const TotpLoginModal = ({
               >
                 ← Back to QR code
               </Button>
-              <Typography fontSize={10.5} color="#bbb" fontStyle="italic" textAlign="center" sx={{ mt: 0.5 }}>
-                ← Bumalik sa QR code
-              </Typography>
+          
             </>
           )}
         </Box>

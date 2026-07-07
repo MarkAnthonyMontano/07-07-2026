@@ -216,9 +216,9 @@ const ApplicantResetPassword = () => {
 
           <form onSubmit={handleUpdate}>
             {[
-             { key: "current", label: "Current Password", value: currentPassword, setter: setCurrentPassword },
-              { key: "new", label: "New Password",  value: newPassword, setter: setNewPassword },
-              { key: "confirm", label: "Confirm Password",  value: confirmPassword, setter: setConfirmPassword },
+              { key: "current", label: "Current Password", value: currentPassword, setter: setCurrentPassword },
+              { key: "new", label: "New Password", value: newPassword, setter: setNewPassword },
+              { key: "confirm", label: "Confirm Password", value: confirmPassword, setter: setConfirmPassword },
             ].map(({ label, labelTl, value, setter, field }) => (
               <Box mb={2} key={field}>
                 <InputLabel sx={{ fontSize: { xs: 13, sm: 14 } }}>
@@ -235,11 +235,7 @@ const ApplicantResetPassword = () => {
                   value={value}
                   onChange={(e) => setter(e.target.value)}
                   error={field === "confirm" && Boolean(confirmPassword && confirmPassword !== newPassword)}
-                  helperText={
-                    field === "confirm" && confirmPassword && confirmPassword !== newPassword
-                      ? "Passwords do not match / Hindi magkatugma ang password"
-                      : ""
-                  }
+                  helperText={key === "confirm" && confirmPassword && confirmPassword !== newPassword ? "Passwords do not match" : ""}
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">
@@ -256,7 +252,7 @@ const ApplicantResetPassword = () => {
             <Typography variant="subtitle2" sx={{ mt: 2, mb: 0.25, fontSize: { xs: 12, sm: 14 } }}>
               Your new password must include:
             </Typography>
-  
+
 
             <List dense disablePadding>
               {passwordRules.map((rule, i) => (
@@ -287,7 +283,7 @@ const ApplicantResetPassword = () => {
             <Typography variant="body2" color="warning.main" sx={{ mt: 1, fontSize: { xs: 11, sm: 13 } }}>
               Note: You are required to change your password to continue using the system securely.
             </Typography>
-    
+
             <Button
               type="submit"
               fullWidth

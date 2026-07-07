@@ -248,20 +248,20 @@ const ApplicantProfile = () => {
       return "";
     }
 
-    if (status === 0 || String(status).trim() === "0") return "WAITING LIST";
+    // if (status === 0 || String(status).trim() === "0") return "WAITING LIST";
     if (status === 1 || String(status).trim() === "1") return "ACCEPTED";
     if (status === 2 || String(status).trim() === "2") return "REJECTED";
 
     const normalized = String(status).trim().toUpperCase();
     if (normalized === "ACCEPTED") return "ACCEPTED";
     if (normalized === "REJECTED") return "REJECTED";
-    if (
-      normalized === "WAITING LIST" ||
-      normalized === "WAITING" ||
-      normalized === "ON PROCESS"
-    ) {
-      return "WAITING LIST";
-    }
+    // if (
+    //   normalized === "WAITING LIST" ||
+    //   normalized === "WAITING" ||
+    //   normalized === "ON PROCESS"
+    // ) {
+    //   return "WAITING LIST";
+    // }
 
     return "";
   };
@@ -431,12 +431,13 @@ const ApplicantProfile = () => {
           "❌ The applicant has been rejected by the college.",
           "error"
         );
-      } else if (collegeApprovalStatus === "WAITING LIST") {
-        showSnackbar(
-          "⏳ The applicant is on the waiting list for college approval.",
-          "info"
-        );
       }
+      // } else if (collegeApprovalStatus === "WAITING LIST") {
+      //   showSnackbar(
+      //     "⏳ The applicant is on the waiting list for college approval.",
+      //     "info"
+      //   );
+      // }
 
       if (isRegistrarApproved) {
         showSnackbar(
