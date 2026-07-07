@@ -633,13 +633,7 @@ const PasswordRulesNotice = ({ password, isMobile, mainButtonColor, showChecklis
             We're showing this now so you get familiar with it early — the same rules will be
             required every time you make or change a password on this system.
           </Typography>
-          <Typography sx={{ fontSize: isMobile ? "12px" : "13px", color: "#7a4a00", fontWeight: 700, lineHeight: 1.5, mt: 1 }}>
-            MAHALAGA: Kailangang sundin ang LAHAT ng patakaran sa ibaba para sa iyong password.
-          </Typography>
-          <Typography sx={{ fontSize: isMobile ? "11.5px" : "12.5px", color: "#7a4a00", lineHeight: 1.6, mt: 0.4 }}>
-            Ipinapakita namin ito ngayon para masanay ka na — ang parehong mga patakaran ay
-            gagamitin din sa tuwing gagawa o magbabago ka ng password sa sistemang ito.
-          </Typography>
+      
         </Box>
       </Box>
 
@@ -650,7 +644,7 @@ const PasswordRulesNotice = ({ password, isMobile, mainButtonColor, showChecklis
           p: 1.5, bgcolor: "#fafafa",
         }}>
           <Typography sx={{ fontSize: isMobile ? "11px" : "12px", color: "#666", fontWeight: 700, mb: 1, letterSpacing: "0.03em" }}>
-            PASSWORD REQUIREMENTS / MGA KINAKAILANGAN SA PASSWORD
+            PASSWORD REQUIREMENTS
           </Typography>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 0.9 }}>
             {results.map((rule, i) => (
@@ -676,7 +670,7 @@ const PasswordRulesNotice = ({ password, isMobile, mainButtonColor, showChecklis
                     fontStyle: "italic",
                     lineHeight: 1.45,
                   }}>
-                    {rule.labelTl}
+                    
                   </Typography>
                 </Box>
               </Box>
@@ -769,7 +763,7 @@ const TotpSetupModal = ({
   const handleVerifyAndRegister = async () => {
     const code = totpCode.join("");
     if (!/^\d{6}$/.test(code)) {
-      setError("Please enter the complete 6-digit code from Google Authenticator. / Pakilagay ang kumpletong 6-digit na code mula sa Google Authenticator.");
+      setError("Please enter the complete 6-digit code from Google Authenticator.");
       return;
     }
     setError("");
@@ -846,11 +840,7 @@ const TotpSetupModal = ({
                     ? "One-time setup — Step 1 of 2"
                     : "Step 2 of 2 — Confirm & complete registration"}
                 </Typography>
-                <Typography fontSize={11} color="rgba(255,255,255,0.7)" fontStyle="italic" lineHeight={1.3}>
-                  {step === "scan"
-                    ? "Isang beses na setup — Hakbang 1 ng 2"
-                    : "Hakbang 2 ng 2 — Kumpirmahin at tapusin ang pagpaparehistro"}
-                </Typography>
+                
               </Box>
             </Box>
 
@@ -1000,9 +990,7 @@ const TotpSetupModal = ({
                     >
                       {showManualKey ? "Hide manual key" : "Can't scan? Enter key manually"}
                     </button>
-                    <Typography fontSize={11} color="#aaa" fontStyle="italic" sx={{ mt: 0.3 }}>
-                      {showManualKey ? "Itago ang manual key" : "Hindi ma-scan? Ilagay ang key nang manu-mano"}
-                    </Typography>
+                    
                     {showManualKey && (
                       <Box sx={{
                         mt: 1, p: "10px 14px",
@@ -1023,9 +1011,7 @@ const TotpSetupModal = ({
                         <Typography fontSize={11.5} color="#888" sx={{ mt: 0.5 }}>
                           In Google Authenticator: tap + → Enter a setup key → paste this key, select "Time based".
                         </Typography>
-                        <Typography fontSize={11} color="#aaa" fontStyle="italic" sx={{ mt: 0.2 }}>
-                          Sa Google Authenticator: pindutin ang + → Enter a setup key → i-paste ang key na ito, piliin ang "Time based".
-                        </Typography>
+                        
                       </>
                     )}
                   </Box>
@@ -1042,9 +1028,7 @@ const TotpSetupModal = ({
                     <Typography fontSize={12} color="#5d4037" lineHeight={1.5}>
                       This QR code expires in <strong>10 minutes</strong>. If it expires, close this dialog and click "Submit Application" again.
                     </Typography>
-                    <Typography fontSize={11} color="#7a4a00" fontStyle="italic" lineHeight={1.5} sx={{ mt: 0.4 }}>
-                      Ang QR code na ito ay mag-e-expire sa loob ng <strong>10 minuto</strong>. Kung mag-expire ito, isara ang dialog na ito at pindutin muli ang "Submit Application".
-                    </Typography>
+                    
                   </Box>
                 </Box>
               </Box>
@@ -1147,9 +1131,7 @@ const TotpSetupModal = ({
                 >
                   I've scanned it — Enter the code →
                 </Button>
-                <Typography fontSize={11} color="#aaa" fontStyle="italic" textAlign="center" sx={{ mt: 0.7 }}>
-                  Na-scan ko na — Ilagay ang code →
-                </Typography>
+                
               </Box>
             </Box>
           )}
@@ -1164,15 +1146,11 @@ const TotpSetupModal = ({
                 <Typography fontSize={13} color="#444" lineHeight={1.7}>
                   Open <strong>Google Authenticator</strong> on your phone and enter the <strong>6-digit code</strong> shown for this account.
                 </Typography>
-                <Typography fontSize={11.5} color="#888" fontStyle="italic" lineHeight={1.6} sx={{ mt: 0.4 }}>
-                  Buksan ang <strong>Google Authenticator</strong> sa iyong telepono at ilagay ang <strong>6-digit na code</strong> na ipinapakita para sa account na ito.
-                </Typography>
+                
                 <Typography fontSize={12} color="#888" sx={{ mt: 0.8 }}>
                   The code refreshes every 30 seconds — use the current one.
                 </Typography>
-                <Typography fontSize={11} color="#aaa" fontStyle="italic" sx={{ mt: 0.2 }}>
-                  Nagbabago ang code kada 30 segundo — gamitin ang kasalukuyang code.
-                </Typography>
+                
               </Box>
 
               {/* 6-digit input boxes */}
@@ -1233,9 +1211,7 @@ const TotpSetupModal = ({
                   </Box>
                 ) : "Verify & Complete Registration"}
               </Button>
-              <Typography fontSize={11} color="#aaa" fontStyle="italic" textAlign="center" sx={{ mb: 1.5 }}>
-                {step === "submitting" ? "Nirerehistro…" : "I-verify at Tapusin ang Pagpaparehistro"}
-              </Typography>
+              
 
               {/* Back to QR scan */}
               <Button
@@ -1253,9 +1229,7 @@ const TotpSetupModal = ({
               >
                 ← Back to QR code
               </Button>
-              <Typography fontSize={10.5} color="#bbb" fontStyle="italic" textAlign="center" sx={{ mt: 0.5 }}>
-                ← Bumalik sa QR code
-              </Typography>
+              
             </>
           )}
         </Box>
@@ -1515,7 +1489,7 @@ const Register = () => {
     if (usersData.password && !allPasswordRulesPassed) {
       setSnack({
         open: true,
-        message: "Your password doesn't meet all the requirements yet. Please check the checklist below the password field. / Hindi pa kompleto ang password mo — pakitingnan ang checklist sa ibaba ng password field.",
+        message: "Your password doesn't meet all the requirements yet. Please check the checklist below the password field.",
         severity: "warning",
       });
       return;
@@ -1991,7 +1965,7 @@ const Register = () => {
                   </button>
                   {errors.passwordRules && (
                     <span style={{ color: "red", fontSize: "12px" }}>
-                      Password does not meet all requirements / Hindi pa kumpleto ang password
+                      Password does not meet all requirements
                     </span>
                   )}
                   {!errors.passwordRules && errors.password && (
@@ -2032,9 +2006,7 @@ const Register = () => {
                   <Typography fontSize={12.5} color="#1a237e" lineHeight={1.6}>
                     <strong>Two-factor authentication required.</strong> After clicking Submit, you will be asked to scan a QR code using <strong>Google Authenticator</strong> on your phone. Please have it ready.
                   </Typography>
-                  <Typography fontSize={11.5} color="#3949ab" fontStyle="italic" lineHeight={1.6} sx={{ mt: 0.4 }}>
-                    <strong>Kailangan ang two-factor authentication.</strong> Pagkatapos i-click ang Submit, hihilingin sa iyong mag-scan ng QR code gamit ang <strong>Google Authenticator</strong> sa iyong telepono. Ihanda na ito.
-                  </Typography>
+            
                 </Box>
               </Box>
 
